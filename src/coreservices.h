@@ -85,6 +85,10 @@ class CoreServices : public QObject {
         return m_pLibrary;
     }
 
+    AnnouncementManager* getAnnouncementManager() const {
+        return m_pAnnouncementManager.get();
+    }
+
     std::shared_ptr<TrackCollectionManager> getTrackCollectionManager() const {
         return m_pTrackCollectionManager;
     }

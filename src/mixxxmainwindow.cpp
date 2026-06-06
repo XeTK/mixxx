@@ -25,6 +25,7 @@
 
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "coreservices.h"
+#include "util/announcementmanager.h"
 #include "defs_urls.h"
 #include "dialog/dlgabout.h"
 #include "dialog/dlgdevelopertools.h"
@@ -316,6 +317,11 @@ void MixxxMainWindow::initialize() {
             &MixxxMainWindow::skinLoaded,
             WaveformWidgetFactory::instance(),
             &WaveformWidgetFactory::slotSkinLoaded);
+
+    connect(this,
+            &MixxxMainWindow::skinLoaded,
+            m_pCoreServices->getAnnouncementManager(),
+            &AnnouncementManager::slotSkinLoaded);
 
     // Initialize preference dialog
     m_pPrefDlg = new DlgPreferences(

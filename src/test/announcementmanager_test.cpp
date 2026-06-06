@@ -4,11 +4,13 @@
 
 #include <QCoreApplication>
 
+#include "audio/types.h"
 #include "control/controlobject.h"
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
 #include "test/mixxxtest.h"
 #include "track/track.h"
+#include "util/duration.h"
 #include "util/ttsengine.h"
 
 namespace {
@@ -55,6 +57,11 @@ TrackPointer makeTrack(const QString& artist,
     pTrack->setArtist(artist);
     pTrack->setTitle(title);
     if (bpm > 0.0) {
+        pTrack->setAudioProperties(
+                mixxx::audio::ChannelCount(2),
+                mixxx::audio::SampleRate(44100),
+                mixxx::audio::Bitrate(),
+                mixxx::Duration::fromSeconds(60));
         pTrack->trySetBpm(bpm);
     }
     if (!key.isEmpty()) {
@@ -211,4 +218,131 @@ TEST_F(AnnouncementManagerTest, AnnounceSelection_NullTrackIgnored) {
     m_pManager->slotTrackSelected(TrackPointer());
     m_pManager->slotAnnounceSelectedTrack();
     EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Playstate announcements (play / stop / end-of-track)
+//
+// These tests drive the CO observers that connectGroupControls() wires up.
+// The test group COs are created explicitly so no real deck is needed.
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
+  protected:
+    static constexpr const char* kGroup = "[TestChannel1]";
+
+    // Call after makeManager() to create the group COs and wire up the
+    // observers. hasTrack controls whether the deck is seen as loaded.
+    void setupGroup(bool hasTrack = true) {
+        m_pPlay = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("play")));
+        m_pEndOfTrack = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("end_of_track")));
+        m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
+        m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
+    }
+
+    void setPlay(double v) {
+        m_pPlay->set(v);
+        QCoreApplication::processEvents();
+    }
+
+    void setEndOfTrack(double v) {
+        m_pEndOfTrack->set(v);
+        QCoreApplication::processEvents();
+    }
+
+    std::unique_ptr<ControlObject> m_pPlay;
+    std::unique_ptr<ControlObject> m_pEndOfTrack;
+};
+
+TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_AnnouncesPlaying) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_NoTrackLoaded_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/false);
+
+    setPlay(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlay")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PlayStopped_AnnouncesStopped) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0); // → "Playing"
+    pSpy->callCount = 0;
+    setPlay(0.0); // → "Stopped"
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Stopped", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PlayStopped_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceStop")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    setPlay(0.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_AnnouncesEndOfTrack) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setEndOfTrack(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceEndOfTrack")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setEndOfTrack(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// When a track reaches its end the end_of_track CO fires first (→ "End of
+// track"), then play drops to 0.  The stop handler must NOT also say "Stopped".
+TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);       // "Playing" — callCount = 1
+    setEndOfTrack(1.0); // "End of track" — callCount = 2
+    setPlay(0.0);       // play→0 while end_of_track=1; "Stopped" must be suppressed
+
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
 }

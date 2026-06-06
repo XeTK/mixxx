@@ -40,10 +40,17 @@ class AnnouncementManager : public QObject {
     void slotAnnounceSelectedTrack();
     void slotNewTrackLoaded(TrackPointer pTrack);
     void slotNumberOfDecksChanged(int decks);
+    void slotSkinLoaded();
+    void slotLibraryFocusChanged(double value);
 
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
     static QString formatForLoad(TrackPointer pTrack);
+
+    // Test helpers: allow tests to wire up CO observers for a synthetic group
+    // without needing a real BaseTrackPlayer.
+    void connectGroupControls(const QString& group);
+    void setDeckHasTrack(const QString& group, bool value);
 
   private:
     void connectDeck(int deckIndex);
