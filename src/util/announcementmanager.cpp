@@ -2,6 +2,7 @@
 
 #include "control/controlproxy.h"
 #include "library/library.h"
+#include "library/library_decl.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
@@ -65,30 +66,18 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         connectDeck(i);
     }
     m_connectedDecks = numDecks;
+
+    auto* pFocusedWidget = make_parented<ControlProxy>(
+            QStringLiteral("[Library]"),
+            QStringLiteral("focused_widget"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pFocusedWidget->connectValueChanged(this, &AnnouncementManager::slotLibraryFocusChanged);
 }
 
 AnnouncementManager::~AnnouncementManager() = default;
 
-void AnnouncementManager::connectDeck(int deckIndex) {
-    BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(deckIndex);
-    if (!pDeck) {
-        return;
-    }
-    const QString group = pDeck->getGroup();
-
-    connect(pDeck,
-            &BaseTrackPlayer::newTrackLoaded,
-            this,
-            &AnnouncementManager::slotNewTrackLoaded);
-
-    connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
-        m_deckHasTrack[group] = true;
-    });
-    connect(pDeck, &BaseTrackPlayer::trackUnloaded, this, [this, group](TrackPointer) {
-        m_deckHasTrack[group] = false;
-        m_deckIsPlaying[group] = false;
-    });
-
+void AnnouncementManager::connectGroupControls(const QString& group) {
     auto* pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
     pPlay->connectValueChanged(this, [this, group](double value) {
         const bool nowPlaying = value > 0.0;
@@ -118,6 +107,37 @@ void AnnouncementManager::connectDeck(int deckIndex) {
             m_pTts->say(QStringLiteral("End of track"));
         }
     });
+}
+
+void AnnouncementManager::setDeckHasTrack(const QString& group, bool value) {
+    m_deckHasTrack[group] = value;
+}
+
+void AnnouncementManager::connectDeck(int deckIndex) {
+    BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(deckIndex);
+    if (!pDeck) {
+        return;
+    }
+    const QString group = pDeck->getGroup();
+
+    // Pre-populate for tracks that were already loaded before this manager
+    // was created (e.g. session restore at startup).
+    m_deckHasTrack[group] = (pDeck->getLoadedTrack() != nullptr);
+
+    connect(pDeck,
+            &BaseTrackPlayer::newTrackLoaded,
+            this,
+            &AnnouncementManager::slotNewTrackLoaded);
+
+    connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = true;
+    });
+    connect(pDeck, &BaseTrackPlayer::trackUnloaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = false;
+        m_deckIsPlaying[group] = false;
+    });
+
+    connectGroupControls(group);
 }
 
 void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
@@ -155,6 +175,29 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
         return artist;
     }
     return artist + QStringLiteral(", ") + title;
+}
+
+void AnnouncementManager::slotSkinLoaded() {
+    m_pTts->say(QStringLiteral("Mixxx ready"));
+}
+
+void AnnouncementManager::slotLibraryFocusChanged(double value) {
+    if (!m_settings.getAnnounceLibraryFocus()) {
+        return;
+    }
+    switch (static_cast<FocusWidget>(static_cast<int>(value))) {
+    case FocusWidget::Searchbar:
+        m_pTts->say(QStringLiteral("Search bar"));
+        break;
+    case FocusWidget::Sidebar:
+        m_pTts->say(QStringLiteral("Sidebar"));
+        break;
+    case FocusWidget::TracksTable:
+        m_pTts->say(QStringLiteral("Track list"));
+        break;
+    default:
+        break;
+    }
 }
 
 // static

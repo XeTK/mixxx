@@ -38,6 +38,12 @@ class AccessibilitySettings {
             "AnnounceEndOfTrack",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceLibraryFocus,
+            bool,
+            "[Accessibility]",
+            "AnnounceLibraryFocus",
+            true);
+
   private:
     UserSettingsPointer m_pConfig;
 };
