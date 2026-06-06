@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>300</height>
+    <height>420</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -37,6 +37,45 @@
         </property>
         <property name="text">
          <string>Announce track when loaded to a deck</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBoxPlayback">
+     <property name="title">
+      <string>Playback Event Announcements</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutPlayback">
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnouncePlay">
+        <property name="toolTip">
+         <string>Speak "Playing" when a deck starts playing.</string>
+        </property>
+        <property name="text">
+         <string>Announce when playback starts</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceStop">
+        <property name="toolTip">
+         <string>Speak "Stopped" when a deck is paused by the user.</string>
+        </property>
+        <property name="text">
+         <string>Announce when playback stops</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceEndOfTrack">
+        <property name="toolTip">
+         <string>Speak "End of track" when a track reaches the end.</string>
+        </property>
+        <property name="text">
+         <string>Announce end of track</string>
         </property>
        </widget>
       </item>
