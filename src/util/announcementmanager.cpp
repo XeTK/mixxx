@@ -1,11 +1,13 @@
 #include "util/announcementmanager.h"
 
+#include "control/controlproxy.h"
 #include "library/library.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
 #include "track/keyutils.h"
 #include "track/track.h"
+#include "util/parented_ptr.h"
 #include "util/ttsengine.h"
 
 namespace {
@@ -58,7 +60,6 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             &AnnouncementManager::slotNumberOfDecksChanged);
 
-    // Connect decks that already exist at startup.
     const int numDecks = pPlayerManager->numberOfDecks();
     for (int i = 1; i <= numDecks; ++i) {
         connectDeck(i);
@@ -73,10 +74,50 @@ void AnnouncementManager::connectDeck(int deckIndex) {
     if (!pDeck) {
         return;
     }
+    const QString group = pDeck->getGroup();
+
     connect(pDeck,
             &BaseTrackPlayer::newTrackLoaded,
             this,
             &AnnouncementManager::slotNewTrackLoaded);
+
+    connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = true;
+    });
+    connect(pDeck, &BaseTrackPlayer::trackUnloaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = false;
+        m_deckIsPlaying[group] = false;
+    });
+
+    auto* pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    pPlay->connectValueChanged(this, [this, group](double value) {
+        const bool nowPlaying = value > 0.0;
+        const bool wasPlaying = m_deckIsPlaying.value(group, false);
+        const bool hasTrack = m_deckHasTrack.value(group, false);
+
+        if (nowPlaying && !wasPlaying && hasTrack && m_settings.getAnnouncePlay()) {
+            m_pTts->say(QStringLiteral("Playing"));
+        } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
+            // Suppress the stop announcement when end-of-track fired it —
+            // the end-of-track announcement already covered this transition.
+            const bool atEnd = ControlProxy(group, QStringLiteral("end_of_track"),
+                                       nullptr,
+                                       ControlFlag::AllowMissingOrInvalid)
+                                       .toBool();
+            if (!atEnd) {
+                m_pTts->say(QStringLiteral("Stopped"));
+            }
+        }
+        m_deckIsPlaying[group] = nowPlaying;
+    });
+
+    auto* pEndOfTrack = make_parented<ControlProxy>(
+            group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
+    pEndOfTrack->connectValueChanged(this, [this](double value) {
+        if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
+            m_pTts->say(QStringLiteral("End of track"));
+        }
+    });
 }
 
 void AnnouncementManager::slotNumberOfDecksChanged(int decks) {

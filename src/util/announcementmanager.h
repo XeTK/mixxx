@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -54,4 +55,8 @@ class AnnouncementManager : public QObject {
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
     int m_connectedDecks{0};
+
+    // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
+    QHash<QString, bool> m_deckHasTrack;
+    QHash<QString, bool> m_deckIsPlaying;
 };
