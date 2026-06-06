@@ -3,6 +3,7 @@
 #include "library/library.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
+#include "moc_announcementmanager.cpp"
 #include "track/keyutils.h"
 #include "track/track.h"
 #include "util/ttsengine.h"
