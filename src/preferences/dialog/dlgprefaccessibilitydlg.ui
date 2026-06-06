@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DlgAccessibilityDlg</class>
+ <widget class="QWidget" name="DlgAccessibilityDlg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>480</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Accessibility Preferences</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="groupBoxTts">
+     <property name="title">
+      <string>Track Announcements (Text-to-Speech)</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutTts">
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceSelection">
+        <property name="toolTip">
+         <string>Speak the artist and title of a track when it is selected in the library.</string>
+        </property>
+        <property name="text">
+         <string>Announce track when selected in library</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceLoad">
+        <property name="toolTip">
+         <string>Speak the artist, title, BPM, and key of a track when it is loaded to a deck.</string>
+        </property>
+        <property name="text">
+         <string>Announce track when loaded to a deck</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
