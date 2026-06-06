@@ -51,6 +51,7 @@
 #endif
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
+#include "util/announcementmanager.h"
 #include "util/clipboard.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/font.h"
@@ -637,6 +638,9 @@ void CoreServices::initialize(QApplication* pApp) {
     // been created. Otherwise Mixxx might hang when accessing
     // the uninitialized singleton instance!
     m_pPlayerManager->bindToLibrary(m_pLibrary.get());
+
+    m_pAnnouncementManager = std::make_unique<AnnouncementManager>(
+            m_pLibrary.get(), m_pPlayerManager.get(), this);
 
     bool musicDirAdded = false;
 
