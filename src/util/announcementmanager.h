@@ -21,19 +21,32 @@ class AnnouncementManager : public QObject {
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
             QObject* parent = nullptr);
+
+    // Constructor for testing: accepts a pre-built TtsEngine so tests can
+    // inject a spy without going through TtsEngine::create().
+    AnnouncementManager(Library* pLibrary,
+            PlayerManagerInterface* pPlayerManager,
+            UserSettingsPointer pConfig,
+            std::unique_ptr<TtsEngine> pTts,
+            QObject* parent = nullptr);
+
     ~AnnouncementManager() override;
 
-  private slots:
+    // Exposed as public so tests can drive the slots directly without needing
+    // a real Library or live signal connections.
+  public slots:
     void slotTrackSelected(TrackPointer pTrack);
     void slotAnnounceSelectedTrack();
     void slotNewTrackLoaded(TrackPointer pTrack);
     void slotNumberOfDecksChanged(int decks);
 
-  private:
-    void connectDeck(int deckIndex);
-
+    // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
     static QString formatForLoad(TrackPointer pTrack);
+
+  private:
+    void connectDeck(int deckIndex);
+    void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
 
     std::unique_ptr<TtsEngine> m_pTts;
     AccessibilitySettings m_settings;

@@ -21,6 +21,23 @@ AnnouncementManager::AnnouncementManager(
           m_pTts(TtsEngine::create()),
           m_settings(pConfig),
           m_pPlayerManager(pPlayerManager) {
+    init(pLibrary, pPlayerManager);
+}
+
+AnnouncementManager::AnnouncementManager(
+        Library* pLibrary,
+        PlayerManagerInterface* pPlayerManager,
+        UserSettingsPointer pConfig,
+        std::unique_ptr<TtsEngine> pTts,
+        QObject* parent)
+        : QObject(parent),
+          m_pTts(std::move(pTts)),
+          m_settings(pConfig),
+          m_pPlayerManager(pPlayerManager) {
+    init(pLibrary, pPlayerManager);
+}
+
+void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlayerManager) {
     m_selectionDebounce.setSingleShot(true);
     m_selectionDebounce.setInterval(kSelectionDebounceMs);
 
@@ -29,10 +46,12 @@ AnnouncementManager::AnnouncementManager(
             this,
             &AnnouncementManager::slotAnnounceSelectedTrack);
 
-    connect(pLibrary,
-            &Library::trackSelected,
-            this,
-            &AnnouncementManager::slotTrackSelected);
+    if (pLibrary) {
+        connect(pLibrary,
+                &Library::trackSelected,
+                this,
+                &AnnouncementManager::slotTrackSelected);
+    }
 
     connect(pPlayerManager,
             &PlayerManagerInterface::numberOfDecksChanged,
