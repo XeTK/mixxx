@@ -597,6 +597,7 @@ TEST_F(CueControlTest, DisablePreRoll_NegativeCuePoint_GatedCueStartsPlay) {
     // while paused at track start must start gated playback even when the
     // stored main cue position is negative (i.e. in pre-roll space).
     ControlProxy disablePreRoll(m_sGroup1, "disable_preroll");
+    ControlProxy cueCdj(m_sGroup1, "cue_cdj");
     ControlProxy play(m_sGroup1, "play");
 
     disablePreRoll.set(1.0);
@@ -614,7 +615,7 @@ TEST_F(CueControlTest, DisablePreRoll_NegativeCuePoint_GatedCueStartsPlay) {
 
     // Press CDJ CUE. With the fix, getTrackAt() should recognise that the
     // deck is effectively at the cue point (both at 0) and start gated play.
-    m_pChannel1->getEngineBuffer()->m_pCueControl->cueCDJ(1.0);
+    cueCdj.set(1.0);
     ProcessBuffer();
 
     EXPECT_TRUE(play.toBool());
@@ -639,6 +640,7 @@ TEST_F(CueControlTest, DisablePreRoll_Off_NegativeCuePoint_NormalBehavior) {
     // With disable_preroll disabled, a CDJ CUE press while paused away from
     // the cue should move the cue to the current position (existing behaviour).
     ControlProxy disablePreRoll(m_sGroup1, "disable_preroll");
+    ControlProxy cueCdj(m_sGroup1, "cue_cdj");
     ControlProxy play(m_sGroup1, "play");
 
     disablePreRoll.set(0.0);
@@ -650,7 +652,7 @@ TEST_F(CueControlTest, DisablePreRoll_Off_NegativeCuePoint_NormalBehavior) {
     // Manually move away from the cue.
     setCurrentFramePos(mixxx::audio::FramePos(100.0));
 
-    m_pChannel1->getEngineBuffer()->m_pCueControl->cueCDJ(1.0);
+    cueCdj.set(1.0);
     ProcessBuffer();
 
     // CDJ CUE when not at cue point and not playing → cueSet, no play.
