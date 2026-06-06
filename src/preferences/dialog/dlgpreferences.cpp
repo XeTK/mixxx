@@ -34,6 +34,7 @@
 #include "preferences/dialog/dlgprefbroadcast.h"
 #endif // __BROADCAST__
 
+#include "preferences/dialog/dlgprefaccessibility.h"
 #include "preferences/dialog/dlgprefbeats.h"
 #include "preferences/dialog/dlgprefkey.h"
 #include "preferences/dialog/dlgprefrecord.h"
@@ -236,6 +237,12 @@ DlgPreferences::DlgPreferences(
             tr("Modplug Decoder"),
             "ic_preferences_modplug.svg");
 #endif // __MODPLUG__
+
+    addPageWidget(PreferencesPage(
+                          new DlgPrefAccessibility(this, m_pConfig),
+                          new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
+            tr("Accessibility"),
+            "ic_preferences_interface.svg");
 
     // Find accept and apply buttons
     const auto buttons = buttonBox->buttons();

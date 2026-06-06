@@ -6,6 +6,8 @@
 #include <QString>
 #include <QTimer>
 
+#include "preferences/accessibilitysettings.h"
+#include "preferences/usersettings.h"
 #include "track/track_decl.h"
 
 class Library;
@@ -17,6 +19,7 @@ class AnnouncementManager : public QObject {
   public:
     AnnouncementManager(Library* pLibrary,
             PlayerManagerInterface* pPlayerManager,
+            UserSettingsPointer pConfig,
             QObject* parent = nullptr);
     ~AnnouncementManager() override;
 
@@ -33,6 +36,7 @@ class AnnouncementManager : public QObject {
     static QString formatForLoad(TrackPointer pTrack);
 
     std::unique_ptr<TtsEngine> m_pTts;
+    AccessibilitySettings m_settings;
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;

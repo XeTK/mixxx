@@ -15,9 +15,11 @@ constexpr int kSelectionDebounceMs = 400;
 AnnouncementManager::AnnouncementManager(
         Library* pLibrary,
         PlayerManagerInterface* pPlayerManager,
+        UserSettingsPointer pConfig,
         QObject* parent)
         : QObject(parent),
           m_pTts(TtsEngine::create()),
+          m_settings(pConfig),
           m_pPlayerManager(pPlayerManager) {
     m_selectionDebounce.setSingleShot(true);
     m_selectionDebounce.setInterval(kSelectionDebounceMs);
@@ -71,13 +73,13 @@ void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
 }
 
 void AnnouncementManager::slotAnnounceSelectedTrack() {
-    if (m_pendingTrack) {
+    if (m_pendingTrack && m_settings.getAnnounceTrackSelection()) {
         m_pTts->say(formatForBrowsing(m_pendingTrack));
     }
 }
 
 void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack) {
-    if (pTrack) {
+    if (pTrack && m_settings.getAnnounceTrackLoad()) {
         m_pTts->say(formatForLoad(pTrack));
     }
 }
