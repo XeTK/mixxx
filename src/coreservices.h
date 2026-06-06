@@ -5,6 +5,7 @@
 #include "preferences/settingsmanager.h"
 #include "util/timer.h"
 
+class AnnouncementManager;
 class QApplication;
 class CmdlineArgs;
 class KeyboardEventFilter;
@@ -141,6 +142,8 @@ class CoreServices : public QObject {
     std::shared_ptr<DbConnectionPool> m_pDbConnectionPool;
     std::shared_ptr<TrackCollectionManager> m_pTrackCollectionManager;
     std::shared_ptr<Library> m_pLibrary;
+
+    std::unique_ptr<AnnouncementManager> m_pAnnouncementManager;
 
     std::shared_ptr<KeyboardEventFilter> m_pKeyboardEventFilter;
     std::shared_ptr<ConfigObject<ConfigValueKbd>> m_pKbdConfig;
