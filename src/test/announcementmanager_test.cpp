@@ -129,36 +129,48 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_FullInfo) {
             QStringLiteral("Windowlicker"),
             128.0,
             QStringLiteral("A minor"));
+    // getKeyText() returns Mixxx's short notation ("Am") regardless of input form.
     EXPECT_QSTRING_EQ(
-            "Loaded. Aphex Twin. Windowlicker. 128 B P M. Key: A minor.",
-            AnnouncementManager::formatForLoad(pTrack));
+            "Loaded A. Aphex Twin. Windowlicker. 128 B P M. Key: Am.",
+            AnnouncementManager::formatForLoad(pTrack, 0));
+}
+
+TEST_F(AnnouncementManagerTest, FormatForLoad_DeckLetter) {
+    auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral(""));
+    EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 0).startsWith(
+            QStringLiteral("Loaded A")));
+    EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 1).startsWith(
+            QStringLiteral("Loaded B")));
+    EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 2).startsWith(
+            QStringLiteral("Loaded C")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_NoBpm) {
     auto pTrack = makeTrack(
             QStringLiteral("Aphex Twin"), QStringLiteral("Windowlicker"), 0.0, QStringLiteral("A minor"));
-    const QString result = AnnouncementManager::formatForLoad(pTrack);
-    EXPECT_TRUE(result.contains(QStringLiteral("Loaded.")));
+    const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
+    EXPECT_TRUE(result.contains(QStringLiteral("Loaded A")));
     EXPECT_FALSE(result.contains(QStringLiteral("B P M")));
-    EXPECT_TRUE(result.contains(QStringLiteral("Key: A minor")));
+    EXPECT_TRUE(result.contains(QStringLiteral("Key:")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_NoKey) {
     auto pTrack = makeTrack(QStringLiteral("Aphex Twin"), QStringLiteral("Windowlicker"), 128.0);
-    const QString result = AnnouncementManager::formatForLoad(pTrack);
+    const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
     EXPECT_TRUE(result.contains(QStringLiteral("128 B P M")));
     EXPECT_FALSE(result.contains(QStringLiteral("Key:")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_BpmRoundsToNearest) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral(""), 128.6);
-    EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack).contains(QStringLiteral("129 B P M")));
+    EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 0).contains(
+            QStringLiteral("129 B P M")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_MissingArtistSkipped) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral("Windowlicker"), 128.0);
-    const QString result = AnnouncementManager::formatForLoad(pTrack);
-    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded. Windowlicker.")));
+    const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
+    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded A. Windowlicker.")));
 }
 
 // ---------------------------------------------------------------------------
@@ -191,10 +203,10 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_EnabledByDefault) {
     SpyTtsEngine* pSpy = makeManager();
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"), 120.0);
 
-    m_pManager->slotNewTrackLoaded(pTrack);
+    m_pManager->slotNewTrackLoaded(pTrack, 0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded.")));
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded A.")));
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceLoad_DisabledViaSettings) {
@@ -202,14 +214,14 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_DisabledViaSettings) {
     SpyTtsEngine* pSpy = makeManager();
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
-    m_pManager->slotNewTrackLoaded(pTrack);
+    m_pManager->slotNewTrackLoaded(pTrack, 0);
 
     EXPECT_EQ(0, pSpy->callCount);
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceLoad_NullTrackIgnored) {
     SpyTtsEngine* pSpy = makeManager();
-    m_pManager->slotNewTrackLoaded(TrackPointer());
+    m_pManager->slotNewTrackLoaded(TrackPointer(), 0);
     EXPECT_EQ(0, pSpy->callCount);
 }
 
