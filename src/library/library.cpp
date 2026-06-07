@@ -485,6 +485,12 @@ void Library::addFeature(LibraryFeature* feature) {
     m_features.push_back(feature);
     m_pSidebarModel->addLibraryFeature(feature);
     connect(feature,
+            &LibraryFeature::featureSelect,
+            this,
+            [this](LibraryFeature* pFeature, const QModelIndex&, bool) {
+                emit sidebarItemActivated(pFeature->title().toString());
+            });
+    connect(feature,
             &LibraryFeature::pasteFromSidebar,
             this,
             &Library::pasteFromSidebar);

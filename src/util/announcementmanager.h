@@ -42,6 +42,7 @@ class AnnouncementManager : public QObject {
     void slotNumberOfDecksChanged(int decks);
     void slotSkinLoaded();
     void slotLibraryFocusChanged(double value);
+    void slotSidebarItemActivated(const QString& title);
 
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);

@@ -54,6 +54,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 &Library::trackSelected,
                 this,
                 &AnnouncementManager::slotTrackSelected);
+        connect(pLibrary,
+                &Library::sidebarItemActivated,
+                this,
+                &AnnouncementManager::slotSidebarItemActivated);
     }
 
     connect(pPlayerManager,
@@ -178,7 +182,15 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 }
 
 void AnnouncementManager::slotSkinLoaded() {
-    m_pTts->say(QStringLiteral("Mixxx ready"));
+    if (m_settings.getAnnounceStartup()) {
+        m_pTts->say(QStringLiteral("Mixxx ready"));
+    }
+}
+
+void AnnouncementManager::slotSidebarItemActivated(const QString& title) {
+    if (m_settings.getAnnounceLibraryFocus()) {
+        m_pTts->say(title);
+    }
 }
 
 void AnnouncementManager::slotLibraryFocusChanged(double value) {
@@ -207,19 +219,19 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack) {
     const double bpm = pTrack->getBpm();
     const QString keyText = pTrack->getKeyText().trimmed();
 
-    QString text = QStringLiteral("Loaded. ");
+    QStringList parts;
     if (!artist.isEmpty()) {
-        text += artist + QStringLiteral(". ");
+        parts << artist;
     }
     if (!title.isEmpty()) {
-        text += title + QStringLiteral(". ");
+        parts << title;
     }
     if (bpm > 0.0) {
-        text += QString::number(static_cast<int>(bpm + 0.5)) +
-                QStringLiteral(" B P M. ");
+        parts << QString::number(static_cast<int>(bpm + 0.5)) + QStringLiteral(" BPM");
     }
     if (!keyText.isEmpty()) {
-        text += QStringLiteral("Key: ") + keyText + QStringLiteral(".");
+        parts << keyText;
     }
-    return text.trimmed();
+    parts << QStringLiteral("loaded");
+    return parts.join(QStringLiteral(", "));
 }
