@@ -81,6 +81,15 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 
 AnnouncementManager::~AnnouncementManager() = default;
 
+void AnnouncementManager::speak(const QString& text) {
+    const QString deviceId = m_settings.getTtsOutputDevice();
+    if (deviceId != m_currentTtsDeviceId) {
+        m_pTts->setOutputDevice(deviceId);
+        m_currentTtsDeviceId = deviceId;
+    }
+    m_pTts->say(text);
+}
+
 void AnnouncementManager::connectGroupControls(const QString& group) {
     auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
     pPlay->connectValueChanged(this, [this, group](double value) {
@@ -89,7 +98,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
         const bool hasTrack = m_deckHasTrack.value(group, false);
 
         if (nowPlaying && !wasPlaying && hasTrack && m_settings.getAnnouncePlay()) {
-            m_pTts->say(QStringLiteral("Playing"));
+            speak(QStringLiteral("Playing"));
         } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
             // Suppress the stop announcement when end-of-track fired it —
             // the end-of-track announcement already covered this transition.
@@ -98,7 +107,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
                                        ControlFlag::AllowMissingOrInvalid)
                                        .toBool();
             if (!atEnd) {
-                m_pTts->say(QStringLiteral("Stopped"));
+                speak(QStringLiteral("Stopped"));
             }
         }
         m_deckIsPlaying[group] = nowPlaying;
@@ -108,7 +117,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
     pEndOfTrack->connectValueChanged(this, [this](double value) {
         if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
-            m_pTts->say(QStringLiteral("End of track"));
+            speak(QStringLiteral("End of track"));
         }
     });
 }
@@ -128,10 +137,9 @@ void AnnouncementManager::connectDeck(int deckIndex) {
     // was created (e.g. session restore at startup).
     m_deckHasTrack[group] = (pDeck->getLoadedTrack() != nullptr);
 
-    connect(pDeck,
-            &BaseTrackPlayer::newTrackLoaded,
-            this,
-            &AnnouncementManager::slotNewTrackLoaded);
+    connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, deckIndex](TrackPointer pTrack) {
+        slotNewTrackLoaded(pTrack, deckIndex);
+    });
 
     connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
         m_deckHasTrack[group] = true;
@@ -158,13 +166,13 @@ void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
 
 void AnnouncementManager::slotAnnounceSelectedTrack() {
     if (m_pendingTrack && m_settings.getAnnounceTrackSelection()) {
-        m_pTts->say(formatForBrowsing(m_pendingTrack));
+        speak(formatForBrowsing(m_pendingTrack));
     }
 }
 
-void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack) {
+void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex) {
     if (pTrack && m_settings.getAnnounceTrackLoad()) {
-        m_pTts->say(formatForLoad(pTrack));
+        speak(formatForLoad(pTrack, deckIndex));
     }
 }
 
@@ -183,13 +191,13 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 
 void AnnouncementManager::slotSkinLoaded() {
     if (m_settings.getAnnounceStartup()) {
-        m_pTts->say(QStringLiteral("Mixxx ready"));
+        speak(QStringLiteral("Mixxx ready"));
     }
 }
 
 void AnnouncementManager::slotSidebarItemActivated(const QString& title) {
     if (m_settings.getAnnounceLibraryFocus()) {
-        m_pTts->say(title);
+        speak(title);
     }
 }
 
@@ -199,13 +207,13 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
     }
     switch (static_cast<FocusWidget>(static_cast<int>(value))) {
     case FocusWidget::Searchbar:
-        m_pTts->say(QStringLiteral("Search bar"));
+        speak(QStringLiteral("Search bar"));
         break;
     case FocusWidget::Sidebar:
-        m_pTts->say(QStringLiteral("Sidebar"));
+        speak(QStringLiteral("Sidebar"));
         break;
     case FocusWidget::TracksTable:
-        m_pTts->say(QStringLiteral("Track list"));
+        speak(QStringLiteral("Track list"));
         break;
     default:
         break;
@@ -213,13 +221,16 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
 }
 
 // static
-QString AnnouncementManager::formatForLoad(TrackPointer pTrack) {
+QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     const QString artist = pTrack->getArtist().trimmed();
     const QString title = pTrack->getTitle().trimmed();
     const double bpm = pTrack->getBpm();
     const QString keyText = pTrack->getKeyText().trimmed();
 
+    // "B P M" with spaces causes TTS engines to read each letter individually
+    // rather than trying to pronounce it as a word.
     QStringList parts;
+    parts << QStringLiteral("Loaded ") + QChar(u'A' + deckIndex);
     if (!artist.isEmpty()) {
         parts << artist;
     }
@@ -227,11 +238,10 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack) {
         parts << title;
     }
     if (bpm > 0.0) {
-        parts << QString::number(static_cast<int>(bpm + 0.5)) + QStringLiteral(" BPM");
+        parts << QString::number(static_cast<int>(bpm + 0.5)) + QStringLiteral(" B P M");
     }
     if (!keyText.isEmpty()) {
-        parts << keyText;
+        parts << QStringLiteral("Key: ") + keyText;
     }
-    parts << QStringLiteral("loaded");
-    return parts.join(QStringLiteral(", "));
+    return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }

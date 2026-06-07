@@ -38,7 +38,7 @@ class AnnouncementManager : public QObject {
   public slots:
     void slotTrackSelected(TrackPointer pTrack);
     void slotAnnounceSelectedTrack();
-    void slotNewTrackLoaded(TrackPointer pTrack);
+    void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
     void slotSkinLoaded();
     void slotLibraryFocusChanged(double value);
@@ -46,7 +46,7 @@ class AnnouncementManager : public QObject {
 
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
-    static QString formatForLoad(TrackPointer pTrack);
+    static QString formatForLoad(TrackPointer pTrack, int deckIndex);
 
     // Test helpers: allow tests to wire up CO observers for a synthetic group
     // without needing a real BaseTrackPlayer.
@@ -56,9 +56,11 @@ class AnnouncementManager : public QObject {
   private:
     void connectDeck(int deckIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
+    void speak(const QString& text);
 
     std::unique_ptr<TtsEngine> m_pTts;
     AccessibilitySettings m_settings;
+    QString m_currentTtsDeviceId;
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
