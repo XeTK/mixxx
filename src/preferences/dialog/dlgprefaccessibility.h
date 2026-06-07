@@ -1,9 +1,12 @@
 #pragma once
 
+#include <QString>
+
 #include "preferences/accessibilitysettings.h"
 #include "preferences/dialog/dlgpreferencepage.h"
 #include "preferences/dialog/ui_dlgprefaccessibilitydlg.h"
 #include "preferences/usersettings.h"
+#include "util/ttsengine.h"
 
 class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibilityDlg {
     Q_OBJECT
@@ -16,7 +19,12 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     void slotResetToDefaults() override;
 
   private:
+    void populateDeviceCombo();
+    int indexForDeviceId(const QString& deviceId) const;
+
     AccessibilitySettings m_settings;
+    QList<TtsEngine::AudioOutputDevice> m_outputDevices;
+    QString m_ttsOutputDeviceId;
     bool m_bAnnounceStartup;
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;
