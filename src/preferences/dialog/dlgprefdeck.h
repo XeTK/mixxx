@@ -48,7 +48,7 @@ const ConfigKey kConfigKeyAllowTrackLoadToPlayingDeck =
 constexpr LoadWhenDeckPlaying kDefaultLoadWhenDeckPlaying = LoadWhenDeckPlaying::Reject;
 } // namespace
 
-class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg  {
+class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
     Q_OBJECT
   public:
     DlgPrefDeck(QWidget* parent,
@@ -81,8 +81,8 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg  {
 
     void slotTimeFormatChanged(double);
 
-    void slotNumDecksChanged(double, bool initializing=false);
-    void slotNumSamplersChanged(double, bool initializing=false);
+    void slotNumDecksChanged(double, bool initializing = false);
+    void slotNumSamplersChanged(double, bool initializing = false);
 
     void slotUpdateSpeedAutoReset(bool);
     void slotUpdatePitchAutoReset(bool);

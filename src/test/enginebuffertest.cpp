@@ -118,7 +118,7 @@ TEST_F(EngineBufferTest, PitchRoundtrip) {
     ProcessBuffer();
     // pitch_adjust must not change
     ASSERT_DOUBLE_EQ(0.0,
-                     ControlObject::get(ConfigKey(m_sGroup1, "pitch_adjust")));
+            ControlObject::get(ConfigKey(m_sGroup1, "pitch_adjust")));
 
     ControlObject::set(ConfigKey(m_sGroup1, "pitch_adjust"), 0.5);
     ProcessBuffer();
@@ -338,7 +338,7 @@ TEST_F(EngineBufferE2ETest, ReverseTest) {
 
 // DISABLED: This test is too dependent on the sound touch library version.
 TEST_F(EngineBufferE2ETest, DISABLED_SoundTouchToggleTest) {
-   // Test various cases where SoundTouch toggles on and off.
+    // Test various cases where SoundTouch toggles on and off.
     ControlObject::set(ConfigKey(kAppGroup, QStringLiteral("keylock_engine")),
             static_cast<double>(EngineBuffer::KeylockEngine::SoundTouch));
     ControlObject::set(ConfigKey(m_sGroup1, "rate"), 0.5);
@@ -365,7 +365,7 @@ TEST_F(EngineBufferE2ETest, DISABLED_SoundTouchToggleTest) {
 #ifdef __RUBBERBAND__
 // DISABLED: This test is too dependent on the rubber band library version.
 TEST_F(EngineBufferE2ETest, DISABLED_RubberbandToggleTest) {
-   // Test various cases where Rubberband toggles on and off.
+    // Test various cases where Rubberband toggles on and off.
     ControlObject::set(ConfigKey(kAppGroup, QStringLiteral("keylock_engine")),
             static_cast<double>(EngineBuffer::KeylockEngine::RubberBandFaster));
     ControlObject::set(ConfigKey(m_sGroup1, "rate"), 0.5);
@@ -570,7 +570,6 @@ TEST_F(EngineBufferTest, RateTempTest) {
     EXPECT_EQ(0.98, m_pChannel1->getEngineBuffer()->m_speed_old);
     ControlObject::set(ConfigKey(m_sGroup1, "rate_temp_down_small"), 0);
 }
-
 
 // ---- disable_preroll tests ----
 

@@ -1,4 +1,5 @@
 #include "engine/controls/cuecontrol.h"
+
 #include "test/signalpathtest.h"
 
 class CueControlTest : public BaseSignalPathTest {

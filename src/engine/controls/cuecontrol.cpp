@@ -88,16 +88,18 @@ CueControl::CueControl(const QString& group,
           m_pStopButton(ControlObject::getControl(ConfigKey(group, "stop"))),
           m_bypassCueSetByPlay(false),
           m_pCurrentSavedLoopControl(nullptr),
-          m_trackMutex(QT_RECURSIVE_MUTEX_INIT),
-          m_disablePreRoll(group, "disable_preroll", ControlFlag::AllowMissingOrInvalid) {
+          m_disablePreRoll(group, "disable_preroll", ControlFlag::AllowMissingOrInvalid),
+          m_trackMutex(QT_RECURSIVE_MUTEX_INIT) {
     createControls();
     connectControls();
 
     m_pTrackSamples = ControlObject::getControl(ConfigKey(group, "track_samples"));
 
     m_pQuantizeEnabled = ControlObject::getControl(ConfigKey(group, "quantize"));
-    connect(m_pQuantizeEnabled, &ControlObject::valueChanged,
-            this, &CueControl::quantizeChanged,
+    connect(m_pQuantizeEnabled,
+            &ControlObject::valueChanged,
+            this,
+            &CueControl::quantizeChanged,
             Qt::DirectConnection);
 
     m_pClosestBeat = ControlObject::getControl(ConfigKey(group, "beat_closest"));
@@ -349,8 +351,10 @@ void CueControl::connectControls() {
 
     // Hotcue controls
     for (const auto& pControl : std::as_const(m_hotcueControls)) {
-        connect(pControl, &HotcueControl::hotcuePositionChanged,
-                this, &CueControl::hotcuePositionChanged,
+        connect(pControl,
+                &HotcueControl::hotcuePositionChanged,
+                this,
+                &CueControl::hotcuePositionChanged,
                 Qt::DirectConnection);
         connect(pControl,
                 &HotcueControl::hotcueEndPositionChanged,
