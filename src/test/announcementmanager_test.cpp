@@ -6,6 +6,7 @@
 
 #include "audio/types.h"
 #include "control/controlobject.h"
+#include "library/library_decl.h"
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
 #include "test/mixxxtest.h"
@@ -15,7 +16,7 @@
 
 namespace {
 
-// Spy TtsEngine that records every call to say().
+// Spy TtsEngine that records every call to say() and setOutputDevice().
 class SpyTtsEngine : public TtsEngine {
   public:
     void say(const QString& text) override {
@@ -23,8 +24,15 @@ class SpyTtsEngine : public TtsEngine {
         callCount++;
     }
 
+    void setOutputDevice(const QString& deviceId) override {
+        lastDeviceId = deviceId;
+        setOutputDeviceCount++;
+    }
+
     QString lastText;
     int callCount{0};
+    QString lastDeviceId;
+    int setOutputDeviceCount{0};
 };
 
 // Minimal PlayerManager stub: reports zero decks, ignores deck lookups.
@@ -357,4 +365,135 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
 
     EXPECT_EQ(2, pSpy->callCount);
     EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Startup announcement (slotSkinLoaded)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, SkinLoaded_AnnouncesReady) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("AnnounceStartup")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Library focus announcements (slotLibraryFocusChanged / slotSidebarItemActivated)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, LibraryFocus_SearchbarAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Searchbar));
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Search bar", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, LibraryFocus_SidebarAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sidebar", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, LibraryFocus_TracksTableAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::TracksTable));
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Track list", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, LibraryFocus_UnknownValueSilent) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::None));
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::ContextMenu));
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, LibraryFocus_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLibraryFocus")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Searchbar));
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_SpeaksTitle) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("My Set", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLibraryFocus")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// speak() device sync
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Speak_SyncsDeviceOnFirstCall) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputDevice")),
+            QStringLiteral("device-1"));
+    SpyTtsEngine* pSpy = makeManager();
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->setOutputDeviceCount);
+    EXPECT_QSTRING_EQ("device-1", pSpy->lastDeviceId);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_SkipsDeviceSyncWhenUnchanged) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputDevice")),
+            QStringLiteral("device-1"));
+    SpyTtsEngine* pSpy = makeManager();
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack(); // first call — syncs device
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack(); // second call — device unchanged, no re-sync
+
+    EXPECT_EQ(1, pSpy->setOutputDeviceCount);
+    EXPECT_EQ(2, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_ReSyncsDeviceWhenChanged) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputDevice")),
+            QStringLiteral("device-1"));
+    SpyTtsEngine* pSpy = makeManager();
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack(); // syncs to device-1
+
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputDevice")),
+            QStringLiteral("device-2"));
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack(); // device changed — must re-sync
+
+    EXPECT_EQ(2, pSpy->setOutputDeviceCount);
+    EXPECT_QSTRING_EQ("device-2", pSpy->lastDeviceId);
 }
