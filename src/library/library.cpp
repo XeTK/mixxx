@@ -487,8 +487,11 @@ void Library::addFeature(LibraryFeature* feature) {
     connect(feature,
             &LibraryFeature::featureSelect,
             this,
-            [this](LibraryFeature* pFeature, const QModelIndex&, bool) {
-                emit sidebarItemActivated(pFeature->title().toString());
+            [this](LibraryFeature* pFeature, const QModelIndex& index, bool) {
+                const QString text = index.isValid()
+                        ? index.data(Qt::DisplayRole).toString()
+                        : pFeature->title().toString();
+                emit sidebarItemActivated(text);
             });
     connect(feature,
             &LibraryFeature::pasteFromSidebar,
