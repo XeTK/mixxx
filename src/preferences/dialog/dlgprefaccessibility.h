@@ -20,11 +20,16 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
 
   private:
     void populateDeviceCombo();
+    void populateVoiceCombo();
     int indexForDeviceId(const QString& deviceId) const;
+    int indexForVoiceId(const QString& voiceId) const;
 
     AccessibilitySettings m_settings;
     QList<TtsEngine::AudioOutputDevice> m_outputDevices;
+    QList<TtsEngine::Voice> m_voices;
     QString m_ttsOutputDeviceId;
+    QString m_ttsVoiceId;
+    int m_ttsRate;
     bool m_bAnnounceStartup;
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;
@@ -32,4 +37,5 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceStop;
     bool m_bAnnounceEndOfTrack;
     bool m_bAnnounceLibraryFocus;
+    bool m_bAnnounceSearch;
 };

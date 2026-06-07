@@ -1,12 +1,12 @@
 #pragma once
 
-#include <memory>
-
 #include <QHash>
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <memory>
 
+#include "library/library_decl.h"
 #include "preferences/accessibilitysettings.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
@@ -43,6 +43,8 @@ class AnnouncementManager : public QObject {
     void slotSkinLoaded();
     void slotLibraryFocusChanged(double value);
     void slotSidebarItemActivated(const QString& title);
+    void slotSearchTextChanged(const QString& text);
+    void slotAnnounceSearch();
 
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
@@ -61,10 +63,22 @@ class AnnouncementManager : public QObject {
     std::unique_ptr<TtsEngine> m_pTts;
     AccessibilitySettings m_settings;
     QString m_currentTtsDeviceId;
+    QString m_currentTtsVoiceId;
+    int m_currentTtsRate{0};
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
     int m_connectedDecks{0};
+
+    // Library focus tracking: updated in slotLibraryFocusChanged.
+    FocusWidget m_lastFocusWidget{FocusWidget::None};
+
+    // Deduplication for sidebar announcements.
+    QString m_lastAnnouncedSidebarItem;
+
+    // Debounced search announcement.
+    QTimer m_searchDebounce;
+    QString m_pendingSearch;
 
     // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
     QHash<QString, bool> m_deckHasTrack;

@@ -50,12 +50,28 @@ class AccessibilitySettings {
             "AnnounceStartup",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceSearch,
+            bool,
+            "[Accessibility]",
+            "AnnounceSearch",
+            true);
+
     // Empty string means "use OS default audio output".
     DEFINE_PREFERENCE_HELPERS(TtsOutputDevice,
             QString,
             "[Accessibility]",
             "TtsOutputDevice",
             QString());
+
+    // Empty string means "use system default voice".
+    DEFINE_PREFERENCE_HELPERS(TtsVoice,
+            QString,
+            "[Accessibility]",
+            "TtsVoice",
+            QString());
+
+    // Rate in the range [-10, 10]; 0 = normal speed.
+    DEFINE_PREFERENCE_HELPERS(TtsRate, int, "[Accessibility]", "TtsRate", 0);
 
   private:
     UserSettingsPointer m_pConfig;
