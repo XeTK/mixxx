@@ -99,6 +99,19 @@ class AnnouncementManagerTest : public MixxxTest {
         return pSpy;
     }
 
+    // Simulate the user navigating into the track list so that track-selection
+    // announcements are enabled (they are suppressed when focus is elsewhere).
+    // Resets the spy after the navigation so the focus announcement itself is
+    // not counted in subsequent assertions.
+    void focusTrackList(SpyTtsEngine* pSpy) {
+        m_pManager->slotLibraryFocusChanged(
+                static_cast<double>(FocusWidget::Sidebar));
+        m_pManager->slotLibraryFocusChanged(
+                static_cast<double>(FocusWidget::TracksTable));
+        pSpy->callCount = 0;
+        pSpy->lastText.clear();
+    }
+
     std::unique_ptr<StubPlayerManager> m_pPlayerManager;
     std::unique_ptr<AnnouncementManager> m_pManager;
 };
@@ -137,9 +150,9 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_FullInfo) {
             QStringLiteral("Windowlicker"),
             128.0,
             QStringLiteral("A minor"));
-    // getKeyText() returns Mixxx's short notation ("Am") regardless of input form.
+    // formatForLoad uses the ChromaticKey enum for pronounceable names.
     EXPECT_QSTRING_EQ(
-            "Loaded A. Aphex Twin. Windowlicker. 128 B P M. Key: Am.",
+            "Loaded A. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
             AnnouncementManager::formatForLoad(pTrack, 0));
 }
 
@@ -187,6 +200,7 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_MissingArtistSkipped) {
 
 TEST_F(AnnouncementManagerTest, AnnounceSelection_EnabledByDefault) {
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
     m_pManager->slotTrackSelected(pTrack);
@@ -199,6 +213,18 @@ TEST_F(AnnouncementManagerTest, AnnounceSelection_EnabledByDefault) {
 TEST_F(AnnouncementManagerTest, AnnounceSelection_DisabledViaSettings) {
     config()->setValue(ConfigKey("[Accessibility]", "AnnounceTrackSelection"), false);
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSelection_SuppressedWhenSidebarFocused) {
+    SpyTtsEngine* pSpy = makeManager();
+    // Focus is FocusWidget::None by default — same suppression as sidebar.
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
     m_pManager->slotTrackSelected(pTrack);
@@ -235,6 +261,7 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_NullTrackIgnored) {
 
 TEST_F(AnnouncementManagerTest, AnnounceSelection_NullTrackIgnored) {
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
     m_pManager->slotTrackSelected(TrackPointer());
     m_pManager->slotAnnounceSelectedTrack();
     EXPECT_EQ(0, pSpy->callCount);
@@ -375,7 +402,7 @@ TEST_F(AnnouncementManagerTest, SkinLoaded_AnnouncesReady) {
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotSkinLoaded();
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
+    EXPECT_QSTRING_EQ("Ready", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
@@ -391,8 +418,12 @@ TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
 // Library focus announcements (slotLibraryFocusChanged / slotSidebarItemActivated)
 // ---------------------------------------------------------------------------
 
+// Transitions from None are suppressed (window focus restore), so seed focus
+// with a non-None widget before testing navigation announcements.
 TEST_F(AnnouncementManagerTest, LibraryFocus_SearchbarAnnounced) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
+    pSpy->callCount = 0; // discard the None→Sidebar suppressed call (no-op here)
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Searchbar));
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Search bar", pSpy->lastText);
@@ -400,6 +431,8 @@ TEST_F(AnnouncementManagerTest, LibraryFocus_SearchbarAnnounced) {
 
 TEST_F(AnnouncementManagerTest, LibraryFocus_SidebarAnnounced) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::TracksTable));
+    pSpy->callCount = 0;
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Sidebar", pSpy->lastText);
@@ -407,13 +440,26 @@ TEST_F(AnnouncementManagerTest, LibraryFocus_SidebarAnnounced) {
 
 TEST_F(AnnouncementManagerTest, LibraryFocus_TracksTableAnnounced) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
+    pSpy->callCount = 0;
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::TracksTable));
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Track list", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerTest, LibraryFocus_NoneToWidgetSuppressed) {
+    // Transitioning from None (window lost focus) back to a widget must not
+    // announce — that's a window-focus restore, not intentional navigation.
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::TracksTable));
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerTest, LibraryFocus_UnknownValueSilent) {
     SpyTtsEngine* pSpy = makeManager();
+    // Seed with a non-None value so the None suppression doesn't interfere.
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
+    pSpy->callCount = 0;
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::None));
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::ContextMenu));
     EXPECT_EQ(0, pSpy->callCount);
@@ -424,6 +470,7 @@ TEST_F(AnnouncementManagerTest, LibraryFocus_SettingDisabled_Silent) {
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLibraryFocus")),
             false);
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Searchbar));
     EXPECT_EQ(0, pSpy->callCount);
 }
@@ -453,6 +500,7 @@ TEST_F(AnnouncementManagerTest, Speak_SyncsDeviceOnFirstCall) {
                                QStringLiteral("TtsOutputDevice")),
             QStringLiteral("device-1"));
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
     m_pManager->slotTrackSelected(pTrack);
@@ -467,6 +515,7 @@ TEST_F(AnnouncementManagerTest, Speak_SkipsDeviceSyncWhenUnchanged) {
                                QStringLiteral("TtsOutputDevice")),
             QStringLiteral("device-1"));
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
     m_pManager->slotTrackSelected(pTrack);
@@ -483,6 +532,7 @@ TEST_F(AnnouncementManagerTest, Speak_ReSyncsDeviceWhenChanged) {
                                QStringLiteral("TtsOutputDevice")),
             QStringLiteral("device-1"));
     SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
     auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
 
     m_pManager->slotTrackSelected(pTrack);

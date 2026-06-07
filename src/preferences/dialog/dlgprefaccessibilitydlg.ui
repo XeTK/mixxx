@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>520</height>
+    <height>660</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
       <item>
        <widget class="QCheckBox" name="checkBoxAnnounceStartup">
         <property name="toolTip">
-         <string>Speak "Mixxx ready" when the application has finished loading.</string>
+         <string>Speak "Ready" when the application has finished loading.</string>
         </property>
         <property name="text">
          <string>Announce when Mixxx starts</string>
@@ -54,6 +54,76 @@
            </sizepolicy>
           </property>
          </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutVoice">
+        <item>
+         <widget class="QLabel" name="labelVoice">
+          <property name="text">
+           <string>Voice:</string>
+          </property>
+          <property name="toolTip">
+           <string>Text-to-speech voice used for announcements.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxTtsVoice">
+          <property name="toolTip">
+           <string>Text-to-speech voice used for announcements.</string>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutRate">
+        <item>
+         <widget class="QLabel" name="labelRate">
+          <property name="text">
+           <string>Speech rate:</string>
+          </property>
+          <property name="toolTip">
+           <string>Speed of speech, from -10 (slowest) to 10 (fastest). 0 is the normal system rate.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="spinBoxTtsRate">
+          <property name="toolTip">
+           <string>Speed of speech, from -10 (slowest) to 10 (fastest). 0 is the normal system rate.</string>
+          </property>
+          <property name="minimum">
+           <number>-10</number>
+          </property>
+          <property name="maximum">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacerRate">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </item>
@@ -141,6 +211,16 @@
         </property>
         <property name="text">
          <string>Announce library focus and sidebar navigation</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceSearch">
+        <property name="toolTip">
+         <string>Speak the current search query after a short pause while typing.</string>
+        </property>
+        <property name="text">
+         <string>Announce library search</string>
         </property>
        </widget>
       </item>

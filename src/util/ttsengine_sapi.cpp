@@ -11,7 +11,7 @@
 // avoiding sphelper.h which requires ATL headers not present in BuildTools.
 namespace {
 
-IEnumSpObjectTokens* createAudioOutEnumerator() {
+IEnumSpObjectTokens* createTokenEnumerator(LPCWSTR category) {
     ISpObjectTokenCategory* pCategory = nullptr;
     HRESULT hr = CoCreateInstance(CLSID_SpObjectTokenCategory,
             nullptr,
@@ -21,11 +21,19 @@ IEnumSpObjectTokens* createAudioOutEnumerator() {
     if (FAILED(hr) || !pCategory) {
         return nullptr;
     }
-    pCategory->SetId(SPCAT_AUDIOOUT, FALSE);
+    pCategory->SetId(category, FALSE);
     IEnumSpObjectTokens* pEnum = nullptr;
     pCategory->EnumTokens(nullptr, nullptr, &pEnum);
     pCategory->Release();
     return pEnum;
+}
+
+IEnumSpObjectTokens* createAudioOutEnumerator() {
+    return createTokenEnumerator(SPCAT_AUDIOOUT);
+}
+
+IEnumSpObjectTokens* createVoiceEnumerator() {
+    return createTokenEnumerator(SPCAT_VOICES);
 }
 
 // Returns the display name for a SAPI token. Tries the token's default registry
@@ -88,7 +96,6 @@ class SapiTtsEngine final : public TtsEngine {
         if (!m_pVoice) {
             return;
         }
-        // Stop any in-progress async speech before switching output device.
         m_pVoice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr);
 
         if (deviceId.isEmpty()) {
@@ -100,27 +107,86 @@ class SapiTtsEngine final : public TtsEngine {
         if (!pEnum) {
             return;
         }
+        setTokenById(pEnum, deviceId, [this](ISpObjectToken* pToken) {
+            m_pVoice->SetOutput(pToken, FALSE);
+        });
+        pEnum->Release();
+    }
 
+    void setVoice(const QString& voiceId) override {
+        if (!m_pVoice) {
+            return;
+        }
+        m_pVoice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr);
+
+        if (voiceId.isEmpty()) {
+            m_pVoice->SetVoice(nullptr);
+            return;
+        }
+
+        IEnumSpObjectTokens* pEnum = createVoiceEnumerator();
+        if (!pEnum) {
+            return;
+        }
+        setTokenById(pEnum, voiceId, [this](ISpObjectToken* pToken) {
+            m_pVoice->SetVoice(pToken);
+        });
+        pEnum->Release();
+    }
+
+    void setRate(int rate) override {
+        if (m_pVoice) {
+            m_pVoice->SetRate(rate);
+        }
+    }
+
+  private:
+    // Walk pEnum looking for the token whose ID matches targetId, then call
+    // apply(pToken) on the first match. Releases each token; caller releases pEnum.
+    template<typename F>
+    static void setTokenById(IEnumSpObjectTokens* pEnum,
+            const QString& targetId,
+            F apply) {
         ISpObjectToken* pToken = nullptr;
         while (pEnum->Next(1, &pToken, nullptr) == S_OK) {
             WCHAR* pId = nullptr;
             if (SUCCEEDED(pToken->GetId(&pId))) {
-                const bool match = (deviceId == QString::fromWCharArray(pId));
+                const bool match = (targetId == QString::fromWCharArray(pId));
                 CoTaskMemFree(pId);
                 if (match) {
-                    m_pVoice->SetOutput(pToken, FALSE);
+                    apply(pToken);
                     pToken->Release();
-                    break;
+                    return;
                 }
             }
             pToken->Release();
         }
-        pEnum->Release();
     }
 
-  private:
     ISpVoice* m_pVoice = nullptr;
 };
+
+template<typename T>
+static QList<T> enumerateTokens(IEnumSpObjectTokens* pEnum) {
+    QList<T> result;
+    if (!pEnum) {
+        return result;
+    }
+    ISpObjectToken* pToken = nullptr;
+    while (pEnum->Next(1, &pToken, nullptr) == S_OK) {
+        WCHAR* pId = nullptr;
+        if (SUCCEEDED(pToken->GetId(&pId))) {
+            const QString displayName = tokenDisplayName(pToken);
+            if (!displayName.isEmpty()) {
+                result << T{QString::fromWCharArray(pId), displayName};
+            }
+            CoTaskMemFree(pId);
+        }
+        pToken->Release();
+    }
+    pEnum->Release();
+    return result;
+}
 
 #else // !Q_OS_WIN
 
@@ -140,26 +206,17 @@ std::unique_ptr<TtsEngine> TtsEngine::create() {
 }
 
 QList<TtsEngine::AudioOutputDevice> TtsEngine::enumerateOutputDevices() {
-    QList<AudioOutputDevice> devices;
 #ifdef Q_OS_WIN
-    IEnumSpObjectTokens* pEnum = createAudioOutEnumerator();
-    if (!pEnum) {
-        return devices;
-    }
-
-    ISpObjectToken* pToken = nullptr;
-    while (pEnum->Next(1, &pToken, nullptr) == S_OK) {
-        WCHAR* pId = nullptr;
-        if (SUCCEEDED(pToken->GetId(&pId))) {
-            const QString displayName = tokenDisplayName(pToken);
-            if (!displayName.isEmpty()) {
-                devices << AudioOutputDevice{QString::fromWCharArray(pId), displayName};
-            }
-            CoTaskMemFree(pId);
-        }
-        pToken->Release();
-    }
-    pEnum->Release();
+    return enumerateTokens<AudioOutputDevice>(createAudioOutEnumerator());
+#else
+    return {};
 #endif
-    return devices;
+}
+
+QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
+#ifdef Q_OS_WIN
+    return enumerateTokens<Voice>(createVoiceEnumerator());
+#else
+    return {};
+#endif
 }

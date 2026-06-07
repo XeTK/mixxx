@@ -6,6 +6,7 @@
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
+#include "proto/keys.pb.h"
 #include "track/keyutils.h"
 #include "track/track.h"
 #include "util/parented_ptr.h"
@@ -13,6 +14,46 @@
 
 namespace {
 constexpr int kSelectionDebounceMs = 400;
+constexpr int kSearchDebounceMs = 600;
+
+// Returns a fully-spelled pronounceable key name for the given ChromaticKey,
+// e.g. A_MINOR → "A Minor", F#_MAJOR → "F Sharp Major".
+// Using a lookup table keyed by the enum integer (INVALID=0, C_MAJOR=1 … B_MINOR=24).
+QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
+    using namespace mixxx::track::io::key;
+    static const QString kNames[] = {
+            QString(),                       // 0  INVALID
+            QStringLiteral("C Major"),       // 1
+            QStringLiteral("D Flat Major"),  // 2
+            QStringLiteral("D Major"),       // 3
+            QStringLiteral("E Flat Major"),  // 4
+            QStringLiteral("E Major"),       // 5
+            QStringLiteral("F Major"),       // 6
+            QStringLiteral("F Sharp Major"), // 7
+            QStringLiteral("G Major"),       // 8
+            QStringLiteral("A Flat Major"),  // 9
+            QStringLiteral("A Major"),       // 10
+            QStringLiteral("B Flat Major"),  // 11
+            QStringLiteral("B Major"),       // 12
+            QStringLiteral("C Minor"),       // 13
+            QStringLiteral("C Sharp Minor"), // 14
+            QStringLiteral("D Minor"),       // 15
+            QStringLiteral("E Flat Minor"),  // 16
+            QStringLiteral("E Minor"),       // 17
+            QStringLiteral("F Minor"),       // 18
+            QStringLiteral("F Sharp Minor"), // 19
+            QStringLiteral("G Minor"),       // 20
+            QStringLiteral("A Flat Minor"),  // 21
+            QStringLiteral("A Minor"),       // 22
+            QStringLiteral("B Flat Minor"),  // 23
+            QStringLiteral("B Minor"),       // 24
+    };
+    const int idx = static_cast<int>(key);
+    if (idx < 0 || idx >= static_cast<int>(std::size(kNames))) {
+        return {};
+    }
+    return kNames[idx];
+}
 } // namespace
 
 AnnouncementManager::AnnouncementManager(
@@ -43,11 +84,17 @@ AnnouncementManager::AnnouncementManager(
 void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlayerManager) {
     m_selectionDebounce.setSingleShot(true);
     m_selectionDebounce.setInterval(kSelectionDebounceMs);
-
     connect(&m_selectionDebounce,
             &QTimer::timeout,
             this,
             &AnnouncementManager::slotAnnounceSelectedTrack);
+
+    m_searchDebounce.setSingleShot(true);
+    m_searchDebounce.setInterval(kSearchDebounceMs);
+    connect(&m_searchDebounce,
+            &QTimer::timeout,
+            this,
+            &AnnouncementManager::slotAnnounceSearch);
 
     if (pLibrary) {
         connect(pLibrary,
@@ -58,6 +105,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 &Library::sidebarItemActivated,
                 this,
                 &AnnouncementManager::slotSidebarItemActivated);
+        connect(pLibrary,
+                &Library::search,
+                this,
+                &AnnouncementManager::slotSearchTextChanged);
     }
 
     connect(pPlayerManager,
@@ -86,6 +137,16 @@ void AnnouncementManager::speak(const QString& text) {
     if (deviceId != m_currentTtsDeviceId) {
         m_pTts->setOutputDevice(deviceId);
         m_currentTtsDeviceId = deviceId;
+    }
+    const QString voiceId = m_settings.getTtsVoice();
+    if (voiceId != m_currentTtsVoiceId) {
+        m_pTts->setVoice(voiceId);
+        m_currentTtsVoiceId = voiceId;
+    }
+    const int rate = m_settings.getTtsRate();
+    if (rate != m_currentTtsRate) {
+        m_pTts->setRate(rate);
+        m_currentTtsRate = rate;
     }
     m_pTts->say(text);
 }
@@ -160,6 +221,12 @@ void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
 }
 
 void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
+    // Only announce selection when the user is actively browsing the track list.
+    // If focus is on the sidebar, the signal fires for the first track in the
+    // newly-loaded feature view — not something the user deliberately selected.
+    if (m_lastFocusWidget != FocusWidget::TracksTable) {
+        return;
+    }
     m_pendingTrack = pTrack;
     m_selectionDebounce.start();
 }
@@ -191,21 +258,45 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 
 void AnnouncementManager::slotSkinLoaded() {
     if (m_settings.getAnnounceStartup()) {
-        speak(QStringLiteral("Mixxx ready"));
+        speak(QStringLiteral("Ready"));
     }
 }
 
 void AnnouncementManager::slotSidebarItemActivated(const QString& title) {
-    if (m_settings.getAnnounceLibraryFocus()) {
-        speak(title);
+    if (!m_settings.getAnnounceLibraryFocus() || title.isEmpty()) {
+        return;
     }
+    // Deduplicate: currentChanged and featureSelect can both fire for the same
+    // item on a mouse click.
+    if (title == m_lastAnnouncedSidebarItem) {
+        return;
+    }
+    m_lastAnnouncedSidebarItem = title;
+    speak(title);
 }
 
 void AnnouncementManager::slotLibraryFocusChanged(double value) {
+    const auto newFocus = static_cast<FocusWidget>(static_cast<int>(value));
+    const FocusWidget prevFocus = m_lastFocusWidget;
+    m_lastFocusWidget = newFocus;
+
+    // Suppress the announcement when the OS returns focus to the window — the
+    // CO transitions from None (lost focus) back to whatever widget was active.
+    // We only want to announce intentional navigation between library panels.
+    if (prevFocus == FocusWidget::None) {
+        return;
+    }
+
+    // Reset sidebar dedup so that re-entering the sidebar re-announces the
+    // current item.
+    if (newFocus == FocusWidget::Sidebar) {
+        m_lastAnnouncedSidebarItem.clear();
+    }
+
     if (!m_settings.getAnnounceLibraryFocus()) {
         return;
     }
-    switch (static_cast<FocusWidget>(static_cast<int>(value))) {
+    switch (newFocus) {
     case FocusWidget::Searchbar:
         speak(QStringLiteral("Search bar"));
         break;
@@ -220,12 +311,28 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
     }
 }
 
+void AnnouncementManager::slotSearchTextChanged(const QString& text) {
+    m_pendingSearch = text;
+    m_searchDebounce.start();
+}
+
+void AnnouncementManager::slotAnnounceSearch() {
+    if (!m_settings.getAnnounceSearch()) {
+        return;
+    }
+    if (m_pendingSearch.isEmpty()) {
+        speak(QStringLiteral("Search cleared"));
+    } else {
+        speak(QStringLiteral("Searching: ") + m_pendingSearch);
+    }
+}
+
 // static
 QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     const QString artist = pTrack->getArtist().trimmed();
     const QString title = pTrack->getTitle().trimmed();
     const double bpm = pTrack->getBpm();
-    const QString keyText = pTrack->getKeyText().trimmed();
+    const QString keyText = keyForSpeech(pTrack->getKey());
 
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
