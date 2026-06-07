@@ -62,12 +62,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             &AnnouncementManager::slotNumberOfDecksChanged);
 
     const int numDecks = pPlayerManager->numberOfDecks();
-    for (int i = 1; i <= numDecks; ++i) {
+    for (int i = 0; i < numDecks; ++i) {
         connectDeck(i);
     }
     m_connectedDecks = numDecks;
 
-    auto* pFocusedWidget = make_parented<ControlProxy>(
+    auto pFocusedWidget = make_parented<ControlProxy>(
             QStringLiteral("[Library]"),
             QStringLiteral("focused_widget"),
             this,
@@ -78,7 +78,7 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::connectGroupControls(const QString& group) {
-    auto* pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
     pPlay->connectValueChanged(this, [this, group](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
@@ -100,7 +100,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
         m_deckIsPlaying[group] = nowPlaying;
     });
 
-    auto* pEndOfTrack = make_parented<ControlProxy>(
+    auto pEndOfTrack = make_parented<ControlProxy>(
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
     pEndOfTrack->connectValueChanged(this, [this](double value) {
         if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
@@ -141,7 +141,7 @@ void AnnouncementManager::connectDeck(int deckIndex) {
 }
 
 void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
-    for (int i = m_connectedDecks + 1; i <= decks; ++i) {
+    for (int i = m_connectedDecks; i < decks; ++i) {
         connectDeck(i);
     }
     m_connectedDecks = decks;
