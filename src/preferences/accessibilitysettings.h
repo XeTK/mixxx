@@ -50,6 +50,13 @@ class AccessibilitySettings {
             "AnnounceStartup",
             true);
 
+    // Empty string means "use OS default audio output".
+    DEFINE_PREFERENCE_HELPERS(TtsOutputDevice,
+            QString,
+            "[Accessibility]",
+            "TtsOutputDevice",
+            QString());
+
   private:
     UserSettingsPointer m_pConfig;
 };

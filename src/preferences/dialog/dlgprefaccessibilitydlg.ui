@@ -30,6 +30,33 @@
         </property>
        </widget>
       </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutAudioOutput">
+        <item>
+         <widget class="QLabel" name="labelAudioOutput">
+          <property name="text">
+           <string>Speech audio output:</string>
+          </property>
+          <property name="toolTip">
+           <string>Audio device used for speech announcements. Choose a headphone or monitor output so announcements do not play through the master mix.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxTtsOutputDevice">
+          <property name="toolTip">
+           <string>Audio device used for speech announcements. Choose a headphone or monitor output so announcements do not play through the master mix.</string>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>
