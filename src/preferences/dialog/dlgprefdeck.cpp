@@ -547,7 +547,6 @@ void DlgPrefDeck::slotResetToDefaults() {
     // Clone decks by double-tapping Load button.
     checkBoxCloneDeckOnLoadDoubleTap->setChecked(kDefaultCloneDeckOnLoad);
 
-    // Pre-roll disabled by default.
     checkBoxDisablePreRoll->setChecked(false);
 
     // Mixxx cue mode

@@ -416,6 +416,7 @@ class EngineBuffer : public EngineObject {
     ControlPushButton* m_stopButton;
 
     ControlPushButton* m_pSlipButton;
+    ControlPushButton* m_pDisablePreRoll;
 
     PollingControlProxy m_quantize;
     PollingControlProxy m_disablePreRoll;

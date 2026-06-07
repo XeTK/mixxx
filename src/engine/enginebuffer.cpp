@@ -197,8 +197,8 @@ EngineBuffer::EngineBuffer(const QString& group,
     addControl(pQuantize_control);
     m_quantize = PollingControlProxy(ConfigKey(group, "quantize"));
 
-    auto* pDisablePreRoll = new ControlPushButton(ConfigKey(group, "disable_preroll"));
-    pDisablePreRoll->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pDisablePreRoll = new ControlPushButton(ConfigKey(group, "disable_preroll"));
+    m_pDisablePreRoll->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_disablePreRoll = PollingControlProxy(ConfigKey(group, "disable_preroll"));
 
     // Create the Loop Controller
@@ -328,6 +328,7 @@ EngineBuffer::~EngineBuffer() {
     delete m_playposSlider;
 
     delete m_pSlipButton;
+    delete m_pDisablePreRoll;
     delete m_pRepeat;
     delete m_pSampleRate;
 
