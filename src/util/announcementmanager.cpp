@@ -148,6 +148,11 @@ void AnnouncementManager::speak(const QString& text) {
         m_pTts->setRate(rate);
         m_currentTtsRate = rate;
     }
+    const int channelPair = m_settings.getTtsOutputChannel();
+    if (channelPair != m_currentTtsChannelPair) {
+        m_pTts->setOutputChannel(channelPair);
+        m_currentTtsChannelPair = channelPair;
+    }
     m_pTts->say(text);
 }
 
@@ -258,7 +263,7 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 
 void AnnouncementManager::slotSkinLoaded() {
     if (m_settings.getAnnounceStartup()) {
-        speak(QStringLiteral("Ready"));
+        speak(QStringLiteral("Mixxx ready"));
     }
 }
 

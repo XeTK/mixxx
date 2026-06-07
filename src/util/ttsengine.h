@@ -37,6 +37,13 @@ class TtsEngine {
         Q_UNUSED(rate);
     }
 
+    // Route speech to a specific stereo channel pair within the selected device.
+    // 0 = channels 1-2 (default), 1 = channels 3-4, 2 = channels 5-6, etc.
+    // Has no effect when the device ID is empty (system default device).
+    virtual void setOutputChannel(int channelPair) {
+        Q_UNUSED(channelPair);
+    }
+
     static std::unique_ptr<TtsEngine> create();
     static QList<AudioOutputDevice> enumerateOutputDevices();
     static QList<Voice> enumerateVoices();

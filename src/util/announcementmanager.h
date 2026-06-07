@@ -65,6 +65,7 @@ class AnnouncementManager : public QObject {
     QString m_currentTtsDeviceId;
     QString m_currentTtsVoiceId;
     int m_currentTtsRate{0};
+    int m_currentTtsChannelPair{0};
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;

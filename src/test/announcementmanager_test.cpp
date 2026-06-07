@@ -16,7 +16,8 @@
 
 namespace {
 
-// Spy TtsEngine that records every call to say() and setOutputDevice().
+// Spy TtsEngine that records every call to say(), setOutputDevice(),
+// setVoice(), setRate(), and setOutputChannel().
 class SpyTtsEngine : public TtsEngine {
   public:
     void say(const QString& text) override {
@@ -29,10 +30,31 @@ class SpyTtsEngine : public TtsEngine {
         setOutputDeviceCount++;
     }
 
+    void setVoice(const QString& voiceId) override {
+        lastVoiceId = voiceId;
+        setVoiceCount++;
+    }
+
+    void setRate(int rate) override {
+        lastRate = rate;
+        setRateCount++;
+    }
+
+    void setOutputChannel(int channelPair) override {
+        lastChannelPair = channelPair;
+        setOutputChannelCount++;
+    }
+
     QString lastText;
     int callCount{0};
     QString lastDeviceId;
     int setOutputDeviceCount{0};
+    QString lastVoiceId;
+    int setVoiceCount{0};
+    int lastRate{0};
+    int setRateCount{0};
+    int lastChannelPair{0};
+    int setOutputChannelCount{0};
 };
 
 // Minimal PlayerManager stub: reports zero decks, ignores deck lookups.
@@ -402,7 +424,7 @@ TEST_F(AnnouncementManagerTest, SkinLoaded_AnnouncesReady) {
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotSkinLoaded();
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Ready", pSpy->lastText);
+    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
@@ -546,4 +568,130 @@ TEST_F(AnnouncementManagerTest, Speak_ReSyncsDeviceWhenChanged) {
 
     EXPECT_EQ(2, pSpy->setOutputDeviceCount);
     EXPECT_QSTRING_EQ("device-2", pSpy->lastDeviceId);
+}
+
+// ---------------------------------------------------------------------------
+// speak() voice and rate sync
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Speak_SyncsVoiceOnChange) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsVoice")),
+            QStringLiteral("voice-1"));
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->setVoiceCount);
+    EXPECT_QSTRING_EQ("voice-1", pSpy->lastVoiceId);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_SkipsVoiceSyncWhenUnchanged) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsVoice")),
+            QStringLiteral("voice-1"));
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    // Voice was set only once (during focusTrackList), not again on second speak.
+    EXPECT_EQ(1, pSpy->setVoiceCount);
+    EXPECT_EQ(2, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_SyncsRateOnChange) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsRate")),
+            5);
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->setRateCount);
+    EXPECT_EQ(5, pSpy->lastRate);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_SyncsChannelOnChange) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputChannel")),
+            1); // channels 3-4
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->setOutputChannelCount);
+    EXPECT_EQ(1, pSpy->lastChannelPair);
+}
+
+TEST_F(AnnouncementManagerTest, Speak_SkipsChannelSyncWhenUnchanged) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("TtsOutputChannel")),
+            1);
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->setOutputChannelCount);
+    EXPECT_EQ(2, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Search announcements (slotSearchTextChanged / slotAnnounceSearch)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AnnounceSearch_EnabledByDefault) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSearchTextChanged(QStringLiteral("house"));
+    m_pManager->slotAnnounceSearch(); // drive debounce synchronously
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Searching: house", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSearch_DisabledViaSettings) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceSearch")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSearchTextChanged(QStringLiteral("house"));
+    m_pManager->slotAnnounceSearch();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSearch_ClearedSearchText) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSearchTextChanged(QStringLiteral(""));
+    m_pManager->slotAnnounceSearch();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Search cleared", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSearch_UpdatesPendingTextBeforeAnnounce) {
+    // If the text changes multiple times before the debounce fires, only the
+    // final value should be announced.
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSearchTextChanged(QStringLiteral("ho"));
+    m_pManager->slotSearchTextChanged(QStringLiteral("hou"));
+    m_pManager->slotSearchTextChanged(QStringLiteral("house"));
+    m_pManager->slotAnnounceSearch();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Searching: house", pSpy->lastText);
 }
