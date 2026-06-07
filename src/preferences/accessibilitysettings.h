@@ -44,6 +44,12 @@ class AccessibilitySettings {
             "AnnounceLibraryFocus",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceStartup,
+            bool,
+            "[Accessibility]",
+            "AnnounceStartup",
+            true);
+
   private:
     UserSettingsPointer m_pConfig;
 };

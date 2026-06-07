@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>420</height>
+    <height>520</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,9 +15,28 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
+    <widget class="QGroupBox" name="groupBoxGeneral">
+     <property name="title">
+      <string>General</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutGeneral">
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceStartup">
+        <property name="toolTip">
+         <string>Speak "Mixxx ready" when the application has finished loading.</string>
+        </property>
+        <property name="text">
+         <string>Announce when Mixxx starts</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="groupBoxTts">
      <property name="title">
-      <string>Track Announcements (Text-to-Speech)</string>
+      <string>Track Announcements</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayoutTts">
       <item>
@@ -46,7 +65,7 @@
    <item>
     <widget class="QGroupBox" name="groupBoxPlayback">
      <property name="title">
-      <string>Playback Event Announcements</string>
+      <string>Playback Announcements</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayoutPlayback">
       <item>
@@ -76,6 +95,25 @@
         </property>
         <property name="text">
          <string>Announce end of track</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBoxNavigation">
+     <property name="title">
+      <string>Navigation Announcements</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutNavigation">
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceLibraryFocus">
+        <property name="toolTip">
+         <string>Speak the focused library panel (Search bar, Sidebar, Track list) and the active sidebar item when navigating.</string>
+        </property>
+        <property name="text">
+         <string>Announce library focus and sidebar navigation</string>
         </property>
        </widget>
       </item>

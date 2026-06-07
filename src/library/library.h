@@ -162,6 +162,7 @@ class Library: public QObject {
     void enableCoverArtDisplay(bool);
     void selectTrack(const TrackId&);
     void trackSelected(TrackPointer pTrack);
+    void sidebarItemActivated(const QString& title);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
 #ifdef __ENGINEPRIME__
     void exportLibrary();
