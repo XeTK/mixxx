@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Accessibility Preferences</string>
+   <string>Announcements</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -46,6 +46,33 @@
          <widget class="QComboBox" name="comboBoxTtsOutputDevice">
           <property name="toolTip">
            <string>Audio device used for speech announcements. Choose a headphone or monitor output so announcements do not play through the master mix.</string>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutOutputChannel">
+        <item>
+         <widget class="QLabel" name="labelOutputChannel">
+          <property name="text">
+           <string>Output channel:</string>
+          </property>
+          <property name="toolTip">
+           <string>Stereo channel pair used for speech on the selected device. Use channels 3-4 (or higher) to send announcements to your headphone/monitor output on a DJ controller.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxTtsOutputChannel">
+          <property name="toolTip">
+           <string>Stereo channel pair used for speech on the selected device. Use channels 3-4 (or higher) to send announcements to your headphone/monitor output on a DJ controller.</string>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">

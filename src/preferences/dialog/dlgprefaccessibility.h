@@ -20,6 +20,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
 
   private:
     void populateDeviceCombo();
+    void populateChannelCombo();
     void populateVoiceCombo();
     int indexForDeviceId(const QString& deviceId) const;
     int indexForVoiceId(const QString& voiceId) const;
@@ -28,6 +29,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     QList<TtsEngine::AudioOutputDevice> m_outputDevices;
     QList<TtsEngine::Voice> m_voices;
     QString m_ttsOutputDeviceId;
+    int m_ttsOutputChannel;
     QString m_ttsVoiceId;
     int m_ttsRate;
     bool m_bAnnounceStartup;

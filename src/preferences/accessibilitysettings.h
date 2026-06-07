@@ -73,6 +73,9 @@ class AccessibilitySettings {
     // Rate in the range [-10, 10]; 0 = normal speed.
     DEFINE_PREFERENCE_HELPERS(TtsRate, int, "[Accessibility]", "TtsRate", 0);
 
+    // 0-based channel pair index: 0 = channels 1-2 (default), 1 = channels 3-4, etc.
+    DEFINE_PREFERENCE_HELPERS(TtsOutputChannel, int, "[Accessibility]", "TtsOutputChannel", 0);
+
   private:
     UserSettingsPointer m_pConfig;
 };
