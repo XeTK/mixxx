@@ -87,8 +87,8 @@ CueControl::CueControl(const QString& group,
           m_pPlay(ControlObject::getControl(ConfigKey(group, "play"))),
           m_pStopButton(ControlObject::getControl(ConfigKey(group, "stop"))),
           m_bypassCueSetByPlay(false),
-          m_pCurrentSavedLoopControl(nullptr),
           m_disablePreRoll(group, "disable_preroll", ControlFlag::AllowMissingOrInvalid),
+          m_pCurrentSavedLoopControl(nullptr),
           m_trackMutex(QT_RECURSIVE_MUTEX_INIT) {
     createControls();
     connectControls();
