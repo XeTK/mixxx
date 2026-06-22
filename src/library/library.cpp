@@ -500,7 +500,7 @@ void Library::addFeature(LibraryFeature* feature) {
     connect(feature,
             &LibraryFeature::featureSelect,
             this,
-            [this](LibraryFeature* pFeature, const QModelIndex& index, bool) {
+            [this](LibraryFeature* pFeature, const QModelIndex& index) {
                 const QString text = index.isValid()
                         ? index.data(Qt::DisplayRole).toString()
                         : pFeature->title().toString();

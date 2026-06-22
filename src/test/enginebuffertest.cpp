@@ -579,7 +579,7 @@ TEST_F(EngineBufferTest, DisablePreRoll_SeekClampedAtStart) {
     m_pChannel1->getEngineBuffer()->queueNewPlaypos(
             mixxx::audio::FramePos(-500), EngineBuffer::SEEK_EXACT);
     ProcessBuffer();
-    EXPECT_DOUBLE_EQ(0.0, m_pChannel1->getEngineBuffer()->getPlayPos().value());
+    EXPECT_DOUBLE_EQ(0.0, m_pChannel1->getEngineBuffer()->getExactPlayPos().value());
 }
 
 TEST_F(EngineBufferTest, DisablePreRoll_SeekAllowedWhenOff) {
@@ -589,7 +589,7 @@ TEST_F(EngineBufferTest, DisablePreRoll_SeekAllowedWhenOff) {
     m_pChannel1->getEngineBuffer()->queueNewPlaypos(
             mixxx::audio::FramePos(-500), EngineBuffer::SEEK_EXACT);
     ProcessBuffer();
-    EXPECT_DOUBLE_EQ(-500.0, m_pChannel1->getEngineBuffer()->getPlayPos().value());
+    EXPECT_DOUBLE_EQ(-500.0, m_pChannel1->getEngineBuffer()->getExactPlayPos().value());
 }
 
 TEST_F(EngineBufferTest, DisablePreRoll_ReverseHoldsAtStart) {
@@ -599,7 +599,7 @@ TEST_F(EngineBufferTest, DisablePreRoll_ReverseHoldsAtStart) {
     ControlObject::set(ConfigKey(m_sGroup1, "scratch2_enable"), 1.0);
     ControlObject::set(ConfigKey(m_sGroup1, "scratch2"), -1.0);
     ProcessBuffer();
-    EXPECT_GE(m_pChannel1->getEngineBuffer()->getPlayPos().value(), 0.0);
+    EXPECT_GE(m_pChannel1->getEngineBuffer()->getExactPlayPos().value(), 0.0);
 }
 
 TEST_F(EngineBufferTest, DisablePreRoll_ReverseAllowedWhenOff) {
@@ -609,7 +609,7 @@ TEST_F(EngineBufferTest, DisablePreRoll_ReverseAllowedWhenOff) {
     ControlObject::set(ConfigKey(m_sGroup1, "scratch2_enable"), 1.0);
     ControlObject::set(ConfigKey(m_sGroup1, "scratch2"), -1.0);
     ProcessBuffer();
-    EXPECT_LT(m_pChannel1->getEngineBuffer()->getPlayPos().value(), 0.0);
+    EXPECT_LT(m_pChannel1->getEngineBuffer()->getExactPlayPos().value(), 0.0);
 }
 
 TEST_F(EngineBufferTest, RatePermTest) {
