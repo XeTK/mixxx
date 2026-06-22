@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <memory>
 
 #include "preferences/accessibilitysettings.h"
 #include "preferences/dialog/dlgpreferencepage.h"
@@ -17,6 +18,9 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     void slotApply() override;
     void slotUpdate() override;
     void slotResetToDefaults() override;
+
+  private slots:
+    void slotTestSpeech();
 
   private:
     void populateDeviceCombo();
@@ -40,4 +44,6 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceEndOfTrack;
     bool m_bAnnounceLibraryFocus;
     bool m_bAnnounceSearch;
+
+    std::unique_ptr<TtsEngine> m_pTestEngine;
 };

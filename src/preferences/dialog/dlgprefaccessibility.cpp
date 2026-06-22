@@ -50,6 +50,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(QWidget* parent, UserSettingsPointer 
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
             [this](int value) { m_ttsRate = value; });
+    connect(pushButtonTestSpeech,
+            &QPushButton::clicked,
+            this,
+            &DlgPrefAccessibility::slotTestSpeech);
     connect(checkBoxAnnounceStartup,
             &QCheckBox::toggled,
             this,
@@ -176,6 +180,15 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceEndOfTrack(m_bAnnounceEndOfTrack);
     m_settings.setAnnounceLibraryFocus(m_bAnnounceLibraryFocus);
     m_settings.setAnnounceSearch(m_bAnnounceSearch);
+}
+
+void DlgPrefAccessibility::slotTestSpeech() {
+    m_pTestEngine = TtsEngine::create();
+    if (!m_ttsVoiceId.isEmpty()) {
+        m_pTestEngine->setVoice(m_ttsVoiceId);
+    }
+    m_pTestEngine->setRate(m_ttsRate);
+    m_pTestEngine->say(tr("Mixxx ready. Artist, Title. One twenty beats per minute."));
 }
 
 void DlgPrefAccessibility::slotResetToDefaults() {

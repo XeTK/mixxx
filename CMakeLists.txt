@@ -1640,7 +1640,7 @@ add_library(
   src/util/taskmonitor.cpp
   src/util/time.cpp
   src/util/timer.cpp
-  src/util/ttsengine_sapi.cpp
+  src/util/ttsengine_qt.cpp
   src/util/valuetransformer.cpp
   src/util/versionstore.cpp
   src/util/widgethelper.cpp
@@ -3632,6 +3632,16 @@ if(QT_EXTRA_COMPONENTS)
   foreach(component ${QT_EXTRA_COMPONENTS})
     target_link_libraries(mixxx-lib PUBLIC Qt${QT_VERSION_MAJOR}::${component})
   endforeach()
+endif()
+
+# Qt TextToSpeech is optional; not available on 32-bit Windows or distro builds
+# that omit the module. Falls back to a silent no-op engine when absent.
+if(QT6)
+  find_package(Qt6 OPTIONAL_COMPONENTS TextToSpeech)
+  if(Qt6TextToSpeech_FOUND)
+    target_link_libraries(mixxx-lib PUBLIC Qt6::TextToSpeech)
+    target_compile_definitions(mixxx-lib PUBLIC MIXXX_USE_QT_TTS)
+  endif()
 endif()
 
 if(QML)
