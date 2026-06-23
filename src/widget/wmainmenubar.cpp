@@ -530,7 +530,8 @@ void WMainMenuBar::initialize() {
 
     // Create a ControlProxy for [Tts]enabled and sync with menu action
     auto* pTtsEnabledControl = new ControlProxy(
-            QStringLiteral("[Tts]"), QStringLiteral("enabled"), this);
+            QStringLiteral("[Tts]"), QStringLiteral("enabled"), this,
+            ControlFlag::AllowMissingOrInvalid);
 
     // Update menu when control changes (e.g., via keyboard shortcut or preferences)
     connect(pTtsEnabledControl, QOverload<double>::of(&ControlProxy::valueChanged),
