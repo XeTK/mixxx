@@ -205,6 +205,14 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
             speak(QStringLiteral("End of track"));
         }
     });
+
+    auto pPfl = make_parented<ControlProxy>(
+            group, QStringLiteral("pfl"), this, ControlFlag::AllowMissingOrInvalid);
+    pPfl->connectValueChanged(this, [this](double value) {
+        if (m_settings.getAnnouncePlay()) {
+            speak(value > 0.0 ? QStringLiteral("Cue") : QStringLiteral("Cue off"));
+        }
+    });
 }
 
 void AnnouncementManager::setDeckHasTrack(const QString& group, bool value) {
