@@ -85,21 +85,81 @@
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayoutRate">
+       <widget class="QLabel" name="labelRate">
+        <property name="text">
+         <string>Speech rate:</string>
+        </property>
+        <property name="toolTip">
+         <string>Adjust the speed of speech from slower to faster. 0 is the normal system rate.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutRateSlider">
         <item>
-         <widget class="QLabel" name="labelRate">
+         <widget class="QLabel" name="labelRateSlower">
           <property name="text">
-           <string>Speech rate:</string>
+           <string>Slower</string>
           </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSlider" name="sliderTtsRate">
           <property name="toolTip">
-           <string>Speed of speech, from -10 (slowest) to 10 (fastest). 0 is the normal system rate.</string>
+           <string>Drag to adjust speech speed. Left is slower, right is faster. Middle position is normal speed.</string>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="minimum">
+           <number>-10</number>
+          </property>
+          <property name="maximum">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>0</number>
+          </property>
+          <property name="pageStep">
+           <number>1</number>
+          </property>
+          <property name="tickPosition">
+           <enum>QSlider::TicksBelow</enum>
+          </property>
+          <property name="tickInterval">
+           <number>5</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelRateFaster">
+          <property name="text">
+           <string>Faster</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QSpinBox" name="spinBoxTtsRate">
           <property name="toolTip">
-           <string>Speed of speech, from -10 (slowest) to 10 (fastest). 0 is the normal system rate.</string>
+           <string>Current speech rate value. Use the slider to adjust.</string>
           </property>
           <property name="minimum">
            <number>-10</number>
@@ -111,19 +171,6 @@
            <number>0</number>
           </property>
          </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacerRate">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
         </item>
        </layout>
       </item>

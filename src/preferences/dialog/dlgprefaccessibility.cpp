@@ -37,10 +37,24 @@ DlgPrefAccessibility::DlgPrefAccessibility(
                         ? m_voices.at(index - 1).id
                         : QString();
             });
+    connect(sliderTtsRate,
+            &QSlider::valueChanged,
+            this,
+            [this](int value) {
+                m_ttsRate = value;
+                spinBoxTtsRate->blockSignals(true);
+                spinBoxTtsRate->setValue(value);
+                spinBoxTtsRate->blockSignals(false);
+            });
     connect(spinBoxTtsRate,
             QOverload<int>::of(&QSpinBox::valueChanged),
             this,
-            [this](int value) { m_ttsRate = value; });
+            [this](int value) {
+                m_ttsRate = value;
+                sliderTtsRate->blockSignals(true);
+                sliderTtsRate->setValue(value);
+                sliderTtsRate->blockSignals(false);
+            });
     connect(pushButtonTestSpeech,
             &QPushButton::clicked,
             this,
@@ -122,6 +136,7 @@ void DlgPrefAccessibility::slotUpdate() {
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
+    sliderTtsRate->setValue(m_ttsRate);
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);
     checkBoxAnnounceSelection->setChecked(m_bAnnounceSelection);
@@ -176,6 +191,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
+    sliderTtsRate->setValue(m_ttsRate);
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);
     checkBoxAnnounceSelection->setChecked(m_bAnnounceSelection);
