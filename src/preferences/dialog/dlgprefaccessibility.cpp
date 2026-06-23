@@ -2,13 +2,15 @@
 
 #include <algorithm>
 
+#include "engine/enginetts.h"
 #include "moc_dlgprefaccessibility.cpp"
 
-DlgPrefAccessibility::DlgPrefAccessibility(QWidget* parent, UserSettingsPointer pConfig)
+DlgPrefAccessibility::DlgPrefAccessibility(
+        QWidget* parent, UserSettingsPointer pConfig, EngineTts* pTtsSink)
         : DlgPreferencePage(parent),
           m_settings(pConfig),
-          m_ttsOutputDeviceId(m_settings.getTtsOutputDeviceDefault()),
-          m_ttsOutputChannel(m_settings.getTtsOutputChannelDefault()),
+          m_pTtsSink(pTtsSink),
+          m_ttsRoute(m_settings.getTtsRouteDefault()),
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
           m_bAnnounceStartup(m_settings.getAnnounceStartupDefault()),
@@ -20,24 +22,13 @@ DlgPrefAccessibility::DlgPrefAccessibility(QWidget* parent, UserSettingsPointer 
           m_bAnnounceLibraryFocus(m_settings.getAnnounceLibraryFocusDefault()),
           m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()) {
     setupUi(this);
-    populateDeviceCombo();
-    populateChannelCombo();
+    populateRouteCombo();
     populateVoiceCombo();
 
-    connect(comboBoxTtsOutputDevice,
+    connect(comboBoxTtsRoute,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) {
-                m_ttsOutputDeviceId = (index > 0 && index <= m_outputDevices.size())
-                        ? m_outputDevices.at(index - 1).id
-                        : QString();
-                // Channel routing only applies when a specific device is selected.
-                comboBoxTtsOutputChannel->setEnabled(index > 0);
-            });
-    connect(comboBoxTtsOutputChannel,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this,
-            [this](int index) { m_ttsOutputChannel = index; });
+            [this](int index) { m_ttsRoute = index; });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -88,21 +79,11 @@ DlgPrefAccessibility::DlgPrefAccessibility(QWidget* parent, UserSettingsPointer 
             [this](bool checked) { m_bAnnounceSearch = checked; });
 }
 
-void DlgPrefAccessibility::populateDeviceCombo() {
-    m_outputDevices = TtsEngine::enumerateOutputDevices();
-    comboBoxTtsOutputDevice->clear();
-    comboBoxTtsOutputDevice->addItem(tr("Default (system audio output)"));
-    for (const TtsEngine::AudioOutputDevice& dev : m_outputDevices) {
-        comboBoxTtsOutputDevice->addItem(dev.displayName);
-    }
-}
-
-void DlgPrefAccessibility::populateChannelCombo() {
-    comboBoxTtsOutputChannel->clear();
-    comboBoxTtsOutputChannel->addItem(tr("Channels 1–2 (default)"));
-    comboBoxTtsOutputChannel->addItem(tr("Channels 3–4"));
-    comboBoxTtsOutputChannel->addItem(tr("Channels 5–6"));
-    comboBoxTtsOutputChannel->addItem(tr("Channels 7–8"));
+void DlgPrefAccessibility::populateRouteCombo() {
+    // Order must match EngineTts::Route (0 = Headphones, 1 = Main).
+    comboBoxTtsRoute->clear();
+    comboBoxTtsRoute->addItem(tr("Headphones / cue (DJ only)"));
+    comboBoxTtsRoute->addItem(tr("Main output (audience)"));
 }
 
 void DlgPrefAccessibility::populateVoiceCombo() {
@@ -112,18 +93,6 @@ void DlgPrefAccessibility::populateVoiceCombo() {
     for (const TtsEngine::Voice& voice : m_voices) {
         comboBoxTtsVoice->addItem(voice.displayName);
     }
-}
-
-int DlgPrefAccessibility::indexForDeviceId(const QString& deviceId) const {
-    if (deviceId.isEmpty()) {
-        return 0;
-    }
-    for (int i = 0; i < m_outputDevices.size(); ++i) {
-        if (m_outputDevices.at(i).id == deviceId) {
-            return i + 1;
-        }
-    }
-    return 0;
 }
 
 int DlgPrefAccessibility::indexForVoiceId(const QString& voiceId) const {
@@ -139,8 +108,7 @@ int DlgPrefAccessibility::indexForVoiceId(const QString& voiceId) const {
 }
 
 void DlgPrefAccessibility::slotUpdate() {
-    m_ttsOutputDeviceId = m_settings.getTtsOutputDevice();
-    m_ttsOutputChannel = m_settings.getTtsOutputChannel();
+    m_ttsRoute = m_settings.getTtsRoute();
     m_ttsVoiceId = m_settings.getTtsVoice();
     m_ttsRate = m_settings.getTtsRate();
     m_bAnnounceStartup = m_settings.getAnnounceStartup();
@@ -151,10 +119,8 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrack();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocus();
     m_bAnnounceSearch = m_settings.getAnnounceSearch();
-    comboBoxTtsOutputDevice->setCurrentIndex(indexForDeviceId(m_ttsOutputDeviceId));
-    comboBoxTtsOutputChannel->setCurrentIndex(
-            std::clamp(m_ttsOutputChannel, 0, comboBoxTtsOutputChannel->count() - 1));
-    comboBoxTtsOutputChannel->setEnabled(!m_ttsOutputDeviceId.isEmpty());
+    comboBoxTtsRoute->setCurrentIndex(
+            std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);
@@ -168,8 +134,7 @@ void DlgPrefAccessibility::slotUpdate() {
 }
 
 void DlgPrefAccessibility::slotApply() {
-    m_settings.setTtsOutputDevice(m_ttsOutputDeviceId);
-    m_settings.setTtsOutputChannel(m_ttsOutputChannel);
+    m_settings.setTtsRoute(m_ttsRoute);
     m_settings.setTtsVoice(m_ttsVoiceId);
     m_settings.setTtsRate(m_ttsRate);
     m_settings.setAnnounceStartup(m_bAnnounceStartup);
@@ -183,7 +148,12 @@ void DlgPrefAccessibility::slotApply() {
 }
 
 void DlgPrefAccessibility::slotTestSpeech() {
+    if (!m_pTtsSink) {
+        return;
+    }
     m_pTestEngine = TtsEngine::create();
+    m_pTestEngine->setSink(m_pTtsSink);
+    m_pTtsSink->setRoute(m_ttsRoute);
     if (!m_ttsVoiceId.isEmpty()) {
         m_pTestEngine->setVoice(m_ttsVoiceId);
     }
@@ -192,8 +162,7 @@ void DlgPrefAccessibility::slotTestSpeech() {
 }
 
 void DlgPrefAccessibility::slotResetToDefaults() {
-    m_ttsOutputDeviceId = m_settings.getTtsOutputDeviceDefault();
-    m_ttsOutputChannel = m_settings.getTtsOutputChannelDefault();
+    m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
     m_ttsRate = m_settings.getTtsRateDefault();
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
@@ -204,10 +173,8 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrackDefault();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocusDefault();
     m_bAnnounceSearch = m_settings.getAnnounceSearchDefault();
-    comboBoxTtsOutputDevice->setCurrentIndex(indexForDeviceId(m_ttsOutputDeviceId));
-    comboBoxTtsOutputChannel->setCurrentIndex(
-            std::clamp(m_ttsOutputChannel, 0, comboBoxTtsOutputChannel->count() - 1));
-    comboBoxTtsOutputChannel->setEnabled(!m_ttsOutputDeviceId.isEmpty());
+    comboBoxTtsRoute->setCurrentIndex(
+            std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);

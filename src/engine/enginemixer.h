@@ -30,6 +30,7 @@ class EffectsManager;
 class EngineEffectsManager;
 class EngineSync;
 class EngineTalkoverDucking;
+class EngineTts;
 class EngineDelay;
 
 // The number of channels to pre-allocate in various structures in the
@@ -110,6 +111,12 @@ class EngineMixer : public QObject, public AudioSource {
 
     EngineSideChain* getSideChain() const {
         return m_pEngineSideChain.get();
+    }
+
+    // The accessibility text-to-speech injector. Synthesized speech written
+    // here is mixed into the headphone or main output with ducking.
+    EngineTts* getTts() const {
+        return m_pTts.get();
     }
 
     CSAMPLE_GAIN getMainGain(int channelIndex) const;
@@ -307,6 +314,7 @@ class EngineMixer : public QObject, public AudioSource {
     std::unique_ptr<ControlObject> m_pAudioLatencyUsage;
     std::unique_ptr<ControlObject> m_pAudioLatencyOverload;
     std::unique_ptr<EngineTalkoverDucking> m_pTalkoverDucking;
+    std::unique_ptr<EngineTts> m_pTts;
     std::unique_ptr<EngineDelay> m_pMainDelay;
     std::unique_ptr<EngineDelay> m_pHeadDelay;
     std::unique_ptr<EngineDelay> m_pBoothDelay;

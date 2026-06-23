@@ -14,6 +14,7 @@
 #include "moc_dlgpreferences.cpp"
 #include "preferences/dialog/dlgpreflibrary.h"
 #include "preferences/dialog/dlgprefsound.h"
+#include "soundio/soundmanager.h"
 #include "util/color/color.h"
 #include "util/desktophelper.h"
 #include "util/widgethelper.h"
@@ -239,7 +240,7 @@ DlgPreferences::DlgPreferences(
 #endif // __MODPLUG__
 
     addPageWidget(PreferencesPage(
-                          new DlgPrefAccessibility(this, m_pConfig),
+                          new DlgPrefAccessibility(this, m_pConfig, pSoundManager->getTtsSink()),
                           new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
             tr("Accessibility"),
             "ic_preferences_interface.svg");

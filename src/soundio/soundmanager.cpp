@@ -643,6 +643,10 @@ void SoundManager::registerInput(const AudioInput& input, AudioDestination* dest
     emit inputRegistered(input, dest);
 }
 
+EngineTts* SoundManager::getTtsSink() const {
+    return m_pEngineMixer ? m_pEngineMixer->getTts() : nullptr;
+}
+
 QList<AudioOutput> SoundManager::registeredOutputs() const {
     return m_registeredSources.keys();
 }

@@ -16,6 +16,7 @@
 #include "util/types.h"
 
 class EngineMixer;
+class EngineTts;
 class ControlObject;
 
 #define MIXXX_PORTAUDIO_JACK_STRING "JACK Audio Connection Kit"
@@ -95,6 +96,10 @@ class SoundManager : public QObject {
     QSharedPointer<EngineNetworkStream> getNetworkStream() const {
         return m_pNetworkStream;
     }
+
+    // The accessibility text-to-speech injector in the mixing engine, used by
+    // the preferences "Test speech" button. May be null if no engine is set.
+    EngineTts* getTtsSink() const;
 
     void underflowHappened(int code) {
         m_underflowHappened = 1;

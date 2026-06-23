@@ -14,6 +14,7 @@
 #include "engine/enginebuffer.h"
 #include "engine/enginedelay.h"
 #include "engine/enginetalkoverducking.h"
+#include "engine/enginetts.h"
 #include "engine/enginevumeter.h"
 #include "engine/engineworkerscheduler.h"
 #include "engine/enginexfader.h"
@@ -85,6 +86,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
                   kAppGroup, QStringLiteral("audio_latency_overload")))),
           m_pTalkoverDucking(
                   std::make_unique<EngineTalkoverDucking>(pConfig, group)),
+          m_pTts(std::make_unique<EngineTts>(QStringLiteral("[Tts]"))),
           m_pMainDelay(
                   std::make_unique<EngineDelay>(ConfigKey(group, "delay"))),
           m_pHeadDelay(
@@ -773,6 +775,18 @@ void EngineMixer::process(const std::size_t bufferSize) {
 
     if (m_pMainMonoMixdown->toBool()) {
         SampleUtil::mixStereoToMono(m_main.data(), bufferSize);
+    }
+
+    // Inject accessibility text-to-speech announcements. Done after the
+    // sidechain/recording tap so speech is never recorded or broadcast, and
+    // after main gain and balance so it is not attenuated by them. Routing
+    // (headphone cue vs. main) and ducking are handled inside EngineTts.
+    if (m_pTts) {
+        m_pTts->process(
+                mainEnabled ? m_main.data() : nullptr,
+                headphoneEnabled ? m_head.data() : nullptr,
+                bufferSize,
+                static_cast<int>(iFrames));
     }
 
     if (mainEnabled) {

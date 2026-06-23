@@ -9,10 +9,12 @@
 #include "preferences/usersettings.h"
 #include "util/ttsengine.h"
 
+class EngineTts;
+
 class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibilityDlg {
     Q_OBJECT
   public:
-    DlgPrefAccessibility(QWidget* parent, UserSettingsPointer pConfig);
+    DlgPrefAccessibility(QWidget* parent, UserSettingsPointer pConfig, EngineTts* pTtsSink);
 
   public slots:
     void slotApply() override;
@@ -23,17 +25,14 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     void slotTestSpeech();
 
   private:
-    void populateDeviceCombo();
-    void populateChannelCombo();
+    void populateRouteCombo();
     void populateVoiceCombo();
-    int indexForDeviceId(const QString& deviceId) const;
     int indexForVoiceId(const QString& voiceId) const;
 
     AccessibilitySettings m_settings;
-    QList<TtsEngine::AudioOutputDevice> m_outputDevices;
+    EngineTts* m_pTtsSink;
     QList<TtsEngine::Voice> m_voices;
-    QString m_ttsOutputDeviceId;
-    int m_ttsOutputChannel;
+    int m_ttsRoute;
     QString m_ttsVoiceId;
     int m_ttsRate;
     bool m_bAnnounceStartup;

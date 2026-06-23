@@ -1,6 +1,7 @@
 #include "util/announcementmanager.h"
 
 #include "control/controlproxy.h"
+#include "engine/enginetts.h"
 #include "library/library.h"
 #include "library/library_decl.h"
 #include "mixer/basetrackplayer.h"
@@ -60,11 +61,19 @@ AnnouncementManager::AnnouncementManager(
         Library* pLibrary,
         PlayerManagerInterface* pPlayerManager,
         UserSettingsPointer pConfig,
+        EngineTts* pTtsSink,
         QObject* parent)
         : QObject(parent),
           m_pTts(TtsEngine::create()),
+          m_pTtsSink(pTtsSink),
           m_settings(pConfig),
           m_pPlayerManager(pPlayerManager) {
+    m_pTts->setSink(pTtsSink);
+    m_pSampleRate = std::make_unique<ControlProxy>(
+            QStringLiteral("[App]"),
+            QStringLiteral("samplerate"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
     init(pLibrary, pPlayerManager);
 }
 
@@ -133,11 +142,6 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::speak(const QString& text) {
-    const QString deviceId = m_settings.getTtsOutputDevice();
-    if (deviceId != m_currentTtsDeviceId) {
-        m_pTts->setOutputDevice(deviceId);
-        m_currentTtsDeviceId = deviceId;
-    }
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -148,10 +152,21 @@ void AnnouncementManager::speak(const QString& text) {
         m_pTts->setRate(rate);
         m_currentTtsRate = rate;
     }
-    const int channelPair = m_settings.getTtsOutputChannel();
-    if (channelPair != m_currentTtsChannelPair) {
-        m_pTts->setOutputChannel(channelPair);
-        m_currentTtsChannelPair = channelPair;
+    // The synthesizer renders into the engine sink, which mixes speech into the
+    // selected output bus (headphone or main) with ducking. Keep the sink's
+    // routing and the render sample rate in sync with the engine and settings.
+    if (m_pTtsSink) {
+        const int route = m_settings.getTtsRoute();
+        if (route != m_currentTtsRoute) {
+            m_pTtsSink->setRoute(route);
+            m_currentTtsRoute = route;
+        }
+        if (m_pSampleRate) {
+            const int sampleRate = static_cast<int>(m_pSampleRate->get());
+            if (sampleRate > 0) {
+                m_pTts->setSampleRate(sampleRate);
+            }
+        }
     }
     m_pTts->say(text);
 }

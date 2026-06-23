@@ -14,6 +14,8 @@
 class Library;
 class PlayerManagerInterface;
 class TtsEngine;
+class EngineTts;
+class ControlProxy;
 
 class AnnouncementManager : public QObject {
     Q_OBJECT
@@ -21,6 +23,7 @@ class AnnouncementManager : public QObject {
     AnnouncementManager(Library* pLibrary,
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
+            EngineTts* pTtsSink,
             QObject* parent = nullptr);
 
     // Constructor for testing: accepts a pre-built TtsEngine so tests can
@@ -61,11 +64,14 @@ class AnnouncementManager : public QObject {
     void speak(const QString& text);
 
     std::unique_ptr<TtsEngine> m_pTts;
+    // Engine sink the synthesized speech is rendered into. Null in unit tests,
+    // where a spy TtsEngine is injected instead.
+    EngineTts* m_pTtsSink{nullptr};
+    std::unique_ptr<ControlProxy> m_pSampleRate;
     AccessibilitySettings m_settings;
-    QString m_currentTtsDeviceId;
     QString m_currentTtsVoiceId;
     int m_currentTtsRate{0};
-    int m_currentTtsChannelPair{0};
+    int m_currentTtsRoute{-1};
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;

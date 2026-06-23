@@ -4,13 +4,18 @@
 #include <QString>
 #include <memory>
 
+class EngineTts;
+
+/// Synthesizes text to speech and renders it as PCM into an EngineTts sink,
+/// which mixes it into Mixxx's own audio output (with ducking) rather than
+/// playing it on a separate device. This lets the DJ hear announcements over
+/// the music, ducked for intelligibility, and routed to the headphone or main
+/// output like any other engine signal.
+///
+/// Synthesis is platform specific (SAPI on Windows, Qt TextToSpeech elsewhere
+/// when available); a silent no-op engine is used when no backend is present.
 class TtsEngine {
   public:
-    struct AudioOutputDevice {
-        QString id;
-        QString displayName;
-    };
-
     struct Voice {
         QString id;
         QString displayName;
@@ -18,12 +23,9 @@ class TtsEngine {
 
     virtual ~TtsEngine() = default;
 
-    // Speak text asynchronously, interrupting any current speech.
+    // Synthesize text and render it into the sink asynchronously, interrupting
+    // any speech already in progress.
     virtual void say(const QString& text) = 0;
-
-    virtual void setOutputDevice(const QString& deviceId) {
-        Q_UNUSED(deviceId);
-    }
 
     virtual void setVoice(const QString& voiceId) {
         Q_UNUSED(voiceId);
@@ -34,11 +36,22 @@ class TtsEngine {
         Q_UNUSED(rate);
     }
 
-    virtual void setOutputChannel(int channelPair) {
-        Q_UNUSED(channelPair);
+    // The engine sink that synthesized audio is rendered into. Must be set
+    // before say() produces audible output.
+    void setSink(EngineTts* pSink) {
+        m_pSink = pSink;
+    }
+
+    // The engine sample rate to render at, so no resampling is needed before
+    // feeding the sink.
+    void setSampleRate(int sampleRate) {
+        m_sampleRate = sampleRate;
     }
 
     static std::unique_ptr<TtsEngine> create();
-    static QList<AudioOutputDevice> enumerateOutputDevices();
     static QList<Voice> enumerateVoices();
+
+  protected:
+    EngineTts* m_pSink = nullptr;
+    int m_sampleRate = 44100;
 };

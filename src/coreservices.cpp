@@ -640,7 +640,11 @@ void CoreServices::initialize(QApplication* pApp) {
     m_pPlayerManager->bindToLibrary(m_pLibrary.get());
 
     m_pAnnouncementManager = std::make_unique<AnnouncementManager>(
-            m_pLibrary.get(), m_pPlayerManager.get(), getSettings(), this);
+            m_pLibrary.get(),
+            m_pPlayerManager.get(),
+            getSettings(),
+            m_pEngine->getTts(),
+            this);
 
     bool musicDirAdded = false;
 

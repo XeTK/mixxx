@@ -1299,6 +1299,7 @@ add_library(
   src/engine/enginepregain.cpp
   src/engine/enginesidechaincompressor.cpp
   src/engine/enginetalkoverducking.cpp
+  src/engine/enginetts.cpp
   src/engine/enginevumeter.cpp
   src/engine/engineworker.cpp
   src/engine/engineworkerscheduler.cpp
@@ -1640,7 +1641,7 @@ add_library(
   src/util/taskmonitor.cpp
   src/util/time.cpp
   src/util/timer.cpp
-  src/util/ttsengine_qt.cpp
+  src/util/ttsengine.cpp
   src/util/valuetransformer.cpp
   src/util/versionstore.cpp
   src/util/widgethelper.cpp

@@ -56,13 +56,6 @@ class AccessibilitySettings {
             "AnnounceSearch",
             true);
 
-    // Empty string means "use OS default audio output".
-    DEFINE_PREFERENCE_HELPERS(TtsOutputDevice,
-            QString,
-            "[Accessibility]",
-            "TtsOutputDevice",
-            QString());
-
     // Empty string means "use system default voice".
     DEFINE_PREFERENCE_HELPERS(TtsVoice,
             QString,
@@ -73,8 +66,10 @@ class AccessibilitySettings {
     // Rate in the range [-10, 10]; 0 = normal speed.
     DEFINE_PREFERENCE_HELPERS(TtsRate, int, "[Accessibility]", "TtsRate", 0);
 
-    // 0-based channel pair index: 0 = channels 1-2 (default), 1 = channels 3-4, etc.
-    DEFINE_PREFERENCE_HELPERS(TtsOutputChannel, int, "[Accessibility]", "TtsOutputChannel", 0);
+    // Which engine output bus speech is mixed into and ducks:
+    // 0 = headphone/cue (DJ-only, default), 1 = main (audience hears it).
+    // Matches EngineTts::Route.
+    DEFINE_PREFERENCE_HELPERS(TtsRoute, int, "[Accessibility]", "TtsRoute", 0);
 
   private:
     UserSettingsPointer m_pConfig;
