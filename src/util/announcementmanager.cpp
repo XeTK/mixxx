@@ -155,17 +155,21 @@ void AnnouncementManager::speak(const QString& text) {
     // The synthesizer renders into the engine sink, which mixes speech into the
     // selected output bus (headphone or main) with ducking. Keep the sink's
     // routing and the render sample rate in sync with the engine and settings.
+    // Sample rate must be set before synthesizing (fallback to 44.1 kHz).
+    int sampleRate = 44100;
+    if (m_pSampleRate) {
+        int engineRate = static_cast<int>(m_pSampleRate->get());
+        if (engineRate > 0) {
+            sampleRate = engineRate;
+        }
+    }
+    m_pTts->setSampleRate(sampleRate);
+
     if (m_pTtsSink) {
         const int route = m_settings.getTtsRoute();
         if (route != m_currentTtsRoute) {
             m_pTtsSink->setRoute(route);
             m_currentTtsRoute = route;
-        }
-        if (m_pSampleRate) {
-            const int sampleRate = static_cast<int>(m_pSampleRate->get());
-            if (sampleRate > 0) {
-                m_pTts->setSampleRate(sampleRate);
-            }
         }
     }
     m_pTts->say(text);
