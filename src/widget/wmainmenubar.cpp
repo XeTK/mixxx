@@ -521,6 +521,17 @@ void WMainMenuBar::initialize() {
 
     pOptionsMenu->addSeparator();
 
+    QString ttsTitle = tr("Enable &Text-to-Speech");
+    QString ttsText = tr("Speak announcements for accessibility (track load, search, etc.)");
+    auto* pOptionsTts = new QAction(ttsTitle, this);
+    pOptionsTts->setCheckable(true);
+    pOptionsTts->setStatusTip(ttsText);
+    pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));
+    createVisibilityControl(pOptionsTts, ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("enabled")));
+    pOptionsMenu->addAction(pOptionsTts);
+
+    pOptionsMenu->addSeparator();
+
     QString preferencesTitle = tr("&Preferences");
     QString preferencesText = tr("Change Mixxx settings (e.g. playback, MIDI, controls)");
     auto* pOptionsPreferences = new QAction(preferencesTitle, this);
