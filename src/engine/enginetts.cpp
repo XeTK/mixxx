@@ -30,8 +30,10 @@ EngineTts::EngineTts(const QString& group)
           m_duckGainOld(1.0f) {
     m_tts.clear();
 
-    m_pEnabled = std::make_unique<ControlObject>(ConfigKey(group, "enabled"));
-    m_pEnabled->setReadOnly();
+    // Create a writable toggle for TTS enable/disable that can be bound to a
+    // keyboard shortcut. Defaults to enabled.
+    m_pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(group, "enabled"), true, false, false, 1.0);
 
     m_pRouteToMain = std::make_unique<ControlObject>(
             ConfigKey(group, "route_to_main"), true, false, true);

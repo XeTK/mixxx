@@ -39,6 +39,12 @@ class EngineTts {
     /// configured). bufferSize is the number of samples; iFrames == bufferSize / 2.
     void process(CSAMPLE* pMain, CSAMPLE* pHead, std::size_t bufferSize, int iFrames);
 
+    /// Check if TTS is currently enabled. Used by announcements to decide whether
+    /// to synthesize audio.
+    bool isEnabled() const {
+        return m_pEnabled->toBool();
+    }
+
     /// Select which output bus speech is mixed into and ducks. Accepts the
     /// EngineTts::Route value as an int (matching the persisted TtsRoute
     /// setting). Thread-safe; may be called from the GUI thread.

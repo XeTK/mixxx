@@ -142,6 +142,11 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::speak(const QString& text) {
+    // Skip if TTS is disabled via the toggle.
+    if (m_pTtsSink && !m_pTtsSink->isEnabled()) {
+        return;
+    }
+
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
