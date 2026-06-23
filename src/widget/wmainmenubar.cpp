@@ -527,7 +527,22 @@ void WMainMenuBar::initialize() {
     pOptionsTts->setCheckable(true);
     pOptionsTts->setStatusTip(ttsText);
     pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));
-    createVisibilityControl(pOptionsTts, ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("enabled")));
+
+    // Create a ControlProxy for [Tts]enabled and sync with menu action
+    auto* pTtsEnabledControl = new ControlProxy(
+            QStringLiteral("[Tts]"), QStringLiteral("enabled"), this);
+
+    // Update menu when control changes (e.g., via keyboard shortcut or preferences)
+    connect(pTtsEnabledControl, QOverload<double>::of(&ControlProxy::valueChanged),
+            this, [pOptionsTts](double value) { pOptionsTts->setChecked(value > 0.0); });
+
+    // Update control when menu action is triggered
+    connect(pOptionsTts, &QAction::triggered,
+            this, [pTtsEnabledControl](bool checked) { pTtsEnabledControl->set(checked ? 1.0 : 0.0); });
+
+    // Set initial state
+    pOptionsTts->setChecked(pTtsEnabledControl->toBool());
+
     pOptionsMenu->addAction(pOptionsTts);
 
     pOptionsMenu->addSeparator();
