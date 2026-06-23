@@ -142,6 +142,13 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::speak(const QString& text) {
+    // Don't try to announce if the sink isn't set up yet (e.g. during early startup).
+    // This prevents synthesis failures and ensures audio is only produced when the
+    // mixing engine is ready to process it.
+    if (!m_pTtsSink) {
+        return;
+    }
+
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -165,12 +172,10 @@ void AnnouncementManager::speak(const QString& text) {
     }
     m_pTts->setSampleRate(sampleRate);
 
-    if (m_pTtsSink) {
-        const int route = m_settings.getTtsRoute();
-        if (route != m_currentTtsRoute) {
-            m_pTtsSink->setRoute(route);
-            m_currentTtsRoute = route;
-        }
+    const int route = m_settings.getTtsRoute();
+    if (route != m_currentTtsRoute) {
+        m_pTtsSink->setRoute(route);
+        m_currentTtsRoute = route;
     }
     m_pTts->say(text);
 }
