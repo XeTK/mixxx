@@ -250,6 +250,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceCue">
+        <property name="toolTip">
+         <string>Speak "Cue" / "Cue off" when the cue (headphone preview) button is toggled.</string>
+        </property>
+        <property name="text">
+         <string>Announce cue button</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceStop">
         <property name="toolTip">
          <string>Speak "Stopped" when a deck is paused by the user.</string>

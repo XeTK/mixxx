@@ -26,6 +26,12 @@ class AccessibilitySettings {
             "AnnouncePlay",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceCue,
+            bool,
+            "[Accessibility]",
+            "AnnounceCue",
+            true);
+
     DEFINE_PREFERENCE_HELPERS(AnnounceStop,
             bool,
             "[Accessibility]",

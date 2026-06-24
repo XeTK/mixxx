@@ -57,37 +57,15 @@ QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
 }
 } // namespace
 
-AnnouncementManager::AnnouncementManager(
+// static
+std::unique_ptr<AnnouncementManager> AnnouncementManager::create(
         Library* pLibrary,
         PlayerManagerInterface* pPlayerManager,
         UserSettingsPointer pConfig,
         EngineTts* pTtsSink,
-        QObject* parent)
-        : QObject(parent),
-          m_pTts(TtsEngine::create()),
-          m_pTtsSink(pTtsSink),
-          m_settings(pConfig),
-          m_pPlayerManager(pPlayerManager) {
-    m_pTts->setSink(pTtsSink);
-    m_pSampleRate = std::make_unique<ControlProxy>(
-            QStringLiteral("[App]"),
-            QStringLiteral("samplerate"),
-            this,
-            ControlFlag::AllowMissingOrInvalid);
-    init(pLibrary, pPlayerManager);
-}
-
-AnnouncementManager::AnnouncementManager(
-        Library* pLibrary,
-        PlayerManagerInterface* pPlayerManager,
-        UserSettingsPointer pConfig,
-        std::unique_ptr<TtsEngine> pTts,
-        QObject* parent)
-        : QObject(parent),
-          m_pTts(std::move(pTts)),
-          m_settings(pConfig),
-          m_pPlayerManager(pPlayerManager) {
-    init(pLibrary, pPlayerManager);
+        QObject* parent) {
+    return std::make_unique<AnnouncementManager>(
+            pLibrary, pPlayerManager, std::move(pConfig), TtsEngine::create(), pTtsSink, parent);
 }
 
 AnnouncementManager::AnnouncementManager(
@@ -104,6 +82,13 @@ AnnouncementManager::AnnouncementManager(
           m_pPlayerManager(pPlayerManager) {
     if (m_pTts && m_pTtsSink) {
         m_pTts->setSink(m_pTtsSink);
+    }
+    if (m_pTtsSink) {
+        m_pSampleRate = std::make_unique<ControlProxy>(
+                QStringLiteral("[App]"),
+                QStringLiteral("samplerate"),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
     }
     init(pLibrary, pPlayerManager);
 }
@@ -232,7 +217,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
     auto pPfl = make_parented<ControlProxy>(
             group, QStringLiteral("pfl"), this, ControlFlag::AllowMissingOrInvalid);
     pPfl->connectValueChanged(this, [this](double value) {
-        if (m_settings.getAnnouncePlay()) {
+        if (m_settings.getAnnounceCue()) {
             speak(value > 0.0 ? QStringLiteral("Cue") : QStringLiteral("Cue off"));
         }
     });

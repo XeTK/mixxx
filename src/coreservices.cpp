@@ -639,7 +639,7 @@ void CoreServices::initialize(QApplication* pApp) {
     // the uninitialized singleton instance!
     m_pPlayerManager->bindToLibrary(m_pLibrary.get());
 
-    m_pAnnouncementManager = std::make_unique<AnnouncementManager>(
+    m_pAnnouncementManager = AnnouncementManager::create(
             m_pLibrary.get(),
             m_pPlayerManager.get(),
             getSettings(),

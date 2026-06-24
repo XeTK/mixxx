@@ -95,5 +95,5 @@ class EngineTts {
     std::unique_ptr<ControlObject> m_pSpeaking;    // read-only: 1 while FIFO has data
     std::unique_ptr<ControlObject> m_pRouteToMain; // 0 = headphones, 1 = main
     std::unique_ptr<ControlObject> m_pDuckStrength;
-    ControlProxy* m_pSampleRate;
+    std::unique_ptr<ControlProxy> m_pSampleRate;
 };

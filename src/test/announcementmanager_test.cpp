@@ -104,7 +104,8 @@ class AnnouncementManagerTest : public MixxxTest {
                 nullptr, // no Library needed – slots are driven directly
                 m_pPlayerManager.get(),
                 config(),
-                std::move(spy));
+                std::move(spy),
+                nullptr); // no EngineTts sink needed for logic tests
         return pSpy;
     }
 
@@ -631,7 +632,7 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
 
 TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
     config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlay")),
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceCue")),
             false);
     SpyTtsEngine* pSpy = makeManager();
     setupGroup();

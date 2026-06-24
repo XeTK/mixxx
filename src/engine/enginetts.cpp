@@ -46,14 +46,12 @@ EngineTts::EngineTts(const QString& group)
     m_pDuckStrength = std::make_unique<ControlObject>(
             ConfigKey(group, "duckStrength"), true, false, true, kDefaultDuckStrength);
 
-    m_pSampleRate = new ControlProxy(
+    m_pSampleRate = std::make_unique<ControlProxy>(
             kAppGroup, QStringLiteral("samplerate"), nullptr);
     updateDuckingParameters(m_pSampleRate->get());
 }
 
-EngineTts::~EngineTts() {
-    delete m_pSampleRate;
-}
+EngineTts::~EngineTts() = default;
 
 void EngineTts::updateDuckingParameters(double sampleRate) {
     if (sampleRate <= 0) {
@@ -84,6 +82,17 @@ void EngineTts::process(CSAMPLE* pMain, CSAMPLE* pHead, std::size_t bufferSize, 
         m_lastSampleRate = sampleRate;
         m_lastDuckStrength = duckStrength;
         updateDuckingParameters(sampleRate);
+    }
+
+    // If the user has disabled TTS, flush any queued speech and bail. This
+    // ensures toggling off mid-utterance silences immediately rather than
+    // letting the current FIFO contents play out.
+    if (!m_pEnabled->toBool()) {
+        m_fifo.flushReadData(m_fifo.readAvailable());
+        m_flushRequested.store(false, std::memory_order_release);
+        m_pSpeaking->forceSet(0.0);
+        m_duckGainOld = 1.0f;
+        return;
     }
 
     // Barge-in: a new utterance asked us to drop whatever is still queued. The

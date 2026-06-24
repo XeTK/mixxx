@@ -20,22 +20,15 @@ class ControlProxy;
 class AnnouncementManager : public QObject {
     Q_OBJECT
   public:
-    AnnouncementManager(Library* pLibrary,
+    // Production factory: creates the platform TtsEngine internally.
+    static std::unique_ptr<AnnouncementManager> create(Library* pLibrary,
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
             EngineTts* pTtsSink,
             QObject* parent = nullptr);
 
-    // Constructor for testing: accepts a pre-built TtsEngine so tests can
-    // inject a spy without going through TtsEngine::create().
-    AnnouncementManager(Library* pLibrary,
-            PlayerManagerInterface* pPlayerManager,
-            UserSettingsPointer pConfig,
-            std::unique_ptr<TtsEngine> pTts,
-            QObject* parent = nullptr);
-
-    // Constructor for testing with both a spy engine and a real EngineTts sink,
-    // so route-sync and sink interaction can be verified without the real SAPI backend.
+    // Single constructor. Tests inject a spy TtsEngine; pass nullptr for
+    // pTtsSink when no engine-level sink is needed.
     AnnouncementManager(Library* pLibrary,
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
