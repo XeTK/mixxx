@@ -643,8 +643,70 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
 }
 
 // ---------------------------------------------------------------------------
+// AnnouncePlay / AnnounceCue independence (regression: they were previously
+// gated by the same setting, making them impossible to control separately)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, AnnouncePlayDisabled_CueStillSpoken) {
+    // Disabling AnnouncePlay must not silence cue-button announcements.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlay")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount)
+            << "Cue was silenced when AnnouncePlay was disabled — "
+               "the two settings must be independent";
+    EXPECT_QSTRING_EQ("Cue", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, AnnounceCueDisabled_PlayStillSpoken) {
+    // Disabling AnnounceCue must not silence play announcements.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceCue")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+
+    setPlay(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount)
+            << "Play was silenced when AnnounceCue was disabled — "
+               "the two settings must be independent";
+    EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
 // Sidebar item deduplication
 // ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_EmptyTitle_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSidebarItemActivated(QString());
+    EXPECT_EQ(0, pSpy->callCount)
+            << "Empty sidebar title must not produce an announcement";
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSelection_RapidChanges_OnlyLastTrackSpoken) {
+    // If the user arrows quickly through tracks, only the last one should be
+    // announced when the debounce fires — not each intermediate selection.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackSelected(makeTrack(QStringLiteral("Artist 1"), QStringLiteral("First")));
+    m_pManager->slotTrackSelected(makeTrack(QStringLiteral("Artist 2"), QStringLiteral("Second")));
+    m_pManager->slotTrackSelected(makeTrack(QStringLiteral("Artist 3"), QStringLiteral("Third")));
+    m_pManager->slotAnnounceSelectedTrack(); // fire debounce synchronously
+
+    EXPECT_EQ(1, pSpy->callCount)
+            << "Expected one announcement for the last selected track, "
+               "got "
+            << pSpy->callCount;
+    EXPECT_QSTRING_EQ("Artist 3, Third", pSpy->lastText);
+}
 
 TEST_F(AnnouncementManagerTest, SidebarItemActivated_DuplicateSuppressed) {
     SpyTtsEngine* pSpy = makeManager();
@@ -762,4 +824,22 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkipsRouteSyncWhenUnchanged) {
     // If route was re-synced, control would be back at 1. If not, still 0.
     EXPECT_EQ(0.0, readRouteControl());
     EXPECT_EQ(2, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
+    // When the user disables TTS via the menu/shortcut, the EngineTts enabled CO
+    // goes to 0. speak() must bail before calling say() so no synthesis happens.
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    ControlProxy enabledCO(QLatin1String(kSinkGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    enabledCO.set(0.0);
+    ASSERT_FALSE(m_pEngineTts->isUserEnabled());
+
+    m_pManager->slotSkinLoaded(); // would normally speak "Mixxx ready"
+
+    EXPECT_EQ(0, pSpy->callCount)
+            << "speak() was not skipped when the engine sink is user-disabled";
 }

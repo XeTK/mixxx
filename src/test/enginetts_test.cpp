@@ -262,3 +262,122 @@ TEST_F(EngineTtsTest, RouteMain_Ducking_AttenuatesMusicBuffer) {
     EXPECT_LT(lastSample, 2.0f * 0.95f)
             << "last sample of pMain showed no ducking after 4 buffers of speech";
 }
+
+// ---------------------------------------------------------------------------
+// Disable mid-utterance (regression for the FIFO-flush-on-disable fix)
+//
+// Before the fix, toggling TTS off while the FIFO held audio let the current
+// utterance play out. These tests verify the fix: process() flushes and bails
+// the moment isUserEnabled() returns false.
+// ---------------------------------------------------------------------------
+
+TEST_F(EngineTtsTest, Disabled_FlushesQueuedAudio) {
+    writeSamples(1.0f, kBufferSize);
+    ASSERT_FALSE(m_pEngineTts->isEmpty()) << "precondition: FIFO must be non-empty";
+
+    ControlProxy userToggle(QString(kGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    userToggle.set(0.0);
+
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+    processMainOnly(main);
+
+    EXPECT_TRUE(m_pEngineTts->isEmpty())
+            << "FIFO was not flushed when TTS was disabled mid-utterance";
+}
+
+TEST_F(EngineTtsTest, Disabled_OutputBufferUntouched) {
+    writeSamples(1.0f, kBufferSize);
+
+    ControlProxy userToggle(QString(kGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    userToggle.set(0.0);
+
+    std::vector<CSAMPLE> main(kBufferSize, 1.0f);
+    processMainOnly(main);
+
+    const bool unchanged = std::all_of(
+            main.begin(), main.end(), [](CSAMPLE s) { return s == 1.0f; });
+    EXPECT_TRUE(unchanged)
+            << "process() modified pMain while TTS was user-disabled";
+}
+
+TEST_F(EngineTtsTest, Disabled_SpeakingCOResetToFalse) {
+    writeSamples(1.0f, kBufferSize);
+
+    ControlProxy userToggle(QString(kGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    userToggle.set(0.0);
+
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+    processMainOnly(main);
+
+    EXPECT_FALSE(m_pEngineTts->isSpeaking())
+            << "isSpeaking should be false after process() when TTS is disabled";
+}
+
+TEST_F(EngineTtsTest, Disabled_EmptyFifo_DoesNotCrash) {
+    ControlProxy userToggle(QString(kGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    userToggle.set(0.0);
+    ASSERT_TRUE(m_pEngineTts->isEmpty());
+
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+    EXPECT_NO_FATAL_FAILURE(processMainOnly(main));
+}
+
+TEST_F(EngineTtsTest, ReenableAfterDisable_SpeechResumes) {
+    m_pEngineTts->setRoute(static_cast<int>(EngineTts::Route::Main));
+
+    ControlProxy userToggle(QString(kGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    // Disable and confirm the FIFO is flushed.
+    userToggle.set(0.0);
+    writeSamples(1.0f, kBufferSize);
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+    processMainOnly(main);
+    ASSERT_TRUE(m_pEngineTts->isEmpty()) << "precondition: FIFO should be empty after disable";
+
+    // Re-enable and write new speech; it must appear in the output.
+    userToggle.set(1.0);
+    writeSamples(1.0f, kBufferSize);
+    std::fill(main.begin(), main.end(), 0.0f);
+    processMainOnly(main);
+
+    const bool hasSignal = std::any_of(
+            main.begin(), main.end(), [](CSAMPLE s) { return s != 0.0f; });
+    EXPECT_TRUE(hasSignal)
+            << "No audio in pMain after re-enabling TTS — speech did not resume";
+}
+
+// ---------------------------------------------------------------------------
+// Null pHead with Route::Headphones and queued speech.
+//
+// Route::Headphones is the default. When no headphone output is configured
+// pHead is null. process() must not crash and must leave pMain untouched.
+// ---------------------------------------------------------------------------
+
+TEST_F(EngineTtsTest, RouteHeadphones_NullHead_WithSpeech_DoesNotCrash) {
+    // Default route is headphones; pHead is null (no headphone output configured).
+    writeSamples(1.0f, kBufferSize);
+
+    std::vector<CSAMPLE> main(kBufferSize, 1.0f);
+    EXPECT_NO_FATAL_FAILURE(processMainOnly(main)); // passes nullptr for pHead
+
+    const bool mainUntouched = std::all_of(
+            main.begin(), main.end(), [](CSAMPLE s) { return s == 1.0f; });
+    EXPECT_TRUE(mainUntouched)
+            << "pMain was modified with Route::Headphones and null pHead — "
+               "speech is DJ-only and must not reach the main output";
+}
