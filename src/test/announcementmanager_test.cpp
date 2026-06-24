@@ -441,7 +441,7 @@ TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
 TEST_F(AnnouncementManagerTest, LibraryFocus_SearchbarAnnounced) {
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
-    pSpy->callCount = 0; // discard the None→Sidebar suppressed call (no-op here)
+    pSpy->callCount = 0; // None→Sidebar: no speech (suppressed), but dedup IS cleared
     m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Searchbar));
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Search bar", pSpy->lastText);
@@ -507,6 +507,38 @@ TEST_F(AnnouncementManagerTest, SidebarItemActivated_SettingDisabled_Silent) {
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
     EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Regression: sidebar item must be announced after first focus-enter even
+// when prevFocus == None (startup case).
+//
+// activateDefaultSelection() fires slotSidebarItemActivated("Tracks") at
+// startup, setting m_lastAnnouncedSidebarItem = "Tracks". The very first
+// focus-change to the sidebar has prevFocus == None, so the old code returned
+// early before clearing the dedup. Any subsequent click on "Tracks" was then
+// silently skipped. The fix: clear m_lastAnnouncedSidebarItem unconditionally
+// when newFocus == Sidebar, before the None-suppression guard.
+// ---------------------------------------------------------------------------
+TEST_F(AnnouncementManagerTest, SidebarDedup_ClearedOnFirstFocusEnter) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    // Simulate activateDefaultSelection setting the dedup to "Tracks".
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Tracks"));
+    ASSERT_EQ(1, pSpy->callCount); // announced once
+    pSpy->callCount = 0;
+
+    // First sidebar focus-enter: prevFocus == None → speech suppressed,
+    // but m_lastAnnouncedSidebarItem must be cleared.
+    m_pManager->slotLibraryFocusChanged(static_cast<double>(FocusWidget::Sidebar));
+    EXPECT_EQ(0, pSpy->callCount); // still no speech
+
+    // Now clicking/navigating to "Tracks" must be spoken (dedup was cleared).
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Tracks"));
+    EXPECT_EQ(1, pSpy->callCount)
+            << "\"Tracks\" was silently deduped after first sidebar focus-enter — "
+               "activateDefaultSelection poisoned m_lastAnnouncedSidebarItem at startup";
+    EXPECT_QSTRING_EQ("Tracks", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------

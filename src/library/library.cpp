@@ -348,14 +348,15 @@ void Library::bindSidebarWidget(WLibrarySidebar* pSidebarWidget) {
 
     // Announce the current sidebar item whenever the selection changes so
     // that keyboard navigation (arrow keys) is read out, not just activation.
-    connect(pSidebarWidget->selectionModel(),
-            &QItemSelectionModel::currentChanged,
+    // Connect to WLibrarySidebar::currentIndexChanged (a view-level signal)
+    // rather than the selection model's currentChanged so that the connection
+    // survives selectIndex() replacing the QItemSelectionModel at startup.
+    connect(pSidebarWidget,
+            &WLibrarySidebar::currentIndexChanged,
             this,
-            [this](const QModelIndex& current, const QModelIndex&) {
-                if (current.isValid()) {
-                    emit sidebarItemActivated(
-                            current.data(Qt::DisplayRole).toString());
-                }
+            [this](const QModelIndex& current) {
+                emit sidebarItemActivated(
+                        current.data(Qt::DisplayRole).toString());
             });
 
     connect(m_pSidebarModel,

@@ -320,17 +320,19 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
     const FocusWidget prevFocus = m_lastFocusWidget;
     m_lastFocusWidget = newFocus;
 
+    // Reset sidebar dedup so that re-entering the sidebar re-announces the
+    // current item. Done unconditionally (before the None-suppression guard)
+    // so the first ever focus-enter to the sidebar (prevFocus == None at
+    // startup) also clears the stale "Tracks" set by activateDefaultSelection.
+    if (newFocus == FocusWidget::Sidebar) {
+        m_lastAnnouncedSidebarItem.clear();
+    }
+
     // Suppress the announcement when the OS returns focus to the window — the
     // CO transitions from None (lost focus) back to whatever widget was active.
     // We only want to announce intentional navigation between library panels.
     if (prevFocus == FocusWidget::None) {
         return;
-    }
-
-    // Reset sidebar dedup so that re-entering the sidebar re-announces the
-    // current item.
-    if (newFocus == FocusWidget::Sidebar) {
-        m_lastAnnouncedSidebarItem.clear();
     }
 
     if (!m_settings.getAnnounceLibraryFocus()) {

@@ -393,6 +393,14 @@ void WLibrarySidebar::selectIndex(const QModelIndex& index) {
     scrollTo(index);
 }
 
+void WLibrarySidebar::currentChanged(
+        const QModelIndex& current, const QModelIndex& previous) {
+    QTreeView::currentChanged(current, previous);
+    if (current.isValid()) {
+        emit currentIndexChanged(current);
+    }
+}
+
 /// Selects a child index from a feature and ensures visibility
 void WLibrarySidebar::selectChildIndex(const QModelIndex& index, bool selectItem) {
     SidebarModel* pSidebarModel = qobject_cast<SidebarModel*>(model());

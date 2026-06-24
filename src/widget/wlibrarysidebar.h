@@ -40,9 +40,11 @@ class WLibrarySidebar : public QTreeView, public WBaseWidget {
     void renameItem(const QModelIndex&);
     void deleteItem(const QModelIndex&);
     FocusWidget setLibraryFocus(FocusWidget newFocus);
+    void currentIndexChanged(const QModelIndex& current);
 
   protected:
     bool event(QEvent* pEvent) override;
+    void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
 
   private:
     void focusSelectedIndex();
