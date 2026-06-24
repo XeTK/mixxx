@@ -466,7 +466,7 @@ elseif(APPLE)
   endif()
 endif()
 
-project(mixxx VERSION 2.6.0 LANGUAGES C CXX)
+project(Mixxx-Accessibility VERSION 2.6.0 LANGUAGES C CXX)
 # Work around missing version suffixes support https://gitlab.kitware.com/cmake/cmake/-/issues/16716
 set(MIXXX_VERSION_PRERELEASE "beta") # set to "alpha" "beta" or ""
 
@@ -2817,6 +2817,7 @@ if(BUILD_TESTING)
     src/test/uuid_test.cpp
     src/test/wbatterytest.cpp
     src/test/wpushbutton_test.cpp
+    src/test/wlibrarysidebar_test.cpp
     src/test/wwidgetstack_test.cpp
     src/util/moc_included_test.cpp
     src/test/helpers/log_test.cpp
