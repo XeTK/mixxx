@@ -34,6 +34,15 @@ class AnnouncementManager : public QObject {
             std::unique_ptr<TtsEngine> pTts,
             QObject* parent = nullptr);
 
+    // Constructor for testing with both a spy engine and a real EngineTts sink,
+    // so route-sync and sink interaction can be verified without the real SAPI backend.
+    AnnouncementManager(Library* pLibrary,
+            PlayerManagerInterface* pPlayerManager,
+            UserSettingsPointer pConfig,
+            std::unique_ptr<TtsEngine> pTts,
+            EngineTts* pTtsSink,
+            QObject* parent = nullptr);
+
     ~AnnouncementManager() override;
 
     // Exposed as public so tests can drive the slots directly without needing

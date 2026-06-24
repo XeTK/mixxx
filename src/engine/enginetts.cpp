@@ -30,10 +30,15 @@ EngineTts::EngineTts(const QString& group)
           m_duckGainOld(1.0f) {
     m_tts.clear();
 
-    // Create a writable toggle for TTS enable/disable that can be bound to a
-    // keyboard shortcut. Defaults to enabled.
+    // User-controlled on/off toggle. Written by the menu item and keyboard
+    // shortcut; read by speak() to decide whether to synthesize.
     m_pEnabled = std::make_unique<ControlObject>(
             ConfigKey(group, "enabled"), true, false, false, 1.0);
+
+    // Read-only status: 1.0 while the FIFO contains speech data, 0.0 otherwise.
+    // Written only by process(); never touched by the user toggle path.
+    m_pSpeaking = std::make_unique<ControlObject>(
+            ConfigKey(group, "speaking"), true, false, false, 0.0);
 
     m_pRouteToMain = std::make_unique<ControlObject>(
             ConfigKey(group, "route_to_main"), true, false, true);
@@ -93,7 +98,7 @@ void EngineTts::process(CSAMPLE* pMain, CSAMPLE* pHead, std::size_t bufferSize, 
         SampleUtil::clear(m_tts.data() + read, wanted - read);
     }
     const bool speaking = read > 0;
-    m_pEnabled->forceSet(speaking ? 1.0 : 0.0);
+    m_pSpeaking->forceSet(speaking ? 1.0 : 0.0);
 
     // Feed the speech into the compressor as the key signal and compute the
     // gain to apply to the music. Skip the work entirely while idle and fully

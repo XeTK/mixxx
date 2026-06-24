@@ -2706,6 +2706,8 @@ if(BUILD_TESTING)
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
     src/test/announcementmanager_test.cpp
+    src/test/ttsengine_integration_test.cpp
+    src/test/enginetts_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
     src/test/beatgridtest.cpp

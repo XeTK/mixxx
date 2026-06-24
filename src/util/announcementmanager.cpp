@@ -90,6 +90,24 @@ AnnouncementManager::AnnouncementManager(
     init(pLibrary, pPlayerManager);
 }
 
+AnnouncementManager::AnnouncementManager(
+        Library* pLibrary,
+        PlayerManagerInterface* pPlayerManager,
+        UserSettingsPointer pConfig,
+        std::unique_ptr<TtsEngine> pTts,
+        EngineTts* pTtsSink,
+        QObject* parent)
+        : QObject(parent),
+          m_pTts(std::move(pTts)),
+          m_pTtsSink(pTtsSink),
+          m_settings(pConfig),
+          m_pPlayerManager(pPlayerManager) {
+    if (m_pTts && m_pTtsSink) {
+        m_pTts->setSink(m_pTtsSink);
+    }
+    init(pLibrary, pPlayerManager);
+}
+
 void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlayerManager) {
     m_selectionDebounce.setSingleShot(true);
     m_selectionDebounce.setInterval(kSelectionDebounceMs);
@@ -142,8 +160,8 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::speak(const QString& text) {
-    // Skip if TTS is disabled via the toggle.
-    if (m_pTtsSink && !m_pTtsSink->isEnabled()) {
+    // Skip if TTS is disabled via the user toggle.
+    if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
         return;
     }
 

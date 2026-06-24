@@ -6,6 +6,8 @@
 
 #include "audio/types.h"
 #include "control/controlobject.h"
+#include "control/controlproxy.h"
+#include "engine/enginetts.h"
 #include "library/library_decl.h"
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
@@ -292,6 +294,8 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("play")));
         m_pEndOfTrack = std::make_unique<ControlObject>(
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("end_of_track")));
+        m_pPfl = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("pfl")));
         m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
         m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
     }
@@ -306,8 +310,14 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
         QCoreApplication::processEvents();
     }
 
+    void setPfl(double v) {
+        m_pPfl->set(v);
+        QCoreApplication::processEvents();
+    }
+
     std::unique_ptr<ControlObject> m_pPlay;
     std::unique_ptr<ControlObject> m_pEndOfTrack;
+    std::unique_ptr<ControlObject> m_pPfl;
 };
 
 TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_AnnouncesPlaying) {
@@ -590,4 +600,165 @@ TEST_F(AnnouncementManagerTest, AnnounceSearch_UpdatesPendingTextBeforeAnnounce)
     m_pManager->slotAnnounceSearch();
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Searching: house", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Pfl / cue-button announcements
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOn_AnnouncesCue) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Cue", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+    setPfl(0.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Cue off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlay")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar item deduplication
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_DuplicateSuppressed) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+
+    EXPECT_EQ(1, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_DifferentTitleAfterDupAnnounces) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Another Set"));
+
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Another Set", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, SidebarItemActivated_DedupResetWhenSidebarRefocused) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+    pSpy->callCount = 0;
+
+    // Re-entering sidebar from another panel resets the dedup state.
+    m_pManager->slotLibraryFocusChanged(
+            static_cast<double>(FocusWidget::TracksTable));
+    m_pManager->slotLibraryFocusChanged(
+            static_cast<double>(FocusWidget::Sidebar));
+    pSpy->callCount = 0; // discard "Track list" and "Sidebar" focus announcements
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("My Set"));
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("My Set", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// TTS route sync — uses the 3-arg test constructor with a real EngineTts sink
+// so that speak() can drive m_pTtsSink->setRoute() and we can inspect the
+// resulting [Tts],route_to_main control object.
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerRouteSyncTest : public AnnouncementManagerTest {
+  protected:
+    static constexpr const char* kSinkGroup = "[AnnounceMgrRouteSyncTest]";
+
+    void SetUp() override {
+        AnnouncementManagerTest::SetUp();
+        m_pAppSampleRate = std::make_unique<ControlObject>(
+                ConfigKey(QStringLiteral("[App]"), QStringLiteral("samplerate")));
+        m_pAppSampleRate->set(44100.0);
+        m_pEngineTts = std::make_unique<EngineTts>(kSinkGroup);
+    }
+
+    SpyTtsEngine* makeManagerWithSink() {
+        auto spy = std::make_unique<SpyTtsEngine>();
+        SpyTtsEngine* pSpy = spy.get();
+        m_pManager = std::make_unique<AnnouncementManager>(
+                nullptr,
+                m_pPlayerManager.get(),
+                config(),
+                std::move(spy),
+                m_pEngineTts.get());
+        return pSpy;
+    }
+
+    double readRouteControl() const {
+        ControlProxy cp(QLatin1String(kSinkGroup),
+                QStringLiteral("route_to_main"),
+                nullptr,
+                ControlFlag::AllowMissingOrInvalid);
+        return cp.get();
+    }
+
+    std::unique_ptr<ControlObject> m_pAppSampleRate;
+    std::unique_ptr<EngineTts> m_pEngineTts;
+};
+
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToMain) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    m_pManager->slotSkinLoaded(); // triggers speak()
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_EQ(1.0, readRouteControl());
+}
+
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToHeadphones) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 0);
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    m_pManager->slotSkinLoaded();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_EQ(0.0, readRouteControl());
+}
+
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkipsRouteSyncWhenUnchanged) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    m_pManager->slotSkinLoaded(); // first speak — sets route
+    // Change the CO back to 0 externally to detect a second setRoute() call.
+    m_pEngineTts->setRoute(0);
+    EXPECT_EQ(0.0, readRouteControl());
+
+    m_pManager->slotSkinLoaded(); // second speak — same setting, no re-sync
+    // If route was re-synced, control would be back at 1. If not, still 0.
+    EXPECT_EQ(0.0, readRouteControl());
+    EXPECT_EQ(2, pSpy->callCount);
 }

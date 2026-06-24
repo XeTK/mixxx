@@ -29,7 +29,7 @@ exclude: ^(lib/|src/test/.*data/).*|res/controllers/lodash\.mixxx\.js|src/.*_(an
 minimum_pre_commit_version: 2.21.0
 default_language_version:
   python: python3
-  rust: 1.64.0
+  rust: 1.82.0
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -176,7 +176,7 @@ repos:
         language: python
         additional_dependencies:
           - beautifulsoup4==4.12.3
-          - lxml==5.3.0
+          - lxml==6.1.1
           - Markdown==3.7
         types: [text]
         files: ^(CHANGELOG\.md|res/linux/org\.mixxx\.Mixxx\.metainfo.xml)$
@@ -187,5 +187,5 @@ repos:
         require_serial: true
         language: python
         additional_dependencies:
-          - lxml==5.3.0
+          - lxml==6.1.1
         files: ^(res/translations/.*\.ts)$

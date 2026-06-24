@@ -528,20 +528,21 @@ void WMainMenuBar::initialize() {
     pOptionsTts->setStatusTip(ttsText);
     pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));
 
-    // Create a ControlProxy for [Tts]enabled and sync with menu action
     auto* pTtsEnabledControl = new ControlProxy(
             QStringLiteral("[Tts]"), QStringLiteral("enabled"), this,
             ControlFlag::AllowMissingOrInvalid);
 
-    // Update menu when control changes (e.g., via keyboard shortcut or preferences)
-    connect(pTtsEnabledControl, QOverload<double>::of(&ControlProxy::valueChanged),
-            this, [pOptionsTts](double value) { pOptionsTts->setChecked(value > 0.0); });
+    // Keep the checkmark in sync with the CO so keyboard shortcut changes are
+    // reflected in the menu (safe now that process() no longer writes to this CO).
+    connect(pTtsEnabledControl,
+            QOverload<double>::of(&ControlProxy::valueChanged),
+            this,
+            [pOptionsTts](double value) { pOptionsTts->setChecked(value > 0.0); });
 
-    // Update control when menu action is triggered
-    connect(pOptionsTts, &QAction::triggered,
-            this, [pTtsEnabledControl](bool checked) { pTtsEnabledControl->set(checked ? 1.0 : 0.0); });
+    connect(pOptionsTts, &QAction::triggered, this, [pTtsEnabledControl](bool checked) {
+        pTtsEnabledControl->set(checked ? 1.0 : 0.0);
+    });
 
-    // Set initial state
     pOptionsTts->setChecked(pTtsEnabledControl->toBool());
 
     pOptionsMenu->addAction(pOptionsTts);

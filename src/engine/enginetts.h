@@ -39,10 +39,17 @@ class EngineTts {
     /// configured). bufferSize is the number of samples; iFrames == bufferSize / 2.
     void process(CSAMPLE* pMain, CSAMPLE* pHead, std::size_t bufferSize, int iFrames);
 
-    /// Check if TTS is currently enabled. Used by announcements to decide whether
-    /// to synthesize audio.
-    bool isEnabled() const {
+    /// True when the user has TTS turned on. Used by announcements to decide
+    /// whether to synthesize audio. Distinct from isSpeaking(), which reflects
+    /// whether the FIFO currently has data.
+    bool isUserEnabled() const {
         return m_pEnabled->toBool();
+    }
+
+    /// True when the engine is actively mixing synthesized speech (FIFO non-empty).
+    /// Written every audio callback by process(); read-only for everything else.
+    bool isSpeaking() const {
+        return m_pSpeaking->toBool();
     }
 
     /// Select which output bus speech is mixed into and ducks. Accepts the
@@ -84,7 +91,8 @@ class EngineTts {
     double m_lastDuckStrength = -1;
     std::atomic<bool> m_flushRequested{false};
 
-    std::unique_ptr<ControlObject> m_pEnabled;     // read-only "is speaking" status
+    std::unique_ptr<ControlObject> m_pEnabled;     // user toggle: 1 = TTS on, 0 = TTS off
+    std::unique_ptr<ControlObject> m_pSpeaking;    // read-only: 1 while FIFO has data
     std::unique_ptr<ControlObject> m_pRouteToMain; // 0 = headphones, 1 = main
     std::unique_ptr<ControlObject> m_pDuckStrength;
     ControlProxy* m_pSampleRate;
