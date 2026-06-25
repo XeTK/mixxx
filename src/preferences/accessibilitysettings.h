@@ -77,6 +77,20 @@ class AccessibilitySettings {
     // Matches EngineTts::Route.
     DEFINE_PREFERENCE_HELPERS(TtsRoute, int, "[Accessibility]", "TtsRoute", 0);
 
+    // Deck naming convention: "Deck1" for "Deck 1" or "DeckA" for "Deck A"
+    DEFINE_PREFERENCE_HELPERS(DeckNamingConvention,
+            QString,
+            "[Accessibility]",
+            "DeckNamingConvention",
+            "Deck1");
+
+    // Enable/disable TTS by default
+    DEFINE_PREFERENCE_HELPERS(EnableTtsByDefault,
+            bool,
+            "[Accessibility]",
+            "EnableTtsByDefault",
+            true);
+
   private:
     UserSettingsPointer m_pConfig;
 };

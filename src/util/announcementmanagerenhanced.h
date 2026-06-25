@@ -34,7 +34,23 @@ public:
     /// Enable/disable keyboard navigation announcements
     void setKeyboardNavigationEnabled(bool enabled);
 
+    // Enhanced TTS announcement methods
+    void announceCueStateChanged(int deckIndex, bool isCueActive);
+    void announceTrackLoaded(int deckIndex, TrackPointer pTrack);
+    void announceTrackSelected(TrackPointer pTrack);
+    void announcePlaybackStateChanged(int deckIndex, bool isPlaying);
+    void announceEndOfTrack(int deckIndex);
+    void announceTtsToggle(bool enabled);
+    void announceLibraryFocus(const QString& focusWidget, const QString& activeItem);
+
+    /// Set deck naming convention (Deck 1 vs Deck A)
+    void setDeckNamingConvention(const QString& convention);
+    
+    /// Get current deck naming convention
+    QString getDeckNamingConvention() const;
+
 private:
     bool m_keyboardNavigationEnabled;
     QWidget* m_lastFocusedWidget;
+    QString m_deckNamingConvention;  // "Deck1" or "DeckA"
 };
