@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mixxx DJ Software - Accessible User Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        header {
+            background-color: #0056b3;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        .section {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .keyboard-shortcut {
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            display: inline-block;
+        }
+        .feature-list {
+            margin-left: 20px;
+        }
+        .feature-list li {
+            margin-bottom: 10px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .accessibility-note {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mixxx DJ Software</h1>
+        <h2>Accessible User Guide</h2>
+        <p>Designed for visually impaired DJs and music producers</p>
+    </header>
+
+    <div class="section">
+        <h2>Introduction to Accessibility in Mixxx</h2>
+        <p>Mixxx includes comprehensive accessibility features designed to make DJ mixing more accessible to visually impaired users. This guide explains how to use these features effectively.</p>
+
+        <div class="accessibility-note">
+            <p><strong>Accessibility Features:</strong> Mixxx provides keyboard navigation, screen reader compatibility, high-contrast themes, and enhanced audio feedback for a more inclusive DJ experience.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Getting Started with Keyboard Navigation</h2>
+        <p>Most of Mixxx can be controlled entirely with the keyboard:</p>
+
+        <ul class="feature-list">
+            <li><strong>Tab Navigation:</strong> Press Tab to move between different controls and panels</li>
+            <li><strong>Enter/Space:</strong> Activate buttons and checkboxes</li>
+            <li><strong>Arrow Keys:</strong> Navigate within lists and select items</li>
+            <li><strong>F6:</strong> Toggle accessibility features on/off (if enabled)</li>
+        </ul>
+
+        <p>Keyboard navigation works throughout the entire application, including:</p>
+        <ul class="feature-list">
+            <li>Library browsing and track selection</li>
+            <li>Deck controls and playback</li>
+            <li>Effects and mixer controls</li>
+            <li>Preferences and settings</li>
+        </ul>
+
+        <div class="warning">
+            <p><strong>Tip:</strong> Use the Tab key to navigate between UI elements. Focus indicators will help you identify which element currently has keyboard focus.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Configuring Accessibility Settings</h2>
+        <p>Access accessibility features through:</p>
+        <ol>
+            <li>Go to <strong>Preferences &gt; Accessibility</strong></li>
+            <li>Enable text-to-speech announcements</li>
+            <li>Configure deck naming conventions</li>
+        </ol>
+
+        <h3>Key Accessibility Options:</h3>
+        <ul class="feature-list">
+            <li><strong>Announce Track Selection:</strong> Speak artist and title when tracks are selected</li>
+            <li><strong>Announce Track Load:</strong> Speak track details when loaded to a deck</li>
+            <li><strong>Announce Cue Button:</strong> Announce cue on/off states</li>
+            <li><strong>Deck Naming Convention:</strong> Choose between "Deck 1" or "Deck A"</li>
+            <li><strong>TTS Voice:</strong> Select preferred voice for announcements</li>
+            <li><strong>Speech Rate:</strong> Adjust speed of spoken announcements</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Enhanced Audio Feedback System</h2>
+        <p>Mixxx provides detailed audio feedback for key DJ operations:</p>
+
+        <h3>Deck-Specific Announcements:</h3>
+        <ul class="feature-list">
+            <li><strong>Deck 1 cue on:</strong> When you activate cue mode for deck 1</li>
+            <li><strong>Deck 1 cue off:</strong> When cue mode is deactivated</li>
+            <li><strong>Deck 1 loaded: Track Name by Artist:</strong> When a track is loaded</li>
+            <li><strong>Deck 1 playing:</strong> When playback starts</li>
+            <li><strong>Deck 1 stopped:</strong> When playback is paused</li>
+            <li><strong>Deck 1 end of track:</strong> When a track finishes</li>
+        </ul>
+
+        <div class="accessibility-note">
+            <p><strong>Accessibility Tip:</strong> These detailed announcements help you know exactly which deck's state has changed without needing to visually check the interface.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Working with Decks</h2>
+        <p>Each deck in Mixxx is clearly identified in accessibility announcements:</p>
+
+        <h3>Deck Controls:</h3>
+        <ul class="feature-list">
+            <li><strong>Load:</strong> Use the <span class="keyboard-shortcut">Ctrl+L</span> shortcut or navigate to the library and load tracks</li>
+            <li><strong>Cue:</strong> Press <span class="keyboard-shortcut">C</span> to toggle cue mode</li>
+            <li><strong>Play/Pause:</strong> Press <span class="keyboard-shortcut">Space</span> or <span class="keyboard-shortcut">P</span></li>
+            <li><strong>Sync:</strong> Press <span class="keyboard-shortcut">S</span> to sync tempo</li>
+        </ul>
+
+        <h3>Deck Announcements:</h3>
+        <p>When using any deck function, you'll hear:</p>
+        <ul class="feature-list">
+            <li><strong>"Deck 1 cue on" / "Deck 1 cue off"</strong> for cue state changes</li>
+            <li><strong>"Deck 2 loaded: Track Name by Artist"</strong> when tracks are loaded</li>
+            <li><strong>"Deck 1 playing" / "Deck 1 stopped"</strong> for playback state</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Library and Track Management</h2>
+        <p>The library panel provides comprehensive keyboard navigation:</p>
+
+        <h3>Library Navigation:</h3>
+        <ul class="feature-list">
+            <li><strong>Arrow keys:</strong> Navigate through tracks and folders</li>
+            <li><strong>Enter:</strong> Select a track or folder</li>
+            <li><strong>Tab:</strong> Move between library sections</li>
+            <li><strong>Search:</strong> Type to filter tracks in the search bar</li>
+        </ul>
+
+        <h3>Library Announcements:</h3>
+        <ul class="feature-list">
+            <li><strong>"Selected: Track Name by Artist"</strong> when tracks are selected</li>
+            <li><strong>"Library focus: Sidebar" / "Library focus: Track list"</strong> when navigating panels</li>
+            <li><strong>"Current search query: [search text]"</strong> when typing in search</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Effects and Mixer Controls</h2>
+        <p>Effect and mixer controls are fully accessible:</p>
+
+        <h3>Accessing Effects:</h3>
+        <ul class="feature-list">
+            <li><strong>Tab Navigation:</strong> Move between effect units</li>
+            <li><strong>Enter/Space:</strong> Activate or deactivate effects</li>
+            <li><strong>Arrow Keys:</strong> Adjust effect parameters</li>
+        </ul>
+
+        <h3>Mixer Announcements:</h3>
+        <ul class="feature-list">
+            <li><strong>"Master volume set to [value]"</strong> when adjusting main volume</li>
+            <li><strong>"Deck 1 volume set to [value]"</strong> when adjusting individual deck volume</li>
+            <li><strong>"Deck 1 filter [on/off]"</strong> when using filter effects</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>High Contrast and Visual Settings</h2>
+        <p>For users with low vision:</p>
+
+        <h3>High Contrast Themes:</h3>
+        <ul class="feature-list">
+            <li>Enable in <strong>Preferences &gt; Interface</strong></li>
+            <li>Provides better visibility for screen readers</li>
+            <li>Improves contrast for visually impaired users</li>
+        </ul>
+
+        <h3>Customizable Options:</h3>
+        <ul class="feature-list">
+            <li><strong>Font size adjustments</strong> through system preferences</li>
+            <li><strong>Dynamic color themes</strong> for different lighting conditions</li>
+            <li><strong>Keyboard focus indicators</strong> that are clearly visible</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Technical Support and Troubleshooting</h2>
+        <p>If you encounter accessibility issues:</p>
+
+        <h3>Common Solutions:</h3>
+        <ul class="feature-list">
+            <li>Ensure keyboard navigation is enabled in preferences</li>
+            <li>Test with screen reader software for full compatibility</li>
+            <li>Adjust TTS voice and rate settings for optimal comfort</li>
+            <li>Check that proper deck naming convention is selected</li>
+        </ul>
+
+        <h3>Getting Help:</h3>
+        <ul class="feature-list">
+            <li>Visit the <a href="https://mixxx.org/support/">Mixxx Support Portal</a></li>
+            <li>Join the Mixxx Community Forum for user discussions</li>
+            <li>Report accessibility issues through the GitHub issue tracker</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Accessibility Resources</h2>
+        <p>Additional resources for accessibility:</p>
+
+        <ul class="feature-list">
+            <li><strong>Mixxx Manual:</strong> <a href="https://manual.mixxx.org/">https://manual.mixxx.org/</a></li>
+            <li><strong>Accessibility Documentation:</strong> Included with Mixxx installation</li>
+            <li><strong>Community Support:</strong> Forums and user groups</li>
+            <li><strong>Screen Reader Compatibility:</strong> Works with NVDA, JAWS, and VoiceOver</li>
+        </ul>
+    </div>
+</body>
+</html>
