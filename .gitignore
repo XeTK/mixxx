@@ -72,3 +72,11 @@ src/mixxx.rc.include
 src/mixxx.res
 src/test/**/*.actual
 res/qrc_mixxx.cc
+
+# Unwanted temporary and backup files
+dist_backup/
+.claude/
+*UsersXeTKDocumentsCodemixxx.gitinfoexclude
+_agents
+dist
+*.zip

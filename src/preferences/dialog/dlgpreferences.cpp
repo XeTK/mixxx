@@ -36,6 +36,7 @@
 #endif // __BROADCAST__
 
 #include "preferences/dialog/dlgprefaccessibility.h"
+#include "preferences/dialog/dlgprefaccessibilityenhanced.h"
 #include "preferences/dialog/dlgprefbeats.h"
 #include "preferences/dialog/dlgprefkey.h"
 #include "preferences/dialog/dlgprefrecord.h"

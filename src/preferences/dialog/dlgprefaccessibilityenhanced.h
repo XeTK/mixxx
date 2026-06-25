@@ -1,32 +1,54 @@
 #pragma once
 
+#include <QCheckBox>
+#include <QComboBox>
+#include <QGroupBox>
+#include <QVBoxLayout>
+#include <QWidget>
+
+#include "preferences/accessibilitysettings.h"
 #include "preferences/dialog/dlgprefaccessibility.h"
 #include "widget/keyboardnavigation.h"
 
-#include <QKeyEvent>
-
-/// Enhanced accessibility preferences dialog with keyboard navigation support
 class DlgPrefAccessibilityEnhanced : public DlgPrefAccessibility {
     Q_OBJECT
 
 public:
-    DlgPrefAccessibilityEnhanced(QWidget* parent, 
-                                 UserSettingsPointer pConfig, 
-                                 EngineTts* pTtsSink);
+  explicit DlgPrefAccessibilityEnhanced(
+          QWidget* parent,
+          UserSettingsPointer pConfig,
+          EngineTts* pTtsSink);
 
-    /// Handle keyboard events for accessibility
-    bool handleKeyboardEvent(QKeyEvent* event);
+  ~DlgPrefAccessibilityEnhanced() override;
 
-protected:
-    /// Override keyPressEvent to add keyboard accessibility support
-    void keyPressEvent(QKeyEvent* event) override;
+  /// Apply all settings from the UI to the configuration
+  void apply() override;
+
+  /// Load all settings from the configuration to the UI
+  void load() override;
+
+private slots:
+  void onDeckNamingConventionChanged(const QString& convention);
+  void onEnableTtsByDefaultChanged(int state);
+  void onAnnounceCueChanged(int state);
+  void onAnnounceTrackLoadChanged(int state);
+  void onAnnouncePlayChanged(int state);
+  void onAnnounceStopChanged(int state);
+  void onAnnounceEndOfTrackChanged(int state);
 
 private:
-    /// Announce current accessibility setting
-    void announceSetting(const QString& settingName, bool enabled);
+  void setupUi();
+  void connectSignals();
 
-    /// Handle accessibility-specific keyboard navigation
-    bool handleAccessibilityNavigation(QKeyEvent* event);
+  // UI Elements
+  QComboBox* m_pDeckNamingCombo;
+  QCheckBox* m_pEnableTtsByDefaultCheckbox;
+  QCheckBox* m_pAnnounceCueCheckbox;
+  QCheckBox* m_pAnnounceTrackLoadCheckbox;
+  QCheckBox* m_pAnnouncePlayCheckbox;
+  QCheckBox* m_pAnnounceStopCheckbox;
+  QCheckBox* m_pAnnounceEndOfTrackCheckbox;
 
-    bool m_keyboardNavigationEnabled;
+  // Settings
+  AccessibilitySettings m_accessibilitySettings;
 };
