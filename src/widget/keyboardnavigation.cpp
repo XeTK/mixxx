@@ -1,15 +1,15 @@
 #include "widget/keyboardnavigation.h"
 
-#include <QKeyEvent>
-#include <QWidget>
 #include <QApplication>
 #include <QDebug>
+#include <QKeyEvent>
+#include <QWidget>
 
 bool KeyboardNavigation::s_navigationHintsEnabled = false;
 QMap<QWidget*, QString> KeyboardNavigation::s_widgetNames;
 
 KeyboardNavigation::KeyboardNavigation(QObject* parent)
-    : QObject(parent) {
+        : QObject(parent) {
 }
 
 KeyboardNavigation::~KeyboardNavigation() = default;
@@ -37,48 +37,48 @@ bool KeyboardNavigation::isKeyboardAccessible(QWidget* widget) {
     if (!widget) {
         return false;
     }
-    
+
     // Check if widget can receive focus
     if (!widget->focusPolicy() & (Qt::TabFocus | Qt::StrongFocus)) {
         return false;
     }
-    
+
     // Check if widget is enabled
     if (!widget->isEnabled()) {
         return false;
     }
-    
+
     // Check if widget is visible
     if (!widget->isVisible()) {
         return false;
     }
-    
+
     // Check if widget has accessibility attributes
-    return !widget->accessibleName().isEmpty() || 
-           !widget->accessibleDescription().isEmpty();
+    return !widget->accessibleName().isEmpty() ||
+            !widget->accessibleDescription().isEmpty();
 }
 
 QString KeyboardNavigation::getAccessibleName(QWidget* widget) {
     if (!widget) {
         return QString();
     }
-    
+
     QString name = widget->accessibleName();
     if (!name.isEmpty()) {
         return name;
     }
-    
+
     // Try to derive a name from window title or object name
     name = widget->windowTitle();
     if (!name.isEmpty()) {
         return name;
     }
-    
+
     name = widget->objectName();
     if (!name.isEmpty()) {
         return name;
     }
-    
+
     return QString("Unnamed Widget");
 }
 
@@ -86,23 +86,23 @@ bool KeyboardNavigation::handleFocusNavigation(QKeyEvent* event, QWidget* curren
     if (!currentWidget || !event) {
         return false;
     }
-    
+
     // Handle tab navigation
     if (event->key() == Qt::Key_Tab) {
         // Default tab behavior should be preserved
         return false;
     }
-    
+
     // Handle arrow keys for directional navigation
     switch (event->key()) {
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-        case Qt::Key_Up:
-        case Qt::Key_Down:
-            // These might trigger custom handling in certain UI elements
-            return false;
-        default:
-            return false;
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+    case Qt::Key_Up:
+    case Qt::Key_Down:
+        // These might trigger custom handling in certain UI elements
+        return false;
+    default:
+        return false;
     }
 }
 

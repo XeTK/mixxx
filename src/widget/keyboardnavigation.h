@@ -1,8 +1,8 @@
 #pragma once
 
-#include <QObject>
 #include <QKeyEvent>
 #include <QMap>
+#include <QObject>
 
 class QWidget;
 
@@ -10,7 +10,7 @@ class QWidget;
 class KeyboardNavigation : public QObject {
     Q_OBJECT
 
-public:
+  public:
     explicit KeyboardNavigation(QObject* parent = nullptr);
     ~KeyboardNavigation() override;
 
@@ -32,7 +32,7 @@ public:
     /// Check if navigation hints are enabled
     static bool navigationHintsEnabled();
 
-private:
+  private:
     static bool s_navigationHintsEnabled;
     static QMap<QWidget*, QString> s_widgetNames;
 };
