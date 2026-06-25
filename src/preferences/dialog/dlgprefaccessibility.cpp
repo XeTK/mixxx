@@ -21,7 +21,20 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceStop(m_settings.getAnnounceStopDefault()),
           m_bAnnounceEndOfTrack(m_settings.getAnnounceEndOfTrackDefault()),
           m_bAnnounceLibraryFocus(m_settings.getAnnounceLibraryFocusDefault()),
-          m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()) {
+          m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()),
+          m_bAnnounceEq(m_settings.getAnnounceEqDefault()),
+          m_bAnnounceFilter(m_settings.getAnnounceFilterDefault()),
+          m_bAnnounceTrim(m_settings.getAnnounceTrimDefault()),
+          m_bAnnounceMaster(m_settings.getAnnounceMasterDefault()),
+          m_bAnnounceMix(m_settings.getAnnounceMixDefault()),
+          m_bAnnounceEffect(m_settings.getAnnounceEffectDefault()),
+          m_bAnnounceSync(m_settings.getAnnounceSyncDefault()),
+          m_bAnnounceTempo(m_settings.getAnnounceTempoDefault()),
+          m_bAnnounceCrossFader(m_settings.getAnnounceCrossFaderDefault()),
+          m_bAnnounceFaderChange(m_settings.getAnnounceFaderChangeDefault()),
+          m_bAnnouncePreventJogging(m_settings.getAnnouncePreventJoggingDefault()),
+          m_bAnnounceTouchSurface(m_settings.getAnnounceTouchSurfaceDefault()),
+          m_bAnnounceTtsToggle(m_settings.getAnnounceTtsToggleDefault()) {
     setupUi(this);
     populateRouteCombo();
     populateVoiceCombo();
@@ -96,6 +109,58 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceSearch = checked; });
+    connect(checkBoxAnnounceEq,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceEq = checked; });
+    connect(checkBoxAnnounceFilter,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceFilter = checked; });
+    connect(checkBoxAnnounceTrim,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceTrim = checked; });
+    connect(checkBoxAnnounceMaster,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceMaster = checked; });
+    connect(checkBoxAnnounceMix,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceMix = checked; });
+    connect(checkBoxAnnounceEffect,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceEffect = checked; });
+    connect(checkBoxAnnounceSync,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceSync = checked; });
+    connect(checkBoxAnnounceTempo,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceTempo = checked; });
+    connect(checkBoxAnnounceCrossFader,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceCrossFader = checked; });
+    connect(checkBoxAnnounceFaderChange,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceFaderChange = checked; });
+    connect(checkBoxAnnouncePreventJogging,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnouncePreventJogging = checked; });
+    connect(checkBoxAnnounceTouchSurface,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceTouchSurface = checked; });
+    connect(checkBoxAnnounceTtsToggle,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceTtsToggle = checked; });
 }
 
 void DlgPrefAccessibility::populateRouteCombo() {
@@ -139,6 +204,19 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrack();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocus();
     m_bAnnounceSearch = m_settings.getAnnounceSearch();
+    m_bAnnounceEq = m_settings.getAnnounceEq();
+    m_bAnnounceFilter = m_settings.getAnnounceFilter();
+    m_bAnnounceTrim = m_settings.getAnnounceTrim();
+    m_bAnnounceMaster = m_settings.getAnnounceMaster();
+    m_bAnnounceMix = m_settings.getAnnounceMix();
+    m_bAnnounceEffect = m_settings.getAnnounceEffect();
+    m_bAnnounceSync = m_settings.getAnnounceSync();
+    m_bAnnounceTempo = m_settings.getAnnounceTempo();
+    m_bAnnounceCrossFader = m_settings.getAnnounceCrossFader();
+    m_bAnnounceFaderChange = m_settings.getAnnounceFaderChange();
+    m_bAnnouncePreventJogging = m_settings.getAnnouncePreventJogging();
+    m_bAnnounceTouchSurface = m_settings.getAnnounceTouchSurface();
+    m_bAnnounceTtsToggle = m_settings.getAnnounceTtsToggle();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
@@ -153,6 +231,19 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnounceEq->setChecked(m_bAnnounceEq);
+    checkBoxAnnounceFilter->setChecked(m_bAnnounceFilter);
+    checkBoxAnnounceTrim->setChecked(m_bAnnounceTrim);
+    checkBoxAnnounceMaster->setChecked(m_bAnnounceMaster);
+    checkBoxAnnounceMix->setChecked(m_bAnnounceMix);
+    checkBoxAnnounceEffect->setChecked(m_bAnnounceEffect);
+    checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
+    checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
+    checkBoxAnnounceCrossFader->setChecked(m_bAnnounceCrossFader);
+    checkBoxAnnounceFaderChange->setChecked(m_bAnnounceFaderChange);
+    checkBoxAnnouncePreventJogging->setChecked(m_bAnnouncePreventJogging);
+    checkBoxAnnounceTouchSurface->setChecked(m_bAnnounceTouchSurface);
+    checkBoxAnnounceTtsToggle->setChecked(m_bAnnounceTtsToggle);
 }
 
 void DlgPrefAccessibility::slotApply() {
@@ -168,6 +259,19 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceEndOfTrack(m_bAnnounceEndOfTrack);
     m_settings.setAnnounceLibraryFocus(m_bAnnounceLibraryFocus);
     m_settings.setAnnounceSearch(m_bAnnounceSearch);
+    m_settings.setAnnounceEq(m_bAnnounceEq);
+    m_settings.setAnnounceFilter(m_bAnnounceFilter);
+    m_settings.setAnnounceTrim(m_bAnnounceTrim);
+    m_settings.setAnnounceMaster(m_bAnnounceMaster);
+    m_settings.setAnnounceMix(m_bAnnounceMix);
+    m_settings.setAnnounceEffect(m_bAnnounceEffect);
+    m_settings.setAnnounceSync(m_bAnnounceSync);
+    m_settings.setAnnounceTempo(m_bAnnounceTempo);
+    m_settings.setAnnounceCrossFader(m_bAnnounceCrossFader);
+    m_settings.setAnnounceFaderChange(m_bAnnounceFaderChange);
+    m_settings.setAnnouncePreventJogging(m_bAnnouncePreventJogging);
+    m_settings.setAnnounceTouchSurface(m_bAnnounceTouchSurface);
+    m_settings.setAnnounceTtsToggle(m_bAnnounceTtsToggle);
 }
 
 void DlgPrefAccessibility::slotTestSpeech() {
@@ -197,6 +301,19 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrackDefault();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocusDefault();
     m_bAnnounceSearch = m_settings.getAnnounceSearchDefault();
+    m_bAnnounceEq = m_settings.getAnnounceEqDefault();
+    m_bAnnounceFilter = m_settings.getAnnounceFilterDefault();
+    m_bAnnounceTrim = m_settings.getAnnounceTrimDefault();
+    m_bAnnounceMaster = m_settings.getAnnounceMasterDefault();
+    m_bAnnounceMix = m_settings.getAnnounceMixDefault();
+    m_bAnnounceEffect = m_settings.getAnnounceEffectDefault();
+    m_bAnnounceSync = m_settings.getAnnounceSyncDefault();
+    m_bAnnounceTempo = m_settings.getAnnounceTempoDefault();
+    m_bAnnounceCrossFader = m_settings.getAnnounceCrossFaderDefault();
+    m_bAnnounceFaderChange = m_settings.getAnnounceFaderChangeDefault();
+    m_bAnnouncePreventJogging = m_settings.getAnnouncePreventJoggingDefault();
+    m_bAnnounceTouchSurface = m_settings.getAnnounceTouchSurfaceDefault();
+    m_bAnnounceTtsToggle = m_settings.getAnnounceTtsToggleDefault();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
@@ -211,4 +328,17 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnounceEq->setChecked(m_bAnnounceEq);
+    checkBoxAnnounceFilter->setChecked(m_bAnnounceFilter);
+    checkBoxAnnounceTrim->setChecked(m_bAnnounceTrim);
+    checkBoxAnnounceMaster->setChecked(m_bAnnounceMaster);
+    checkBoxAnnounceMix->setChecked(m_bAnnounceMix);
+    checkBoxAnnounceEffect->setChecked(m_bAnnounceEffect);
+    checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
+    checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
+    checkBoxAnnounceCrossFader->setChecked(m_bAnnounceCrossFader);
+    checkBoxAnnounceFaderChange->setChecked(m_bAnnounceFaderChange);
+    checkBoxAnnouncePreventJogging->setChecked(m_bAnnouncePreventJogging);
+    checkBoxAnnounceTouchSurface->setChecked(m_bAnnounceTouchSurface);
+    checkBoxAnnounceTtsToggle->setChecked(m_bAnnounceTtsToggle);
 }

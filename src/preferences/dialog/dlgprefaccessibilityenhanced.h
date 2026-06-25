@@ -3,52 +3,68 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGroupBox>
+#include <QLabel>
 #include <QVBoxLayout>
 #include <QWidget>
 
 #include "preferences/accessibilitysettings.h"
 #include "preferences/dialog/dlgprefaccessibility.h"
-#include "widget/keyboardnavigation.h"
+
+class EnhancedAnnouncementManager;
 
 class DlgPrefAccessibilityEnhanced : public DlgPrefAccessibility {
     Q_OBJECT
 
 public:
-  explicit DlgPrefAccessibilityEnhanced(
+  DlgPrefAccessibilityEnhanced(
           QWidget* parent,
           UserSettingsPointer pConfig,
           EngineTts* pTtsSink);
-
   ~DlgPrefAccessibilityEnhanced() override;
 
-  /// Apply all settings from the UI to the configuration
-  void apply() override;
-
-  /// Load all settings from the configuration to the UI
   void load() override;
-
-private slots:
-  void onDeckNamingConventionChanged(const QString& convention);
-  void onEnableTtsByDefaultChanged(int state);
-  void onAnnounceCueChanged(int state);
-  void onAnnounceTrackLoadChanged(int state);
-  void onAnnouncePlayChanged(int state);
-  void onAnnounceStopChanged(int state);
-  void onAnnounceEndOfTrackChanged(int state);
+  void apply() override;
 
 private:
   void setupUi();
   void connectSignals();
 
-  // UI Elements
+  // Enhanced settings
+  AccessibilitySettings m_accessibilitySettings;
+
+  // Widgets for the enhanced UI
   QComboBox* m_pDeckNamingCombo;
   QCheckBox* m_pEnableTtsByDefaultCheckbox;
-  QCheckBox* m_pAnnounceCueCheckbox;
-  QCheckBox* m_pAnnounceTrackLoadCheckbox;
-  QCheckBox* m_pAnnouncePlayCheckbox;
-  QCheckBox* m_pAnnounceStopCheckbox;
-  QCheckBox* m_pAnnounceEndOfTrackCheckbox;
 
-  // Settings
-  AccessibilitySettings m_accessibilitySettings;
+  // Enhanced announcement checkboxes
+  QCheckBox* m_pAnnounceEqCheckbox;
+  QCheckBox* m_pAnnounceFilterCheckbox;
+  QCheckBox* m_pAnnounceTrimCheckbox;
+  QCheckBox* m_pAnnounceMasterCheckbox;
+  QCheckBox* m_pAnnounceMixCheckbox;
+  QCheckBox* m_pAnnounceEffectCheckbox;
+  QCheckBox* m_pAnnounceSyncCheckbox;
+  QCheckBox* m_pAnnounceTempoCheckbox;
+  QCheckBox* m_pAnnounceCrossFaderCheckbox;
+  QCheckBox* m_pAnnounceFaderChangeCheckbox;
+  QCheckBox* m_pAnnouncePreventJoggingCheckbox;
+  QCheckBox* m_pAnnounceTouchSurfaceCheckbox;
+  QCheckBox* m_pAnnounceTtsToggleCheckbox;
+
+private slots:
+  void onDeckNamingConventionChanged(const QString& convention);
+  void onEnableTtsByDefaultChanged(int state);
+  void onAnnounceEqChanged(int state);
+  void onAnnounceFilterChanged(int state);
+  void onAnnounceTrimChanged(int state);
+  void onAnnounceMasterChanged(int state);
+  void onAnnounceMixChanged(int state);
+  void onAnnounceEffectChanged(int state);
+  void onAnnounceSyncChanged(int state);
+  void onAnnounceTempoChanged(int state);
+  void onAnnounceCrossFaderChanged(int state);
+  void onAnnounceFaderChangeChanged(int state);
+  void onAnnouncePreventJoggingChanged(int state);
+  void onAnnounceTouchSurfaceChanged(int state);
+  void onAnnounceTtsToggleChanged(int state);
 };

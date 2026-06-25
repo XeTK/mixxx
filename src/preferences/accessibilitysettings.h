@@ -62,6 +62,84 @@ class AccessibilitySettings {
             "AnnounceSearch",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceEq,
+            bool,
+            "[Accessibility]",
+            "AnnounceEq",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceFilter,
+            bool,
+            "[Accessibility]",
+            "AnnounceFilter",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceTrim,
+            bool,
+            "[Accessibility]",
+            "AnnounceTrim",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceMaster,
+            bool,
+            "[Accessibility]",
+            "AnnounceMaster",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceMix,
+            bool,
+            "[Accessibility]",
+            "AnnounceMix",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceEffect,
+            bool,
+            "[Accessibility]",
+            "AnnounceEffect",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceSync,
+            bool,
+            "[Accessibility]",
+            "AnnounceSync",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceTempo,
+            bool,
+            "[Accessibility]",
+            "AnnounceTempo",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceCrossFader,
+            bool,
+            "[Accessibility]",
+            "AnnounceCrossFader",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceFaderChange,
+            bool,
+            "[Accessibility]",
+            "AnnounceFaderChange",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnouncePreventJogging,
+            bool,
+            "[Accessibility]",
+            "AnnouncePreventJogging",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceTouchSurface,
+            bool,
+            "[Accessibility]",
+            "AnnounceTouchSurface",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceTtsToggle,
+            bool,
+            "[Accessibility]",
+            "AnnounceTtsToggle",
+            true);
+
     // Empty string means "use system default voice".
     DEFINE_PREFERENCE_HELPERS(TtsVoice,
             QString,
