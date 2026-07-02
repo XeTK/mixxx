@@ -57,8 +57,13 @@ cmake_push_check_state()
 # Ensure we have pthreads
 if(WIN32)
     # vcpkg provides CMake targets for pthreads4w
-    # This won't work if pthreads4w was built without vcpkg.
-    find_package(pthreads REQUIRED)
+    find_library(PTHREADS_LIB NAMES pthreadVC3 pthreadVCE3 pthreadVSE3)
+    if(PTHREADS_LIB)
+        add_library(PThreads4W::PThreads4W UNKNOWN IMPORTED)
+        set_target_properties(PThreads4W::PThreads4W PROPERTIES IMPORTED_LOCATION "${PTHREADS_LIB}")
+    else()
+        message(FATAL_ERROR "Could not find PThreads4W library")
+    endif()
     target_link_libraries(${PROJECT_NAME} PRIVATE PThreads4W::PThreads4W)
 
     target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -158,7 +163,7 @@ endif()
 check_include_file(sys/uio.h HAVE_SYS_UIO_H)
 if(HAVE_SYS_UIO_H)
     target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_SYS_UIO_H)
-     
+
     check_symbol_exists(writev "sys/uio.h" HAVE_WRITEV)
     if(HAVE_WRITEV)
         target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_WRITEV)
