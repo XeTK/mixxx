@@ -2,9 +2,35 @@
 
 #include <QLabel>
 #include <algorithm>
+#include <cmath>
 
+#include "control/controlproxy.h"
 #include "engine/enginetts.h"
 #include "moc_dlgprefaccessibility.cpp"
+
+namespace {
+// Matches kDefaultDuckStrength in enginetts.cpp, as a slider percentage.
+constexpr int kDefaultDuckStrengthPercent = 50;
+
+// The ducking strength lives in the persistent [Tts],duckStrength control
+// rather than an [Accessibility] config key, because the engine reads it
+// directly on the audio thread.
+double readDuckStrengthControl() {
+    return ControlProxy(QStringLiteral("[Tts]"),
+            QStringLiteral("duckStrength"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid)
+            .get();
+}
+
+void writeDuckStrengthControl(int percent) {
+    ControlProxy(QStringLiteral("[Tts]"),
+            QStringLiteral("duckStrength"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid)
+            .set(percent / 100.0);
+}
+} // namespace
 
 DlgPrefAccessibility::DlgPrefAccessibility(
         QWidget* parent, UserSettingsPointer pConfig, EngineTts* pTtsSink)
@@ -14,6 +40,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_ttsRoute(m_settings.getTtsRouteDefault()),
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
+          m_duckStrengthPercent(kDefaultDuckStrengthPercent),
           m_bAnnounceStartup(m_settings.getAnnounceStartupDefault()),
           m_bAnnounceSelection(m_settings.getAnnounceTrackSelectionDefault()),
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
@@ -75,6 +102,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
                 sliderTtsRate->setValue(value);
                 sliderTtsRate->blockSignals(false);
             });
+    connect(sliderDuckStrength,
+            &QSlider::valueChanged,
+            this,
+            [this](int value) { m_duckStrengthPercent = value; });
     connect(pushButtonTestSpeech,
             &QPushButton::clicked,
             this,
@@ -173,6 +204,11 @@ void DlgPrefAccessibility::slotUpdate() {
     m_ttsRoute = m_settings.getTtsRoute();
     m_ttsVoiceId = m_settings.getTtsVoice();
     m_ttsRate = m_settings.getTtsRate();
+    const double duckStrength = readDuckStrengthControl();
+    m_duckStrengthPercent = duckStrength > 0.0
+            ? static_cast<int>(std::lround(duckStrength * 100))
+            : kDefaultDuckStrengthPercent;
+    sliderDuckStrength->setValue(m_duckStrengthPercent);
     m_bAnnounceStartup = m_settings.getAnnounceStartup();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelection();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoad();
@@ -214,6 +250,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setTtsRoute(m_ttsRoute);
     m_settings.setTtsVoice(m_ttsVoiceId);
     m_settings.setTtsRate(m_ttsRate);
+    writeDuckStrengthControl(m_duckStrengthPercent);
     m_settings.setAnnounceStartup(m_bAnnounceStartup);
     m_settings.setAnnounceTrackSelection(m_bAnnounceSelection);
     m_settings.setAnnounceTrackLoad(m_bAnnounceLoad);
@@ -238,6 +275,8 @@ void DlgPrefAccessibility::slotTestSpeech() {
     m_pTestEngine = TtsEngine::create();
     m_pTestEngine->setSink(m_pTtsSink);
     m_pTtsSink->setRoute(m_ttsRoute);
+    // Apply the slider live so the test reflects the chosen ducking level.
+    writeDuckStrengthControl(m_duckStrengthPercent);
     if (!m_ttsVoiceId.isEmpty()) {
         m_pTestEngine->setVoice(m_ttsVoiceId);
     }
@@ -246,6 +285,8 @@ void DlgPrefAccessibility::slotTestSpeech() {
 }
 
 void DlgPrefAccessibility::slotResetToDefaults() {
+    m_duckStrengthPercent = kDefaultDuckStrengthPercent;
+    sliderDuckStrength->setValue(m_duckStrengthPercent);
     m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
     m_ttsRate = m_settings.getTtsRateDefault();

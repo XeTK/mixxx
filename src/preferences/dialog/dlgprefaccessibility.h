@@ -35,6 +35,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     int m_ttsRoute;
     QString m_ttsVoiceId;
     int m_ttsRate;
+    int m_duckStrengthPercent;
     bool m_bAnnounceStartup;
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;
