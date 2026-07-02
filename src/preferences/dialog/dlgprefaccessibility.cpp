@@ -1,5 +1,6 @@
 #include "preferences/dialog/dlgprefaccessibility.h"
 
+#include <QLabel>
 #include <algorithm>
 
 #include "engine/enginetts.h"
@@ -24,6 +25,18 @@ DlgPrefAccessibility::DlgPrefAccessibility(
     setupUi(this);
     populateRouteCombo();
     populateVoiceCombo();
+
+    if (!TtsEngine::isAvailable()) {
+        auto* pWarning = new QLabel(
+                tr("No speech engine is available in this build. Spoken "
+                   "announcements are disabled. On Linux, install Qt "
+                   "TextToSpeech 6.6 or newer and rebuild Mixxx."),
+                this);
+        pWarning->setWordWrap(true);
+        pWarning->setStyleSheet(QStringLiteral("font-weight: bold;"));
+        verticalLayout->insertWidget(0, pWarning);
+        pushButtonTestSpeech->setEnabled(false);
+    }
 
     connect(comboBoxTtsRoute,
             QOverload<int>::of(&QComboBox::currentIndexChanged),

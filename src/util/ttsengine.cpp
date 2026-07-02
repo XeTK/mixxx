@@ -499,6 +499,14 @@ std::unique_ptr<TtsEngine> TtsEngine::create() {
 #endif
 }
 
+bool TtsEngine::isAvailable() {
+#if defined(Q_OS_WIN) || defined(MIXXX_USE_QT_TTS)
+    return true;
+#else
+    return false;
+#endif
+}
+
 QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
 #ifdef Q_OS_WIN
     return enumerateTokens<Voice>(createVoiceEnumerator());

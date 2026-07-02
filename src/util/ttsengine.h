@@ -51,6 +51,10 @@ class TtsEngine {
     static std::unique_ptr<TtsEngine> create();
     static QList<Voice> enumerateVoices();
 
+    // False when this build has no speech backend (create() returns a silent
+    // no-op engine). Lets the UI warn the user instead of failing silently.
+    static bool isAvailable();
+
   protected:
     EngineTts* m_pSink = nullptr;
     int m_sampleRate = 44100;
