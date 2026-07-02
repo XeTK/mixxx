@@ -140,6 +140,20 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             ControlFlag::AllowMissingOrInvalid);
     pFocusedWidget->connectValueChanged(this, &AnnouncementManager::slotLibraryFocusChanged);
+
+    // Confirm re-enabling TTS audibly, otherwise the toggle (menu item or
+    // Alt+Shift+A) gives a blind user no feedback that it worked. Only the
+    // on-transition can be spoken; turning TTS off flushes the speech FIFO.
+    auto pTtsEnabled = make_parented<ControlProxy>(
+            QStringLiteral("[Tts]"),
+            QStringLiteral("enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pTtsEnabled->connectValueChanged(this, [this](double value) {
+        if (value > 0.0) {
+            speak(tr("Speech on"));
+        }
+    });
 }
 
 AnnouncementManager::~AnnouncementManager() = default;
