@@ -1,5 +1,9 @@
 #include "util/announcementmanager.h"
 
+#include <algorithm>
+#include <cmath>
+
+#include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "engine/enginetts.h"
 #include "library/library.h"
@@ -154,6 +158,19 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             speak(tr("Speech on"));
         }
     });
+
+    // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
+    // user who missed an announcement can re-hear it instead of guessing.
+    m_pRepeatButton = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("repeat")));
+    connect(m_pRepeatButton.get(),
+            &ControlObject::valueChanged,
+            this,
+            [this](double value) {
+                if (value > 0.0 && !m_lastSpoken.isEmpty()) {
+                    speak(m_lastSpoken);
+                }
+            });
 }
 
 AnnouncementManager::~AnnouncementManager() = default;
@@ -194,10 +211,25 @@ void AnnouncementManager::speak(const QString& text) {
             m_currentTtsRoute = route;
         }
     }
+    m_lastSpoken = text;
     m_pTts->say(text);
 }
 
-void AnnouncementManager::connectGroupControls(const QString& group) {
+void AnnouncementManager::connectGroupControls(const QString& group, int deckIndex) {
+    // On-demand status readout: pressing the mapped key sets this CO and the
+    // deck's current state is spoken.
+    auto pStatus = std::make_unique<ControlObject>(
+            ConfigKey(group, QStringLiteral("tts_status")));
+    connect(pStatus.get(),
+            &ControlObject::valueChanged,
+            this,
+            [this, group, deckIndex](double value) {
+                if (value > 0.0) {
+                    speak(formatDeckStatus(group, deckIndex));
+                }
+            });
+    m_pStatusButtons.push_back(std::move(pStatus));
+
     auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
     pPlay->connectValueChanged(this, [this, group](double value) {
         const bool nowPlaying = value > 0.0;
@@ -266,7 +298,7 @@ void AnnouncementManager::connectDeck(int deckIndex) {
         m_deckIsPlaying[group] = false;
     });
 
-    connectGroupControls(group);
+    connectGroupControls(group, deckIndex);
 }
 
 void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
@@ -407,6 +439,63 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     }
     if (!keyText.isEmpty()) {
         parts << tr("Key: %1").arg(keyText);
+    }
+    return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
+}
+
+QString AnnouncementManager::formatDeckStatus(const QString& group, int deckIndex) const {
+    const QString deckName = deckIndex >= 0
+            ? tr("Deck %1").arg(QChar(u'A' + deckIndex))
+            : group;
+    if (!m_deckHasTrack.value(group, false)) {
+        return tr("%1. No track loaded.").arg(deckName);
+    }
+
+    auto readControl = [&group](const QString& name) {
+        return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
+    };
+
+    QStringList parts;
+    parts << deckName;
+    parts << (readControl(QStringLiteral("play")) > 0.0 ? tr("Playing") : tr("Stopped"));
+
+    const double duration = readControl(QStringLiteral("duration"));
+    if (duration > 0.0) {
+        const double playPos = readControl(QStringLiteral("playposition"));
+        const int remaining = std::max(0,
+                static_cast<int>(std::lround(duration * (1.0 - playPos))));
+        const int minutes = remaining / 60;
+        const int seconds = remaining % 60;
+        const QString minuteText = minutes == 1
+                ? tr("1 minute")
+                : tr("%1 minutes").arg(minutes);
+        const QString secondText = seconds == 1
+                ? tr("1 second")
+                : tr("%1 seconds").arg(seconds);
+        if (minutes > 0) {
+            parts << tr("%1 %2 remaining").arg(minuteText, secondText);
+        } else {
+            parts << tr("%1 remaining").arg(secondText);
+        }
+    }
+
+    const double bpm = readControl(QStringLiteral("bpm"));
+    if (bpm > 0.0) {
+        parts << tr("%1 B P M").arg(static_cast<int>(std::lround(bpm)));
+    }
+
+    // Pitch fader, spoken as a percentage deviation from normal speed.
+    // Words instead of a sign because TTS engines don't read "+" reliably.
+    const double rateRatio = readControl(QStringLiteral("rate_ratio"));
+    if (rateRatio > 0.0 && std::abs(rateRatio - 1.0) >= 0.0005) {
+        const double percent = std::abs(rateRatio - 1.0) * 100.0;
+        QString percentText = QString::number(percent, 'f', 1);
+        if (percentText.endsWith(QStringLiteral(".0"))) {
+            percentText.chop(2);
+        }
+        parts << (rateRatio > 1.0
+                        ? tr("Pitch up %1 percent").arg(percentText)
+                        : tr("Pitch down %1 percent").arg(percentText));
     }
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }

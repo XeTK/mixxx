@@ -5,6 +5,7 @@
 #include <QString>
 #include <QTimer>
 #include <memory>
+#include <vector>
 
 #include "library/library_decl.h"
 #include "preferences/accessibilitysettings.h"
@@ -15,6 +16,7 @@ class Library;
 class PlayerManagerInterface;
 class TtsEngine;
 class EngineTts;
+class ControlObject;
 class ControlProxy;
 
 class AnnouncementManager : public QObject {
@@ -55,9 +57,14 @@ class AnnouncementManager : public QObject {
     static QString formatForBrowsing(TrackPointer pTrack);
     static QString formatForLoad(TrackPointer pTrack, int deckIndex);
 
+    // Spoken summary of a deck's state (playback, time remaining, BPM,
+    // pitch), used by the on-demand [ChannelN],tts_status hotkey. Public so
+    // tests can verify the formatting.
+    QString formatDeckStatus(const QString& group, int deckIndex) const;
+
     // Test helpers: allow tests to wire up CO observers for a synthetic group
     // without needing a real BaseTrackPlayer.
-    void connectGroupControls(const QString& group);
+    void connectGroupControls(const QString& group, int deckIndex = -1);
     void setDeckHasTrack(const QString& group, bool value);
 
   private:
@@ -92,4 +99,10 @@ class AnnouncementManager : public QObject {
     // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
     QHash<QString, bool> m_deckHasTrack;
     QHash<QString, bool> m_deckIsPlaying;
+
+    // On-demand announcement buttons: [ChannelN],tts_status per deck and the
+    // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.
+    std::vector<std::unique_ptr<ControlObject>> m_pStatusButtons;
+    std::unique_ptr<ControlObject> m_pRepeatButton;
+    QString m_lastSpoken;
 };

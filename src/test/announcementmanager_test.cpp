@@ -875,3 +875,114 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
     EXPECT_EQ(0, pSpy->callCount)
             << "speak() was not skipped when the engine sink is user-disabled";
 }
+
+// ---------------------------------------------------------------------------
+// On-demand deck status ([ChannelN],tts_status) and repeat ([Tts],repeat)
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerStatusTest : public AnnouncementManagerPlaystateTest {
+  protected:
+    // Create the deck COs formatDeckStatus() reads. Values are set by tests.
+    void createStatusControls() {
+        m_pDuration = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("duration")));
+        m_pPlayPos = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("playposition")));
+        m_pBpm = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("bpm")));
+        m_pRateRatio = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("rate_ratio")));
+        m_pRateRatio->set(1.0);
+    }
+
+    std::unique_ptr<ControlObject> m_pDuration;
+    std::unique_ptr<ControlObject> m_pPlayPos;
+    std::unique_ptr<ControlObject> m_pBpm;
+    std::unique_ptr<ControlObject> m_pRateRatio;
+};
+
+TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_NoTrackLoaded) {
+    makeManager();
+
+    EXPECT_QSTRING_EQ("Deck A. No track loaded.",
+            m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_FullStatus) {
+    makeManager();
+    setupGroup(); // play/end_of_track/pfl COs + hasTrack = true
+    createStatusControls();
+
+    m_pPlay->set(1.0);
+    m_pDuration->set(180.0);
+    m_pPlayPos->set(0.5); // 90 seconds remaining
+    m_pBpm->set(128.4);
+    m_pRateRatio->set(1.02); // pitch up 2 percent
+
+    EXPECT_QSTRING_EQ(
+            "Deck A. Playing. 1 minute 30 seconds remaining. 128 B P M. "
+            "Pitch up 2 percent.",
+            m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_StoppedPitchDown) {
+    makeManager();
+    setupGroup();
+    createStatusControls();
+
+    m_pPlay->set(0.0);
+    m_pDuration->set(45.0);
+    m_pPlayPos->set(0.0);
+    m_pRateRatio->set(0.95); // pitch down 5 percent
+
+    EXPECT_QSTRING_EQ(
+            "Deck B. Stopped. 45 seconds remaining. Pitch down 5 percent.",
+            m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 1));
+}
+
+TEST_F(AnnouncementManagerStatusTest, StatusButton_TriggersAnnouncement) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(); // connectGroupControls creates [TestChannel1],tts_status
+
+    ControlProxy statusButton(QLatin1String(kGroup),
+            QStringLiteral("tts_status"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    statusButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Stopped")))
+            << "status readout missing playback state: "
+            << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerStatusTest, RepeatButton_RepeatsLastAnnouncement) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSkinLoaded(); // speaks "Mixxx ready"
+    ASSERT_EQ(1, pSpy->callCount);
+
+    ControlProxy repeatButton(QStringLiteral("[Tts]"),
+            QStringLiteral("repeat"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    repeatButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerStatusTest, RepeatButton_NothingSpokenYet_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    ControlProxy repeatButton(QStringLiteral("[Tts]"),
+            QStringLiteral("repeat"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    repeatButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
