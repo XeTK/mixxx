@@ -62,42 +62,6 @@ class AccessibilitySettings {
             "AnnounceSearch",
             true);
 
-    DEFINE_PREFERENCE_HELPERS(AnnounceEq,
-            bool,
-            "[Accessibility]",
-            "AnnounceEq",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceFilter,
-            bool,
-            "[Accessibility]",
-            "AnnounceFilter",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceTrim,
-            bool,
-            "[Accessibility]",
-            "AnnounceTrim",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceMaster,
-            bool,
-            "[Accessibility]",
-            "AnnounceMaster",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceMix,
-            bool,
-            "[Accessibility]",
-            "AnnounceMix",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceEffect,
-            bool,
-            "[Accessibility]",
-            "AnnounceEffect",
-            true);
-
     DEFINE_PREFERENCE_HELPERS(AnnounceSync,
             bool,
             "[Accessibility]",
@@ -108,36 +72,6 @@ class AccessibilitySettings {
             bool,
             "[Accessibility]",
             "AnnounceTempo",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceCrossFader,
-            bool,
-            "[Accessibility]",
-            "AnnounceCrossFader",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceFaderChange,
-            bool,
-            "[Accessibility]",
-            "AnnounceFaderChange",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnouncePreventJogging,
-            bool,
-            "[Accessibility]",
-            "AnnouncePreventJogging",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceTouchSurface,
-            bool,
-            "[Accessibility]",
-            "AnnounceTouchSurface",
-            true);
-
-    DEFINE_PREFERENCE_HELPERS(AnnounceTtsToggle,
-            bool,
-            "[Accessibility]",
-            "AnnounceTtsToggle",
             true);
 
     // Empty string means "use system default voice".
@@ -154,20 +88,6 @@ class AccessibilitySettings {
     // 0 = headphone/cue (DJ-only, default), 1 = main (audience hears it).
     // Matches EngineTts::Route.
     DEFINE_PREFERENCE_HELPERS(TtsRoute, int, "[Accessibility]", "TtsRoute", 0);
-
-    // Deck naming convention: "Deck1" for "Deck 1" or "DeckA" for "Deck A"
-    DEFINE_PREFERENCE_HELPERS(DeckNamingConvention,
-            QString,
-            "[Accessibility]",
-            "DeckNamingConvention",
-            "Deck1");
-
-    // Enable/disable TTS by default
-    DEFINE_PREFERENCE_HELPERS(EnableTtsByDefault,
-            bool,
-            "[Accessibility]",
-            "EnableTtsByDefault",
-            true);
 
   private:
     UserSettingsPointer m_pConfig;
