@@ -1,5 +1,6 @@
 #include "util/announcementmanager.h"
 
+#include <QDateTime>
 #include <algorithm>
 #include <cmath>
 
@@ -20,6 +21,30 @@
 namespace {
 constexpr int kSelectionDebounceMs = 400;
 constexpr int kSearchDebounceMs = 600;
+constexpr int kControlDebounceMs = 400;
+// Track load/unload rewrites every hotcue status CO; suppress hotcue
+// announcements for this long afterwards so a load doesn't fire a burst
+// of "hotcue set" messages.
+constexpr qint64 kHotcueSuppressMs = 1000;
+// Hotcues 1..8 cover the pads on entry-level controllers.
+constexpr int kNumAnnouncedHotcues = 8;
+
+// Spoken pitch-fader deviation, e.g. "Pitch up 2 percent". Empty at exactly
+// normal speed. Words instead of a sign because TTS engines don't read "+"
+// reliably.
+QString pitchText(double rateRatio) {
+    if (rateRatio <= 0.0 || std::abs(rateRatio - 1.0) < 0.0005) {
+        return {};
+    }
+    const double percent = std::abs(rateRatio - 1.0) * 100.0;
+    QString percentText = QString::number(percent, 'f', 1);
+    if (percentText.endsWith(QStringLiteral(".0"))) {
+        percentText.chop(2);
+    }
+    return rateRatio > 1.0
+            ? AnnouncementManager::tr("Pitch up %1 percent").arg(percentText)
+            : AnnouncementManager::tr("Pitch down %1 percent").arg(percentText);
+}
 
 // Returns a fully-spelled pronounceable key name for the given ChromaticKey,
 // e.g. A_MINOR → "A Minor", F#_MAJOR → "F Sharp Major".
@@ -112,6 +137,13 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             &AnnouncementManager::slotAnnounceSearch);
 
+    m_controlDebounce.setSingleShot(true);
+    m_controlDebounce.setInterval(kControlDebounceMs);
+    connect(&m_controlDebounce,
+            &QTimer::timeout,
+            this,
+            &AnnouncementManager::slotAnnouncePendingControl);
+
     if (pLibrary) {
         connect(pLibrary,
                 &Library::trackSelected,
@@ -157,6 +189,49 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         if (value > 0.0) {
             speak(tr("Speech on"));
         }
+    });
+
+    // Recording state: silence here would mean a lost set, so announce both
+    // transitions. [Recording],status is 0 = off, 1 = ready, 2 = recording.
+    auto pRecording = make_parented<ControlProxy>(
+            QStringLiteral("[Recording]"),
+            QStringLiteral("status"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pRecording->connectValueChanged(this,
+            [this, wasRecording = false](double value) mutable {
+                const bool nowRecording = value >= 2.0;
+                if (nowRecording == wasRecording ||
+                        !m_settings.getAnnounceRecording()) {
+                    wasRecording = nowRecording;
+                    return;
+                }
+                wasRecording = nowRecording;
+                speak(nowRecording ? tr("Recording started")
+                                   : tr("Recording stopped"));
+            });
+
+    // Crossfader position, debounced while it moves. -1 is full left, +1 full
+    // right; treat the middle five percent as center.
+    auto pCrossfader = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("crossfader"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pCrossfader->connectValueChanged(this, [this](double value) {
+        if (!m_settings.getAnnounceMixer()) {
+            return;
+        }
+        QString text;
+        if (std::abs(value) < 0.05) {
+            text = tr("Crossfader center");
+        } else {
+            const int percent = static_cast<int>(std::lround(std::abs(value) * 100));
+            text = value < 0
+                    ? tr("Crossfader left %1 percent").arg(percent)
+                    : tr("Crossfader right %1 percent").arg(percent);
+        }
+        announceControlDebounced(text);
     });
 
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
@@ -269,6 +344,148 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             speak(value > 0.0 ? tr("Headphone cue on") : tr("Headphone cue off"));
         }
     });
+
+    // Simple on/off toggles a performing DJ relies on. All gated by
+    // AnnounceSync since they are aspects of staying in time with the mix.
+    const struct {
+        const char* control;
+        QString enabledText;
+        QString disabledText;
+    } toggles[] = {
+            {"sync_enabled", tr("%1 sync on"), tr("%1 sync off")},
+            {"keylock", tr("%1 key lock on"), tr("%1 key lock off")},
+            {"quantize", tr("%1 quantize on"), tr("%1 quantize off")},
+    };
+    for (const auto& toggle : toggles) {
+        auto pToggle = make_parented<ControlProxy>(group,
+                QLatin1String(toggle.control),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pToggle->connectValueChanged(this,
+                [this,
+                        group,
+                        deckIndex,
+                        enabledText = toggle.enabledText,
+                        disabledText = toggle.disabledText](double value) {
+                    if (m_settings.getAnnounceSync()) {
+                        speak((value > 0.0 ? enabledText : disabledText)
+                                        .arg(deckName(group, deckIndex)));
+                    }
+                });
+    }
+
+    auto pLoopEnabled = make_parented<ControlProxy>(group,
+            QStringLiteral("loop_enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pLoopEnabled->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceLoop()) {
+            return;
+        }
+        const QString deck = deckName(group, deckIndex);
+        if (value > 0.0) {
+            const double beats = ControlProxy(group,
+                    QStringLiteral("beatloop_size"),
+                    nullptr,
+                    ControlFlag::AllowMissingOrInvalid)
+                                         .get();
+            if (beats > 0.0) {
+                speak(tr("%1 loop %2 beats").arg(deck, QString::number(beats)));
+            } else {
+                speak(tr("%1 loop on").arg(deck));
+            }
+        } else {
+            speak(tr("%1 loop off").arg(deck));
+        }
+    });
+
+    // Hotcue set/cleared feedback. Status is 0 = empty, 1 = set, 2 = active
+    // (saved-loop); only the empty <-> set transitions are user-meaningful.
+    for (int i = 1; i <= kNumAnnouncedHotcues; ++i) {
+        auto pHotcue = make_parented<ControlProxy>(group,
+                QStringLiteral("hotcue_%1_status").arg(i),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pHotcue->connectValueChanged(this,
+                [this, group, deckIndex, i, prev = 0.0](double value) mutable {
+                    const double before = prev;
+                    prev = value;
+                    if (!m_settings.getAnnounceHotcue() || recentTrackChange(group)) {
+                        return;
+                    }
+                    const QString deck = deckName(group, deckIndex);
+                    if (before < 1.0 && value >= 1.0) {
+                        speak(tr("%1 hotcue %2 set").arg(deck).arg(i));
+                    } else if (before >= 1.0 && value < 1.0) {
+                        speak(tr("%1 hotcue %2 cleared").arg(deck).arg(i));
+                    }
+                });
+    }
+
+    // Continuously-variable deck controls, debounced so only the value where
+    // the control comes to rest is spoken.
+    auto pRateRatio = make_parented<ControlProxy>(group,
+            QStringLiteral("rate_ratio"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pRateRatio->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceTempo()) {
+            return;
+        }
+        const QString pitch = pitchText(value);
+        const QString deck = deckName(group, deckIndex);
+        announceControlDebounced(pitch.isEmpty()
+                        ? tr("%1 pitch zero").arg(deck)
+                        : QStringLiteral("%1 %2").arg(deck, pitch));
+    });
+
+    auto pVolume = make_parented<ControlProxy>(group,
+            QStringLiteral("volume"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pVolume->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceMixer()) {
+            return;
+        }
+        const int percent = static_cast<int>(
+                std::lround(std::clamp(value, 0.0, 1.0) * 100));
+        announceControlDebounced(tr("%1 volume %2 percent")
+                        .arg(deckName(group, deckIndex))
+                        .arg(percent));
+    });
+
+    // EQ knobs. Values run 0..4 with unity at 1; speak the knob position as
+    // 0..100 percent with 50 as center so it maps onto the physical travel.
+    const QString eqGroup = QStringLiteral("[EqualizerRack1_%1_Effect1]").arg(group);
+    const struct {
+        const char* control;
+        QString name;
+    } eqBands[] = {
+            {"parameter1", tr("E Q low")},
+            {"parameter2", tr("E Q mid")},
+            {"parameter3", tr("E Q high")},
+    };
+    for (const auto& band : eqBands) {
+        auto pKnob = make_parented<ControlProxy>(eqGroup,
+                QLatin1String(band.control),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pKnob->connectValueChanged(this,
+                [this, group, deckIndex, bandName = band.name](double value) {
+                    if (!m_settings.getAnnounceMixer()) {
+                        return;
+                    }
+                    const double position = value <= 1.0
+                            ? value * 50.0
+                            : 50.0 + (value - 1.0) / 3.0 * 50.0;
+                    const int percent = static_cast<int>(
+                            std::lround(std::clamp(position, 0.0, 100.0)));
+                    announceControlDebounced(tr("%1 %2 %3 percent")
+                                    .arg(deckName(group, deckIndex),
+                                            bandName,
+                                            QString::number(percent)));
+                });
+    }
 }
 
 void AnnouncementManager::setDeckHasTrack(const QString& group, bool value) {
@@ -292,10 +509,12 @@ void AnnouncementManager::connectDeck(int deckIndex) {
 
     connect(pDeck, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
         m_deckHasTrack[group] = true;
+        noteTrackChanged(group);
     });
     connect(pDeck, &BaseTrackPlayer::trackUnloaded, this, [this, group](TrackPointer) {
         m_deckHasTrack[group] = false;
         m_deckIsPlaying[group] = false;
+        noteTrackChanged(group);
     });
 
     connectGroupControls(group, deckIndex);
@@ -444,11 +663,9 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
 }
 
 QString AnnouncementManager::formatDeckStatus(const QString& group, int deckIndex) const {
-    const QString deckName = deckIndex >= 0
-            ? tr("Deck %1").arg(QChar(u'A' + deckIndex))
-            : group;
+    const QString deck = deckName(group, deckIndex);
     if (!m_deckHasTrack.value(group, false)) {
-        return tr("%1. No track loaded.").arg(deckName);
+        return tr("%1. No track loaded.").arg(deck);
     }
 
     auto readControl = [&group](const QString& name) {
@@ -456,7 +673,7 @@ QString AnnouncementManager::formatDeckStatus(const QString& group, int deckInde
     };
 
     QStringList parts;
-    parts << deckName;
+    parts << deck;
     parts << (readControl(QStringLiteral("play")) > 0.0 ? tr("Playing") : tr("Stopped"));
 
     const double duration = readControl(QStringLiteral("duration"));
@@ -484,18 +701,38 @@ QString AnnouncementManager::formatDeckStatus(const QString& group, int deckInde
         parts << tr("%1 B P M").arg(static_cast<int>(std::lround(bpm)));
     }
 
-    // Pitch fader, spoken as a percentage deviation from normal speed.
-    // Words instead of a sign because TTS engines don't read "+" reliably.
-    const double rateRatio = readControl(QStringLiteral("rate_ratio"));
-    if (rateRatio > 0.0 && std::abs(rateRatio - 1.0) >= 0.0005) {
-        const double percent = std::abs(rateRatio - 1.0) * 100.0;
-        QString percentText = QString::number(percent, 'f', 1);
-        if (percentText.endsWith(QStringLiteral(".0"))) {
-            percentText.chop(2);
-        }
-        parts << (rateRatio > 1.0
-                        ? tr("Pitch up %1 percent").arg(percentText)
-                        : tr("Pitch down %1 percent").arg(percentText));
+    const QString pitch = pitchText(readControl(QStringLiteral("rate_ratio")));
+    if (!pitch.isEmpty()) {
+        parts << pitch;
     }
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
+}
+
+// static
+QString AnnouncementManager::deckName(const QString& group, int deckIndex) {
+    return deckIndex >= 0
+            ? tr("Deck %1").arg(QChar(u'A' + deckIndex))
+            : group;
+}
+
+void AnnouncementManager::announceControlDebounced(const QString& text) {
+    m_pendingControlText = text;
+    m_controlDebounce.start();
+}
+
+void AnnouncementManager::slotAnnouncePendingControl() {
+    if (!m_pendingControlText.isEmpty()) {
+        speak(m_pendingControlText);
+        m_pendingControlText.clear();
+    }
+}
+
+void AnnouncementManager::noteTrackChanged(const QString& group) {
+    m_lastTrackChangeMs[group] = QDateTime::currentMSecsSinceEpoch();
+}
+
+bool AnnouncementManager::recentTrackChange(const QString& group) const {
+    const qint64 last = m_lastTrackChangeMs.value(group, -1);
+    return last >= 0 &&
+            QDateTime::currentMSecsSinceEpoch() - last < kHotcueSuppressMs;
 }

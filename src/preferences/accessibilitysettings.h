@@ -74,6 +74,32 @@ class AccessibilitySettings {
             "AnnounceTempo",
             true);
 
+    DEFINE_PREFERENCE_HELPERS(AnnounceLoop,
+            bool,
+            "[Accessibility]",
+            "AnnounceLoop",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceHotcue,
+            bool,
+            "[Accessibility]",
+            "AnnounceHotcue",
+            true);
+
+    DEFINE_PREFERENCE_HELPERS(AnnounceRecording,
+            bool,
+            "[Accessibility]",
+            "AnnounceRecording",
+            true);
+
+    // Spoken readout of volume faders, EQ knobs, and the crossfader while
+    // they move. Off by default: during a live mix these move constantly.
+    DEFINE_PREFERENCE_HELPERS(AnnounceMixer,
+            bool,
+            "[Accessibility]",
+            "AnnounceMixer",
+            false);
+
     // Empty string means "use system default voice".
     DEFINE_PREFERENCE_HELPERS(TtsVoice,
             QString,

@@ -283,6 +283,75 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="groupBoxPerformance">
+     <property name="title">
+      <string>Performance Announcements</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutPerformance">
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceSync">
+        <property name="toolTip">
+         <string>Speak when sync, key lock, or quantize is toggled on a deck.</string>
+        </property>
+        <property name="text">
+         <string>Announce sync, key lock, and quantize</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceTempo">
+        <property name="toolTip">
+         <string>Speak the pitch fader position after it stops moving.</string>
+        </property>
+        <property name="text">
+         <string>Announce tempo / pitch changes</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceLoop">
+        <property name="toolTip">
+         <string>Speak when a loop is enabled or disabled, including its size in beats.</string>
+        </property>
+        <property name="text">
+         <string>Announce loops</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceHotcue">
+        <property name="toolTip">
+         <string>Speak when a hotcue is set or cleared.</string>
+        </property>
+        <property name="text">
+         <string>Announce hotcues</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceRecording">
+        <property name="toolTip">
+         <string>Speak when recording starts or stops.</string>
+        </property>
+        <property name="text">
+         <string>Announce recording start and stop</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceMixer">
+        <property name="toolTip">
+         <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. Off by default because these move constantly during a mix.</string>
+        </property>
+        <property name="text">
+         <string>Announce mixer controls (volume, EQ, crossfader)</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="groupBoxNavigation">
      <property name="title">
       <string>Navigation Announcements</string>

@@ -39,10 +39,17 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;
     bool m_bAnnouncePlay;
+    bool m_bAnnounceCue;
     bool m_bAnnounceStop;
     bool m_bAnnounceEndOfTrack;
     bool m_bAnnounceLibraryFocus;
     bool m_bAnnounceSearch;
+    bool m_bAnnounceSync;
+    bool m_bAnnounceTempo;
+    bool m_bAnnounceLoop;
+    bool m_bAnnounceHotcue;
+    bool m_bAnnounceRecording;
+    bool m_bAnnounceMixer;
 
     std::unique_ptr<TtsEngine> m_pTestEngine;
 };

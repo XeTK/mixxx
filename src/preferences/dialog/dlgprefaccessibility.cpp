@@ -18,10 +18,17 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceSelection(m_settings.getAnnounceTrackSelectionDefault()),
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
           m_bAnnouncePlay(m_settings.getAnnouncePlayDefault()),
+          m_bAnnounceCue(m_settings.getAnnounceCueDefault()),
           m_bAnnounceStop(m_settings.getAnnounceStopDefault()),
           m_bAnnounceEndOfTrack(m_settings.getAnnounceEndOfTrackDefault()),
           m_bAnnounceLibraryFocus(m_settings.getAnnounceLibraryFocusDefault()),
-          m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()) {
+          m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()),
+          m_bAnnounceSync(m_settings.getAnnounceSyncDefault()),
+          m_bAnnounceTempo(m_settings.getAnnounceTempoDefault()),
+          m_bAnnounceLoop(m_settings.getAnnounceLoopDefault()),
+          m_bAnnounceHotcue(m_settings.getAnnounceHotcueDefault()),
+          m_bAnnounceRecording(m_settings.getAnnounceRecordingDefault()),
+          m_bAnnounceMixer(m_settings.getAnnounceMixerDefault()) {
     setupUi(this);
     populateRouteCombo();
     populateVoiceCombo();
@@ -88,6 +95,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnouncePlay = checked; });
+    connect(checkBoxAnnounceCue,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceCue = checked; });
     connect(checkBoxAnnounceStop,
             &QCheckBox::toggled,
             this,
@@ -104,6 +115,30 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceSearch = checked; });
+    connect(checkBoxAnnounceSync,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceSync = checked; });
+    connect(checkBoxAnnounceTempo,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceTempo = checked; });
+    connect(checkBoxAnnounceLoop,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceLoop = checked; });
+    connect(checkBoxAnnounceHotcue,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceHotcue = checked; });
+    connect(checkBoxAnnounceRecording,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceRecording = checked; });
+    connect(checkBoxAnnounceMixer,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceMixer = checked; });
 }
 
 void DlgPrefAccessibility::populateRouteCombo() {
@@ -142,10 +177,17 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelection();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoad();
     m_bAnnouncePlay = m_settings.getAnnouncePlay();
+    m_bAnnounceCue = m_settings.getAnnounceCue();
     m_bAnnounceStop = m_settings.getAnnounceStop();
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrack();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocus();
     m_bAnnounceSearch = m_settings.getAnnounceSearch();
+    m_bAnnounceSync = m_settings.getAnnounceSync();
+    m_bAnnounceTempo = m_settings.getAnnounceTempo();
+    m_bAnnounceLoop = m_settings.getAnnounceLoop();
+    m_bAnnounceHotcue = m_settings.getAnnounceHotcue();
+    m_bAnnounceRecording = m_settings.getAnnounceRecording();
+    m_bAnnounceMixer = m_settings.getAnnounceMixer();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
@@ -155,10 +197,17 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceSelection->setChecked(m_bAnnounceSelection);
     checkBoxAnnounceLoad->setChecked(m_bAnnounceLoad);
     checkBoxAnnouncePlay->setChecked(m_bAnnouncePlay);
+    checkBoxAnnounceCue->setChecked(m_bAnnounceCue);
     checkBoxAnnounceStop->setChecked(m_bAnnounceStop);
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
+    checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
+    checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);
+    checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
+    checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
+    checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
 }
 
 void DlgPrefAccessibility::slotApply() {
@@ -169,10 +218,17 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceTrackSelection(m_bAnnounceSelection);
     m_settings.setAnnounceTrackLoad(m_bAnnounceLoad);
     m_settings.setAnnouncePlay(m_bAnnouncePlay);
+    m_settings.setAnnounceCue(m_bAnnounceCue);
     m_settings.setAnnounceStop(m_bAnnounceStop);
     m_settings.setAnnounceEndOfTrack(m_bAnnounceEndOfTrack);
     m_settings.setAnnounceLibraryFocus(m_bAnnounceLibraryFocus);
     m_settings.setAnnounceSearch(m_bAnnounceSearch);
+    m_settings.setAnnounceSync(m_bAnnounceSync);
+    m_settings.setAnnounceTempo(m_bAnnounceTempo);
+    m_settings.setAnnounceLoop(m_bAnnounceLoop);
+    m_settings.setAnnounceHotcue(m_bAnnounceHotcue);
+    m_settings.setAnnounceRecording(m_bAnnounceRecording);
+    m_settings.setAnnounceMixer(m_bAnnounceMixer);
 }
 
 void DlgPrefAccessibility::slotTestSpeech() {
@@ -197,10 +253,17 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();
     m_bAnnouncePlay = m_settings.getAnnouncePlayDefault();
+    m_bAnnounceCue = m_settings.getAnnounceCueDefault();
     m_bAnnounceStop = m_settings.getAnnounceStopDefault();
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrackDefault();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocusDefault();
     m_bAnnounceSearch = m_settings.getAnnounceSearchDefault();
+    m_bAnnounceSync = m_settings.getAnnounceSyncDefault();
+    m_bAnnounceTempo = m_settings.getAnnounceTempoDefault();
+    m_bAnnounceLoop = m_settings.getAnnounceLoopDefault();
+    m_bAnnounceHotcue = m_settings.getAnnounceHotcueDefault();
+    m_bAnnounceRecording = m_settings.getAnnounceRecordingDefault();
+    m_bAnnounceMixer = m_settings.getAnnounceMixerDefault();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
@@ -210,8 +273,15 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceSelection->setChecked(m_bAnnounceSelection);
     checkBoxAnnounceLoad->setChecked(m_bAnnounceLoad);
     checkBoxAnnouncePlay->setChecked(m_bAnnouncePlay);
+    checkBoxAnnounceCue->setChecked(m_bAnnounceCue);
     checkBoxAnnounceStop->setChecked(m_bAnnounceStop);
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
+    checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
+    checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);
+    checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
+    checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
+    checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
 }

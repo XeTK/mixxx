@@ -986,3 +986,161 @@ TEST_F(AnnouncementManagerStatusTest, RepeatButton_NothingSpokenYet_Silent) {
 
     EXPECT_EQ(0, pSpy->callCount);
 }
+
+// ---------------------------------------------------------------------------
+// Performance announcements: sync/keylock/quantize, loops, hotcues, tempo,
+// mixer moves, recording.
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerPerformanceTest : public AnnouncementManagerPlaystateTest {
+  protected:
+    // COs must exist before connectGroupControls() so the proxies attach.
+    void createPerformanceControls() {
+        m_pSync = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("sync_enabled")));
+        m_pLoopEnabled = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_enabled")));
+        m_pBeatloopSize = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("beatloop_size")));
+        m_pHotcue1Status = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("hotcue_1_status")));
+        m_pRateRatio = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("rate_ratio")));
+        m_pRateRatio->set(1.0);
+        m_pVolume = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("volume")));
+    }
+
+    std::unique_ptr<ControlObject> m_pSync;
+    std::unique_ptr<ControlObject> m_pLoopEnabled;
+    std::unique_ptr<ControlObject> m_pBeatloopSize;
+    std::unique_ptr<ControlObject> m_pHotcue1Status;
+    std::unique_ptr<ControlObject> m_pRateRatio;
+    std::unique_ptr<ControlObject> m_pVolume;
+};
+
+TEST_F(AnnouncementManagerPerformanceTest, SyncToggle_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pSync->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] sync on", pSpy->lastText);
+
+    m_pSync->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] sync off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, SyncToggle_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceSync")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pSync->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopOn_AnnouncedWithSize) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop 8 beats", pSpy->lastText);
+
+    m_pLoopEnabled->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, HotcueSetAndCleared_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pHotcue1Status->set(1.0); // Status::Set
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] hotcue 1 set", pSpy->lastText);
+
+    m_pHotcue1Status->set(0.0); // Status::Empty
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] hotcue 1 cleared", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, Hotcue_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceHotcue")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pHotcue1Status->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "tempo announcement must be debounced";
+
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] Pitch up 5 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "mixer announcements must be opt-in (AnnounceMixer defaults off)";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerEnabled_Spoken) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] volume 50 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, Recording_StartAndStop_Announced) {
+    // The recording proxy attaches in init(), so the CO must exist before
+    // the manager is created.
+    auto pRecordingStatus = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Recording]"), QStringLiteral("status")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pRecordingStatus->set(2.0); // RECORD_ON
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Recording started", pSpy->lastText);
+
+    pRecordingStatus->set(0.0); // RECORD_OFF
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Recording stopped", pSpy->lastText);
+}

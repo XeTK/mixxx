@@ -42,9 +42,19 @@ Key source files:
 - Track load: deck letter, artist, title, BPM, musical key
 - Play / stop / end of track
 - Headphone cue (PFL) toggling
+- Sync, key lock, and quantize toggles
+- Loop on/off, including the loop size in beats
+- Hotcues being set or cleared
+- Pitch-fader position after it stops moving
+- Recording started / stopped
+- Volume faders, EQ knobs, and the crossfader (opt-in — off by
+  default because these move constantly during a mix)
 - Sidebar item names while navigating with arrow keys
 - Library pane focus changes (search bar / sidebar / track list)
 - Search feedback ("Searching: …" / "Search cleared")
+
+Each category can be toggled independently in Preferences >
+Accessibility.
 
 ## Other accessibility changes
 

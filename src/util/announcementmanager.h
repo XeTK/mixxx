@@ -53,6 +53,10 @@ class AnnouncementManager : public QObject {
     void slotSearchTextChanged(const QString& text);
     void slotAnnounceSearch();
 
+    // Speaks the pending debounced control announcement (tempo/mixer moves).
+    // Public so tests can fire the debounce without waiting for the timer.
+    void slotAnnouncePendingControl();
+
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
     static QString formatForLoad(TrackPointer pTrack, int deckIndex);
@@ -71,6 +75,20 @@ class AnnouncementManager : public QObject {
     void connectDeck(int deckIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
+
+    // Queue a debounced announcement for a continuously-variable control
+    // (pitch fader, volume, EQ, crossfader). Only the newest pending text is
+    // spoken, once the control stops moving.
+    void announceControlDebounced(const QString& text);
+
+    // Spoken deck name for announcements, e.g. "Deck A"; falls back to the
+    // raw group name when the deck index is unknown (tests).
+    static QString deckName(const QString& group, int deckIndex);
+
+    // Suppress hotcue set/cleared announcements briefly after a track load or
+    // unload, which rewrites every hotcue status CO.
+    void noteTrackChanged(const QString& group);
+    bool recentTrackChange(const QString& group) const;
 
     std::unique_ptr<TtsEngine> m_pTts;
     // Engine sink the synthesized speech is rendered into. Null in unit tests,
@@ -105,4 +123,12 @@ class AnnouncementManager : public QObject {
     std::vector<std::unique_ptr<ControlObject>> m_pStatusButtons;
     std::unique_ptr<ControlObject> m_pRepeatButton;
     QString m_lastSpoken;
+
+    // Debounced announcements for continuously-variable controls.
+    QTimer m_controlDebounce;
+    QString m_pendingControlText;
+
+    // Timestamp (ms since epoch) of the last track load/unload per group, for
+    // hotcue announcement suppression.
+    QHash<QString, qint64> m_lastTrackChangeMs;
 };
