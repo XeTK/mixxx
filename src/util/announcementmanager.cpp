@@ -205,7 +205,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
         const bool hasTrack = m_deckHasTrack.value(group, false);
 
         if (nowPlaying && !wasPlaying && hasTrack && m_settings.getAnnouncePlay()) {
-            speak(QStringLiteral("Playing"));
+            speak(tr("Playing"));
         } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
             // Suppress the stop announcement when end-of-track fired it —
             // the end-of-track announcement already covered this transition.
@@ -214,7 +214,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
                                        ControlFlag::AllowMissingOrInvalid)
                                        .toBool();
             if (!atEnd) {
-                speak(QStringLiteral("Stopped"));
+                speak(tr("Stopped"));
             }
         }
         m_deckIsPlaying[group] = nowPlaying;
@@ -224,7 +224,7 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
     pEndOfTrack->connectValueChanged(this, [this](double value) {
         if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
-            speak(QStringLiteral("End of track"));
+            speak(tr("End of track"));
         }
     });
 
@@ -232,7 +232,9 @@ void AnnouncementManager::connectGroupControls(const QString& group) {
             group, QStringLiteral("pfl"), this, ControlFlag::AllowMissingOrInvalid);
     pPfl->connectValueChanged(this, [this](double value) {
         if (m_settings.getAnnounceCue()) {
-            speak(value > 0.0 ? QStringLiteral("Cue") : QStringLiteral("Cue off"));
+            // "Headphone cue", not just "Cue": a DJ would otherwise confuse
+            // this with the transport cue button or hotcues.
+            speak(value > 0.0 ? tr("Headphone cue on") : tr("Headphone cue off"));
         }
     });
 }
@@ -312,7 +314,7 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 
 void AnnouncementManager::slotSkinLoaded() {
     if (m_settings.getAnnounceStartup()) {
-        speak(QStringLiteral("Mixxx ready"));
+        speak(tr("Mixxx ready"));
     }
 }
 
@@ -354,13 +356,13 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
     }
     switch (newFocus) {
     case FocusWidget::Searchbar:
-        speak(QStringLiteral("Search bar"));
+        speak(tr("Search bar"));
         break;
     case FocusWidget::Sidebar:
-        speak(QStringLiteral("Sidebar"));
+        speak(tr("Sidebar"));
         break;
     case FocusWidget::TracksTable:
-        speak(QStringLiteral("Track list"));
+        speak(tr("Track list"));
         break;
     default:
         break;
@@ -377,9 +379,9 @@ void AnnouncementManager::slotAnnounceSearch() {
         return;
     }
     if (m_pendingSearch.isEmpty()) {
-        speak(QStringLiteral("Search cleared"));
+        speak(tr("Search cleared"));
     } else {
-        speak(QStringLiteral("Searching: ") + m_pendingSearch);
+        speak(tr("Searching: %1").arg(m_pendingSearch));
     }
 }
 
@@ -393,7 +395,7 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
     QStringList parts;
-    parts << QStringLiteral("Loaded ") + QChar(u'A' + deckIndex);
+    parts << tr("Loaded %1").arg(QChar(u'A' + deckIndex));
     if (!artist.isEmpty()) {
         parts << artist;
     }
@@ -401,10 +403,10 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
         parts << title;
     }
     if (bpm > 0.0) {
-        parts << QString::number(static_cast<int>(bpm + 0.5)) + QStringLiteral(" B P M");
+        parts << tr("%1 B P M").arg(static_cast<int>(bpm + 0.5));
     }
     if (!keyText.isEmpty()) {
-        parts << QStringLiteral("Key: ") + keyText;
+        parts << tr("Key: %1").arg(keyText);
     }
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }

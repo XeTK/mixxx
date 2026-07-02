@@ -646,7 +646,7 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOn_AnnouncesCue) {
     setPfl(1.0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Cue", pSpy->lastText);
+    EXPECT_QSTRING_EQ("Headphone cue on", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
@@ -659,7 +659,7 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
     setPfl(0.0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Cue off", pSpy->lastText);
+    EXPECT_QSTRING_EQ("Headphone cue off", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
@@ -692,7 +692,7 @@ TEST_F(AnnouncementManagerPlaystateTest, AnnouncePlayDisabled_CueStillSpoken) {
     EXPECT_EQ(1, pSpy->callCount)
             << "Cue was silenced when AnnouncePlay was disabled — "
                "the two settings must be independent";
-    EXPECT_QSTRING_EQ("Cue", pSpy->lastText);
+    EXPECT_QSTRING_EQ("Headphone cue on", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, AnnounceCueDisabled_PlayStillSpoken) {
