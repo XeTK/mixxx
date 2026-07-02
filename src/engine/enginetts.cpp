@@ -135,11 +135,16 @@ void EngineTts::process(CSAMPLE* pMain, CSAMPLE* pHead, std::size_t bufferSize, 
             SampleUtil::applyRampingGain(pHead, m_duckGainOld, duckGain, bufferSize);
             SampleUtil::add(pHead, m_tts.data(), bufferSize);
         }
-    } else if (pHead) {
+    } else {
         // DJ-only: duck and add to the headphone (cue) mix; the main output the
-        // audience hears is left untouched.
-        SampleUtil::applyRampingGain(pHead, m_duckGainOld, duckGain, bufferSize);
-        SampleUtil::add(pHead, m_tts.data(), bufferSize);
+        // audience hears is left untouched. If no headphone output is
+        // configured (common on a first-run single-output setup), fall back to
+        // main so announcements are not silently dropped.
+        CSAMPLE* pOut = pHead ? pHead : pMain;
+        if (pOut) {
+            SampleUtil::applyRampingGain(pOut, m_duckGainOld, duckGain, bufferSize);
+            SampleUtil::add(pOut, m_tts.data(), bufferSize);
+        }
     }
     m_duckGainOld = duckGain;
 }

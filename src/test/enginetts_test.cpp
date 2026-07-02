@@ -365,19 +365,37 @@ TEST_F(EngineTtsTest, ReenableAfterDisable_SpeechResumes) {
 // Null pHead with Route::Headphones and queued speech.
 //
 // Route::Headphones is the default. When no headphone output is configured
-// pHead is null. process() must not crash and must leave pMain untouched.
+// pHead is null — common on a first-run single-output setup. Speech must
+// fall back to the main output instead of being silently dropped, or a
+// blind user on a fresh install hears nothing at all.
 // ---------------------------------------------------------------------------
 
-TEST_F(EngineTtsTest, RouteHeadphones_NullHead_WithSpeech_DoesNotCrash) {
+TEST_F(EngineTtsTest, RouteHeadphones_NullHead_SpeechFallsBackToMain) {
     // Default route is headphones; pHead is null (no headphone output configured).
     writeSamples(1.0f, kBufferSize);
 
-    std::vector<CSAMPLE> main(kBufferSize, 1.0f);
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
     EXPECT_NO_FATAL_FAILURE(processMainOnly(main)); // passes nullptr for pHead
 
+    const bool mainHasSignal = std::any_of(
+            main.begin(), main.end(), [](CSAMPLE s) { return s != 0.0f; });
+    EXPECT_TRUE(mainHasSignal)
+            << "speech was dropped with Route::Headphones and null pHead — "
+               "it must fall back to the main output so announcements are "
+               "audible on single-output setups";
+}
+
+TEST_F(EngineTtsTest, RouteHeadphones_HeadConfigured_MainStillUntouched) {
+    // The fallback must not change behaviour when a headphone output exists.
+    writeSamples(1.0f, kBufferSize);
+
+    std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+    std::vector<CSAMPLE> head(kBufferSize, 0.0f);
+    process(main, head);
+
     const bool mainUntouched = std::all_of(
-            main.begin(), main.end(), [](CSAMPLE s) { return s == 1.0f; });
+            main.begin(), main.end(), [](CSAMPLE s) { return s == 0.0f; });
     EXPECT_TRUE(mainUntouched)
-            << "pMain was modified with Route::Headphones and null pHead — "
-               "speech is DJ-only and must not reach the main output";
+            << "pMain was modified with Route::Headphones and a configured "
+               "headphone output — speech must stay DJ-only";
 }
