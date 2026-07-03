@@ -100,6 +100,21 @@ class AccessibilitySettings {
             "AnnounceMixer",
             false);
 
+    // Speak deck names as numbers ("Deck 1") instead of letters ("Deck A").
+    DEFINE_PREFERENCE_HELPERS(DeckNamesAsNumbers,
+            bool,
+            "[Accessibility]",
+            "DeckNamesAsNumbers",
+            false);
+
+    // Shorter phrasing: single-fact hotkeys speak just the value, and mixer
+    // readouts drop filler words like "Deck" and "E Q".
+    DEFINE_PREFERENCE_HELPERS(ConciseAnnouncements,
+            bool,
+            "[Accessibility]",
+            "ConciseAnnouncements",
+            false);
+
     // Empty string means "use system default voice".
     DEFINE_PREFERENCE_HELPERS(TtsVoice,
             QString,

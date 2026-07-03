@@ -33,6 +33,9 @@ Key source files:
   - `Alt+7` / `Alt+8` — musical key (keylock-aware)
   - `Alt+9` / `Alt+0` — bar and beat position (assumes 4/4)
 - **Repeat last announcement**: `Alt+Shift+R`.
+- **Crossfader lock**: `Alt+X` freezes the crossfader at its current
+  position so an accidental bump does nothing; press again to unlock.
+  Both states are confirmed audibly.
 - **Preferences > Accessibility**: choose the voice, speech rate, output
   routing (headphone cue vs. main), and which announcements are spoken.
   A Test button speaks a sample through the current routing.

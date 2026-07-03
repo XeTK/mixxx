@@ -258,6 +258,26 @@
        </layout>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxDeckNumbers">
+        <property name="toolTip">
+         <string>Speak deck names as numbers ("Deck 1") instead of letters ("Deck A").</string>
+        </property>
+        <property name="text">
+         <string>Speak deck names as numbers instead of letters</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxConcise">
+        <property name="toolTip">
+         <string>Shorter phrasing: info hotkeys speak just the value, and mixer readouts drop filler words like "Deck" and "E Q".</string>
+        </property>
+        <property name="text">
+         <string>Concise announcements</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayoutTestSpeech">
         <item>
          <spacer name="horizontalSpacerTestSpeech">

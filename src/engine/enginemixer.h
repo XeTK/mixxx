@@ -324,6 +324,12 @@ class EngineMixer : public QObject, public AudioSource {
     std::unique_ptr<EngineSideChain> m_pEngineSideChain;
 
     std::unique_ptr<ControlPotmeter> m_pCrossfader;
+    // Accessibility: freeze the crossfader at its current position so an
+    // accidental bump does nothing. The value captured at lock time is used
+    // by process() while locked.
+    std::unique_ptr<ControlPushButton> m_pCrossfaderLock;
+    double m_lockedCrossfaderValue = 0.0;
+    bool m_crossfaderWasLocked = false;
     std::unique_ptr<ControlPotmeter> m_pHeadMix;
     std::unique_ptr<ControlPotmeter> m_pBalance;
     std::unique_ptr<ControlPushButton> m_pXFaderMode;

@@ -103,6 +103,8 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
                           : nullptr),
           m_pCrossfader(std::make_unique<ControlPotmeter>(
                   ConfigKey(group, "crossfader"), -1., 1.)),
+          m_pCrossfaderLock(std::make_unique<ControlPushButton>(
+                  ConfigKey(group, "crossfader_lock"))),
           m_pHeadMix(std::make_unique<ControlPotmeter>(
                   ConfigKey(group, "headMix"), -1., 1.)),
           m_pBalance(std::make_unique<ControlPotmeter>(
@@ -207,6 +209,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
     // X-Fader Setup
     m_pXFaderMode->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_pXFaderReverse->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pCrossfaderLock->setButtonMode(mixxx::control::ButtonMode::Toggle);
 
     m_pBoothEnabled->setReadOnly();
     m_pHeadphoneEnabled->setReadOnly();
@@ -480,13 +483,26 @@ void EngineMixer::process(const std::size_t bufferSize) {
         break;
     }
 
-    // Calculate the crossfader gains for left and right side of the crossfader
+    // Calculate the crossfader gains for left and right side of the crossfader.
+    // While the crossfader is locked (accessibility: a blind DJ cannot see an
+    // accidental bump), the value captured at lock time is used instead of the
+    // live control.
+    const bool crossfaderLocked = m_pCrossfaderLock->toBool();
+    if (crossfaderLocked && !m_crossfaderWasLocked) {
+        m_lockedCrossfaderValue = m_pCrossfader->get();
+    }
+    m_crossfaderWasLocked = crossfaderLocked;
+    const double crossfaderValue =
+            crossfaderLocked ? m_lockedCrossfaderValue : m_pCrossfader->get();
+
     CSAMPLE_GAIN crossfaderLeftGain, crossfaderRightGain;
-    EngineXfader::getXfadeGains(m_pCrossfader->get(), m_pXFaderCurve->get(),
-                                m_pXFaderCalibration->get(),
-                                m_pXFaderMode->get(),
-                                m_pXFaderReverse->toBool(),
-                                &crossfaderLeftGain, &crossfaderRightGain);
+    EngineXfader::getXfadeGains(crossfaderValue,
+            m_pXFaderCurve->get(),
+            m_pXFaderCalibration->get(),
+            m_pXFaderMode->get(),
+            m_pXFaderReverse->toBool(),
+            &crossfaderLeftGain,
+            &crossfaderRightGain);
 
     // Make the mix for each crossfader orientation output bus.
     // m_mainGain takes care of applying the attenuation from

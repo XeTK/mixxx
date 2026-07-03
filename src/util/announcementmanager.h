@@ -89,9 +89,14 @@ class AnnouncementManager : public QObject {
     // spoken, once the control stops moving.
     void announceControlDebounced(const QString& text);
 
-    // Spoken deck name for announcements, e.g. "Deck A"; falls back to the
-    // raw group name when the deck index is unknown (tests).
-    static QString deckName(const QString& group, int deckIndex);
+    // Spoken deck name for announcements — "Deck, A" or "Deck 1" depending on
+    // the naming preference; falls back to the raw group name when the deck
+    // index is unknown (tests).
+    QString deckName(const QString& group, int deckIndex) const;
+
+    // Deck prefix for the frequent mixer/tempo readouts: just the letter or
+    // number in concise mode ("A, volume a half"), the full name otherwise.
+    QString mixerDeckName(const QString& group, int deckIndex) const;
 
     // Suppress hotcue set/cleared announcements briefly after a track load or
     // unload, which rewrites every hotcue status CO.

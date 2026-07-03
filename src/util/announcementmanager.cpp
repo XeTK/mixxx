@@ -52,6 +52,55 @@ QString remainingText(int totalSeconds) {
     return AnnouncementManager::tr("%1 remaining").arg(secondText);
 }
 
+// Fader/knob travel spoken as a fraction ("three quarters"), which matches
+// how DJs think of physical controls and reads far faster than percentages.
+// Snapped to sixteenths and simplified.
+QString fractionText(double zeroToOne) {
+    const int sixteenths = std::clamp(
+            static_cast<int>(std::lround(zeroToOne * 16.0)), 0, 16);
+    switch (sixteenths) {
+    case 0:
+        return AnnouncementManager::tr("zero");
+    case 4:
+        return AnnouncementManager::tr("a quarter");
+    case 8:
+        return AnnouncementManager::tr("a half");
+    case 12:
+        return AnnouncementManager::tr("three quarters");
+    case 16:
+        return AnnouncementManager::tr("full");
+    default:
+        break;
+    }
+    if (sixteenths % 2 == 0) {
+        const int eighths = sixteenths / 2;
+        return eighths == 1
+                ? AnnouncementManager::tr("an eighth")
+                : AnnouncementManager::tr("%1 eighths").arg(eighths);
+    }
+    return sixteenths == 1
+            ? AnnouncementManager::tr("a sixteenth")
+            : AnnouncementManager::tr("%1 sixteenths").arg(sixteenths);
+}
+
+// Center-detented controls (EQ, filter, gain): deviation from center as a
+// signed fraction — "center", "plus a quarter", "minus three sixteenths".
+QString centerSplitText(double normalized /* -1 .. +1, 0 = center */) {
+    const double magnitude = std::clamp(std::abs(normalized), 0.0, 1.0);
+    if (std::lround(magnitude * 16.0) == 0) {
+        return AnnouncementManager::tr("center");
+    }
+    return normalized > 0
+            ? AnnouncementManager::tr("plus %1").arg(fractionText(magnitude))
+            : AnnouncementManager::tr("minus %1").arg(fractionText(magnitude));
+}
+
+// Normalize a unity-1 gain knob (range 0..4, center 1 — EQ knobs and the
+// main/headphone gain tapers) to -1..+1 for centerSplitText.
+double normalizeUnityGain(double value) {
+    return value <= 1.0 ? value - 1.0 : (value - 1.0) / 3.0;
+}
+
 // Spoken pitch-fader deviation, e.g. "Pitch up 2 percent". Empty at exactly
 // normal speed. Words instead of a sign because TTS engines don't read "+"
 // reliably.
@@ -249,12 +298,46 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         if (std::abs(value) < 0.05) {
             text = tr("Crossfader center");
         } else {
-            const int percent = static_cast<int>(std::lround(std::abs(value) * 100));
             text = value < 0
-                    ? tr("Crossfader left %1 percent").arg(percent)
-                    : tr("Crossfader right %1 percent").arg(percent);
+                    ? tr("Crossfader left %1").arg(fractionText(-value))
+                    : tr("Crossfader right %1").arg(fractionText(value));
         }
         announceControlDebounced(text);
+    });
+
+    // Main and headphone volume knobs, debounced. Center-split like the EQ
+    // knobs: unity gain is "center".
+    const struct {
+        const char* control;
+        QString name;
+    } masterGains[] = {
+            {"gain", tr("Main volume")},
+            {"headGain", tr("Headphone volume")},
+    };
+    for (const auto& gain : masterGains) {
+        auto pGain = make_parented<ControlProxy>(
+                QStringLiteral("[Master]"),
+                QLatin1String(gain.control),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pGain->connectValueChanged(this, [this, name = gain.name](double value) {
+            if (!m_settings.getAnnounceMixer()) {
+                return;
+            }
+            announceControlDebounced(QStringLiteral("%1 %2").arg(
+                    name, centerSplitText(normalizeUnityGain(value))));
+        });
+    }
+
+    // Crossfader lock (Alt+X): always confirmed audibly — it is a direct user
+    // action, and silently locking the crossfader would be baffling.
+    auto pCrossfaderLock = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("crossfader_lock"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pCrossfaderLock->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Crossfader locked") : tr("Crossfader unlocked"));
     });
 
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
@@ -511,7 +594,7 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             return;
         }
         const QString pitch = pitchText(value);
-        const QString deck = deckName(group, deckIndex);
+        const QString deck = mixerDeckName(group, deckIndex);
         QString text = pitch.isEmpty()
                 ? tr("%1 pitch zero").arg(deck)
                 : QStringLiteral("%1 %2").arg(deck, pitch);
@@ -531,23 +614,22 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (!m_settings.getAnnounceMixer()) {
             return;
         }
-        const int percent = static_cast<int>(
-                std::lround(std::clamp(value, 0.0, 1.0) * 100));
-        announceControlDebounced(tr("%1 volume %2 percent")
-                        .arg(deckName(group, deckIndex))
-                        .arg(percent));
+        announceControlDebounced(tr("%1 volume %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                fractionText(std::clamp(value, 0.0, 1.0))));
     });
 
-    // EQ knobs. Values run 0..4 with unity at 1; speak the knob position as
-    // 0..100 percent with 50 as center so it maps onto the physical travel.
+    // EQ knobs. Values run 0..4 with unity at 1; spoken as a signed fraction
+    // from center ("low minus a quarter") — the way a DJ pictures the knob.
     const QString eqGroup = QStringLiteral("[EqualizerRack1_%1_Effect1]").arg(group);
     const struct {
         const char* control;
         QString name;
+        QString conciseName;
     } eqBands[] = {
-            {"parameter1", tr("E Q low")},
-            {"parameter2", tr("E Q mid")},
-            {"parameter3", tr("E Q high")},
+            {"parameter1", tr("E Q low"), tr("low")},
+            {"parameter2", tr("E Q mid"), tr("mid")},
+            {"parameter3", tr("E Q high"), tr("high")},
     };
     for (const auto& band : eqBands) {
         auto pKnob = make_parented<ControlProxy>(eqGroup,
@@ -555,21 +637,40 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 this,
                 ControlFlag::AllowMissingOrInvalid);
         pKnob->connectValueChanged(this,
-                [this, group, deckIndex, bandName = band.name](double value) {
+                [this,
+                        group,
+                        deckIndex,
+                        bandName = band.name,
+                        conciseName = band.conciseName](double value) {
                     if (!m_settings.getAnnounceMixer()) {
                         return;
                     }
-                    const double position = value <= 1.0
-                            ? value * 50.0
-                            : 50.0 + (value - 1.0) / 3.0 * 50.0;
-                    const int percent = static_cast<int>(
-                            std::lround(std::clamp(position, 0.0, 100.0)));
-                    announceControlDebounced(tr("%1 %2 %3 percent")
-                                    .arg(deckName(group, deckIndex),
-                                            bandName,
-                                            QString::number(percent)));
+                    const QString name = m_settings.getConciseAnnouncements()
+                            ? conciseName
+                            : bandName;
+                    announceControlDebounced(QStringLiteral("%1 %2 %3")
+                                    .arg(mixerDeckName(group, deckIndex),
+                                            name,
+                                            centerSplitText(normalizeUnityGain(
+                                                    value))));
                 });
     }
+
+    // Filter (QuickEffect super knob): 0..1 with center at 0.5.
+    const QString quickEffectGroup =
+            QStringLiteral("[QuickEffectRack1_%1]").arg(group);
+    auto pFilter = make_parented<ControlProxy>(quickEffectGroup,
+            QStringLiteral("super1"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pFilter->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceMixer()) {
+            return;
+        }
+        announceControlDebounced(tr("%1 filter %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                centerSplitText((value - 0.5) * 2.0)));
+    });
 }
 
 void AnnouncementManager::setDeckHasTrack(const QString& group, bool value) {
@@ -786,19 +887,29 @@ QString AnnouncementManager::formatTimeRemaining(const QString& group, int deckI
         return tr("%1. No track loaded.").arg(deck);
     }
     const double playPos = readGroupControl(group, QStringLiteral("playposition"));
-    return deck + QStringLiteral(". ") +
-            remainingText(static_cast<int>(
-                    std::lround(duration * (1.0 - playPos)))) +
+    const QString remaining = remainingText(static_cast<int>(
+                                      std::lround(duration * (1.0 - playPos)))) +
             QStringLiteral(".");
+    // Concise: the hotkey pressed already identifies the deck.
+    if (m_settings.getConciseAnnouncements()) {
+        return remaining;
+    }
+    return deck + QStringLiteral(". ") + remaining;
 }
 
 QString AnnouncementManager::formatBpm(const QString& group, int deckIndex) const {
     const QString deck = deckName(group, deckIndex);
     const double bpm = readGroupControl(group, QStringLiteral("bpm"));
     if (bpm <= 0.0) {
-        return tr("%1. No B P M.").arg(deck);
+        return m_settings.getConciseAnnouncements()
+                ? tr("No B P M.")
+                : tr("%1. No B P M.").arg(deck);
     }
-    return tr("%1. %2 B P M.").arg(deck).arg(static_cast<int>(std::lround(bpm)));
+    const int rounded = static_cast<int>(std::lround(bpm));
+    if (m_settings.getConciseAnnouncements()) {
+        return tr("%1.").arg(rounded);
+    }
+    return tr("%1. %2 B P M.").arg(deck).arg(rounded);
 }
 
 QString AnnouncementManager::formatKey(const QString& group, int deckIndex) const {
@@ -810,7 +921,12 @@ QString AnnouncementManager::formatKey(const QString& group, int deckIndex) cons
     const QString keyText = keyForSpeech(
             static_cast<mixxx::track::io::key::ChromaticKey>(keyValue));
     if (keyText.isEmpty()) {
-        return tr("%1. Key unknown.").arg(deck);
+        return m_settings.getConciseAnnouncements()
+                ? tr("Key unknown.")
+                : tr("%1. Key unknown.").arg(deck);
+    }
+    if (m_settings.getConciseAnnouncements()) {
+        return tr("%1.").arg(keyText);
     }
     return tr("%1. Key: %2.").arg(deck, keyText);
 }
@@ -844,17 +960,32 @@ QString AnnouncementManager::formatBarPosition(const QString& group, int deckInd
     const int beatsFromStart = pBeats->numBeatsInRange(pBeats->firstBeat(), position);
     const int bar = beatsFromStart / 4 + 1;
     const int beatInBar = beatsFromStart % 4 + 1;
+    if (m_settings.getConciseAnnouncements()) {
+        return tr("Bar %1, beat %2.").arg(bar).arg(beatInBar);
+    }
     return tr("%1. Bar %2, beat %3.").arg(deck).arg(bar).arg(beatInBar);
 }
 
-// static
-QString AnnouncementManager::deckName(const QString& group, int deckIndex) {
+QString AnnouncementManager::deckName(const QString& group, int deckIndex) const {
+    if (deckIndex < 0) {
+        return group;
+    }
+    if (m_settings.getDeckNamesAsNumbers()) {
+        return tr("Deck %1").arg(deckIndex + 1);
+    }
     // The comma is deliberate: without a separator TTS engines glue the deck
     // letter onto the word ("Deck A" -> "Decka"). The comma forces a short
     // pause so the letter is pronounced on its own.
-    return deckIndex >= 0
-            ? tr("Deck, %1").arg(QChar(u'A' + deckIndex))
-            : group;
+    return tr("Deck, %1").arg(QChar(u'A' + deckIndex));
+}
+
+QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) const {
+    if (m_settings.getConciseAnnouncements() && deckIndex >= 0) {
+        return m_settings.getDeckNamesAsNumbers()
+                ? QString::number(deckIndex + 1)
+                : QString(QChar(u'A' + deckIndex)) + QStringLiteral(",");
+    }
+    return deckName(group, deckIndex);
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {

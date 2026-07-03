@@ -1127,7 +1127,64 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerEnabled_Spoken) {
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("[TestChannel1] volume 50 percent", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1] volume a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_SpokenAsFraction) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+
+    m_pVolume->set(0.3125); // 5/16
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume 5 sixteenths", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FilterChange_CenterSplitFraction) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    // The QuickEffect super knob lives in its own group.
+    auto pSuper = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[QuickEffectRack1_[TestChannel1]]"),
+            QStringLiteral("super1")));
+    pSuper->set(0.5);
+    setupGroup();
+
+    pSuper->set(0.25); // halfway toward full cut = minus a half
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] filter minus a half", pSpy->lastText);
+
+    pSuper->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] filter center", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, MainVolume_Announced) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pMainGain = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("gain")));
+    pMainGain->set(1.0);
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pMainGain->set(0.5); // half of the cut range = minus a half
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Main volume minus a half", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, Recording_StartAndStop_Announced) {
@@ -1294,4 +1351,68 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_IncludesNewBpm) {
     m_pManager->slotAnnouncePendingControl();
 
     EXPECT_QSTRING_EQ("[TestChannel1] Pitch up 5 percent. 131 B P M", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Deck naming and concise-announcement preferences
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerStatusTest, DeckNamesAsNumbers_Preference) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("DeckNamesAsNumbers")),
+            true);
+    makeManager();
+    createStatusControls();
+    m_pBpm->set(174.0);
+
+    EXPECT_QSTRING_EQ("Deck 1. 174 B P M.",
+            m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, Concise_SingleFactsSpeakValueOnly) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("ConciseAnnouncements")),
+            true);
+    makeManager();
+    createStatusControls();
+    m_pBpm->set(174.0);
+    auto pKey = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
+    pKey->set(22.0); // A minor
+
+    EXPECT_QSTRING_EQ("174.",
+            m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
+    EXPECT_QSTRING_EQ("A Minor.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, Concise_TimeRemainingDropsDeck) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("ConciseAnnouncements")),
+            true);
+    makeManager();
+    setupGroup();
+    createStatusControls();
+    m_pDuration->set(90.0);
+    m_pPlayPos->set(0.0);
+
+    EXPECT_QSTRING_EQ("1 minute 30 seconds remaining.",
+            m_pManager->formatTimeRemaining(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerTest, CrossfaderLock_Announced) {
+    auto pLock = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Master]"), QStringLiteral("crossfader_lock")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pLock->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Crossfader locked", pSpy->lastText);
+
+    pLock->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Crossfader unlocked", pSpy->lastText);
 }
