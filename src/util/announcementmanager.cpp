@@ -6,6 +6,7 @@
 
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
+#include "control/controlpushbutton.h"
 #include "engine/enginetts.h"
 #include "library/library.h"
 #include "library/library_decl.h"
@@ -236,9 +237,11 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
     // user who missed an announcement can re-hear it instead of guessing.
-    m_pRepeatButton = std::make_unique<ControlObject>(
+    // Trigger mode so each keypress fires even though the value doesn't change.
+    auto pRepeat = std::make_unique<ControlPushButton>(
             ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("repeat")));
-    connect(m_pRepeatButton.get(),
+    pRepeat->setButtonMode(mixxx::control::ButtonMode::Trigger);
+    connect(pRepeat.get(),
             &ControlObject::valueChanged,
             this,
             [this](double value) {
@@ -246,6 +249,7 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     speak(m_lastSpoken);
                 }
             });
+    m_pRepeatButton = std::move(pRepeat);
 }
 
 AnnouncementManager::~AnnouncementManager() = default;
@@ -292,9 +296,10 @@ void AnnouncementManager::speak(const QString& text) {
 
 void AnnouncementManager::connectGroupControls(const QString& group, int deckIndex) {
     // On-demand status readout: pressing the mapped key sets this CO and the
-    // deck's current state is spoken.
-    auto pStatus = std::make_unique<ControlObject>(
+    // deck's current state is spoken. Trigger mode so every press fires.
+    auto pStatus = std::make_unique<ControlPushButton>(
             ConfigKey(group, QStringLiteral("tts_status")));
+    pStatus->setButtonMode(mixxx::control::ButtonMode::Trigger);
     connect(pStatus.get(),
             &ControlObject::valueChanged,
             this,
@@ -337,11 +342,14 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
 
     auto pPfl = make_parented<ControlProxy>(
             group, QStringLiteral("pfl"), this, ControlFlag::AllowMissingOrInvalid);
-    pPfl->connectValueChanged(this, [this](double value) {
+    pPfl->connectValueChanged(this, [this, group, deckIndex](double value) {
         if (m_settings.getAnnounceCue()) {
             // "Headphone cue", not just "Cue": a DJ would otherwise confuse
-            // this with the transport cue button or hotcues.
-            speak(value > 0.0 ? tr("Headphone cue on") : tr("Headphone cue off"));
+            // this with the transport cue button or hotcues. Name the deck so
+            // it is clear which channel was cued.
+            const QString deck = deckName(group, deckIndex);
+            speak(value > 0.0 ? tr("%1 headphone cue on").arg(deck)
+                              : tr("%1 headphone cue off").arg(deck));
         }
     });
 
@@ -646,7 +654,9 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
     QStringList parts;
-    parts << tr("Loaded %1").arg(QChar(u'A' + deckIndex));
+    // Comma before the letter so TTS says "Loaded deck, A" rather than
+    // gluing it into "Loaded decka". See deckName().
+    parts << tr("Loaded deck, %1").arg(QChar(u'A' + deckIndex));
     if (!artist.isEmpty()) {
         parts << artist;
     }
@@ -710,8 +720,11 @@ QString AnnouncementManager::formatDeckStatus(const QString& group, int deckInde
 
 // static
 QString AnnouncementManager::deckName(const QString& group, int deckIndex) {
+    // The comma is deliberate: without a separator TTS engines glue the deck
+    // letter onto the word ("Deck A" -> "Decka"). The comma forces a short
+    // pause so the letter is pronounced on its own.
     return deckIndex >= 0
-            ? tr("Deck %1").arg(QChar(u'A' + deckIndex))
+            ? tr("Deck, %1").arg(QChar(u'A' + deckIndex))
             : group;
 }
 

@@ -36,6 +36,7 @@
 #include "broadcast/broadcastmanager.h"
 #endif
 #include "control/controlindicatortimer.h"
+#include "control/controlproxy.h"
 #include "library/library.h"
 #include "library/library_decl.h"
 #include "library/library_prefs.h"
@@ -906,6 +907,28 @@ void MixxxMainWindow::connectMenuBar() {
             &MixxxMainWindow::slotDeveloperTools,
             Qt::UniqueConnection);
 
+    // Text-to-Speech (accessibility). The [Tts],enabled control lives in the
+    // engine and is created after the menu bar, so bind the proxy here where
+    // the engine already exists rather than inside WMainMenuBar.
+    if (!m_pTtsEnabledControl) {
+        m_pTtsEnabledControl = std::make_unique<ControlProxy>(
+                QStringLiteral("[Tts]"),
+                QStringLiteral("enabled"),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        m_pTtsEnabledControl->connectValueChanged(this, [this](double value) {
+            if (m_pMenuBar) {
+                m_pMenuBar->onTtsStateChange(value > 0.0);
+            }
+        });
+    }
+    connect(m_pMenuBar,
+            &WMainMenuBar::toggleTts,
+            this,
+            &MixxxMainWindow::slotToggleTts,
+            Qt::UniqueConnection);
+    m_pMenuBar->onTtsStateChange(m_pTtsEnabledControl->toBool());
+
     if (m_pCoreServices->getRecordingManager()) {
         connect(m_pCoreServices->getRecordingManager().get(),
                 &RecordingManager::isRecording,
@@ -1311,6 +1334,12 @@ void MixxxMainWindow::slotTooltipModeChanged(mixxx::preferences::Tooltips tt) {
     ToolTipQOpenGL::singleton().setActive(
             m_toolTipsCfg == mixxx::preferences::Tooltips::On);
 #endif
+}
+
+void MixxxMainWindow::slotToggleTts(bool enabled) {
+    if (m_pTtsEnabledControl) {
+        m_pTtsEnabledControl->set(enabled ? 1.0 : 0.0);
+    }
 }
 
 void MixxxMainWindow::rebootMixxxView() {

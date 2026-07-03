@@ -528,22 +528,16 @@ void WMainMenuBar::initialize() {
     pOptionsTts->setStatusTip(ttsText);
     pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));
 
-    auto* pTtsEnabledControl = new ControlProxy(
-            QStringLiteral("[Tts]"), QStringLiteral("enabled"), this,
-            ControlFlag::AllowMissingOrInvalid);
-
-    // Keep the checkmark in sync with the CO so keyboard shortcut changes are
-    // reflected in the menu (safe now that process() no longer writes to this CO).
-    connect(pTtsEnabledControl,
-            QOverload<double>::of(&ControlProxy::valueChanged),
-            this,
-            [pOptionsTts](double value) { pOptionsTts->setChecked(value > 0.0); });
-
-    connect(pOptionsTts, &QAction::triggered, this, [pTtsEnabledControl](bool checked) {
-        pTtsEnabledControl->set(checked ? 1.0 : 0.0);
-    });
-
-    pOptionsTts->setChecked(pTtsEnabledControl->toBool());
+    // Bridge to the [Tts],enabled control via signals rather than a direct
+    // ControlProxy: the menu bar is constructed before CoreServices creates
+    // the engine, so a proxy bound here would be permanently invalid. The
+    // connection to the control is made later in
+    // MixxxMainWindow::connectMenuBar(), once the engine exists.
+    connect(pOptionsTts, &QAction::triggered, this, &WMainMenuBar::toggleTts);
+    connect(this,
+            &WMainMenuBar::internalTtsStateChange,
+            pOptionsTts,
+            &QAction::setChecked);
 
     pOptionsMenu->addAction(pOptionsTts);
 
@@ -818,6 +812,10 @@ void WMainMenuBar::onNewSkinAboutToLoad() {
 
 void WMainMenuBar::onRecordingStateChange(bool recording) {
     emit internalRecordingStateChange(recording);
+}
+
+void WMainMenuBar::onTtsStateChange(bool enabled) {
+    emit internalTtsStateChange(enabled);
 }
 
 void WMainMenuBar::onBroadcastingStateChange(bool broadcasting) {

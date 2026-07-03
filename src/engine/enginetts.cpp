@@ -4,6 +4,7 @@
 
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
+#include "control/controlpushbutton.h"
 #include "util/defs.h"
 #include "util/sample.h"
 
@@ -31,9 +32,14 @@ EngineTts::EngineTts(const QString& group)
     m_tts.clear();
 
     // User-controlled on/off toggle. Written by the menu item and keyboard
-    // shortcut; read by speak() to decide whether to synthesize.
-    m_pEnabled = std::make_unique<ControlObject>(
-            ConfigKey(group, "enabled"), true, false, false, 1.0);
+    // shortcut; read by speak() to decide whether to synthesize. A Toggle
+    // push button so a single keypress flips the state — a plain control would
+    // be momentary (on only while the key is held) because the keyboard filter
+    // sends press=1 / release=0.
+    auto pEnabled = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "enabled"), false, 1.0);
+    pEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pEnabled = std::move(pEnabled);
 
     // Read-only status: 1.0 while the FIFO contains speech data, 0.0 otherwise.
     // Written only by process(); never touched by the user toggle path.

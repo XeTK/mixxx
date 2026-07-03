@@ -10,6 +10,7 @@
 #include "util/parented_ptr.h"
 
 class ControlObject;
+class ControlProxy;
 class DlgDeveloperTools;
 class DlgPreferences;
 class DlgKeywheel;
@@ -91,6 +92,9 @@ class MixxxMainWindow : public QMainWindow {
 
   private slots:
     void slotTooltipModeChanged(mixxx::preferences::Tooltips tt);
+    /// Bridge the Options > Enable Text-to-Speech menu item to the engine's
+    /// [Tts],enabled control (which is created after the menu bar).
+    void slotToggleTts(bool enabled);
 
   signals:
     void skinLoaded();
@@ -158,6 +162,10 @@ class MixxxMainWindow : public QMainWindow {
 #endif
 
     mixxx::preferences::Tooltips m_toolTipsCfg;
+
+    // Proxy to the engine's [Tts],enabled control for the Options menu toggle.
+    // Created in connectMenuBar() once the engine exists.
+    std::unique_ptr<ControlProxy> m_pTtsEnabledControl;
 
     mixxx::preferences::ScreenSaver m_inhibitScreensaver;
 

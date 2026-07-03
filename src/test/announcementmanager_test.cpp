@@ -162,25 +162,25 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_FullInfo) {
             QStringLiteral("A minor"));
     // formatForLoad uses the ChromaticKey enum for pronounceable names.
     EXPECT_QSTRING_EQ(
-            "Loaded A. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
+            "Loaded deck, A. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
             AnnouncementManager::formatForLoad(pTrack, 0));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_DeckLetter) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral(""));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 0).startsWith(
-            QStringLiteral("Loaded A")));
+            QStringLiteral("Loaded deck, A")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 1).startsWith(
-            QStringLiteral("Loaded B")));
+            QStringLiteral("Loaded deck, B")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 2).startsWith(
-            QStringLiteral("Loaded C")));
+            QStringLiteral("Loaded deck, C")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_NoBpm) {
     auto pTrack = makeTrack(
             QStringLiteral("Aphex Twin"), QStringLiteral("Windowlicker"), 0.0, QStringLiteral("A minor"));
     const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
-    EXPECT_TRUE(result.contains(QStringLiteral("Loaded A")));
+    EXPECT_TRUE(result.contains(QStringLiteral("Loaded deck, A")));
     EXPECT_FALSE(result.contains(QStringLiteral("B P M")));
     EXPECT_TRUE(result.contains(QStringLiteral("Key:")));
 }
@@ -201,7 +201,7 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_BpmRoundsToNearest) {
 TEST_F(AnnouncementManagerTest, FormatForLoad_MissingArtistSkipped) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral("Windowlicker"), 128.0);
     const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
-    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded A. Windowlicker.")));
+    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded deck, A. Windowlicker.")));
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +250,7 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_EnabledByDefault) {
     m_pManager->slotNewTrackLoaded(pTrack, 0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded A.")));
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded deck, A.")));
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceLoad_DisabledViaSettings) {
@@ -646,7 +646,8 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOn_AnnouncesCue) {
     setPfl(1.0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Headphone cue on", pSpy->lastText);
+    // deckIndex is -1 in this harness, so deckName() falls back to the group.
+    EXPECT_QSTRING_EQ("[TestChannel1] headphone cue on", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
@@ -659,7 +660,7 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOff_AnnouncesCueOff) {
     setPfl(0.0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("Headphone cue off", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1] headphone cue off", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
@@ -692,7 +693,7 @@ TEST_F(AnnouncementManagerPlaystateTest, AnnouncePlayDisabled_CueStillSpoken) {
     EXPECT_EQ(1, pSpy->callCount)
             << "Cue was silenced when AnnouncePlay was disabled — "
                "the two settings must be independent";
-    EXPECT_QSTRING_EQ("Headphone cue on", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1] headphone cue on", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, AnnounceCueDisabled_PlayStillSpoken) {
@@ -904,7 +905,7 @@ class AnnouncementManagerStatusTest : public AnnouncementManagerPlaystateTest {
 TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_NoTrackLoaded) {
     makeManager();
 
-    EXPECT_QSTRING_EQ("Deck A. No track loaded.",
+    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
 }
 
@@ -920,7 +921,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_FullStatus) {
     m_pRateRatio->set(1.02); // pitch up 2 percent
 
     EXPECT_QSTRING_EQ(
-            "Deck A. Playing. 1 minute 30 seconds remaining. 128 B P M. "
+            "Deck, A. Playing. 1 minute 30 seconds remaining. 128 B P M. "
             "Pitch up 2 percent.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
 }
@@ -936,7 +937,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_StoppedPitchDown) {
     m_pRateRatio->set(0.95); // pitch down 5 percent
 
     EXPECT_QSTRING_EQ(
-            "Deck B. Stopped. 45 seconds remaining. Pitch down 5 percent.",
+            "Deck, B. Stopped. 45 seconds remaining. Pitch down 5 percent.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 1));
 }
 
