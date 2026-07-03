@@ -118,20 +118,16 @@ to use them.
    counts during sidebar navigation, expand/collapse state, and
    add/remove-track confirmations
 
-### Tier 2 — announcement enrichment (small, incremental)
+### Tier 2 — announcement enrichment
 
-- Cue point set confirmation
-- Hotcue *pressed* feedback (currently only set/cleared)
-- Loop size *changes* announced (currently only on/off)
-- Effect-unit knob adjustments and per-deck trim/pregain
-- Preference for announcing continuous controls *while they move*
-  versus only at rest
-
-Done from this tier (2026-07-03): pitch announces the resulting BPM;
-values speak as fractions with center-split for EQ/filter/gains; filter
-and main/headphone volume announcements; deck-naming and concise-mode
-preferences; crossfader lock (Alt+X); end-of-track includes time left;
-cue preview says "Cue"; back-to-start announced.
+Complete as of 2026-07-03: cue-set confirmation, hotcue-pressed
+feedback, loop-size changes, trim/pregain and effect-unit mix/super
+knobs, announce-while-moving preference (throttled), pitch announces
+the resulting BPM, fraction readouts with center-split for
+EQ/filter/gains, filter and main/headphone volume announcements,
+deck-naming and concise-mode preferences, crossfader lock (Alt+X),
+end-of-track includes time left, cue preview says "Cue", back-to-start
+announced.
 
 ### Tier 3 — bigger projects
 
