@@ -1416,3 +1416,111 @@ TEST_F(AnnouncementManagerTest, CrossfaderLock_Announced) {
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("Crossfader unlocked", pSpy->lastText);
 }
+
+// ---------------------------------------------------------------------------
+// Tier 2 enrichment: cue set, hotcue pressed, loop size, trim, effect knobs,
+// announce-while-moving.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, CueSet_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pCueSet = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("cue_set")));
+    setupGroup();
+
+    pCueSet->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] cue set", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, HotcuePressed_AnnouncedWhenSet) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pActivate = std::make_unique<ControlObject>(ConfigKey(
+            QLatin1String(kGroup), QStringLiteral("hotcue_1_activate")));
+    createPerformanceControls(); // includes hotcue_1_status
+    setupGroup();
+
+    m_pHotcue1Status->set(1.0); // set (announces "set")
+    QCoreApplication::processEvents();
+
+    pActivate->set(1.0); // press the pad
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] hotcue 1", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, HotcuePressed_EmptyPad_NoDoubleSpeak) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pActivate = std::make_unique<ControlObject>(ConfigKey(
+            QLatin1String(kGroup), QStringLiteral("hotcue_1_activate")));
+    createPerformanceControls();
+    setupGroup();
+
+    // Pressing an empty pad sets the cue: activate fires with status still 0.
+    pActivate->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "activate on an empty pad must stay quiet (status observer "
+               "announces the set): "
+            << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopSizeChange_Debounced) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "loop size must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 8", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, Trim_CenterSplit) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    auto pPregain = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("pregain")));
+    pPregain->set(1.0);
+    setupGroup();
+
+    pPregain->set(0.75); // a quarter below unity
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] trim minus a quarter", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, EffectUnitMix_Announced) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pMix = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"), QStringLiteral("mix")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pMix->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Effect 1 mix a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, WhileMoving_SpeaksImmediately) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("AnnounceWhileMoving")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    // No slotAnnouncePendingControl() call: while-moving mode speaks at once.
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+}

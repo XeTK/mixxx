@@ -451,6 +451,16 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceWhileMoving">
+        <property name="toolTip">
+         <string>Speak knob and fader values while they move (at most a few times per second) instead of only once they come to rest.</string>
+        </property>
+        <property name="text">
+         <string>Announce controls while they move</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

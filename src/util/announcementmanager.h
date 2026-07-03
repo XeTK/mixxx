@@ -143,6 +143,8 @@ class AnnouncementManager : public QObject {
     // Debounced announcements for continuously-variable controls.
     QTimer m_controlDebounce;
     QString m_pendingControlText;
+    // Last immediate utterance in announce-while-moving mode (ms since epoch).
+    qint64 m_lastMovingSpeakMs{0};
 
     // Timestamp (ms since epoch) of the last track load/unload per group, for
     // hotcue announcement suppression.

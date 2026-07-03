@@ -52,9 +52,13 @@ Key source files:
 - Headphone cue (PFL) toggling
 - Sync, key lock, and quantize toggles
 - Loop on/off, including the loop size in beats
-- Hotcues being set or cleared
+- Hotcues being set, cleared, or pressed; the main cue point being set
+- Loop size changes
 - Pitch-fader position after it stops moving
+- Trim knobs and effect-unit mix/super knobs
 - Recording started / stopped
+- Optionally, continuous controls can announce *while* they move
+  (throttled) instead of only at rest
 - Volume faders, EQ knobs, and the crossfader (opt-in — off by
   default because these move constantly during a mix)
 - Sidebar item names while navigating with arrow keys

@@ -56,6 +56,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceHotcue(m_settings.getAnnounceHotcueDefault()),
           m_bAnnounceRecording(m_settings.getAnnounceRecordingDefault()),
           m_bAnnounceMixer(m_settings.getAnnounceMixerDefault()),
+          m_bAnnounceWhileMoving(m_settings.getAnnounceWhileMovingDefault()),
           m_bDeckNumbers(m_settings.getDeckNamesAsNumbersDefault()),
           m_bConcise(m_settings.getConciseAnnouncementsDefault()) {
     setupUi(this);
@@ -172,6 +173,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceMixer = checked; });
+    connect(checkBoxAnnounceWhileMoving,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceWhileMoving = checked; });
     connect(checkBoxDeckNumbers,
             &QCheckBox::toggled,
             this,
@@ -234,6 +239,7 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceHotcue = m_settings.getAnnounceHotcue();
     m_bAnnounceRecording = m_settings.getAnnounceRecording();
     m_bAnnounceMixer = m_settings.getAnnounceMixer();
+    m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMoving();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbers();
     m_bConcise = m_settings.getConciseAnnouncements();
     comboBoxTtsRoute->setCurrentIndex(
@@ -256,6 +262,7 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
     checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
     checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
+    checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);
     checkBoxConcise->setChecked(m_bConcise);
 }
@@ -280,6 +287,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceHotcue(m_bAnnounceHotcue);
     m_settings.setAnnounceRecording(m_bAnnounceRecording);
     m_settings.setAnnounceMixer(m_bAnnounceMixer);
+    m_settings.setAnnounceWhileMoving(m_bAnnounceWhileMoving);
     m_settings.setDeckNamesAsNumbers(m_bDeckNumbers);
     m_settings.setConciseAnnouncements(m_bConcise);
 }
@@ -321,6 +329,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceHotcue = m_settings.getAnnounceHotcueDefault();
     m_bAnnounceRecording = m_settings.getAnnounceRecordingDefault();
     m_bAnnounceMixer = m_settings.getAnnounceMixerDefault();
+    m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMovingDefault();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbersDefault();
     m_bConcise = m_settings.getConciseAnnouncementsDefault();
     comboBoxTtsRoute->setCurrentIndex(
@@ -343,6 +352,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
     checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
     checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
+    checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);
     checkBoxConcise->setChecked(m_bConcise);
 }

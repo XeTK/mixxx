@@ -24,6 +24,8 @@ namespace {
 constexpr int kSelectionDebounceMs = 400;
 constexpr int kSearchDebounceMs = 600;
 constexpr int kControlDebounceMs = 400;
+// Minimum gap between spoken updates in announce-while-moving mode.
+constexpr qint64 kMovingThrottleMs = 300;
 // Track load/unload rewrites every hotcue status CO; suppress hotcue
 // announcements for this long afterwards so a load doesn't fire a burst
 // of "hotcue set" messages.
@@ -329,6 +331,34 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         });
     }
 
+    // Effect unit knobs: the dry/wet mix and the super knob for the four
+    // standard units, debounced under AnnounceMixer.
+    for (int unit = 1; unit <= 4; ++unit) {
+        const QString unitGroup =
+                QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit);
+        const struct {
+            const char* control;
+            QString text;
+        } knobs[] = {
+                {"mix", tr("Effect %1 mix %2")},
+                {"super1", tr("Effect %1 super %2")},
+        };
+        for (const auto& knob : knobs) {
+            auto pKnob = make_parented<ControlProxy>(unitGroup,
+                    QLatin1String(knob.control),
+                    this,
+                    ControlFlag::AllowMissingOrInvalid);
+            pKnob->connectValueChanged(this,
+                    [this, unit, text = knob.text](double value) {
+                        if (!m_settings.getAnnounceMixer()) {
+                            return;
+                        }
+                        announceControlDebounced(text.arg(unit).arg(
+                                fractionText(std::clamp(value, 0.0, 1.0))));
+                    });
+        }
+    }
+
     // Crossfader lock (Alt+X): always confirmed audibly — it is a direct user
     // action, and silently locking the crossfader would be baffling.
     auto pCrossfaderLock = make_parented<ControlProxy>(
@@ -581,7 +611,56 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                         speak(tr("%1 hotcue %2 cleared").arg(deck).arg(i));
                     }
                 });
+
+        // Pressing a hotcue that is already set jumps to it; confirm which
+        // pad was hit. When the pad was empty the press sets the cue instead,
+        // and the status observer above announces "set" — stay quiet here to
+        // avoid speaking twice.
+        auto pActivate = make_parented<ControlProxy>(group,
+                QStringLiteral("hotcue_%1_activate").arg(i),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pActivate->connectValueChanged(this,
+                [this, group, deckIndex, i](double value) {
+                    if (value <= 0.0 || !m_settings.getAnnounceHotcue() ||
+                            recentTrackChange(group)) {
+                        return;
+                    }
+                    const double status = readGroupControl(group,
+                            QStringLiteral("hotcue_%1_status").arg(i));
+                    if (status >= 1.0) {
+                        speak(tr("%1 hotcue %2")
+                                        .arg(deckName(group, deckIndex))
+                                        .arg(i));
+                    }
+                });
     }
+
+    // Setting the main cue point.
+    auto pCueSet = make_parented<ControlProxy>(group,
+            QStringLiteral("cue_set"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pCueSet->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (value > 0.0 && m_settings.getAnnounceHotcue()) {
+            speak(tr("%1 cue set").arg(deckName(group, deckIndex)));
+        }
+    });
+
+    // Loop size changes (halve/double or direct selection), debounced since
+    // the size is often stepped several times in a row.
+    auto pLoopSize = make_parented<ControlProxy>(group,
+            QStringLiteral("beatloop_size"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pLoopSize->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceLoop() || value <= 0.0) {
+            return;
+        }
+        announceControlDebounced(tr("%1 loop size %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                QString::number(value)));
+    });
 
     // Continuously-variable deck controls, debounced so only the value where
     // the control comes to rest is spoken.
@@ -617,6 +696,20 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         announceControlDebounced(tr("%1 volume %2")
                         .arg(mixerDeckName(group, deckIndex),
                                 fractionText(std::clamp(value, 0.0, 1.0))));
+    });
+
+    // Trim / channel pregain: same unity-1 taper as the EQ knobs.
+    auto pPregain = make_parented<ControlProxy>(group,
+            QStringLiteral("pregain"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pPregain->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceMixer()) {
+            return;
+        }
+        announceControlDebounced(tr("%1 trim %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                centerSplitText(normalizeUnityGain(value))));
     });
 
     // EQ knobs. Values run 0..4 with unity at 1; spoken as a signed fraction
@@ -990,6 +1083,17 @@ QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) 
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {
     m_pendingControlText = text;
+    // While-moving mode speaks immediately, throttled so rapid knob sweeps
+    // don't queue an utterance per tick; the debounce timer still fires
+    // afterwards so the final resting value is always spoken.
+    if (m_settings.getAnnounceWhileMoving()) {
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - m_lastMovingSpeakMs >= kMovingThrottleMs) {
+            m_lastMovingSpeakMs = now;
+            slotAnnouncePendingControl();
+            return;
+        }
+    }
     m_controlDebounce.start();
 }
 

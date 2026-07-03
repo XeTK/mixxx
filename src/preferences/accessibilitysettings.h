@@ -100,6 +100,14 @@ class AccessibilitySettings {
             "AnnounceMixer",
             false);
 
+    // Speak continuous controls while they move (throttled) instead of only
+    // once they come to rest.
+    DEFINE_PREFERENCE_HELPERS(AnnounceWhileMoving,
+            bool,
+            "[Accessibility]",
+            "AnnounceWhileMoving",
+            false);
+
     // Speak deck names as numbers ("Deck 1") instead of letters ("Deck A").
     DEFINE_PREFERENCE_HELPERS(DeckNamesAsNumbers,
             bool,
