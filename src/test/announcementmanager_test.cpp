@@ -1220,3 +1220,78 @@ TEST_F(AnnouncementManagerStatusTest, InfoButton_TriggersSingleFactReadout) {
     EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("B P M")))
             << pSpy->lastText.toStdString();
 }
+
+// ---------------------------------------------------------------------------
+// Blind-tester feedback batch: end-of-track time, cue preview, back-to-start,
+// tempo announcing the resulting BPM.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, EndOfTrack_IncludesTimeRemaining) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pDuration = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("duration")));
+    auto pPlayPos = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("playposition")));
+    setupGroup();
+    pDuration->set(300.0);
+    pPlayPos->set(0.85); // 45 seconds remaining
+
+    setEndOfTrack(1.0);
+
+    EXPECT_QSTRING_EQ("End of track. 45 seconds remaining.", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, CuePreview_SaysCueAndSuppressesStop) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pCueDefault = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("cue_default")));
+    setupGroup();
+
+    pCueDefault->set(1.0); // user holds the cue button
+    setPlay(1.0);          // CueControl starts the preview
+    EXPECT_QSTRING_EQ("Cue", pSpy->lastText);
+    const int callsAfterCue = pSpy->callCount;
+
+    pCueDefault->set(0.0); // release
+    setPlay(0.0);          // preview ends
+    EXPECT_EQ(callsAfterCue, pSpy->callCount)
+            << "cue-preview end must not announce Stopped; spoke: "
+            << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, NormalPlay_StillSaysPlaying) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pCueDefault = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("cue_default")));
+    setupGroup();
+
+    setPlay(1.0); // cue button not held
+    EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, BackToStart_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pStart = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("start")));
+    setupGroup(); // proxies attach after the CO exists
+
+    pStart->set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_IncludesNewBpm) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pBpm = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("bpm")));
+    setupGroup();
+    pBpm->set(130.9);
+
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+
+    EXPECT_QSTRING_EQ("[TestChannel1] Pitch up 5 percent. 131 B P M", pSpy->lastText);
+}

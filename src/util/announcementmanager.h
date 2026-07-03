@@ -125,6 +125,9 @@ class AnnouncementManager : public QObject {
     // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
     QHash<QString, bool> m_deckHasTrack;
     QHash<QString, bool> m_deckIsPlaying;
+    // True while the deck is playing because the cue button is held (cue
+    // preview); the eventual stop is not announced.
+    QHash<QString, bool> m_deckCuePreview;
 
     // On-demand announcement buttons: [ChannelN],tts_status per deck and the
     // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.

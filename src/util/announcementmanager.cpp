@@ -31,6 +31,27 @@ constexpr qint64 kHotcueSuppressMs = 1000;
 // Hotcues 1..8 cover the pads on entry-level controllers.
 constexpr int kNumAnnouncedHotcues = 8;
 
+double readGroupControl(const QString& group, const QString& name) {
+    return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
+}
+
+// "2 minutes 10 seconds remaining", with correct singulars.
+QString remainingText(int totalSeconds) {
+    const int seconds = std::max(0, totalSeconds);
+    const int minutes = seconds / 60;
+    const int secondsPart = seconds % 60;
+    const QString minuteText = minutes == 1
+            ? AnnouncementManager::tr("1 minute")
+            : AnnouncementManager::tr("%1 minutes").arg(minutes);
+    const QString secondText = secondsPart == 1
+            ? AnnouncementManager::tr("1 second")
+            : AnnouncementManager::tr("%1 seconds").arg(secondsPart);
+    if (minutes > 0) {
+        return AnnouncementManager::tr("%1 %2 remaining").arg(minuteText, secondText);
+    }
+    return AnnouncementManager::tr("%1 remaining").arg(secondText);
+}
+
 // Spoken pitch-fader deviation, e.g. "Pitch up 2 percent". Empty at exactly
 // normal speed. Words instead of a sign because TTS engines don't read "+"
 // reliably.
@@ -331,15 +352,25 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         const bool hasTrack = m_deckHasTrack.value(group, false);
 
         if (nowPlaying && !wasPlaying && hasTrack && m_settings.getAnnouncePlay()) {
-            speak(tr("Playing"));
+            // Holding the transport cue button previews from the cue point;
+            // the deck is technically playing, but saying "Playing" misleads —
+            // the user pressed cue, so say that. cue_default is already held
+            // when CueControl starts the preview, so this read is race-free.
+            if (readGroupControl(group, QStringLiteral("cue_default")) > 0.0) {
+                m_deckCuePreview[group] = true;
+                speak(tr("Cue"));
+            } else {
+                speak(tr("Playing"));
+            }
         } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
+            // Releasing the cue button ends the preview; that is not a "stop"
+            // the user needs narrated.
+            const bool wasCuePreview = m_deckCuePreview.take(group);
             // Suppress the stop announcement when end-of-track fired it —
             // the end-of-track announcement already covered this transition.
-            const bool atEnd = ControlProxy(group, QStringLiteral("end_of_track"),
-                                       nullptr,
-                                       ControlFlag::AllowMissingOrInvalid)
-                                       .toBool();
-            if (!atEnd) {
+            const bool atEnd =
+                    readGroupControl(group, QStringLiteral("end_of_track")) > 0.0;
+            if (!wasCuePreview && !atEnd) {
                 speak(tr("Stopped"));
             }
         }
@@ -348,11 +379,36 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
 
     auto pEndOfTrack = make_parented<ControlProxy>(
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
-    pEndOfTrack->connectValueChanged(this, [this](double value) {
+    pEndOfTrack->connectValueChanged(this, [this, group](double value) {
         if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
-            speak(tr("End of track"));
+            // Say how much is actually left so the DJ knows how long they
+            // have to bring in the next track.
+            const double duration = readGroupControl(group, QStringLiteral("duration"));
+            if (duration > 0.0) {
+                const double playPos =
+                        readGroupControl(group, QStringLiteral("playposition"));
+                speak(tr("End of track. %1.")
+                                .arg(remainingText(static_cast<int>(std::lround(
+                                        duration * (1.0 - playPos))))));
+            } else {
+                speak(tr("End of track"));
+            }
         }
     });
+
+    // Jumping back to the start (the Start key or cue-goto-and-stop) gives no
+    // audible feedback of its own; narrate it.
+    for (const char* backControl : {"start", "cue_gotoandstop"}) {
+        auto pBack = make_parented<ControlProxy>(group,
+                QLatin1String(backControl),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pBack->connectValueChanged(this, [this, group, deckIndex](double value) {
+            if (value > 0.0 && m_settings.getAnnouncePlay()) {
+                speak(tr("%1 back to start").arg(deckName(group, deckIndex)));
+            }
+        });
+    }
 
     auto pPfl = make_parented<ControlProxy>(
             group, QStringLiteral("pfl"), this, ControlFlag::AllowMissingOrInvalid);
@@ -456,9 +512,15 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
         const QString pitch = pitchText(value);
         const QString deck = deckName(group, deckIndex);
-        announceControlDebounced(pitch.isEmpty()
-                        ? tr("%1 pitch zero").arg(deck)
-                        : QStringLiteral("%1 %2").arg(deck, pitch));
+        QString text = pitch.isEmpty()
+                ? tr("%1 pitch zero").arg(deck)
+                : QStringLiteral("%1 %2").arg(deck, pitch);
+        // Say the resulting BPM — the number the DJ is actually chasing.
+        const double bpm = readGroupControl(group, QStringLiteral("bpm"));
+        if (bpm > 0.0) {
+            text += tr(". %1 B P M").arg(static_cast<int>(std::lround(bpm)));
+        }
+        announceControlDebounced(text);
     });
 
     auto pVolume = make_parented<ControlProxy>(group,
@@ -685,29 +747,6 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     }
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }
-
-namespace {
-double readGroupControl(const QString& group, const QString& name) {
-    return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
-}
-
-// "2 minutes 10 seconds remaining", with correct singulars.
-QString remainingText(int totalSeconds) {
-    const int seconds = std::max(0, totalSeconds);
-    const int minutes = seconds / 60;
-    const int secondsPart = seconds % 60;
-    const QString minuteText = minutes == 1
-            ? AnnouncementManager::tr("1 minute")
-            : AnnouncementManager::tr("%1 minutes").arg(minutes);
-    const QString secondText = secondsPart == 1
-            ? AnnouncementManager::tr("1 second")
-            : AnnouncementManager::tr("%1 seconds").arg(secondsPart);
-    if (minutes > 0) {
-        return AnnouncementManager::tr("%1 %2 remaining").arg(minuteText, secondText);
-    }
-    return AnnouncementManager::tr("%1 remaining").arg(secondText);
-}
-} // namespace
 
 QString AnnouncementManager::formatDeckStatus(const QString& group, int deckIndex) const {
     const QString deck = deckName(group, deckIndex);
