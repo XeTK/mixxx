@@ -25,8 +25,8 @@ Key source files:
 
 - **Toggle speech**: Options > Enable Text-to-Speech, or `Alt+Shift+A`
   ("Speech on" is spoken as confirmation when enabling).
-- **Deck status on demand**: `Alt+Shift+F1` / `Alt+Shift+F2` speak the
-  deck's state — playing or stopped, time remaining, BPM, and pitch.
+- **Deck status on demand**: `Alt+1` / `Alt+2` speak the deck's state —
+  playing or stopped, time remaining, BPM, and pitch.
 - **Repeat last announcement**: `Alt+Shift+R`.
 - **Preferences > Accessibility**: choose the voice, speech rate, output
   routing (headphone cue vs. main), and which announcements are spoken.
