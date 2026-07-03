@@ -14,6 +14,7 @@
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
 #include "proto/keys.pb.h"
+#include "track/beats.h"
 #include "track/keyutils.h"
 #include "track/track.h"
 #include "util/parented_ptr.h"
@@ -295,20 +296,33 @@ void AnnouncementManager::speak(const QString& text) {
 }
 
 void AnnouncementManager::connectGroupControls(const QString& group, int deckIndex) {
-    // On-demand status readout: pressing the mapped key sets this CO and the
-    // deck's current state is spoken. Trigger mode so every press fires.
-    auto pStatus = std::make_unique<ControlPushButton>(
-            ConfigKey(group, QStringLiteral("tts_status")));
-    pStatus->setButtonMode(mixxx::control::ButtonMode::Trigger);
-    connect(pStatus.get(),
-            &ControlObject::valueChanged,
-            this,
-            [this, group, deckIndex](double value) {
-                if (value > 0.0) {
-                    speak(formatDeckStatus(group, deckIndex));
-                }
-            });
-    m_pStatusButtons.push_back(std::move(pStatus));
+    // On-demand readouts: pressing a mapped key speaks the deck's full status
+    // or a single fact. Trigger mode so every press fires. Each is an
+    // ordinary control, so they are controller-mappable too.
+    const struct {
+        const char* control;
+        QString (AnnouncementManager::*format)(const QString&, int) const;
+    } readouts[] = {
+            {"tts_status", &AnnouncementManager::formatDeckStatus},
+            {"tts_time", &AnnouncementManager::formatTimeRemaining},
+            {"tts_bpm", &AnnouncementManager::formatBpm},
+            {"tts_key", &AnnouncementManager::formatKey},
+            {"tts_bar", &AnnouncementManager::formatBarPosition},
+    };
+    for (const auto& readout : readouts) {
+        auto pButton = std::make_unique<ControlPushButton>(
+                ConfigKey(group, QLatin1String(readout.control)));
+        pButton->setButtonMode(mixxx::control::ButtonMode::Trigger);
+        connect(pButton.get(),
+                &ControlObject::valueChanged,
+                this,
+                [this, group, deckIndex, format = readout.format](double value) {
+                    if (value > 0.0) {
+                        speak((this->*format)(group, deckIndex));
+                    }
+                });
+        m_pStatusButtons.push_back(std::move(pButton));
+    }
 
     auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
     pPlay->connectValueChanged(this, [this, group](double value) {
@@ -672,50 +686,126 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }
 
+namespace {
+double readGroupControl(const QString& group, const QString& name) {
+    return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
+}
+
+// "2 minutes 10 seconds remaining", with correct singulars.
+QString remainingText(int totalSeconds) {
+    const int seconds = std::max(0, totalSeconds);
+    const int minutes = seconds / 60;
+    const int secondsPart = seconds % 60;
+    const QString minuteText = minutes == 1
+            ? AnnouncementManager::tr("1 minute")
+            : AnnouncementManager::tr("%1 minutes").arg(minutes);
+    const QString secondText = secondsPart == 1
+            ? AnnouncementManager::tr("1 second")
+            : AnnouncementManager::tr("%1 seconds").arg(secondsPart);
+    if (minutes > 0) {
+        return AnnouncementManager::tr("%1 %2 remaining").arg(minuteText, secondText);
+    }
+    return AnnouncementManager::tr("%1 remaining").arg(secondText);
+}
+} // namespace
+
 QString AnnouncementManager::formatDeckStatus(const QString& group, int deckIndex) const {
     const QString deck = deckName(group, deckIndex);
     if (!m_deckHasTrack.value(group, false)) {
         return tr("%1. No track loaded.").arg(deck);
     }
 
-    auto readControl = [&group](const QString& name) {
-        return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
-    };
-
     QStringList parts;
     parts << deck;
-    parts << (readControl(QStringLiteral("play")) > 0.0 ? tr("Playing") : tr("Stopped"));
+    parts << (readGroupControl(group, QStringLiteral("play")) > 0.0
+                    ? tr("Playing")
+                    : tr("Stopped"));
 
-    const double duration = readControl(QStringLiteral("duration"));
+    const double duration = readGroupControl(group, QStringLiteral("duration"));
     if (duration > 0.0) {
-        const double playPos = readControl(QStringLiteral("playposition"));
-        const int remaining = std::max(0,
+        const double playPos = readGroupControl(group, QStringLiteral("playposition"));
+        parts << remainingText(
                 static_cast<int>(std::lround(duration * (1.0 - playPos))));
-        const int minutes = remaining / 60;
-        const int seconds = remaining % 60;
-        const QString minuteText = minutes == 1
-                ? tr("1 minute")
-                : tr("%1 minutes").arg(minutes);
-        const QString secondText = seconds == 1
-                ? tr("1 second")
-                : tr("%1 seconds").arg(seconds);
-        if (minutes > 0) {
-            parts << tr("%1 %2 remaining").arg(minuteText, secondText);
-        } else {
-            parts << tr("%1 remaining").arg(secondText);
-        }
     }
 
-    const double bpm = readControl(QStringLiteral("bpm"));
+    const double bpm = readGroupControl(group, QStringLiteral("bpm"));
     if (bpm > 0.0) {
         parts << tr("%1 B P M").arg(static_cast<int>(std::lround(bpm)));
     }
 
-    const QString pitch = pitchText(readControl(QStringLiteral("rate_ratio")));
+    const QString pitch = pitchText(readGroupControl(group, QStringLiteral("rate_ratio")));
     if (!pitch.isEmpty()) {
         parts << pitch;
     }
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
+}
+
+QString AnnouncementManager::formatTimeRemaining(const QString& group, int deckIndex) const {
+    const QString deck = deckName(group, deckIndex);
+    const double duration = readGroupControl(group, QStringLiteral("duration"));
+    if (!m_deckHasTrack.value(group, false) || duration <= 0.0) {
+        return tr("%1. No track loaded.").arg(deck);
+    }
+    const double playPos = readGroupControl(group, QStringLiteral("playposition"));
+    return deck + QStringLiteral(". ") +
+            remainingText(static_cast<int>(
+                    std::lround(duration * (1.0 - playPos)))) +
+            QStringLiteral(".");
+}
+
+QString AnnouncementManager::formatBpm(const QString& group, int deckIndex) const {
+    const QString deck = deckName(group, deckIndex);
+    const double bpm = readGroupControl(group, QStringLiteral("bpm"));
+    if (bpm <= 0.0) {
+        return tr("%1. No B P M.").arg(deck);
+    }
+    return tr("%1. %2 B P M.").arg(deck).arg(static_cast<int>(std::lround(bpm)));
+}
+
+QString AnnouncementManager::formatKey(const QString& group, int deckIndex) const {
+    const QString deck = deckName(group, deckIndex);
+    // [ChannelN],key holds KeyUtils::keyToNumericValue(ChromaticKey) and is
+    // keylock-aware, so this reads the currently sounding key.
+    const int keyValue = static_cast<int>(
+            std::lround(readGroupControl(group, QStringLiteral("key"))));
+    const QString keyText = keyForSpeech(
+            static_cast<mixxx::track::io::key::ChromaticKey>(keyValue));
+    if (keyText.isEmpty()) {
+        return tr("%1. Key unknown.").arg(deck);
+    }
+    return tr("%1. Key: %2.").arg(deck, keyText);
+}
+
+QString AnnouncementManager::formatBarPosition(const QString& group, int deckIndex) const {
+    const QString deck = deckName(group, deckIndex);
+    TrackPointer pTrack;
+    if (deckIndex >= 0 && m_pPlayerManager) {
+        BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(deckIndex);
+        if (pDeck) {
+            pTrack = pDeck->getLoadedTrack();
+        }
+    }
+    if (!pTrack) {
+        return tr("%1. No track loaded.").arg(deck);
+    }
+    const mixxx::BeatsPointer pBeats = pTrack->getBeats();
+    const mixxx::audio::SampleRate sampleRate = pTrack->getSampleRate();
+    const double duration = pTrack->getDuration();
+    if (!pBeats || !pBeats->firstBeat().isValid() || !sampleRate.isValid() ||
+            duration <= 0.0) {
+        return tr("%1. No beat grid.").arg(deck);
+    }
+    const double playPos = readGroupControl(group, QStringLiteral("playposition"));
+    const auto position = mixxx::audio::FramePos(
+            playPos * duration * sampleRate.toDouble());
+    if (!position.isValid() || position < pBeats->firstBeat()) {
+        return tr("%1. Before first beat.").arg(deck);
+    }
+    // Assumes 4/4, which covers the overwhelming majority of DJ material.
+    const int beatsFromStart = pBeats->numBeatsInRange(pBeats->firstBeat(), position);
+    const int bar = beatsFromStart / 4 + 1;
+    const int beatInBar = beatsFromStart % 4 + 1;
+    return tr("%1. Bar %2, beat %3.").arg(deck).arg(bar).arg(beatInBar);
 }
 
 // static

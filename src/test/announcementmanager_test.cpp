@@ -1145,3 +1145,78 @@ TEST_F(AnnouncementManagerPerformanceTest, Recording_StartAndStop_Announced) {
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("Recording stopped", pSpy->lastText);
 }
+
+// ---------------------------------------------------------------------------
+// Granular info readouts (tts_time / tts_bpm / tts_key / tts_bar)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerStatusTest, FormatTimeRemaining_NoTrack) {
+    makeManager();
+    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+            m_pManager->formatTimeRemaining(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatTimeRemaining_WithTrack) {
+    makeManager();
+    setupGroup();
+    createStatusControls();
+    m_pDuration->set(200.0);
+    m_pPlayPos->set(0.35); // 130 seconds remaining
+
+    EXPECT_QSTRING_EQ("Deck, A. 2 minutes 10 seconds remaining.",
+            m_pManager->formatTimeRemaining(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatBpm_RoundsAndSpells) {
+    makeManager();
+    createStatusControls();
+    m_pBpm->set(174.4);
+
+    EXPECT_QSTRING_EQ("Deck, A. 174 B P M.",
+            m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatBpm_NoneAvailable) {
+    makeManager();
+    EXPECT_QSTRING_EQ("Deck, A. No B P M.",
+            m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatKey_SpokenName) {
+    makeManager();
+    auto pKey = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
+    pKey->set(22.0); // ChromaticKey A_MINOR
+
+    EXPECT_QSTRING_EQ("Deck, A. Key: A Minor.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatKey_Unknown) {
+    makeManager();
+    EXPECT_QSTRING_EQ("Deck, A. Key unknown.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatBarPosition_NoDeck) {
+    // The stub PlayerManager has no decks, so no track can be resolved.
+    makeManager();
+    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+            m_pManager->formatBarPosition(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, InfoButton_TriggersSingleFactReadout) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(); // creates the tts_* trigger buttons for the group
+
+    ControlProxy bpmButton(QLatin1String(kGroup),
+            QStringLiteral("tts_bpm"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    bpmButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("B P M")))
+            << pSpy->lastText.toStdString();
+}

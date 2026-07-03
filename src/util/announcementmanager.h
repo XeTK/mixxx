@@ -66,6 +66,14 @@ class AnnouncementManager : public QObject {
     // tests can verify the formatting.
     QString formatDeckStatus(const QString& group, int deckIndex) const;
 
+    // Single-fact readouts for the granular info hotkeys ([ChannelN],tts_time
+    // / tts_bpm / tts_key / tts_bar). A DJ mid-mix wants one number, not the
+    // whole status monologue. Public for tests.
+    QString formatTimeRemaining(const QString& group, int deckIndex) const;
+    QString formatBpm(const QString& group, int deckIndex) const;
+    QString formatKey(const QString& group, int deckIndex) const;
+    QString formatBarPosition(const QString& group, int deckIndex) const;
+
     // Test helpers: allow tests to wire up CO observers for a synthetic group
     // without needing a real BaseTrackPlayer.
     void connectGroupControls(const QString& group, int deckIndex = -1);
