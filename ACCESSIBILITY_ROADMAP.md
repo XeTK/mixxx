@@ -123,12 +123,15 @@ to use them.
 - Cue point set confirmation
 - Hotcue *pressed* feedback (currently only set/cleared)
 - Loop size *changes* announced (currently only on/off)
-- Effect and trim/gain knob adjustments
-- Pitch change announcements should include the resulting BPM
-- EQ readout split at 50 ("boost/cut" style instead of raw percent),
-  with the split configurable
+- Effect-unit knob adjustments and per-deck trim/pregain
 - Preference for announcing continuous controls *while they move*
   versus only at rest
+
+Done from this tier (2026-07-03): pitch announces the resulting BPM;
+values speak as fractions with center-split for EQ/filter/gains; filter
+and main/headphone volume announcements; deck-naming and concise-mode
+preferences; crossfader lock (Alt+X); end-of-track includes time left;
+cue preview says "Cue"; back-to-start announced.
 
 ### Tier 3 — bigger projects
 
