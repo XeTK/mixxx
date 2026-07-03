@@ -16,6 +16,9 @@ WLibrarySidebar::WLibrarySidebar(QWidget* parent)
           WBaseWidget(this),
           m_lastDragMoveAccepted(false) {
     qRegisterMetaType<FocusWidget>("FocusWidget");
+    // Custom skin widgets carry no accessible names by default; without one
+    // screen readers announce this tree as an anonymous control.
+    setAccessibleName(tr("Library sidebar"));
     //Set some properties
     setHeaderHidden(true);
     setSelectionMode(QAbstractItemView::SingleSelection);

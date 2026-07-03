@@ -40,6 +40,9 @@
           <property name="toolTip">
            <string>Which Mixxx output announcements are mixed into. Headphones (cue) keeps them DJ-only; Main sends them to the audience. The music is automatically ducked while speaking.</string>
           </property>
+          <property name="buddy">
+           <cstring>comboBoxTtsRoute</cstring>
+          </property>
          </widget>
         </item>
         <item>
@@ -67,6 +70,9 @@
           <property name="toolTip">
            <string>Text-to-speech voice used for announcements.</string>
           </property>
+          <property name="buddy">
+           <cstring>comboBoxTtsVoice</cstring>
+          </property>
          </widget>
         </item>
         <item>
@@ -92,6 +98,9 @@
         <property name="toolTip">
          <string>Adjust the speed of speech from slower to faster. 0 is the normal system rate.</string>
         </property>
+        <property name="buddy">
+         <cstring>sliderTtsRate</cstring>
+        </property>
        </widget>
       </item>
       <item>
@@ -114,6 +123,9 @@
         </item>
         <item>
          <widget class="QSlider" name="sliderTtsRate">
+          <property name="accessibleName">
+           <string>Speech rate</string>
+          </property>
           <property name="toolTip">
            <string>Drag to adjust speech speed. Left is slower, right is faster. Middle position is normal speed.</string>
           </property>
@@ -158,6 +170,9 @@
         </item>
         <item>
          <widget class="QSpinBox" name="spinBoxTtsRate">
+          <property name="accessibleName">
+           <string>Speech rate value</string>
+          </property>
           <property name="toolTip">
            <string>Current speech rate value. Use the slider to adjust.</string>
           </property>
@@ -182,6 +197,9 @@
         <property name="toolTip">
          <string>How much the music is turned down while an announcement is spoken. Higher values make speech easier to hear.</string>
         </property>
+        <property name="buddy">
+         <cstring>sliderDuckStrength</cstring>
+        </property>
        </widget>
       </item>
       <item>
@@ -198,6 +216,9 @@
         </item>
         <item>
          <widget class="QSlider" name="sliderDuckStrength">
+          <property name="accessibleName">
+           <string>Music ducking during announcements</string>
+          </property>
           <property name="toolTip">
            <string>Drag to adjust how much the music volume drops during speech.</string>
           </property>

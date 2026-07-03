@@ -101,6 +101,11 @@ WSearchLineEdit::WSearchLineEdit(QWidget* pParent, UserSettingsPointer pConfig)
     //: Shown in the library search bar when it is empty.
     lineEdit()->setPlaceholderText(tr("Search..."));
 
+    // Placeholder text is not reliably exposed to screen readers; give the
+    // field an explicit name so JAWS/NVDA announce what it is.
+    setAccessibleName(tr("Search library"));
+    lineEdit()->setAccessibleName(tr("Search library"));
+
     m_completer->setModel(model());
     m_completer->setCompletionMode(QCompleter::CompletionMode::InlineCompletion);
     updateCompleter();

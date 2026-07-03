@@ -58,6 +58,10 @@ WTrackTableView::WTrackTableView(QWidget* pParent,
           m_selectionChangedSinceLastGuiTick(true),
           m_loadCachedOnly(false),
           m_dropRow(-1) {
+    // Screen readers announce this table as an anonymous control without an
+    // explicit accessible name.
+    setAccessibleName(tr("Track list"));
+
     // Connect slots and signals to make the world go 'round.
     connect(this, &WTrackTableView::doubleClicked, this, &WTrackTableView::slotMouseDoubleClicked);
 
