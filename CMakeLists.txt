@@ -466,7 +466,7 @@ elseif(APPLE)
   endif()
 endif()
 
-project(Mixxx-Accessibility VERSION 2.6.0 LANGUAGES C CXX)
+project(mixxx VERSION 2.6.0 LANGUAGES C CXX)
 # Work around missing version suffixes support https://gitlab.kitware.com/cmake/cmake/-/issues/16716
 set(MIXXX_VERSION_PRERELEASE "beta") # set to "alpha" "beta" or ""
 
