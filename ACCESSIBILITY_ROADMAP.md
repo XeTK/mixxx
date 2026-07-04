@@ -1,7 +1,7 @@
 # Mixxx Accessibility Fork — Progress & Roadmap
 
 Status document for the accessibility fork, which makes Mixxx usable by a
-fully blind DJ (primary end user runs JAWS). Last updated 2026-07-03.
+fully blind DJ (primary end user runs JAWS). Last updated 2026-07-04.
 
 See [ACCESSIBILITY.md](ACCESSIBILITY.md) for how the features work and how
 to use them.
@@ -62,6 +62,20 @@ to use them.
   field, the sidebar tree, and the track table. (The codebase
   previously contained zero accessible names.)
 
+### Performance monitoring aids (2026-07-04)
+
+- **Beat-click metronome** (`Alt+B`, `[BeatClick],enabled`): a click on
+  every beat of each playing deck, deck 1 in the left ear and deck 2 in
+  the right, with every fourth beat accented an octave up as a bar
+  marker (assumes 4/4, phase counted from play start). Sample-accurate
+  against the beat grid; headphone bus with main fallback; never
+  recorded or broadcast. Level via the persistent `[BeatClick],volume`.
+- **Per-deck split headphone cue** (`Alt+H`, `[Master],headSplitDecks`):
+  deck 1's PFL as a mono fold-down in the left ear, deck 2's in the
+  right; other cued sources in both ears. Overrides the classic
+  cue/main split while active; the head/main mix knob still blends the
+  main output on top. Both toggles speak their state.
+
 ### Other accessibility features
 
 - Per-deck `disable_preroll` control + "prevent jogging before track
@@ -88,7 +102,12 @@ to use them.
 - Qt TextToSpeech gated to Qt >= 6.6 in CMake; the preferences page
   shows a warning when the build has no speech backend.
 - Merged upstream 2.6 (July 1 state), conflict-free.
-- 99 unit tests cover the announcement manager and engine sink.
+- Repaired a pre-existing mangling in the 11 non-English keyboard
+  layouts: the `[Tts]` section had been inserted inside `[Microphone]`
+  as a stray `n[Tts]` line, so the speech toggle and repeat shortcuts
+  never worked outside the US layout.
+- 125 unit tests cover the announcement manager, engine speech sink,
+  and beat-click metronome.
 
 ### Local build environment (this machine)
 
@@ -131,8 +150,8 @@ announced.
 
 ### Tier 3 — bigger projects
 
-- Metronome / beat-click aid to help beginners hear the grid when
-  setting beatgrids
+- ~~Metronome / beat-click aid~~ (done 2026-07-04, with per-deck
+  stereo split; see Performance monitoring aids above)
 - Simplified setup wizard for first-run (sound hardware setup currently
   happens before the speech engine can talk; a screen reader is needed)
 - Minimal / high-contrast skin (deferred: current focus is fully-blind
