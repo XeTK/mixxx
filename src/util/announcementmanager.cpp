@@ -359,6 +359,17 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         }
     }
 
+    // Per-deck split cue toggle (Alt+H): always confirmed audibly.
+    auto pHeadSplitDecks = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("headSplitDecks"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pHeadSplitDecks->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Split cue on. Deck 1 left, deck 2 right")
+                          : tr("Split cue off"));
+    });
+
     // Beat click metronome toggle (Alt+B): always confirmed audibly.
     auto pBeatClick = make_parented<ControlProxy>(
             QStringLiteral("[BeatClick]"),

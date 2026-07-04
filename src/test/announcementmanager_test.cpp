@@ -1524,3 +1524,17 @@ TEST_F(AnnouncementManagerPerformanceTest, WhileMoving_SpeaksImmediately) {
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
 }
+
+TEST_F(AnnouncementManagerTest, HeadSplitDecks_Announced) {
+    auto pSplit = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Master]"), QStringLiteral("headSplitDecks")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pSplit->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Split cue on. Deck 1 left, deck 2 right", pSpy->lastText);
+
+    pSplit->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Split cue off", pSpy->lastText);
+}

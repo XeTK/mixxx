@@ -273,6 +273,7 @@ class EngineMixer : public QObject, public AudioSource {
     void processHeadphones(
             const CSAMPLE_GAIN mainMixGainInHeadphones,
             std::size_t bufferSize);
+    void mixHeadphoneDeckSplit(std::size_t bufferSize);
     bool sidechainMixRequired() const;
 
     // non-owning. lifetime bound to EffectsManager
@@ -339,6 +340,13 @@ class EngineMixer : public QObject, public AudioSource {
     std::unique_ptr<ControlPotmeter> m_pXFaderCalibration;
     std::unique_ptr<ControlPushButton> m_pXFaderReverse;
     std::unique_ptr<ControlPushButton> m_pHeadSplitEnabled;
+    // Accessibility: per-deck split cue — deck 1's PFL mono in the left ear,
+    // deck 2's in the right, so a blind DJ can monitor both decks at once.
+    // Takes precedence over the classic headSplit while enabled.
+    std::unique_ptr<ControlPushButton> m_pHeadSplitDecks;
+    mixxx::SampleBuffer m_headSplitScratch;
+    QVarLengthArray<ChannelInfo*, kPreallocatedChannels> m_headSplitLeftChannels;
+    QVarLengthArray<ChannelInfo*, kPreallocatedChannels> m_headSplitRightChannels;
     std::unique_ptr<ControlObject> m_pKeylockEngine;
 
     PflGainCalculator m_headphoneGain;

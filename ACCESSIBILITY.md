@@ -36,6 +36,12 @@ Key source files:
 - **Crossfader lock**: `Alt+X` freezes the crossfader at its current
   position so an accidental bump does nothing; press again to unlock.
   Both states are confirmed audibly.
+- **Per-deck split cue**: `Alt+H` puts deck 1's headphone cue in the
+  left ear and deck 2's in the right (each as a mono fold-down), so
+  both decks can be monitored at once. Other cued sources (samplers,
+  preview deck) stay in both ears. Overrides the classic split-cue
+  option while active; the head/main mix knob still blends the main
+  output on top of both ears.
 - **Beat click metronome**: `Alt+B` toggles a click on every beat of
   each playing deck — deck 1 in the left ear, deck 2 in the right, so
   both grids can be followed at once. Every fourth beat is a higher

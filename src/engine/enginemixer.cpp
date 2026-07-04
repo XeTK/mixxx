@@ -130,6 +130,9 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
                   ConfigKey(EngineXfader::kXfaderConfigKey, "xFaderReverse"))),
           m_pHeadSplitEnabled(std::make_unique<ControlPushButton>(
                   ConfigKey(group, "headSplit"), true, 0.0)),
+          m_pHeadSplitDecks(std::make_unique<ControlPushButton>(
+                  ConfigKey(group, "headSplitDecks"), true, 0.0)),
+          m_headSplitScratch(kMaxEngineSamples),
 
           m_pKeylockEngine(std::make_unique<ControlObject>(
                   ConfigKey(kAppGroup, QStringLiteral("keylock_engine")),
@@ -198,6 +201,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
     m_pHeadMix->set(-1.);
 
     m_pHeadSplitEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pHeadSplitDecks->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_pHeadSplitEnabled->set(0.0);
 
     // zero out otherwise uninitialized buffers
@@ -410,18 +414,24 @@ void EngineMixer::process(const std::size_t bufferSize) {
     m_headphoneGain.setGain(pflMixGainInHeadphones);
 
     if (headphoneEnabled) {
-        // Process effects and mix PFL channels together for the headphones.
-        // Effects will be reprocessed post-fader for the crossfader buses
-        // and main mix, so the channel input buffers cannot be modified here.
-        ChannelMixer::applyEffectsAndMixChannels(
-                m_headphoneGain,
-                m_activeHeadphoneChannels,
-                &m_channelHeadphoneGainCache,
-                m_head.data(),
-                m_headphoneHandle.handle(),
-                bufferSize,
-                m_sampleRate,
-                m_pEngineEffectsManager);
+        if (m_pHeadSplitDecks->toBool()) {
+            // Accessibility: deck 1's cue in the left ear, deck 2's in the
+            // right, so both decks can be monitored simultaneously.
+            mixHeadphoneDeckSplit(bufferSize);
+        } else {
+            // Process effects and mix PFL channels together for the headphones.
+            // Effects will be reprocessed post-fader for the crossfader buses
+            // and main mix, so the channel input buffers cannot be modified here.
+            ChannelMixer::applyEffectsAndMixChannels(
+                    m_headphoneGain,
+                    m_activeHeadphoneChannels,
+                    &m_channelHeadphoneGainCache,
+                    m_head.data(),
+                    m_headphoneHandle.handle(),
+                    bufferSize,
+                    m_sampleRate,
+                    m_pEngineEffectsManager);
+        }
 
         // Process headphone channel effects
         if (m_pEngineEffectsManager) {
@@ -852,6 +862,57 @@ void EngineMixer::applyMainEffects(std::size_t bufferSize) {
     }
 }
 
+void EngineMixer::mixHeadphoneDeckSplit(std::size_t bufferSize) {
+    // Partition the PFL channels: deck 1 feeds the left ear, deck 2 the
+    // right, anything else (samplers, preview deck) both. The two ear mixes
+    // are built with the regular channel mixer — using disjoint entries of
+    // the shared gain cache, so ramping still works — then each ear gets the
+    // mono sum of its mix, mirroring the classic headSplit fold-down.
+    m_headSplitLeftChannels.clear();
+    m_headSplitRightChannels.clear();
+    for (ChannelInfo* pChannelInfo : m_activeHeadphoneChannels) {
+        const QString group = pChannelInfo->m_pChannel->getGroup();
+        if (group == QLatin1String("[Channel1]")) {
+            m_headSplitLeftChannels.append(pChannelInfo);
+        } else if (group == QLatin1String("[Channel2]")) {
+            m_headSplitRightChannels.append(pChannelInfo);
+        } else {
+            // Both ears. The gain-cache entry is written by both mix passes
+            // with identical values, so the second pass ramps gain-to-gain
+            // (a no-op); post-fader effects for such channels advance twice
+            // per callback, acceptable for the rare shared PFL source.
+            m_headSplitLeftChannels.append(pChannelInfo);
+            m_headSplitRightChannels.append(pChannelInfo);
+        }
+    }
+
+    ChannelMixer::applyEffectsAndMixChannels(
+            m_headphoneGain,
+            m_headSplitLeftChannels,
+            &m_channelHeadphoneGainCache,
+            m_head.data(),
+            m_headphoneHandle.handle(),
+            bufferSize,
+            m_sampleRate,
+            m_pEngineEffectsManager);
+    ChannelMixer::applyEffectsAndMixChannels(
+            m_headphoneGain,
+            m_headSplitRightChannels,
+            &m_channelHeadphoneGainCache,
+            m_headSplitScratch.data(),
+            m_headphoneHandle.handle(),
+            bufferSize,
+            m_sampleRate,
+            m_pEngineEffectsManager);
+
+    auto* const ph = m_head.data();
+    const auto* const ps = m_headSplitScratch.data();
+    for (std::size_t i = 0; i + 1 < bufferSize; i += 2) {
+        ph[i] = (ph[i] + ph[i + 1]) / 2;
+        ph[i + 1] = (ps[i] + ps[i + 1]) / 2;
+    }
+}
+
 void EngineMixer::processHeadphones(
         const CSAMPLE_GAIN mainMixGainInHeadphones,
         std::size_t bufferSize) {
@@ -866,8 +927,9 @@ void EngineMixer::processHeadphones(
 
     // If Head Split is enabled, replace the left channel of the pfl buffer
     // with a mono mix of the headphone buffer, and the right channel of the pfl
-    // buffer with a mono mix of the main output buffer.
-    if (m_pHeadSplitEnabled->toBool()) {
+    // buffer with a mono mix of the main output buffer. Skipped while the
+    // per-deck split is active — that mode has already assigned the ears.
+    if (m_pHeadSplitEnabled->toBool() && !m_pHeadSplitDecks->toBool()) {
         // note: NOT VECTORIZED because of in place copy
         // with all compilers, except clang >= 14.
         auto* const ph = m_head.data();
