@@ -11,6 +11,7 @@
 #include "engine/channelmixer.h"
 #include "engine/channels/enginechannel.h"
 #include "engine/effects/engineeffectsmanager.h"
+#include "engine/enginebeatclick.h"
 #include "engine/enginebuffer.h"
 #include "engine/enginedelay.h"
 #include "engine/enginetalkoverducking.h"
@@ -87,6 +88,10 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
           m_pTalkoverDucking(
                   std::make_unique<EngineTalkoverDucking>(pConfig, group)),
           m_pTts(std::make_unique<EngineTts>(QStringLiteral("[Tts]"))),
+          m_pBeatClick(std::make_unique<EngineBeatClick>(QList<EngineBeatClick::DeckSource>{
+                  {QStringLiteral("[Channel1]"), 0},
+                  {QStringLiteral("[Channel2]"), 1},
+          })),
           m_pMainDelay(
                   std::make_unique<EngineDelay>(ConfigKey(group, "delay"))),
           m_pHeadDelay(
@@ -802,6 +807,15 @@ void EngineMixer::process(const std::size_t bufferSize) {
                 mainEnabled ? m_main.data() : nullptr,
                 headphoneEnabled ? m_head.data() : nullptr,
                 bufferSize,
+                static_cast<int>(iFrames));
+    }
+
+    // Accessibility beat-click metronome: deck 1 clicks left, deck 2 right,
+    // preferring the headphone bus so the audience never hears it.
+    if (m_pBeatClick) {
+        m_pBeatClick->process(
+                mainEnabled ? m_main.data() : nullptr,
+                headphoneEnabled ? m_head.data() : nullptr,
                 static_cast<int>(iFrames));
     }
 

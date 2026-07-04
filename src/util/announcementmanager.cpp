@@ -359,6 +359,16 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         }
     }
 
+    // Beat click metronome toggle (Alt+B): always confirmed audibly.
+    auto pBeatClick = make_parented<ControlProxy>(
+            QStringLiteral("[BeatClick]"),
+            QStringLiteral("enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pBeatClick->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Beat click on") : tr("Beat click off"));
+    });
+
     // Crossfader lock (Alt+X): always confirmed audibly — it is a direct user
     // action, and silently locking the crossfader would be baffling.
     auto pCrossfaderLock = make_parented<ControlProxy>(

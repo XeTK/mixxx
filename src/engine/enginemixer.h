@@ -31,6 +31,7 @@ class EngineEffectsManager;
 class EngineSync;
 class EngineTalkoverDucking;
 class EngineTts;
+class EngineBeatClick;
 class EngineDelay;
 
 // The number of channels to pre-allocate in various structures in the
@@ -315,6 +316,7 @@ class EngineMixer : public QObject, public AudioSource {
     std::unique_ptr<ControlObject> m_pAudioLatencyOverload;
     std::unique_ptr<EngineTalkoverDucking> m_pTalkoverDucking;
     std::unique_ptr<EngineTts> m_pTts;
+    std::unique_ptr<EngineBeatClick> m_pBeatClick;
     std::unique_ptr<EngineDelay> m_pMainDelay;
     std::unique_ptr<EngineDelay> m_pHeadDelay;
     std::unique_ptr<EngineDelay> m_pBoothDelay;

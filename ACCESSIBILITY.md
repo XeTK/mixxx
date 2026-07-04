@@ -36,6 +36,13 @@ Key source files:
 - **Crossfader lock**: `Alt+X` freezes the crossfader at its current
   position so an accidental bump does nothing; press again to unlock.
   Both states are confirmed audibly.
+- **Beat click metronome**: `Alt+B` toggles a click on every beat of
+  each playing deck — deck 1 in the left ear, deck 2 in the right, so
+  both grids can be followed at once. Every fourth beat is a higher
+  pitched bar marker (assumes 4/4, counted from where playback
+  started). Clicks go to the headphone output (or main if no
+  headphones are configured) and are never recorded or broadcast.
+  Level is the `[BeatClick],volume` control.
 - **Preferences > Accessibility**: choose the voice, speech rate, output
   routing (headphone cue vs. main), and which announcements are spoken.
   A Test button speaks a sample through the current routing.
