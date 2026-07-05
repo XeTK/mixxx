@@ -105,7 +105,8 @@ class AnnouncementManagerTest : public MixxxTest {
                 m_pPlayerManager.get(),
                 config(),
                 std::move(spy),
-                nullptr); // no EngineTts sink needed for logic tests
+                nullptr,  // no EngineTts sink needed for logic tests
+                nullptr); // no EngineEarcon sink needed for logic tests
         return pSpy;
     }
 
@@ -805,7 +806,8 @@ class AnnouncementManagerRouteSyncTest : public AnnouncementManagerTest {
                 m_pPlayerManager.get(),
                 config(),
                 std::move(spy),
-                m_pEngineTts.get());
+                m_pEngineTts.get(),
+                nullptr);
         return pSpy;
     }
 
@@ -1602,4 +1604,72 @@ TEST_F(AnnouncementManagerTest, PlaylistEdit_SettingDisabled_Silent) {
 
     m_pManager->slotPlaylistTracksEdited(QStringLiteral("Warmup"), 1, 0);
     EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Feedback mode: earcon-capable transport events (play/stop/cue/end-of-track)
+// honor FeedbackMode. Earcon sink is null in tests, so we assert the speech
+// side: mode 1 (sounds) suppresses speech, mode 0/2 keep it.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSpeechMode_PlaySpeaks) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+            0); // speech
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+    EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_PlaySilentSpeech) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+            1); // sounds only
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak play; earcon carries it";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackBothMode_PlaySpeaksToo) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+            2); // both
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+    EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_CueSilentSpeech) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+            1);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak the headphone cue";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackMode_DoesNotAffectNonEarconEvents) {
+    // Loop announcements are not earcon-capable, so sounds-only mode must not
+    // silence them.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+            1);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop 8 beats", pSpy->lastText);
 }

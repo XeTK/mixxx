@@ -41,6 +41,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
           m_duckStrengthPercent(kDefaultDuckStrengthPercent),
+          m_feedbackMode(m_settings.getFeedbackModeDefault()),
           m_bAnnounceStartup(m_settings.getAnnounceStartupDefault()),
           m_bAnnounceSelection(m_settings.getAnnounceTrackSelectionDefault()),
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
@@ -63,6 +64,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
     setupUi(this);
     populateRouteCombo();
     populateVoiceCombo();
+    populateFeedbackModeCombo();
 
     if (!TtsEngine::isAvailable()) {
         auto* pWarning = new QLabel(
@@ -80,6 +82,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             [this](int index) { m_ttsRoute = index; });
+    connect(comboBoxFeedbackMode,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackMode = index; });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -199,6 +205,15 @@ void DlgPrefAccessibility::populateRouteCombo() {
     comboBoxTtsRoute->addItem(tr("Main output (audience)"));
 }
 
+void DlgPrefAccessibility::populateFeedbackModeCombo() {
+    // Order must match AccessibilitySettings FeedbackMode: 0 speech, 1 sounds,
+    // 2 both.
+    comboBoxFeedbackMode->clear();
+    comboBoxFeedbackMode->addItem(tr("Speech"));
+    comboBoxFeedbackMode->addItem(tr("Sounds"));
+    comboBoxFeedbackMode->addItem(tr("Sounds and speech"));
+}
+
 void DlgPrefAccessibility::populateVoiceCombo() {
     m_voices = TtsEngine::enumerateVoices();
     comboBoxTtsVoice->clear();
@@ -224,6 +239,9 @@ void DlgPrefAccessibility::slotUpdate() {
     m_ttsRoute = m_settings.getTtsRoute();
     m_ttsVoiceId = m_settings.getTtsVoice();
     m_ttsRate = m_settings.getTtsRate();
+    m_feedbackMode = m_settings.getFeedbackMode();
+    comboBoxFeedbackMode->setCurrentIndex(
+            std::clamp(m_feedbackMode, 0, comboBoxFeedbackMode->count() - 1));
     const double duckStrength = readDuckStrengthControl();
     m_duckStrengthPercent = duckStrength > 0.0
             ? static_cast<int>(std::lround(duckStrength * 100))
@@ -278,6 +296,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setTtsRoute(m_ttsRoute);
     m_settings.setTtsVoice(m_ttsVoiceId);
     m_settings.setTtsRate(m_ttsRate);
+    m_settings.setFeedbackMode(m_feedbackMode);
     writeDuckStrengthControl(m_duckStrengthPercent);
     m_settings.setAnnounceStartup(m_bAnnounceStartup);
     m_settings.setAnnounceTrackSelection(m_bAnnounceSelection);
@@ -322,6 +341,9 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
     m_ttsRate = m_settings.getTtsRateDefault();
+    m_feedbackMode = m_settings.getFeedbackModeDefault();
+    comboBoxFeedbackMode->setCurrentIndex(
+            std::clamp(m_feedbackMode, 0, comboBoxFeedbackMode->count() - 1));
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();

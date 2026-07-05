@@ -32,6 +32,7 @@ class EngineSync;
 class EngineTalkoverDucking;
 class EngineTts;
 class EngineBeatClick;
+class EngineEarcon;
 class EngineDelay;
 
 // The number of channels to pre-allocate in various structures in the
@@ -118,6 +119,12 @@ class EngineMixer : public QObject, public AudioSource {
     // here is mixed into the headphone or main output with ducking.
     EngineTts* getTts() const {
         return m_pTts.get();
+    }
+
+    // The accessibility earcon player. Short percussive cues for transport
+    // events, triggered from the announcement manager.
+    EngineEarcon* getEarcon() const {
+        return m_pEarcon.get();
     }
 
     CSAMPLE_GAIN getMainGain(int channelIndex) const;
@@ -318,6 +325,7 @@ class EngineMixer : public QObject, public AudioSource {
     std::unique_ptr<EngineTalkoverDucking> m_pTalkoverDucking;
     std::unique_ptr<EngineTts> m_pTts;
     std::unique_ptr<EngineBeatClick> m_pBeatClick;
+    std::unique_ptr<EngineEarcon> m_pEarcon;
     std::unique_ptr<EngineDelay> m_pMainDelay;
     std::unique_ptr<EngineDelay> m_pHeadDelay;
     std::unique_ptr<EngineDelay> m_pBoothDelay;

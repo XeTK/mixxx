@@ -16,6 +16,7 @@ class Library;
 class PlayerManagerInterface;
 class TtsEngine;
 class EngineTts;
+class EngineEarcon;
 class ControlObject;
 class ControlProxy;
 
@@ -27,15 +28,17 @@ class AnnouncementManager : public QObject {
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
             EngineTts* pTtsSink,
+            EngineEarcon* pEarcon,
             QObject* parent = nullptr);
 
     // Single constructor. Tests inject a spy TtsEngine; pass nullptr for
-    // pTtsSink when no engine-level sink is needed.
+    // pTtsSink and pEarcon when no engine-level sinks are needed.
     AnnouncementManager(Library* pLibrary,
             PlayerManagerInterface* pPlayerManager,
             UserSettingsPointer pConfig,
             std::unique_ptr<TtsEngine> pTts,
             EngineTts* pTtsSink,
+            EngineEarcon* pEarcon,
             QObject* parent = nullptr);
 
     ~AnnouncementManager() override;
@@ -90,6 +93,11 @@ class AnnouncementManager : public QObject {
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
 
+    // Feedback for an earcon-capable transport event, honoring the
+    // FeedbackMode setting: speech only, earcon only (deck-panned), or both.
+    // The per-event enable check is the caller's responsibility.
+    void emitCue(int earconId, int deckIndex, const QString& speechText);
+
     // Queue a debounced announcement for a continuously-variable control
     // (pitch fader, volume, EQ, crossfader). Only the newest pending text is
     // spoken, once the control stops moving.
@@ -113,6 +121,8 @@ class AnnouncementManager : public QObject {
     // Engine sink the synthesized speech is rendered into. Null in unit tests,
     // where a spy TtsEngine is injected instead.
     EngineTts* m_pTtsSink{nullptr};
+    // Engine earcon player for transport cues. Null in unit tests.
+    EngineEarcon* m_pEarcon{nullptr};
     std::unique_ptr<ControlProxy> m_pSampleRate;
     AccessibilitySettings m_settings;
     QString m_currentTtsVoiceId;

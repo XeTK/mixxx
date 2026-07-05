@@ -1300,6 +1300,7 @@ add_library(
   src/engine/enginesidechaincompressor.cpp
   src/engine/enginetalkoverducking.cpp
   src/engine/enginebeatclick.cpp
+  src/engine/engineearcon.cpp
   src/engine/enginetts.cpp
   src/engine/enginevumeter.cpp
   src/engine/engineworker.cpp
@@ -2709,6 +2710,7 @@ if(BUILD_TESTING)
     src/test/announcementmanager_test.cpp
     src/test/ttsengine_integration_test.cpp
     src/test/enginebeatclick_test.cpp
+    src/test/engineearcon_test.cpp
     src/test/enginetts_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp

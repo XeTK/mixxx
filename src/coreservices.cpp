@@ -644,6 +644,7 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pPlayerManager.get(),
             getSettings(),
             m_pEngine->getTts(),
+            m_pEngine->getEarcon(),
             this);
 
     bool musicDirAdded = false;

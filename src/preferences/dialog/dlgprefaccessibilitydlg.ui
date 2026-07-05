@@ -31,6 +31,36 @@
        </widget>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedback">
+        <item>
+         <widget class="QLabel" name="labelFeedback">
+          <property name="text">
+           <string>Transport feedback:</string>
+          </property>
+          <property name="toolTip">
+           <string>How play, stop, end of track, and headphone cue are signalled: spoken, a short percussive sound (deck 1 left, deck 2 right), or both. Other announcements are always spoken.</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackMode</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackMode">
+          <property name="toolTip">
+           <string>How play, stop, end of track, and headphone cue are signalled: spoken, a short percussive sound (deck 1 left, deck 2 right), or both. Other announcements are always spoken.</string>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayoutRoute">
         <item>
          <widget class="QLabel" name="labelRoute">

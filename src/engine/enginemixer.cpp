@@ -14,6 +14,7 @@
 #include "engine/enginebeatclick.h"
 #include "engine/enginebuffer.h"
 #include "engine/enginedelay.h"
+#include "engine/engineearcon.h"
 #include "engine/enginetalkoverducking.h"
 #include "engine/enginetts.h"
 #include "engine/enginevumeter.h"
@@ -92,6 +93,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
                   {QStringLiteral("[Channel1]"), 0},
                   {QStringLiteral("[Channel2]"), 1},
           })),
+          m_pEarcon(std::make_unique<EngineEarcon>()),
           m_pMainDelay(
                   std::make_unique<EngineDelay>(ConfigKey(group, "delay"))),
           m_pHeadDelay(
@@ -824,6 +826,15 @@ void EngineMixer::process(const std::size_t bufferSize) {
     // preferring the headphone bus so the audience never hears it.
     if (m_pBeatClick) {
         m_pBeatClick->process(
+                mainEnabled ? m_main.data() : nullptr,
+                headphoneEnabled ? m_head.data() : nullptr,
+                static_cast<int>(iFrames));
+    }
+
+    // Accessibility earcons: short percussive cues for transport events,
+    // deck-panned, on the headphone bus with the same main fallback.
+    if (m_pEarcon) {
+        m_pEarcon->process(
                 mainEnabled ? m_main.data() : nullptr,
                 headphoneEnabled ? m_head.data() : nullptr,
                 static_cast<int>(iFrames));

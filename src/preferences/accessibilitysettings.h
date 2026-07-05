@@ -100,6 +100,15 @@ class AccessibilitySettings {
             "AnnounceMixer",
             false);
 
+    // Feedback for the earcon-capable transport events (play, stop, end of
+    // track, headphone cue): 0 = speech, 1 = sounds, 2 = sounds and speech.
+    // Other announcements are always speech regardless of this setting.
+    DEFINE_PREFERENCE_HELPERS(FeedbackMode,
+            int,
+            "[Accessibility]",
+            "FeedbackMode",
+            2);
+
     // Spoken confirmation when tracks are added to or removed from
     // playlists and crates.
     DEFINE_PREFERENCE_HELPERS(AnnouncePlaylist,

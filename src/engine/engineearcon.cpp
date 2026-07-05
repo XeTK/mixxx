@@ -1,0 +1,159 @@
+#include "engine/engineearcon.h"
+
+#include <cmath>
+
+#include "control/controlpotmeter.h"
+#include "control/controlproxy.h"
+
+namespace {
+const QString kGroup = QStringLiteral("[Earcon]");
+
+// A single tone within a gesture: frequency, when it starts relative to the
+// trigger, and how long it sounds. Kept short and percussive so the sounds
+// cut through music without needing to duck it.
+struct Grain {
+    double freqHz;
+    double startMs;
+    double durMs;
+};
+
+// Percussive gestures. Direction encodes meaning: rising = start/engage,
+// falling = stop/disengage; end-of-track is three urgent pips. Pitches sit in
+// a mid-high niche (500-1300 Hz) that stays audible over a mix.
+const Grain kPlay[] = {{587.0, 0.0, 55.0}, {880.0, 50.0, 65.0}};
+const Grain kStop[] = {{880.0, 0.0, 55.0}, {587.0, 50.0, 70.0}};
+const Grain kEndOfTrack[] = {
+        {1175.0, 0.0, 45.0}, {1175.0, 70.0, 45.0}, {1175.0, 140.0, 55.0}};
+const Grain kCueOn[] = {{784.0, 0.0, 60.0}};
+const Grain kCueOff[] = {{523.0, 0.0, 70.0}};
+
+struct Gesture {
+    const Grain* grains;
+    int count;
+};
+
+Gesture gestureFor(EngineEarcon::Id id) {
+    switch (id) {
+    case EngineEarcon::Id::Play:
+        return {kPlay, 2};
+    case EngineEarcon::Id::Stop:
+        return {kStop, 2};
+    case EngineEarcon::Id::EndOfTrack:
+        return {kEndOfTrack, 3};
+    case EngineEarcon::Id::CueOn:
+        return {kCueOn, 1};
+    case EngineEarcon::Id::CueOff:
+        return {kCueOff, 1};
+    }
+    return {nullptr, 0};
+}
+
+// Deep enough for a burst of events (both decks, several grains each) without
+// dropping triggers; rounds up to a power of two internally.
+constexpr int kFifoSize = 64;
+constexpr double kDefaultVolume = 0.6;
+} // namespace
+
+EngineEarcon::EngineEarcon()
+        : m_fifo(kFifoSize) {
+    m_pVolume = std::make_unique<ControlPotmeter>(
+            ConfigKey(kGroup, QStringLiteral("volume")),
+            0.0,
+            1.0,
+            false,
+            true,
+            false,
+            true,
+            kDefaultVolume);
+    m_pSampleRate = std::make_unique<ControlProxy>(
+            QStringLiteral("[App]"), QStringLiteral("samplerate"), nullptr);
+}
+
+EngineEarcon::~EngineEarcon() = default;
+
+void EngineEarcon::trigger(Id id, Pan pan) {
+    Trigger msg{static_cast<int>(id), static_cast<int>(pan)};
+    // Single-writer (GUI thread); a full queue just means a very fast burst,
+    // in which case dropping the newest request is harmless.
+    m_fifo.write(&msg, 1);
+}
+
+void EngineEarcon::spawn(Id id, Pan pan, double sampleRate) {
+    const Gesture gesture = gestureFor(id);
+    const int channel = static_cast<int>(pan);
+    for (int g = 0; g < gesture.count; ++g) {
+        const Grain& grain = gesture.grains[g];
+        // Find a free voice; drop the grain if the pool is exhausted.
+        for (Voice& voice : m_voices) {
+            if (voice.active) {
+                continue;
+            }
+            voice.active = true;
+            voice.freqHz = grain.freqHz;
+            voice.posFrames = -grain.startMs / 1000.0 * sampleRate;
+            voice.durFrames = grain.durMs / 1000.0 * sampleRate;
+            voice.channel = channel;
+            break;
+        }
+    }
+}
+
+void EngineEarcon::process(CSAMPLE* pMain, CSAMPLE* pHead, int iFrames) {
+    // Prefer the headphone bus so the audience never hears the cues.
+    CSAMPLE* pOut = pHead ? pHead : pMain;
+
+    const double sampleRate = m_pSampleRate->get();
+
+    // Drain queued triggers into voices (also when pOut is null, so a sound
+    // triggered during a momentary output gap isn't left half-played).
+    Trigger msg;
+    while (m_fifo.read(&msg, 1) == 1) {
+        if (sampleRate > 0) {
+            spawn(static_cast<Id>(msg.id), static_cast<Pan>(msg.pan), sampleRate);
+        }
+    }
+
+    if (!pOut || sampleRate <= 0) {
+        // Nothing to render into; discard any in-flight voices so they don't
+        // resume stale later.
+        for (Voice& voice : m_voices) {
+            voice.active = false;
+        }
+        return;
+    }
+
+    const double gain = static_cast<double>(m_pVolume->get());
+    // ~1 ms attack ramp avoids a click at onset; exponential decay gives the
+    // percussive "pip" shape.
+    const double attackFrames = std::max(1.0, 0.001 * sampleRate);
+
+    for (Voice& voice : m_voices) {
+        if (!voice.active) {
+            continue;
+        }
+        const double omega = 2.0 * M_PI * voice.freqHz / sampleRate;
+        // Decay time constant a fraction of the grain length so it is nearly
+        // silent by the end.
+        const double tau = std::max(1.0, voice.durFrames * 0.35);
+        for (int i = 0; i < iFrames; ++i) {
+            const double pos = voice.posFrames + i;
+            if (pos < 0.0 || pos >= voice.durFrames) {
+                continue;
+            }
+            const double attack = std::min(1.0, pos / attackFrames);
+            const double env = attack * std::exp(-pos / tau);
+            const auto sample = static_cast<CSAMPLE>(
+                    gain * env * std::sin(omega * pos));
+            if (voice.channel == 0 || voice.channel == 2) {
+                pOut[i * 2] += sample;
+            }
+            if (voice.channel == 1 || voice.channel == 2) {
+                pOut[i * 2 + 1] += sample;
+            }
+        }
+        voice.posFrames += iFrames;
+        if (voice.posFrames >= voice.durFrames) {
+            voice.active = false;
+        }
+    }
+}

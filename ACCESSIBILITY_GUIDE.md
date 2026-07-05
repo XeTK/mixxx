@@ -58,6 +58,28 @@ Tip: turn on "Concise announcements" in Preferences, Accessibility to
 shorten these to just the value — Alt plus 5 then says "128." instead
 of "Deck, A. 128 B P M."
 
+## Sounds instead of speech (earcons)
+
+Frequent transport events can be signalled with short percussive sounds
+instead of — or as well as — speech. A sound plays instantly and does
+not tie up the speech channel, which matters when you are acting fast.
+The events covered are play, stop, end of track, and headphone cue on
+and off; everything else is always spoken.
+
+Set this under Preferences, Accessibility, "Transport feedback":
+
+- **Speech** — spoken as before.
+- **Sounds** — a short percussive cue, panned to the deck (deck 1 in
+  the left ear, deck 2 in the right, matching the beat click and split
+  cue). Rising = start/engage, falling = stop, three quick pips = end
+  of track.
+- **Sounds and speech** (default) — both, so you learn which sound
+  means what. Once the sounds are familiar, switch to Sounds only.
+
+Sound level is the `[Earcon],volume` control. In Sounds mode the
+end-of-track cue is just the alert; the spoken time-remaining is only
+added when speech is on.
+
 ## Performance tools
 
 - Crossfader lock: Alt plus X freezes the crossfader where it is, so

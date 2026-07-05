@@ -7,6 +7,7 @@
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
+#include "engine/engineearcon.h"
 #include "engine/enginetts.h"
 #include "library/library.h"
 #include "library/library_decl.h"
@@ -166,9 +167,15 @@ std::unique_ptr<AnnouncementManager> AnnouncementManager::create(
         PlayerManagerInterface* pPlayerManager,
         UserSettingsPointer pConfig,
         EngineTts* pTtsSink,
+        EngineEarcon* pEarcon,
         QObject* parent) {
-    return std::make_unique<AnnouncementManager>(
-            pLibrary, pPlayerManager, std::move(pConfig), TtsEngine::create(), pTtsSink, parent);
+    return std::make_unique<AnnouncementManager>(pLibrary,
+            pPlayerManager,
+            std::move(pConfig),
+            TtsEngine::create(),
+            pTtsSink,
+            pEarcon,
+            parent);
 }
 
 AnnouncementManager::AnnouncementManager(
@@ -177,10 +184,12 @@ AnnouncementManager::AnnouncementManager(
         UserSettingsPointer pConfig,
         std::unique_ptr<TtsEngine> pTts,
         EngineTts* pTtsSink,
+        EngineEarcon* pEarcon,
         QObject* parent)
         : QObject(parent),
           m_pTts(std::move(pTts)),
           m_pTtsSink(pTtsSink),
+          m_pEarcon(pEarcon),
           m_settings(pConfig),
           m_pPlayerManager(pPlayerManager) {
     if (m_pTts && m_pTtsSink) {
@@ -458,6 +467,20 @@ void AnnouncementManager::speak(const QString& text) {
     m_pTts->say(text);
 }
 
+void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& speechText) {
+    // 0 = speech, 1 = sounds, 2 = both.
+    const int mode = m_settings.getFeedbackMode();
+    if (mode != 1) {
+        speak(speechText);
+    }
+    if (mode != 0 && m_pEarcon) {
+        const auto pan = deckIndex == 0 ? EngineEarcon::Pan::Left
+                : deckIndex == 1        ? EngineEarcon::Pan::Right
+                                        : EngineEarcon::Pan::Center;
+        m_pEarcon->trigger(static_cast<EngineEarcon::Id>(earconId), pan);
+    }
+}
+
 void AnnouncementManager::connectGroupControls(const QString& group, int deckIndex) {
     // On-demand readouts: pressing a mapped key speaks the deck's full status
     // or a single fact. Trigger mode so every press fires. Each is an
@@ -488,7 +511,7 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
     }
 
     auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
-    pPlay->connectValueChanged(this, [this, group](double value) {
+    pPlay->connectValueChanged(this, [this, group, deckIndex](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
         const bool hasTrack = m_deckHasTrack.value(group, false);
@@ -502,7 +525,7 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 m_deckCuePreview[group] = true;
                 speak(tr("Cue"));
             } else {
-                speak(tr("Playing"));
+                emitCue(static_cast<int>(EngineEarcon::Id::Play), deckIndex, tr("Playing"));
             }
         } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
             // Releasing the cue button ends the preview; that is not a "stop"
@@ -513,7 +536,7 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             const bool atEnd =
                     readGroupControl(group, QStringLiteral("end_of_track")) > 0.0;
             if (!wasCuePreview && !atEnd) {
-                speak(tr("Stopped"));
+                emitCue(static_cast<int>(EngineEarcon::Id::Stop), deckIndex, tr("Stopped"));
             }
         }
         m_deckIsPlaying[group] = nowPlaying;
@@ -521,20 +544,23 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
 
     auto pEndOfTrack = make_parented<ControlProxy>(
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
-    pEndOfTrack->connectValueChanged(this, [this, group](double value) {
+    pEndOfTrack->connectValueChanged(this, [this, group, deckIndex](double value) {
         if (value > 0.0 && m_settings.getAnnounceEndOfTrack()) {
             // Say how much is actually left so the DJ knows how long they
-            // have to bring in the next track.
+            // have to bring in the next track. In sounds-only mode the earcon
+            // is the alert; the time is spoken only when speech is on.
             const double duration = readGroupControl(group, QStringLiteral("duration"));
+            QString text;
             if (duration > 0.0) {
                 const double playPos =
                         readGroupControl(group, QStringLiteral("playposition"));
-                speak(tr("End of track. %1.")
-                                .arg(remainingText(static_cast<int>(std::lround(
-                                        duration * (1.0 - playPos))))));
+                text = tr("End of track. %1.")
+                               .arg(remainingText(static_cast<int>(std::lround(
+                                       duration * (1.0 - playPos)))));
             } else {
-                speak(tr("End of track"));
+                text = tr("End of track");
             }
+            emitCue(static_cast<int>(EngineEarcon::Id::EndOfTrack), deckIndex, text);
         }
     });
 
@@ -560,8 +586,15 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             // this with the transport cue button or hotcues. Name the deck so
             // it is clear which channel was cued.
             const QString deck = deckName(group, deckIndex);
-            speak(value > 0.0 ? tr("%1 headphone cue on").arg(deck)
-                              : tr("%1 headphone cue off").arg(deck));
+            if (value > 0.0) {
+                emitCue(static_cast<int>(EngineEarcon::Id::CueOn),
+                        deckIndex,
+                        tr("%1 headphone cue on").arg(deck));
+            } else {
+                emitCue(static_cast<int>(EngineEarcon::Id::CueOff),
+                        deckIndex,
+                        tr("%1 headphone cue off").arg(deck));
+            }
         }
     });
 

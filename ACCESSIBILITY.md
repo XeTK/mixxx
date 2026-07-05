@@ -87,6 +87,12 @@ Key source files:
 Each category can be toggled independently in Preferences >
 Accessibility.
 
+Play, stop, end of track, and headphone cue can alternatively (or
+additionally) be signalled with short percussive **earcons** instead of
+speech — see the "Transport feedback" setting. Earcons are deck-panned
+(deck 1 left, deck 2 right), synthesized in `src/engine/engineearcon.cpp`
+and mixed into the headphone bus like the beat click.
+
 ## Other accessibility changes
 
 - Per-deck `disable_preroll` control and a "prevent jogging before track
