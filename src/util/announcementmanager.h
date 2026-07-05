@@ -49,7 +49,13 @@ class AnnouncementManager : public QObject {
     void slotNumberOfDecksChanged(int decks);
     void slotSkinLoaded();
     void slotLibraryFocusChanged(double value);
-    void slotSidebarItemActivated(const QString& title);
+    void slotSidebarItemActivated(const QString& title,
+            int row = -1,
+            int siblingCount = 0,
+            int childCount = 0,
+            bool expanded = false);
+    void slotPlaylistTracksEdited(const QString& name, int added, int removed);
+    void slotCrateTracksEdited(const QString& name, int added, int removed);
     void slotSearchTextChanged(const QString& text);
     void slotAnnounceSearch();
 

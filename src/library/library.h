@@ -152,7 +152,18 @@ class Library: public QObject {
     void enableCoverArtDisplay(bool);
     void selectTrack(const TrackId&);
     void trackSelected(TrackPointer pTrack);
-    void sidebarItemActivated(const QString& title);
+    // Sidebar navigation for spoken announcements. row/siblingCount give the
+    // position among siblings ("3 of 12"); childCount and expanded describe
+    // container items. row is -1 when position info is unavailable.
+    void sidebarItemActivated(const QString& title,
+            int row = -1,
+            int siblingCount = 0,
+            int childCount = 0,
+            bool expanded = false);
+    // A track was added to / removed from a playlist or crate, for spoken
+    // confirmation. Counts are per-signal deltas.
+    void playlistTracksEdited(const QString& name, int added, int removed);
+    void crateTracksEdited(const QString& name, int added, int removed);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
 #ifdef __ENGINEPRIME__
     void exportLibrary();

@@ -4,6 +4,12 @@ This fork adds spoken (text-to-speech) feedback to Mixxx so that a fully
 blind DJ can browse the library, load tracks, and perform without a screen
 reader having to interpret the custom-painted skin.
 
+**New here? Read [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md)** — the
+user-facing walkthrough of every shortcut, announcement, and workflow,
+written to be read with a screen reader. This file is the technical
+overview; [ACCESSIBILITY_ROADMAP.md](ACCESSIBILITY_ROADMAP.md) tracks
+progress.
+
 ## How it works
 
 Speech is synthesized off the audio thread (SAPI on Windows, Qt

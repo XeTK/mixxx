@@ -13,6 +13,7 @@
 #ifdef __ENGINEPRIME__
 #include "library/export/libraryexporter.h"
 #endif
+#include "library/dao/playlistdao.h"
 #include "library/externaltrackcollection.h"
 #include "library/itunes/itunesfeature.h"
 #include "library/library_prefs.h"
@@ -27,6 +28,7 @@
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
+#include "library/trackset/crate/crate.h"
 #include "library/trackset/crate/cratefeature.h"
 #include "library/trackset/playlistfeature.h"
 #include "library/trackset/setlogfeature.h"
@@ -83,6 +85,45 @@ Library::Library(
             &TrackCollectionManager::libraryScanFinished,
             this,
             &Library::slotRefreshLibraryModels);
+
+    // Spoken confirmations when tracks are added to or removed from
+    // playlists and crates. Resolved to names here where the DAOs live;
+    // the announcement layer only formats and gates.
+    TrackCollection* pInternal = m_pTrackCollectionManager->internalCollection();
+    PlaylistDAO& playlistDao = pInternal->getPlaylistDAO();
+    connect(&playlistDao,
+            &PlaylistDAO::trackAdded,
+            this,
+            [this, &playlistDao](int playlistId, TrackId, int) {
+                // Set logs (history) record automatically; announcing every
+                // played track as "added" would be constant noise.
+                if (playlistDao.getHiddenType(playlistId) == PlaylistDAO::PLHT_SET_LOG) {
+                    return;
+                }
+                emit playlistTracksEdited(playlistDao.getPlaylistName(playlistId), 1, 0);
+            });
+    connect(&playlistDao,
+            &PlaylistDAO::trackRemoved,
+            this,
+            [this, &playlistDao](int playlistId, TrackId, int) {
+                if (playlistDao.getHiddenType(playlistId) == PlaylistDAO::PLHT_SET_LOG) {
+                    return;
+                }
+                emit playlistTracksEdited(playlistDao.getPlaylistName(playlistId), 0, 1);
+            });
+    connect(pInternal,
+            &TrackCollection::crateTracksChanged,
+            this,
+            [this, pInternal](CrateId crateId,
+                    const QList<TrackId>& tracksAdded,
+                    const QList<TrackId>& tracksRemoved) {
+                Crate crate;
+                if (pInternal->crates().readCrateById(crateId, &crate)) {
+                    emit crateTracksEdited(crate.getName(),
+                            static_cast<int>(tracksAdded.size()),
+                            static_cast<int>(tracksRemoved.size()));
+                }
+            });
 
     // TODO(rryan) -- turn this construction / adding of features into a static
     // method or something -- CreateDefaultLibrary
@@ -351,12 +392,43 @@ void Library::bindSidebarWidget(WLibrarySidebar* pSidebarWidget) {
     // Connect to WLibrarySidebar::currentIndexChanged (a view-level signal)
     // rather than the selection model's currentChanged so that the connection
     // survives selectIndex() replacing the QItemSelectionModel at startup.
+    // Enriched with the position among siblings and the expand state so a
+    // blind user can tell where they are in the tree.
+    auto emitSidebarItem = [this, pSidebarWidget](const QModelIndex& current) {
+        if (!current.isValid()) {
+            return;
+        }
+        const QAbstractItemModel* pModel = current.model();
+        const int siblingCount = pModel ? pModel->rowCount(current.parent()) : 0;
+        const int childCount = pModel ? pModel->rowCount(current) : 0;
+        emit sidebarItemActivated(
+                current.data(Qt::DisplayRole).toString(),
+                current.row(),
+                siblingCount,
+                childCount,
+                pSidebarWidget->isExpanded(current));
+    };
     connect(pSidebarWidget,
             &WLibrarySidebar::currentIndexChanged,
             this,
-            [this](const QModelIndex& current) {
-                emit sidebarItemActivated(
-                        current.data(Qt::DisplayRole).toString());
+            emitSidebarItem);
+    // Re-announce with the new state when the current item is expanded or
+    // collapsed (right/left arrow keys).
+    connect(pSidebarWidget,
+            &QTreeView::expanded,
+            this,
+            [pSidebarWidget, emitSidebarItem](const QModelIndex& index) {
+                if (index == pSidebarWidget->currentIndex()) {
+                    emitSidebarItem(index);
+                }
+            });
+    connect(pSidebarWidget,
+            &QTreeView::collapsed,
+            this,
+            [pSidebarWidget, emitSidebarItem](const QModelIndex& index) {
+                if (index == pSidebarWidget->currentIndex()) {
+                    emitSidebarItem(index);
+                }
             });
 
     connect(m_pSidebarModel,

@@ -481,6 +481,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxAnnouncePlaylist">
+        <property name="toolTip">
+         <string>Speak a confirmation when a track is added to or removed from a playlist or crate.</string>
+        </property>
+        <property name="text">
+         <string>Announce playlist and crate changes</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceSearch">
         <property name="toolTip">
          <string>Speak the current search query after a short pause while typing.</string>

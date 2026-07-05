@@ -100,6 +100,14 @@ class AccessibilitySettings {
             "AnnounceMixer",
             false);
 
+    // Spoken confirmation when tracks are added to or removed from
+    // playlists and crates.
+    DEFINE_PREFERENCE_HELPERS(AnnouncePlaylist,
+            bool,
+            "[Accessibility]",
+            "AnnouncePlaylist",
+            true);
+
     // Speak continuous controls while they move (throttled) instead of only
     // once they come to rest.
     DEFINE_PREFERENCE_HELPERS(AnnounceWhileMoving,

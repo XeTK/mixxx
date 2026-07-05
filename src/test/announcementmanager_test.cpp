@@ -1538,3 +1538,68 @@ TEST_F(AnnouncementManagerTest, HeadSplitDecks_Announced) {
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("Split cue off", pSpy->lastText);
 }
+
+// ---------------------------------------------------------------------------
+// Playlist and crate announcements (Tier 1)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Sidebar_PositionAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("House Bangers"), 2, 12, 0, false);
+
+    EXPECT_QSTRING_EQ("House Bangers, 3 of 12", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Sidebar_ContainerStateAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Crates"), 3, 8, 5, false);
+    EXPECT_QSTRING_EQ("Crates, 4 of 8, collapsed, 5 items", pSpy->lastText);
+
+    // Expanding the same item re-announces with the new state (dedup is on
+    // the full text, not the title).
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Crates"), 3, 8, 5, true);
+    EXPECT_QSTRING_EQ("Crates, 4 of 8, expanded, 5 items", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Sidebar_PlainTitleStillWorks) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    // featureSelect path: no position info available.
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Tracks"));
+    EXPECT_QSTRING_EQ("Tracks", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, PlaylistEdit_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotPlaylistTracksEdited(QStringLiteral("Warmup"), 1, 0);
+    EXPECT_QSTRING_EQ("Added to playlist Warmup", pSpy->lastText);
+
+    m_pManager->slotPlaylistTracksEdited(QStringLiteral("Warmup"), 0, 1);
+    EXPECT_QSTRING_EQ("Removed from playlist Warmup", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, CrateEdit_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotCrateTracksEdited(QStringLiteral("House"), 1, 0);
+    EXPECT_QSTRING_EQ("Added to crate House", pSpy->lastText);
+
+    m_pManager->slotCrateTracksEdited(QStringLiteral("House"), 3, 0);
+    EXPECT_QSTRING_EQ("Added 3 tracks to crate House", pSpy->lastText);
+
+    m_pManager->slotCrateTracksEdited(QStringLiteral("House"), 0, 1);
+    EXPECT_QSTRING_EQ("Removed from crate House", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, PlaylistEdit_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlaylist")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotPlaylistTracksEdited(QStringLiteral("Warmup"), 1, 0);
+    EXPECT_EQ(0, pSpy->callCount);
+}

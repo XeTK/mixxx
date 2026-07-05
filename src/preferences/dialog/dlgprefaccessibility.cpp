@@ -50,6 +50,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceEndOfTrack(m_settings.getAnnounceEndOfTrackDefault()),
           m_bAnnounceLibraryFocus(m_settings.getAnnounceLibraryFocusDefault()),
           m_bAnnounceSearch(m_settings.getAnnounceSearchDefault()),
+          m_bAnnouncePlaylist(m_settings.getAnnouncePlaylistDefault()),
           m_bAnnounceSync(m_settings.getAnnounceSyncDefault()),
           m_bAnnounceTempo(m_settings.getAnnounceTempoDefault()),
           m_bAnnounceLoop(m_settings.getAnnounceLoopDefault()),
@@ -149,6 +150,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceSearch = checked; });
+    connect(checkBoxAnnouncePlaylist,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnouncePlaylist = checked; });
     connect(checkBoxAnnounceSync,
             &QCheckBox::toggled,
             this,
@@ -233,6 +238,7 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrack();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocus();
     m_bAnnounceSearch = m_settings.getAnnounceSearch();
+    m_bAnnouncePlaylist = m_settings.getAnnouncePlaylist();
     m_bAnnounceSync = m_settings.getAnnounceSync();
     m_bAnnounceTempo = m_settings.getAnnounceTempo();
     m_bAnnounceLoop = m_settings.getAnnounceLoop();
@@ -256,6 +262,7 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnouncePlaylist->setChecked(m_bAnnouncePlaylist);
     checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
     checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
     checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);
@@ -281,6 +288,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceEndOfTrack(m_bAnnounceEndOfTrack);
     m_settings.setAnnounceLibraryFocus(m_bAnnounceLibraryFocus);
     m_settings.setAnnounceSearch(m_bAnnounceSearch);
+    m_settings.setAnnouncePlaylist(m_bAnnouncePlaylist);
     m_settings.setAnnounceSync(m_bAnnounceSync);
     m_settings.setAnnounceTempo(m_bAnnounceTempo);
     m_settings.setAnnounceLoop(m_bAnnounceLoop);
@@ -323,6 +331,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrackDefault();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocusDefault();
     m_bAnnounceSearch = m_settings.getAnnounceSearchDefault();
+    m_bAnnouncePlaylist = m_settings.getAnnouncePlaylistDefault();
     m_bAnnounceSync = m_settings.getAnnounceSyncDefault();
     m_bAnnounceTempo = m_settings.getAnnounceTempoDefault();
     m_bAnnounceLoop = m_settings.getAnnounceLoopDefault();
@@ -346,6 +355,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
     checkBoxAnnounceSearch->setChecked(m_bAnnounceSearch);
+    checkBoxAnnouncePlaylist->setChecked(m_bAnnouncePlaylist);
     checkBoxAnnounceSync->setChecked(m_bAnnounceSync);
     checkBoxAnnounceTempo->setChecked(m_bAnnounceTempo);
     checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);

@@ -228,6 +228,14 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotSidebarItemActivated);
         connect(pLibrary,
+                &Library::playlistTracksEdited,
+                this,
+                &AnnouncementManager::slotPlaylistTracksEdited);
+        connect(pLibrary,
+                &Library::crateTracksEdited,
+                this,
+                &AnnouncementManager::slotCrateTracksEdited);
+        connect(pLibrary,
                 &Library::search,
                 this,
                 &AnnouncementManager::slotSearchTextChanged);
@@ -868,17 +876,64 @@ void AnnouncementManager::slotSkinLoaded() {
     }
 }
 
-void AnnouncementManager::slotSidebarItemActivated(const QString& title) {
+void AnnouncementManager::slotSidebarItemActivated(const QString& title,
+        int row,
+        int siblingCount,
+        int childCount,
+        bool expanded) {
     if (!m_settings.getAnnounceLibraryFocus() || title.isEmpty()) {
         return;
     }
+    QString text = title;
+    // Position among siblings so the user knows where they are in the list.
+    if (row >= 0 && siblingCount > 1) {
+        text += tr(", %1 of %2").arg(row + 1).arg(siblingCount);
+    }
+    // Container items: expand state and how many children are inside.
+    if (childCount > 0) {
+        text += expanded
+                ? tr(", expanded, %1 items").arg(childCount)
+                : tr(", collapsed, %1 items").arg(childCount);
+    }
     // Deduplicate: currentChanged and featureSelect can both fire for the same
-    // item on a mouse click.
-    if (title == m_lastAnnouncedSidebarItem) {
+    // item on a mouse click. Keyed on the full text so an expand/collapse of
+    // the same item still re-announces with the new state.
+    if (text == m_lastAnnouncedSidebarItem) {
         return;
     }
-    m_lastAnnouncedSidebarItem = title;
-    speak(title);
+    m_lastAnnouncedSidebarItem = text;
+    speak(text);
+}
+
+void AnnouncementManager::slotPlaylistTracksEdited(
+        const QString& name, int added, int removed) {
+    if (!m_settings.getAnnouncePlaylist()) {
+        return;
+    }
+    if (added > 0) {
+        speak(tr("Added to playlist %1").arg(name));
+    } else if (removed > 0) {
+        speak(tr("Removed from playlist %1").arg(name));
+    }
+}
+
+void AnnouncementManager::slotCrateTracksEdited(
+        const QString& name, int added, int removed) {
+    if (!m_settings.getAnnouncePlaylist()) {
+        return;
+    }
+    if (added > 0 && removed > 0) {
+        return; // bulk reshuffle, not a user add/remove
+    }
+    if (added == 1) {
+        speak(tr("Added to crate %1").arg(name));
+    } else if (added > 1) {
+        speak(tr("Added %1 tracks to crate %2").arg(added).arg(name));
+    } else if (removed == 1) {
+        speak(tr("Removed from crate %1").arg(name));
+    } else if (removed > 1) {
+        speak(tr("Removed %1 tracks from crate %2").arg(removed).arg(name));
+    }
 }
 
 void AnnouncementManager::slotLibraryFocusChanged(double value) {
