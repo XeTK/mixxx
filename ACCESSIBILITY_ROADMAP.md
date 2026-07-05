@@ -126,16 +126,17 @@ to use them.
 
 ## To do
 
-### Tier 1 — complete the core blind-DJ loop (current focus)
+### Tier 1 — complete the core blind-DJ loop
 
 1. ~~Granular info hotkeys~~ (done)
-2. Screen reader widget labels — tranche 2 (skin widgets)
-3. **User-facing how-to guide** — every shortcut, every announcement,
-   preferences setup, and the basic workflows (browse, load, cue, mix,
-   record), written to be read with JAWS
-4. **Playlist & crate support** — announce names with type and track
-   counts during sidebar navigation, expand/collapse state, and
-   add/remove-track confirmations
+2. Screen reader widget labels — tranche 2 (skin widgets). Waiting on
+   JAWS field feedback to scope which controls matter.
+3. ~~User-facing how-to guide~~ (done 2026-07-04:
+   [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md), including the
+   JAWS/NVDA audio-device pinning recipe)
+4. ~~Playlist & crate support~~ (done 2026-07-04: sidebar position
+   "3 of 12", expand/collapse state with child counts, and spoken
+   add/remove confirmations for playlists and crates)
 
 ### Tier 2 — announcement enrichment
 
