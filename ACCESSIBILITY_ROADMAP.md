@@ -126,6 +126,33 @@ to use them.
 
 ## To do
 
+### Feedback batch 2 (2026-07-05) — see [handoff/07-feedback-batch-2.md](handoff/07-feedback-batch-2.md)
+
+Bugs/regressions:
+
+- **Deck volume fraction wrong** ("half" reads "a quarter") — root
+  cause found: `volume` is a dB-tapered pot, the readout must use the
+  fader parameter, not the gain value. Also affects the trim and
+  main/headphone-volume readouts.
+- **Beat click inaudible** — no volume UI; add a prefs slider and check
+  audibility over a mix.
+
+Preference:
+
+- **Percentage vs fractions** for mixer readouts — make it configurable.
+
+Announcements to add:
+
+- Headphone mix (cue vs main) `[Master],headMix`
+- Beat jump and beat loop (secondary deck modes)
+- Effect unit on/off; effect selected; effect type when the filter
+  changes
+- Restart-to-start as a sound or speech (earcon + feedback mode)
+
+Needs clarification before building: "announce the crate/playlist UI",
+re-announce loaded track via a numbered hotkey, exit-loop announcement,
+and "master needs TTS" (see brief 07 for the specific questions).
+
 ### Tier 1 — complete the core blind-DJ loop
 
 1. ~~Granular info hotkeys~~ (done)
