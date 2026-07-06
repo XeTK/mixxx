@@ -4,7 +4,10 @@ Status document for the accessibility fork, which makes Mixxx usable by a
 fully blind DJ (primary end user runs JAWS). Last updated 2026-07-04.
 
 See [ACCESSIBILITY.md](ACCESSIBILITY.md) for how the features work and how
-to use them.
+to use them, [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md) for the full
+user walkthrough, or
+[ACCESSIBILITY_QUICK_REFERENCE.md](ACCESSIBILITY_QUICK_REFERENCE.md) for a
+one-page shortcut cheat sheet.
 
 ## Completed
 
@@ -54,6 +57,10 @@ to use them.
 - `Alt+Shift+R` — repeat last announcement
 - Odd numbers = deck A, even = deck B. Bindings in all 12 shipped
   keyboard layouts.
+- Full key list, including the batch-2 additions (`Alt+B`, `Alt+H`,
+  `Alt+X`, `Alt+Shift+T`/`Y`), now lives in
+  [ACCESSIBILITY_QUICK_REFERENCE.md](ACCESSIBILITY_QUICK_REFERENCE.md)
+  (added 2026-07-06).
 
 ### Screen reader (JAWS/NVDA/VoiceOver) support — first tranche
 

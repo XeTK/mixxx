@@ -8,7 +8,9 @@ not needed while performing.
 
 This guide is written to be read with a screen reader: headings mark
 every section, keyboard shortcuts are spelled out, and there are no
-images.
+images. Already familiar with the workflow and just want the key list?
+See [ACCESSIBILITY_QUICK_REFERENCE.md](ACCESSIBILITY_QUICK_REFERENCE.md)
+for a one-page cheat sheet.
 
 ## Quick start
 

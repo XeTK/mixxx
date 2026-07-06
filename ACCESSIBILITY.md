@@ -6,9 +6,11 @@ reader having to interpret the custom-painted skin.
 
 **New here? Read [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md)** — the
 user-facing walkthrough of every shortcut, announcement, and workflow,
-written to be read with a screen reader. This file is the technical
-overview; [ACCESSIBILITY_ROADMAP.md](ACCESSIBILITY_ROADMAP.md) tracks
-progress.
+written to be read with a screen reader. Already know your way around
+and just need the keys? See
+[ACCESSIBILITY_QUICK_REFERENCE.md](ACCESSIBILITY_QUICK_REFERENCE.md), a
+one-page cheat sheet. This file is the technical overview;
+[ACCESSIBILITY_ROADMAP.md](ACCESSIBILITY_ROADMAP.md) tracks progress.
 
 ## How it works
 
