@@ -53,6 +53,9 @@ deck 1, even numbers are deck 2.
 - Alt plus 7 or 8: musical key (follows keylock).
 - Alt plus 9 or 0: bar and beat position, for example "Bar 17,
   beat 2." Assumes 4/4 time.
+- Alt plus Shift plus T (deck 1) or Alt plus Shift plus Y (deck 2):
+  re-announce the loaded track's artist and title — useful if you
+  missed the original load announcement or forgot what's playing.
 
 Tip: turn on "Concise announcements" in Preferences, Accessibility to
 shorten these to just the value — Alt plus 5 then says "128." instead
@@ -60,35 +63,42 @@ of "Deck, A. 128 B P M."
 
 ## Sounds instead of speech (earcons)
 
-Frequent transport events can be signalled with short percussive sounds
-instead of — or as well as — speech. A sound plays instantly and does
-not tie up the speech channel, which matters when you are acting fast.
-The events covered are play, stop, end of track, and headphone cue on
-and off; everything else is always spoken.
+Frequent events can be signalled with short percussive sounds instead
+of — or as well as — speech. A sound plays instantly and does not tie
+up the speech channel, which matters when you are acting fast. The
+events covered are play, stop, end of track, headphone cue on/off,
+jumping back to the start of the track, loop on/off, and audio
+clipping; everything else is always spoken.
 
-Set them under Preferences, Accessibility, in the Playback
-Announcements group. "All transport feedback" sets play, stop, end of
-track, and headphone cue at once; or set each with its own combo ("Play
-feedback", "Stop feedback", "End of track feedback", "Headphone cue
-feedback"). When the four differ, "All transport feedback" reads
-Custom. Each combo offers:
+Set them under Preferences, Accessibility. The core four (play, stop,
+end of track, headphone cue) live in the Playback Announcements group,
+where "All transport feedback" sets all four at once, or set each with
+its own combo ("Play feedback", "Stop feedback", "End of track
+feedback", "Headphone cue feedback"); when the four differ, "All
+transport feedback" reads Custom. Back-to-start feedback sits alongside
+them. Loop on/off feedback is next to the loop checkbox in Performance
+Announcements, and Clipping feedback is next to the clipping checkbox
+near the top of the page. Each combo offers:
 
 - **Speech** — spoken as before.
-- **Sounds** — a short percussive cue, panned to the deck (deck 1 in
+- **Sounds** — a short percussive cue. Deck-scoped events (play, stop,
+  end of track, cue, restart, loop) are panned to the deck — deck 1 in
   the left ear, deck 2 in the right, matching the beat click and split
-  cue). Rising = start/engage, falling = stop, three quick pips = end
-  of track.
+  cue; clipping is centered since it's a whole-mix issue. Rising =
+  start/engage, falling = stop/disengage, three quick pips = end of
+  track, a double-tap = back to start, a low double-buzz = clipping.
 - **Sounds and speech** (default) — both, so you learn which sound
   means what. Once the sounds are familiar, switch to Sounds only.
 
 Because it is per event, you can, for example, keep play and stop as
 sounds but have end of track still spoken with its time remaining. Each
-event's on/off checkbox above still applies: unchecking it silences the
+event's on/off checkbox still applies: unchecking it silences the
 event entirely regardless of the feedback choice.
 
-Sound level is the `[Earcon],volume` control. In Sounds mode the
-end-of-track cue is just the alert; the spoken time-remaining is only
-added when speech is on.
+Sound level is the `[Earcon],volume` control. In Sounds mode, events
+that also carry information when spoken (end of track's time
+remaining, loop's beat count) only add that detail when speech is on;
+the sound alone is just the alert.
 
 ## Performance tools
 
@@ -99,7 +109,9 @@ added when speech is on.
   each playing deck — deck 1 in your left ear, deck 2 in your right.
   Every fourth beat is a higher pitched bar marker. Use it to check
   beat grids or to practice beatmatching. The clicks go to your
-  headphones and are never recorded.
+  headphones and are never recorded. Its volume has its own slider in
+  Preferences, Accessibility ("Beat click volume") — turn it up if the
+  clicks are hard to hear over a loud mix.
 - Per-deck split cue: Alt plus H puts deck 1's headphone cue in your
   left ear and deck 2's in your right, each folded to mono. Combined
   with the beat click, each ear carries one deck's audio and grid.
@@ -119,6 +131,9 @@ Transport and decks:
 - End of track, including how much time is left
 - Jumping back to the start of the track
 - Headphone cue (PFL) on and off, with the deck name
+- Audio clipping on the main output (on by default — a safety and
+  audio-quality signal). Throttled so sustained clipping doesn't
+  repeat the warning constantly.
 
 Performance controls:
 
@@ -134,13 +149,18 @@ Mixer (off by default — turn on "Announce mixer controls"):
 - Channel volume faders, trim knobs, EQ knobs, filter knobs
 - Main and headphone volume
 - Crossfader position
+- Headphone mix (how much cue vs. main you hear), for example
+  "Headphone mix cue three quarters" or "Headphone mix main a half"
 - Effect unit dry/wet and super knobs
 
-Values are spoken as fractions of the control's travel, for example
-"volume three quarters" or "E Q low minus a quarter" — center-detented
-knobs speak their deviation from center. If you prefer running
-commentary while a control moves, enable "Announce controls while they
-move"; otherwise only the resting value is spoken.
+Values are spoken as fractions of the control's travel by default, for
+example "volume three quarters" or "E Q low minus a quarter" —
+center-detented knobs speak their deviation from center. Prefer exact
+numbers? Switch "Speak mixer values as" in Preferences, Accessibility
+to Percentages, and the same readouts become "volume 75 percent" /
+"E Q low minus 25 percent". If you prefer running commentary while a
+control moves, enable "Announce controls while they move"; otherwise
+only the resting value is spoken.
 
 Library:
 
@@ -157,13 +177,18 @@ Library:
 All settings live under Options, Preferences, Accessibility. In order:
 
 1. Announce Mixxx ready at startup
-2. Speech output: headphones (DJ only) or main output
-3. Voice and speech rate, with a test button
-4. Music ducking during announcements: how far the music drops while
+2. Announce audio clipping, and its feedback style (speech/sounds/both)
+3. Speech output: headphones (DJ only) or main output
+4. Voice and speech rate, with a test button
+5. Music ducking during announcements: how far the music drops while
    speech plays
-5. Speak deck names as numbers: "Deck 1" instead of "Deck A"
-6. Concise announcements: shortest possible phrasing
-7. One checkbox per announcement category listed above
+6. Beat click volume
+7. Speak deck names as numbers: "Deck 1" instead of "Deck A"
+8. Concise announcements: shortest possible phrasing
+9. Speak mixer values as fractions or percentages
+10. One checkbox per announcement category, most with their own
+    feedback-style combo (speech/sounds/both) for play, stop, end of
+    track, headphone cue, back-to-start, and loop on/off
 
 ## Using a screen reader alongside Mixxx
 
@@ -192,11 +217,12 @@ mapped to buttons on a DJ controller:
 
 - `[Tts],enabled` and `[Tts],repeat` — speech toggle, repeat
 - `[ChannelN],tts_status`, `tts_time`, `tts_bpm`, `tts_key`,
-  `tts_bar` — the information readouts
+  `tts_bar`, `tts_track` — the information readouts
 - `[Master],crossfader_lock` — crossfader lock
 - `[Master],headSplitDecks` — per-deck split cue
 - `[BeatClick],enabled` and `[BeatClick],volume` — metronome
 - `[Tts],duckStrength` — music ducking level
+- `[Earcon],volume` — earcon (sound cue) level
 
 ## Known limitations
 

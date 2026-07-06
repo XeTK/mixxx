@@ -28,6 +28,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     void populateRouteCombo();
     void populateVoiceCombo();
     void populateFeedbackModeCombos();
+    void populateMixerStyleCombo();
     // Apply a preset (0 speech, 1 sounds, 2 both) to all four per-event
     // feedback combos at once.
     void applyFeedbackPreset(int mode);
@@ -43,10 +44,16 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     QString m_ttsVoiceId;
     int m_ttsRate;
     int m_duckStrengthPercent;
+    int m_beatClickVolumePercent;
+    int m_mixerReadoutStyle;
     int m_feedbackModePlay;
     int m_feedbackModeStop;
     int m_feedbackModeEndOfTrack;
     int m_feedbackModeCue;
+    int m_feedbackModeRestart;
+    int m_feedbackModeLoop;
+    int m_feedbackModeClipping;
+    bool m_bAnnounceClipping;
     bool m_bAnnounceStartup;
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;

@@ -109,3 +109,29 @@ TEST_F(EngineEarconTest, VolumeZero_Silent) {
     renderBuffers(m_pEarcon.get(), &m_main, &m_head, 10);
     EXPECT_EQ(0.0, channelEnergy(m_head, 0));
 }
+
+TEST_F(EngineEarconTest, RestartGesture_Sounds) {
+    m_pEarcon->trigger(EngineEarcon::Id::Restart, EngineEarcon::Pan::Left);
+    renderBuffers(m_pEarcon.get(), &m_main, &m_head, 10);
+    EXPECT_GT(channelEnergy(m_head, 0), 0.0);
+    EXPECT_EQ(0.0, channelEnergy(m_head, 1));
+}
+
+TEST_F(EngineEarconTest, LoopOnAndOffGestures_Sound) {
+    m_pEarcon->trigger(EngineEarcon::Id::LoopOn, EngineEarcon::Pan::Right);
+    renderBuffers(m_pEarcon.get(), &m_main, &m_head, 10);
+    EXPECT_GT(channelEnergy(m_head, 1), 0.0);
+    EXPECT_EQ(0.0, channelEnergy(m_head, 0));
+
+    std::vector<CSAMPLE> head2(kSamples, 0.0f);
+    m_pEarcon->trigger(EngineEarcon::Id::LoopOff, EngineEarcon::Pan::Left);
+    renderBuffers(m_pEarcon.get(), &m_main, &head2, 10);
+    EXPECT_GT(channelEnergy(head2, 0), 0.0);
+}
+
+TEST_F(EngineEarconTest, ClippingGesture_CenterPanned_BothEars) {
+    m_pEarcon->trigger(EngineEarcon::Id::Clipping, EngineEarcon::Pan::Center);
+    renderBuffers(m_pEarcon.get(), &m_main, &m_head, 10);
+    EXPECT_GT(channelEnergy(m_head, 0), 0.0);
+    EXPECT_GT(channelEnergy(m_head, 1), 0.0);
+}

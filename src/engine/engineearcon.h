@@ -30,6 +30,10 @@ class EngineEarcon {
         EndOfTrack,
         CueOn,
         CueOff,
+        Restart,
+        LoopOn,
+        LoopOff,
+        Clipping,
     };
     enum class Pan {
         Left = 0,

@@ -124,6 +124,29 @@ class AccessibilitySettings {
             "[Accessibility]",
             "FeedbackModeCue",
             2);
+    DEFINE_PREFERENCE_HELPERS(FeedbackModeRestart,
+            int,
+            "[Accessibility]",
+            "FeedbackModeRestart",
+            2);
+    DEFINE_PREFERENCE_HELPERS(FeedbackModeLoop,
+            int,
+            "[Accessibility]",
+            "FeedbackModeLoop",
+            2);
+    DEFINE_PREFERENCE_HELPERS(FeedbackModeClipping,
+            int,
+            "[Accessibility]",
+            "FeedbackModeClipping",
+            2);
+
+    // Warn when the main output clips. On by default: this is a safety/audio
+    // quality signal, not a stylistic preference.
+    DEFINE_PREFERENCE_HELPERS(AnnounceClipping,
+            bool,
+            "[Accessibility]",
+            "AnnounceClipping",
+            true);
 
     // Spoken confirmation when tracks are added to or removed from
     // playlists and crates.
@@ -132,6 +155,14 @@ class AccessibilitySettings {
             "[Accessibility]",
             "AnnouncePlaylist",
             true);
+
+    // How fader/knob positions are spoken: 0 = fractions ("three quarters"),
+    // 1 = percentages ("75 percent").
+    DEFINE_PREFERENCE_HELPERS(MixerReadoutStyle,
+            int,
+            "[Accessibility]",
+            "MixerReadoutStyle",
+            0);
 
     // Speak continuous controls while they move (throttled) instead of only
     // once they come to rest.

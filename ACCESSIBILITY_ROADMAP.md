@@ -126,32 +126,49 @@ to use them.
 
 ## To do
 
-### Feedback batch 2 (2026-07-05) — see [handoff/07-feedback-batch-2.md](handoff/07-feedback-batch-2.md)
+### Feedback batch 2 (2026-07-05, mostly complete) — see [handoff/07-feedback-batch-2.md](handoff/07-feedback-batch-2.md)
 
-Bugs/regressions:
+Done:
 
-- **Deck volume fraction wrong** ("half" reads "a quarter") — root
-  cause found: `volume` is a dB-tapered pot, the readout must use the
-  fader parameter, not the gain value. Also affects the trim and
-  main/headphone-volume readouts.
-- **Beat click inaudible** — no volume UI; add a prefs slider and check
-  audibility over a mix.
+- **Deck volume fraction bug fixed** — `volume`, `pregain`, and
+  `[Master],gain`/`headGain` are `ControlAudioTaperPot`s; readouts now
+  use `getParameter()` (fader position) instead of `get()` (dB-tapered
+  gain), so a physical half-way fader correctly announces "a half".
+  Regression tests use a real `ControlAudioTaperPot` to exercise the
+  taper, not a plain `ControlObject`.
+- **Beat click audibility** — new "Beat click volume" slider in
+  Preferences > Accessibility; default level raised (0.5 → 0.75) and
+  the click decay lengthened slightly (8 ms → 12 ms) for better cut-through.
+- **Percentage vs. fractions** — new `MixerReadoutStyle` setting
+  ("Speak mixer values as" combo) switches every fader/knob readout
+  between fractions and exact percentages.
+- **Headphone mix announcement** — `[Master],headMix` speaks
+  "Headphone mix cue/main `<fraction>`" or "Headphone mix even", under
+  `AnnounceMixer`.
+- **Track re-announce hotkey** — `[ChannelN],tts_track`
+  (Alt+Shift+T / Alt+Shift+Y) re-speaks the loaded track's artist/title
+  on demand. `Alt+Shift+R` (repeat) already re-announces whatever was
+  last spoken, including a library selection, so no separate control
+  was added for that half of the request.
+- **Back-to-start and loop on/off as sound or speech** — both now route
+  through the earcon system (`EngineEarcon::Id::Restart/LoopOn/LoopOff`)
+  with their own per-event feedback-mode combos, giving loop toggles an
+  instant, hard-to-miss confirmation regardless of the earlier
+  "I don't hear the exit loop notification" report's exact cause.
+- **Master clipping/peak warning** ("sounds like a cool idea") — new
+  `AnnounceClipping` setting (on by default) plus its own feedback-mode
+  combo and a center-panned earcon; observes `[Main],peak_indicator`,
+  throttled to one warning per 5 seconds during sustained clipping.
 
-Preference:
+166 accessibility tests pass (up from 144).
 
-- **Percentage vs fractions** for mixer readouts — make it configurable.
+Still open (deferred — see brief 07 for detail):
 
-Announcements to add:
-
-- Headphone mix (cue vs main) `[Master],headMix`
-- Beat jump and beat loop (secondary deck modes)
+- Beat jump and beat loop (secondary deck modes) announcements
 - Effect unit on/off; effect selected; effect type when the filter
   changes
-- Restart-to-start as a sound or speech (earcon + feedback mode)
-
-Needs clarification before building: "announce the crate/playlist UI",
-re-announce loaded track via a numbered hotkey, exit-loop announcement,
-and "master needs TTS" (see brief 07 for the specific questions).
+- Announcing the crate/playlist create/rename dialogs and feature-view
+  entry (clarified as: dialog text + entering the view)
 
 ### Tier 1 — complete the core blind-DJ loop
 

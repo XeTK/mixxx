@@ -13,12 +13,19 @@ const QString kGroup = QStringLiteral("[BeatClick]");
 // Click tones: plain beats at 880 Hz, the first beat of each bar at 1760 Hz.
 constexpr double kBeatFreqHz = 880.0;
 constexpr double kBarFreqHz = 1760.0;
-// Exponential amplitude decay time constant and total click length.
-constexpr double kDecaySeconds = 0.008;
+// Exponential amplitude decay time constant and total click length. Slightly
+// longer than the original 8 ms: testers found the very short click hard to
+// perceive over a loud mix, and 12 ms gives the ear more of the tone's energy
+// while staying clearly percussive.
+constexpr double kDecaySeconds = 0.012;
 constexpr double kClickSeconds = 0.04;
 // Ignore predicted beats closer than this fraction of a beat to the last
 // click (double-fire protection around the beat boundary).
 constexpr double kMinBeatFraction = 0.5;
+// Matches kDefaultBeatClickVolumePercent in dlgprefaccessibility.cpp. Raised
+// from the original 0.5: testers reported the click was hard to hear over a
+// mix at the old default, and the volume is now user-adjustable regardless.
+constexpr double kDefaultVolume = 0.75;
 } // namespace
 
 EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
@@ -26,8 +33,14 @@ EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
             ConfigKey(kGroup, QStringLiteral("enabled")));
     m_pEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
 
-    m_pVolume = std::make_unique<ControlPotmeter>(
-            ConfigKey(kGroup, QStringLiteral("volume")), 0.0, 1.0, false, true, false, true, 0.5);
+    m_pVolume = std::make_unique<ControlPotmeter>(ConfigKey(kGroup, QStringLiteral("volume")),
+            0.0,
+            1.0,
+            false,
+            true,
+            false,
+            true,
+            kDefaultVolume);
 
     m_pSampleRate = std::make_unique<ControlProxy>(
             QStringLiteral("[App]"), QStringLiteral("samplerate"), nullptr);

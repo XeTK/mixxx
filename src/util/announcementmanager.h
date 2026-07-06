@@ -83,6 +83,11 @@ class AnnouncementManager : public QObject {
     QString formatKey(const QString& group, int deckIndex) const;
     QString formatBarPosition(const QString& group, int deckIndex) const;
 
+    // Re-speaks the loaded track's artist/title on demand ([ChannelN],
+    // tts_track), for when the earlier load announcement was missed or
+    // forgotten mid-set. Public for tests.
+    QString formatTrackName(const QString& group, int deckIndex) const;
+
     // Test helpers: allow tests to wire up CO observers for a synthetic group
     // without needing a real BaseTrackPlayer.
     void connectGroupControls(const QString& group, int deckIndex = -1);
@@ -111,6 +116,10 @@ class AnnouncementManager : public QObject {
     // Deck prefix for the frequent mixer/tempo readouts: just the letter or
     // number in concise mode ("A, volume a half"), the full name otherwise.
     QString mixerDeckName(const QString& group, int deckIndex) const;
+
+    // True when mixer/fader readouts should be spoken as percentages instead
+    // of fractions, per the MixerReadoutStyle preference.
+    bool mixerReadoutAsPercent() const;
 
     // Suppress hotcue set/cleared announcements briefly after a track load or
     // unload, which rewrites every hotcue status CO.
@@ -165,4 +174,8 @@ class AnnouncementManager : public QObject {
     // Timestamp (ms since epoch) of the last track load/unload per group, for
     // hotcue announcement suppression.
     QHash<QString, qint64> m_lastTrackChangeMs;
+
+    // Last clipping announcement (ms since epoch), so sustained clipping
+    // doesn't repeat the warning on every peak.
+    qint64 m_lastClippingAnnounceMs{0};
 };

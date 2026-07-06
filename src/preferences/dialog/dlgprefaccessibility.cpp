@@ -31,6 +31,26 @@ void writeDuckStrengthControl(int percent) {
             ControlFlag::AllowMissingOrInvalid)
             .set(percent / 100.0);
 }
+
+// Matches the default in enginebeatclick.cpp, as a slider percentage.
+constexpr int kDefaultBeatClickVolumePercent = 75;
+
+// Also a persistent engine control the audio thread reads directly.
+double readBeatClickVolumeControl() {
+    return ControlProxy(QStringLiteral("[BeatClick]"),
+            QStringLiteral("volume"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid)
+            .get();
+}
+
+void writeBeatClickVolumeControl(int percent) {
+    ControlProxy(QStringLiteral("[BeatClick]"),
+            QStringLiteral("volume"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid)
+            .set(percent / 100.0);
+}
 } // namespace
 
 DlgPrefAccessibility::DlgPrefAccessibility(
@@ -42,10 +62,16 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
           m_duckStrengthPercent(kDefaultDuckStrengthPercent),
+          m_beatClickVolumePercent(kDefaultBeatClickVolumePercent),
+          m_mixerReadoutStyle(m_settings.getMixerReadoutStyleDefault()),
           m_feedbackModePlay(m_settings.getFeedbackModePlayDefault()),
           m_feedbackModeStop(m_settings.getFeedbackModeStopDefault()),
           m_feedbackModeEndOfTrack(m_settings.getFeedbackModeEndOfTrackDefault()),
           m_feedbackModeCue(m_settings.getFeedbackModeCueDefault()),
+          m_feedbackModeRestart(m_settings.getFeedbackModeRestartDefault()),
+          m_feedbackModeLoop(m_settings.getFeedbackModeLoopDefault()),
+          m_feedbackModeClipping(m_settings.getFeedbackModeClippingDefault()),
+          m_bAnnounceClipping(m_settings.getAnnounceClippingDefault()),
           m_bAnnounceStartup(m_settings.getAnnounceStartupDefault()),
           m_bAnnounceSelection(m_settings.getAnnounceTrackSelectionDefault()),
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
@@ -69,6 +95,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
     populateRouteCombo();
     populateVoiceCombo();
     populateFeedbackModeCombos();
+    populateMixerStyleCombo();
 
     if (!TtsEngine::isAvailable()) {
         auto* pWarning = new QLabel(
@@ -124,6 +151,26 @@ DlgPrefAccessibility::DlgPrefAccessibility(
                 m_feedbackModeCue = index;
                 syncFeedbackAllCombo();
             });
+    connect(comboBoxFeedbackRestart,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeRestart = index; });
+    connect(comboBoxFeedbackLoop,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeLoop = index; });
+    connect(comboBoxFeedbackClipping,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeClipping = index; });
+    connect(checkBoxAnnounceClipping,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceClipping = checked; });
+    connect(comboBoxMixerStyle,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_mixerReadoutStyle = index; });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -154,6 +201,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QSlider::valueChanged,
             this,
             [this](int value) { m_duckStrengthPercent = value; });
+    connect(sliderBeatClickVolume,
+            &QSlider::valueChanged,
+            this,
+            [this](int value) { m_beatClickVolumePercent = value; });
     connect(pushButtonTestSpeech,
             &QPushButton::clicked,
             this,
@@ -248,7 +299,10 @@ void DlgPrefAccessibility::populateFeedbackModeCombos() {
     for (QComboBox* pCombo : {comboBoxFeedbackPlay,
                  comboBoxFeedbackStop,
                  comboBoxFeedbackEndOfTrack,
-                 comboBoxFeedbackCue}) {
+                 comboBoxFeedbackCue,
+                 comboBoxFeedbackRestart,
+                 comboBoxFeedbackLoop,
+                 comboBoxFeedbackClipping}) {
         pCombo->clear();
         pCombo->addItem(tr("Speech"));
         pCombo->addItem(tr("Sounds"));
@@ -261,6 +315,13 @@ void DlgPrefAccessibility::populateFeedbackModeCombos() {
     comboBoxFeedbackAll->addItem(tr("Speech"));
     comboBoxFeedbackAll->addItem(tr("Sounds"));
     comboBoxFeedbackAll->addItem(tr("Sounds and speech"));
+}
+
+void DlgPrefAccessibility::populateMixerStyleCombo() {
+    // Order must match MixerReadoutStyle: 0 fractions, 1 percent.
+    comboBoxMixerStyle->clear();
+    comboBoxMixerStyle->addItem(tr("Fractions (e.g. three quarters)"));
+    comboBoxMixerStyle->addItem(tr("Percentages (e.g. 75 percent)"));
 }
 
 void DlgPrefAccessibility::applyFeedbackPreset(int mode) {
@@ -325,11 +386,30 @@ void DlgPrefAccessibility::slotUpdate() {
     comboBoxFeedbackCue->setCurrentIndex(
             std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
     syncFeedbackAllCombo();
+    m_feedbackModeRestart = m_settings.getFeedbackModeRestart();
+    m_feedbackModeLoop = m_settings.getFeedbackModeLoop();
+    comboBoxFeedbackRestart->setCurrentIndex(std::clamp(
+            m_feedbackModeRestart, 0, comboBoxFeedbackRestart->count() - 1));
+    comboBoxFeedbackLoop->setCurrentIndex(
+            std::clamp(m_feedbackModeLoop, 0, comboBoxFeedbackLoop->count() - 1));
+    m_feedbackModeClipping = m_settings.getFeedbackModeClipping();
+    comboBoxFeedbackClipping->setCurrentIndex(std::clamp(
+            m_feedbackModeClipping, 0, comboBoxFeedbackClipping->count() - 1));
+    m_bAnnounceClipping = m_settings.getAnnounceClipping();
+    checkBoxAnnounceClipping->setChecked(m_bAnnounceClipping);
+    m_mixerReadoutStyle = m_settings.getMixerReadoutStyle();
+    comboBoxMixerStyle->setCurrentIndex(
+            std::clamp(m_mixerReadoutStyle, 0, comboBoxMixerStyle->count() - 1));
     const double duckStrength = readDuckStrengthControl();
     m_duckStrengthPercent = duckStrength > 0.0
             ? static_cast<int>(std::lround(duckStrength * 100))
             : kDefaultDuckStrengthPercent;
     sliderDuckStrength->setValue(m_duckStrengthPercent);
+    const double beatClickVolume = readBeatClickVolumeControl();
+    m_beatClickVolumePercent = beatClickVolume > 0.0
+            ? static_cast<int>(std::lround(beatClickVolume * 100))
+            : kDefaultBeatClickVolumePercent;
+    sliderBeatClickVolume->setValue(m_beatClickVolumePercent);
     m_bAnnounceStartup = m_settings.getAnnounceStartup();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelection();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoad();
@@ -383,7 +463,12 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setFeedbackModeStop(m_feedbackModeStop);
     m_settings.setFeedbackModeEndOfTrack(m_feedbackModeEndOfTrack);
     m_settings.setFeedbackModeCue(m_feedbackModeCue);
+    m_settings.setFeedbackModeRestart(m_feedbackModeRestart);
+    m_settings.setFeedbackModeLoop(m_feedbackModeLoop);
+    m_settings.setFeedbackModeClipping(m_feedbackModeClipping);
+    m_settings.setAnnounceClipping(m_bAnnounceClipping);
     writeDuckStrengthControl(m_duckStrengthPercent);
+    writeBeatClickVolumeControl(m_beatClickVolumePercent);
     m_settings.setAnnounceStartup(m_bAnnounceStartup);
     m_settings.setAnnounceTrackSelection(m_bAnnounceSelection);
     m_settings.setAnnounceTrackLoad(m_bAnnounceLoad);
@@ -403,6 +488,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceWhileMoving(m_bAnnounceWhileMoving);
     m_settings.setDeckNamesAsNumbers(m_bDeckNumbers);
     m_settings.setConciseAnnouncements(m_bConcise);
+    m_settings.setMixerReadoutStyle(m_mixerReadoutStyle);
 }
 
 void DlgPrefAccessibility::slotTestSpeech() {
@@ -424,6 +510,8 @@ void DlgPrefAccessibility::slotTestSpeech() {
 void DlgPrefAccessibility::slotResetToDefaults() {
     m_duckStrengthPercent = kDefaultDuckStrengthPercent;
     sliderDuckStrength->setValue(m_duckStrengthPercent);
+    m_beatClickVolumePercent = kDefaultBeatClickVolumePercent;
+    sliderBeatClickVolume->setValue(m_beatClickVolumePercent);
     m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
     m_ttsRate = m_settings.getTtsRateDefault();
@@ -440,6 +528,20 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     comboBoxFeedbackCue->setCurrentIndex(
             std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
     syncFeedbackAllCombo();
+    m_feedbackModeRestart = m_settings.getFeedbackModeRestartDefault();
+    m_feedbackModeLoop = m_settings.getFeedbackModeLoopDefault();
+    comboBoxFeedbackRestart->setCurrentIndex(std::clamp(
+            m_feedbackModeRestart, 0, comboBoxFeedbackRestart->count() - 1));
+    comboBoxFeedbackLoop->setCurrentIndex(
+            std::clamp(m_feedbackModeLoop, 0, comboBoxFeedbackLoop->count() - 1));
+    m_feedbackModeClipping = m_settings.getFeedbackModeClippingDefault();
+    comboBoxFeedbackClipping->setCurrentIndex(std::clamp(
+            m_feedbackModeClipping, 0, comboBoxFeedbackClipping->count() - 1));
+    m_bAnnounceClipping = m_settings.getAnnounceClippingDefault();
+    checkBoxAnnounceClipping->setChecked(m_bAnnounceClipping);
+    m_mixerReadoutStyle = m_settings.getMixerReadoutStyleDefault();
+    comboBoxMixerStyle->setCurrentIndex(
+            std::clamp(m_mixerReadoutStyle, 0, comboBoxMixerStyle->count() - 1));
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();

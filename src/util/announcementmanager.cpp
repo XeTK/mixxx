@@ -33,6 +33,9 @@ constexpr qint64 kMovingThrottleMs = 300;
 constexpr qint64 kHotcueSuppressMs = 1000;
 // Hotcues 1..8 cover the pads on entry-level controllers.
 constexpr int kNumAnnouncedHotcues = 8;
+// Minimum gap between clipping warnings so sustained clipping doesn't repeat
+// the announcement on every ~500 ms peak-indicator cycle.
+constexpr qint64 kClippingThrottleMs = 5000;
 
 double readGroupControl(const QString& group, const QString& name) {
     return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
@@ -55,10 +58,17 @@ QString remainingText(int totalSeconds) {
     return AnnouncementManager::tr("%1 remaining").arg(secondText);
 }
 
-// Fader/knob travel spoken as a fraction ("three quarters"), which matches
-// how DJs think of physical controls and reads far faster than percentages.
-// Snapped to sixteenths and simplified.
-QString fractionText(double zeroToOne) {
+// Fader/knob travel spoken as a fraction ("three quarters") or a percentage
+// ("75 percent") depending on the user's MixerReadoutStyle preference.
+// Fractions match how DJs think of physical controls and read faster;
+// percentages give exact values for users who want them. Fractions are
+// snapped to sixteenths and simplified.
+QString fractionText(double zeroToOne, bool asPercent) {
+    if (asPercent) {
+        const int percent = static_cast<int>(
+                std::lround(std::clamp(zeroToOne, 0.0, 1.0) * 100));
+        return AnnouncementManager::tr("%1 percent").arg(percent);
+    }
     const int sixteenths = std::clamp(
             static_cast<int>(std::lround(zeroToOne * 16.0)), 0, 16);
     switch (sixteenths) {
@@ -87,15 +97,19 @@ QString fractionText(double zeroToOne) {
 }
 
 // Center-detented controls (EQ, filter, gain): deviation from center as a
-// signed fraction — "center", "plus a quarter", "minus three sixteenths".
-QString centerSplitText(double normalized /* -1 .. +1, 0 = center */) {
+// signed fraction or percentage — "center", "plus a quarter", "minus 25
+// percent", per MixerReadoutStyle.
+QString centerSplitText(double normalized /* -1 .. +1, 0 = center */, bool asPercent) {
     const double magnitude = std::clamp(std::abs(normalized), 0.0, 1.0);
-    if (std::lround(magnitude * 16.0) == 0) {
+    const bool isCenter = asPercent ? std::lround(magnitude * 100) == 0
+                                    : std::lround(magnitude * 16.0) == 0;
+    if (isCenter) {
         return AnnouncementManager::tr("center");
     }
     return normalized > 0
-            ? AnnouncementManager::tr("plus %1").arg(fractionText(magnitude))
-            : AnnouncementManager::tr("minus %1").arg(fractionText(magnitude));
+            ? AnnouncementManager::tr("plus %1").arg(
+                      fractionText(magnitude, asPercent))
+            : AnnouncementManager::tr("minus %1").arg(fractionText(magnitude, asPercent));
 }
 
 // Normalize a unity-1 gain knob (range 0..4, center 1 — EQ knobs and the
@@ -302,6 +316,28 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                                    : tr("Recording stopped"));
             });
 
+    // Main output clipping. [Main],peak_indicator (alias [Master],
+    // PeakIndicator) pulses to 1.0 for ~500 ms after a clipped peak; treat
+    // each pulse as a rising edge and throttle so sustained clipping doesn't
+    // repeat the warning constantly. Center-panned: this is a whole-mix
+    // problem, not a single deck's.
+    auto pClipping = make_parented<ControlProxy>(
+            QStringLiteral("[Main]"),
+            QStringLiteral("peak_indicator"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pClipping->connectValueChanged(this, [this](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceClipping()) {
+            return;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - m_lastClippingAnnounceMs < kClippingThrottleMs) {
+            return;
+        }
+        m_lastClippingAnnounceMs = now;
+        emitCue(static_cast<int>(EngineEarcon::Id::Clipping), -1, tr("Clipping"));
+    });
+
     // Crossfader position, debounced while it moves. -1 is full left, +1 full
     // right; treat the middle five percent as center.
     auto pCrossfader = make_parented<ControlProxy>(
@@ -317,15 +353,47 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         if (std::abs(value) < 0.05) {
             text = tr("Crossfader center");
         } else {
+            const bool asPercent = mixerReadoutAsPercent();
             text = value < 0
-                    ? tr("Crossfader left %1").arg(fractionText(-value))
-                    : tr("Crossfader right %1").arg(fractionText(value));
+                    ? tr("Crossfader left %1").arg(fractionText(-value, asPercent))
+                    : tr("Crossfader right %1")
+                              .arg(fractionText(value, asPercent));
         }
         announceControlDebounced(text);
     });
 
-    // Main and headphone volume knobs, debounced. Center-split like the EQ
-    // knobs: unity gain is "center".
+    // Headphone mix knob: -1 is full cue (PFL'd decks only), +1 is full main
+    // (audience mix), debounced while it moves. A linear ControlPotmeter, so
+    // the raw value is already the -1..1 position — no taper conversion
+    // needed here (unlike the volume/trim/gain knobs above). "Cue"/"main"
+    // wording rather than centerSplitText's generic plus/minus, since a
+    // signed fraction alone would not say which side (cue vs. main) it leans
+    // toward.
+    auto pHeadMix = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("headMix"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pHeadMix->connectValueChanged(this, [this](double value) {
+        if (!m_settings.getAnnounceMixer()) {
+            return;
+        }
+        QString text;
+        if (std::abs(value) < 0.05) {
+            text = tr("Headphone mix even");
+        } else {
+            const bool asPercent = mixerReadoutAsPercent();
+            text = value < 0
+                    ? tr("Headphone mix cue %1").arg(fractionText(-value, asPercent))
+                    : tr("Headphone mix main %1")
+                              .arg(fractionText(value, asPercent));
+        }
+        announceControlDebounced(text);
+    });
+
+    // Main and headphone volume knobs, debounced. Both are ControlAudioTaperPot
+    // with neutral parameter 0.5 (center of the knob = unity), so read the
+    // knob position via getParameter(), not the dB-tapered gain value.
     const struct {
         const char* control;
         QString name;
@@ -339,13 +407,18 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 QLatin1String(gain.control),
                 this,
                 ControlFlag::AllowMissingOrInvalid);
-        pGain->connectValueChanged(this, [this, name = gain.name](double value) {
-            if (!m_settings.getAnnounceMixer()) {
-                return;
-            }
-            announceControlDebounced(QStringLiteral("%1 %2").arg(
-                    name, centerSplitText(normalizeUnityGain(value))));
-        });
+        pGain->connectValueChanged(this,
+                [this,
+                        name = gain.name,
+                        pGainRaw = static_cast<ControlProxy*>(pGain)](double) {
+                    if (!m_settings.getAnnounceMixer()) {
+                        return;
+                    }
+                    announceControlDebounced(QStringLiteral("%1 %2").arg(name,
+                            centerSplitText(
+                                    (pGainRaw->getParameter() - 0.5) * 2.0,
+                                    mixerReadoutAsPercent())));
+                });
     }
 
     // Effect unit knobs: the dry/wet mix and the super knob for the four
@@ -370,8 +443,9 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                         if (!m_settings.getAnnounceMixer()) {
                             return;
                         }
-                        announceControlDebounced(text.arg(unit).arg(
-                                fractionText(std::clamp(value, 0.0, 1.0))));
+                        announceControlDebounced(text.arg(unit).arg(fractionText(
+                                std::clamp(value, 0.0, 1.0),
+                                mixerReadoutAsPercent())));
                     });
         }
     }
@@ -484,6 +558,16 @@ void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& sp
     case EngineEarcon::Id::CueOff:
         mode = m_settings.getFeedbackModeCue();
         break;
+    case EngineEarcon::Id::Restart:
+        mode = m_settings.getFeedbackModeRestart();
+        break;
+    case EngineEarcon::Id::LoopOn:
+    case EngineEarcon::Id::LoopOff:
+        mode = m_settings.getFeedbackModeLoop();
+        break;
+    case EngineEarcon::Id::Clipping:
+        mode = m_settings.getFeedbackModeClipping();
+        break;
     }
     if (mode != 1) {
         speak(speechText);
@@ -509,6 +593,7 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             {"tts_bpm", &AnnouncementManager::formatBpm},
             {"tts_key", &AnnouncementManager::formatKey},
             {"tts_bar", &AnnouncementManager::formatBarPosition},
+            {"tts_track", &AnnouncementManager::formatTrackName},
     };
     for (const auto& readout : readouts) {
         auto pButton = std::make_unique<ControlPushButton>(
@@ -588,7 +673,9 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 ControlFlag::AllowMissingOrInvalid);
         pBack->connectValueChanged(this, [this, group, deckIndex](double value) {
             if (value > 0.0 && m_settings.getAnnouncePlay()) {
-                speak(tr("%1 back to start").arg(deckName(group, deckIndex)));
+                emitCue(static_cast<int>(EngineEarcon::Id::Restart),
+                        deckIndex,
+                        tr("%1 back to start").arg(deckName(group, deckIndex)));
             }
         });
     }
@@ -657,13 +744,14 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                     nullptr,
                     ControlFlag::AllowMissingOrInvalid)
                                          .get();
-            if (beats > 0.0) {
-                speak(tr("%1 loop %2 beats").arg(deck, QString::number(beats)));
-            } else {
-                speak(tr("%1 loop on").arg(deck));
-            }
+            const QString text = beats > 0.0
+                    ? tr("%1 loop %2 beats").arg(deck, QString::number(beats))
+                    : tr("%1 loop on").arg(deck);
+            emitCue(static_cast<int>(EngineEarcon::Id::LoopOn), deckIndex, text);
         } else {
-            speak(tr("%1 loop off").arg(deck));
+            emitCue(static_cast<int>(EngineEarcon::Id::LoopOff),
+                    deckIndex,
+                    tr("%1 loop off").arg(deck));
         }
     });
 
@@ -762,32 +850,56 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         announceControlDebounced(text);
     });
 
+    // volume is a ControlAudioTaperPot (dB-tapered): get() returns the linear
+    // gain multiplier, not the fader position, so a physical half-way fader
+    // reads out as roughly a quarter of the way (dB taper drops much faster
+    // than linear near the top). Read getParameter() instead, which is the
+    // 0..1 knob/fader position that matches what the user actually moved.
     auto pVolume = make_parented<ControlProxy>(group,
             QStringLiteral("volume"),
             this,
             ControlFlag::AllowMissingOrInvalid);
-    pVolume->connectValueChanged(this, [this, group, deckIndex](double value) {
-        if (!m_settings.getAnnounceMixer()) {
-            return;
-        }
-        announceControlDebounced(tr("%1 volume %2")
-                        .arg(mixerDeckName(group, deckIndex),
-                                fractionText(std::clamp(value, 0.0, 1.0))));
-    });
+    pVolume->connectValueChanged(this,
+            [this,
+                    group,
+                    deckIndex,
+                    pVolumeRaw = static_cast<ControlProxy*>(pVolume)](double) {
+                if (!m_settings.getAnnounceMixer()) {
+                    return;
+                }
+                announceControlDebounced(tr("%1 volume %2")
+                                .arg(mixerDeckName(group, deckIndex),
+                                        fractionText(
+                                                std::clamp(
+                                                        pVolumeRaw->getParameter(),
+                                                        0.0,
+                                                        1.0),
+                                                mixerReadoutAsPercent())));
+            });
 
-    // Trim / channel pregain: same unity-1 taper as the EQ knobs.
+    // Trim / channel pregain: also a ControlAudioTaperPot, neutral at
+    // parameter 0.5 (center of the knob = unity gain), so the same
+    // parameter-vs-value distinction applies as for volume above.
     auto pPregain = make_parented<ControlProxy>(group,
             QStringLiteral("pregain"),
             this,
             ControlFlag::AllowMissingOrInvalid);
-    pPregain->connectValueChanged(this, [this, group, deckIndex](double value) {
-        if (!m_settings.getAnnounceMixer()) {
-            return;
-        }
-        announceControlDebounced(tr("%1 trim %2")
-                        .arg(mixerDeckName(group, deckIndex),
-                                centerSplitText(normalizeUnityGain(value))));
-    });
+    pPregain->connectValueChanged(this,
+            [this,
+                    group,
+                    deckIndex,
+                    pPregainRaw = static_cast<ControlProxy*>(pPregain)](double) {
+                if (!m_settings.getAnnounceMixer()) {
+                    return;
+                }
+                announceControlDebounced(tr("%1 trim %2")
+                                .arg(mixerDeckName(group, deckIndex),
+                                        centerSplitText(
+                                                (pPregainRaw->getParameter() -
+                                                        0.5) *
+                                                        2.0,
+                                                mixerReadoutAsPercent())));
+            });
 
     // EQ knobs. Values run 0..4 with unity at 1; spoken as a signed fraction
     // from center ("low minus a quarter") — the way a DJ pictures the knob.
@@ -821,8 +933,9 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                     announceControlDebounced(QStringLiteral("%1 %2 %3")
                                     .arg(mixerDeckName(group, deckIndex),
                                             name,
-                                            centerSplitText(normalizeUnityGain(
-                                                    value))));
+                                            centerSplitText(
+                                                    normalizeUnityGain(value),
+                                                    mixerReadoutAsPercent())));
                 });
     }
 
@@ -839,7 +952,8 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
         announceControlDebounced(tr("%1 filter %2")
                         .arg(mixerDeckName(group, deckIndex),
-                                centerSplitText((value - 0.5) * 2.0)));
+                                centerSplitText((value - 0.5) * 2.0,
+                                        mixerReadoutAsPercent())));
     });
 }
 
@@ -1183,6 +1297,27 @@ QString AnnouncementManager::formatBarPosition(const QString& group, int deckInd
     return tr("%1. Bar %2, beat %3.").arg(deck).arg(bar).arg(beatInBar);
 }
 
+QString AnnouncementManager::formatTrackName(const QString& group, int deckIndex) const {
+    const QString deck = deckName(group, deckIndex);
+    TrackPointer pTrack;
+    if (deckIndex >= 0 && m_pPlayerManager) {
+        BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(deckIndex);
+        if (pDeck) {
+            pTrack = pDeck->getLoadedTrack();
+        }
+    }
+    if (!pTrack) {
+        return m_settings.getConciseAnnouncements()
+                ? tr("No track loaded.")
+                : tr("%1. No track loaded.").arg(deck);
+    }
+    const QString trackText = formatForBrowsing(pTrack);
+    if (m_settings.getConciseAnnouncements()) {
+        return trackText + QStringLiteral(".");
+    }
+    return deck + QStringLiteral(". ") + trackText + QStringLiteral(".");
+}
+
 QString AnnouncementManager::deckName(const QString& group, int deckIndex) const {
     if (deckIndex < 0) {
         return group;
@@ -1203,6 +1338,10 @@ QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) 
                 : QString(QChar(u'A' + deckIndex)) + QStringLiteral(",");
     }
     return deckName(group, deckIndex);
+}
+
+bool AnnouncementManager::mixerReadoutAsPercent() const {
+    return m_settings.getMixerReadoutStyle() == 1;
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {

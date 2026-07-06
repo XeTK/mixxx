@@ -31,6 +31,33 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceClipping">
+        <property name="toolTip">
+         <string>Warn when the main output clips. On by default: this is an audio-quality and safety signal, not just a stylistic preference.</string>
+        </property>
+        <property name="text">
+         <string>Announce audio clipping</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackClipping">
+        <item>
+         <widget class="QLabel" name="labelFeedbackClipping">
+          <property name="text">
+           <string>Clipping feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackClipping</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackClipping"/>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayoutRoute">
         <item>
          <widget class="QLabel" name="labelRoute">
@@ -249,6 +276,74 @@
          <widget class="QLabel" name="labelDuckingMore">
           <property name="text">
            <string>More</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelBeatClickVolume">
+        <property name="text">
+         <string>Beat click volume:</string>
+        </property>
+        <property name="toolTip">
+         <string>Loudness of the Alt+B beat-click metronome clicks.</string>
+        </property>
+        <property name="buddy">
+         <cstring>sliderBeatClickVolume</cstring>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutBeatClickVolume">
+        <item>
+         <widget class="QLabel" name="labelBeatClickVolumeQuiet">
+          <property name="text">
+           <string>Quiet</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSlider" name="sliderBeatClickVolume">
+          <property name="accessibleName">
+           <string>Beat click volume</string>
+          </property>
+          <property name="toolTip">
+           <string>Drag to adjust how loud the beat-click metronome is.</string>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="minimum">
+           <number>0</number>
+          </property>
+          <property name="maximum">
+           <number>100</number>
+          </property>
+          <property name="value">
+           <number>75</number>
+          </property>
+          <property name="pageStep">
+           <number>10</number>
+          </property>
+          <property name="tickPosition">
+           <enum>QSlider::TicksBelow</enum>
+          </property>
+          <property name="tickInterval">
+           <number>25</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelBeatClickVolumeLoud">
+          <property name="text">
+           <string>Loud</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -480,6 +575,26 @@
         </item>
        </layout>
       </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackRestart">
+        <item>
+         <widget class="QLabel" name="labelFeedbackRestart">
+          <property name="text">
+           <string>Back-to-start feedback:</string>
+          </property>
+          <property name="toolTip">
+           <string>Feedback for jumping back to the start of the track (Start key or cue-goto-and-stop). Not included in "All transport feedback" above since it's a less frequent action.</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackRestart</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackRestart"/>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>
@@ -520,6 +635,23 @@
        </widget>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackLoop">
+        <item>
+         <widget class="QLabel" name="labelFeedbackLoop">
+          <property name="text">
+           <string>Loop on/off feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackLoop</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackLoop"/>
+        </item>
+       </layout>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceHotcue">
         <property name="toolTip">
          <string>Speak when a hotcue is set or cleared.</string>
@@ -558,6 +690,26 @@
          <string>Announce controls while they move</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutMixerStyle">
+        <item>
+         <widget class="QLabel" name="labelMixerStyle">
+          <property name="text">
+           <string>Speak mixer values as:</string>
+          </property>
+          <property name="toolTip">
+           <string>How fader and knob positions are spoken: fractions (e.g. "three quarters") or exact percentages (e.g. "75 percent").</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxMixerStyle</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxMixerStyle"/>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

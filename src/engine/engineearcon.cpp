@@ -18,14 +18,24 @@ struct Grain {
 };
 
 // Percussive gestures. Direction encodes meaning: rising = start/engage,
-// falling = stop/disengage; end-of-track is three urgent pips. Pitches sit in
-// a mid-high niche (500-1300 Hz) that stays audible over a mix.
+// falling = stop/disengage; end-of-track is three urgent pips; restart is a
+// double-tap distinct from the rising/falling family. Pitches sit in a
+// mid-high niche (500-1300 Hz) that stays audible over a mix, with each
+// event pair using its own pitch class so gestures don't get confused.
 const Grain kPlay[] = {{587.0, 0.0, 55.0}, {880.0, 50.0, 65.0}};
 const Grain kStop[] = {{880.0, 0.0, 55.0}, {587.0, 50.0, 70.0}};
 const Grain kEndOfTrack[] = {
         {1175.0, 0.0, 45.0}, {1175.0, 70.0, 45.0}, {1175.0, 140.0, 55.0}};
 const Grain kCueOn[] = {{784.0, 0.0, 60.0}};
 const Grain kCueOff[] = {{523.0, 0.0, 70.0}};
+// Two identical short pips: a "tuk-tuk" rewind feel, distinct from the
+// rising/falling pairs used for state toggles.
+const Grain kRestart[] = {{659.0, 0.0, 35.0}, {659.0, 45.0, 35.0}};
+const Grain kLoopOn[] = {{698.0, 0.0, 55.0}, {1047.0, 50.0, 65.0}};
+const Grain kLoopOff[] = {{1047.0, 0.0, 55.0}, {698.0, 50.0, 70.0}};
+// A low, urgent double-buzz distinct from every other gesture's mid-high
+// register, so a clipping warning can never be mistaken for a routine cue.
+const Grain kClipping[] = {{350.0, 0.0, 60.0}, {350.0, 70.0, 60.0}};
 
 struct Gesture {
     const Grain* grains;
@@ -44,6 +54,14 @@ Gesture gestureFor(EngineEarcon::Id id) {
         return {kCueOn, 1};
     case EngineEarcon::Id::CueOff:
         return {kCueOff, 1};
+    case EngineEarcon::Id::Restart:
+        return {kRestart, 2};
+    case EngineEarcon::Id::LoopOn:
+        return {kLoopOn, 2};
+    case EngineEarcon::Id::LoopOff:
+        return {kLoopOff, 2};
+    case EngineEarcon::Id::Clipping:
+        return {kClipping, 2};
     }
     return {nullptr, 0};
 }

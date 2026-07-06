@@ -78,20 +78,28 @@ Key source files:
 - Recording started / stopped
 - Optionally, continuous controls can announce *while* they move
   (throttled) instead of only at rest
-- Volume faders, EQ knobs, and the crossfader (opt-in — off by
-  default because these move constantly during a mix)
+- Volume faders, EQ knobs, the crossfader, and the headphone mix
+  (cue vs. main) knob (opt-in — off by default because these move
+  constantly during a mix); spoken as fractions or, if preferred,
+  percentages (`MixerReadoutStyle` setting)
+- Audio clipping on the main output (on by default; throttled)
 - Sidebar item names while navigating with arrow keys
 - Library pane focus changes (search bar / sidebar / track list)
 - Search feedback ("Searching: …" / "Search cleared")
+- On-demand track re-announce per deck (`tts_track`), for re-hearing
+  a loaded track's name mid-set
 
 Each category can be toggled independently in Preferences >
 Accessibility.
 
-Play, stop, end of track, and headphone cue can alternatively (or
-additionally) be signalled with short percussive **earcons** instead of
-speech — see the "Transport feedback" setting. Earcons are deck-panned
-(deck 1 left, deck 2 right), synthesized in `src/engine/engineearcon.cpp`
-and mixed into the headphone bus like the beat click.
+Play, stop, end of track, headphone cue, back-to-start, and loop on/off
+can alternatively (or additionally) be signalled with short percussive
+**earcons** instead of speech, chosen independently per event (with an
+"All transport feedback" preset covering the first four). Earcons are
+deck-panned (deck 1 left, deck 2 right; clipping is centered),
+synthesized in `src/engine/engineearcon.cpp` and mixed into the
+headphone bus like the beat click. Level is the `[Earcon],volume`
+control.
 
 ## Other accessibility changes
 

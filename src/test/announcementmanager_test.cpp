@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 
 #include "audio/types.h"
+#include "control/controlaudiotaperpot.h"
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "engine/enginetts.h"
@@ -1183,7 +1184,11 @@ TEST_F(AnnouncementManagerPerformanceTest, MainVolume_Announced) {
     pMainGain->set(1.0);
     SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
 
-    pMainGain->set(0.5); // half of the cut range = minus a half
+    // [Master],gain is a ControlAudioTaperPot with neutral parameter 0.5; the
+    // test CO has no taper behavior attached, so getParameter() is identity
+    // and the raw value IS the fader parameter here. 0.25 is a quarter of the
+    // way from minimum to center, i.e. half of the cut range below center.
+    pMainGain->set(0.25); // half of the cut range = minus a half
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
     EXPECT_QSTRING_EQ("Main volume minus a half", pSpy->lastText);
@@ -1485,13 +1490,71 @@ TEST_F(AnnouncementManagerPerformanceTest, Trim_CenterSplit) {
     SpyTtsEngine* pSpy = makeManager();
     auto pPregain = std::make_unique<ControlObject>(
             ConfigKey(QLatin1String(kGroup), QStringLiteral("pregain")));
-    pPregain->set(1.0);
+    pPregain->set(0.5); // neutral parameter: unity gain, center
     setupGroup();
 
-    pPregain->set(0.75); // a quarter below unity
+    // pregain is a ControlAudioTaperPot with neutral parameter 0.5; the test
+    // CO has no taper behavior, so getParameter() is identity and 0.375 is a
+    // quarter below center on the -1..1 split scale ((0.375-0.5)*2 = -0.25).
+    pPregain->set(0.375); // a quarter below unity
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
     EXPECT_QSTRING_EQ("[TestChannel1] trim minus a quarter", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Regression: volume/trim/gain readouts must speak the fader/knob POSITION,
+// not the dB-tapered gain value. A physical half-way fader is roughly a
+// quarter of the way through the linear gain range, so reading get() instead
+// of getParameter() spoke "a quarter" for a fader the user had put at "half".
+// These use a real ControlAudioTaperPot (not a plain ControlObject) so the
+// taper behavior is actually exercised, unlike the other volume/trim tests.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_TaperedControl_HalfFaderIsAHalf) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    // Mirrors EngineMixer's real volume control: ControlAudioTaperPot(-20, 0, 1).
+    // Must exist before makeManager() so connectGroupControls()'s ControlProxy
+    // binds to it (a proxy constructed before the control exists never
+    // retroactively attaches).
+    auto pVolume = std::make_unique<ControlAudioTaperPot>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("volume")), -20, 0, 1);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(); // wires up connectGroupControls() for kGroup, incl. volume
+
+    pVolume->setParameter(0.5);
+    ASSERT_NE(0.5, pVolume->get())
+            << "precondition: the dB taper must make value diverge from "
+               "parameter at the fader's half-way position, or this test "
+               "isn't exercising the bug";
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume a half", pSpy->lastText)
+            << "announcement must read the fader position, not the tapered "
+               "gain value: "
+            << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, MainVolume_TaperedControl_CenterIsCenter) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    // Mirrors EngineMixer's real [Master],gain control.
+    auto pMainGain = std::make_unique<ControlAudioTaperPot>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("gain")), -14, 14, 0.5);
+    SpyTtsEngine* pSpy = makeManager();
+
+    // The constructor already sets parameter to neutralParameter (0.5, i.e.
+    // this same "center" value), so setParameter(0.5) alone would be a no-op
+    // that never fires valueChanged. Move away first to force a real
+    // transition back to center.
+    pMainGain->setParameter(0.0);
+    pMainGain->setParameter(0.5); // knob centered = unity gain = 0 dB
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Main volume center", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, EffectUnitMix_Announced) {
@@ -1686,4 +1749,258 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackMode_DoesNotAffectNonEarconEv
     m_pLoopEnabled->set(1.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] loop 8 beats", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// MixerReadoutStyle preference: percentages instead of fractions.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_Percent_Volume) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("MixerReadoutStyle")),
+            1); // percent
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume 75 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_Percent_CenterSplit) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("MixerReadoutStyle")),
+            1); // percent
+    SpyTtsEngine* pSpy = makeManager();
+    auto pPregain = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("pregain")));
+    pPregain->set(0.5); // neutral parameter: unity gain, center
+    setupGroup();
+
+    pPregain->set(0.25); // half below center on the -1..1 split scale
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] trim minus 50 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_DefaultIsFractions) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Headphone mix (cue vs main) announcement.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, HeadMix_LeaningCue_Announced) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pHeadMix->set(-0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Headphone mix cue three quarters", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, HeadMix_LeaningMain_Announced) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pHeadMix->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Headphone mix main a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, HeadMix_Even_Announced) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    pHeadMix->set(-1.0);
+    SpyTtsEngine* pSpy = makeManager();
+
+    pHeadMix->set(0.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Headphone mix even", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pHeadMix->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// On-demand track re-announce (tts_track), for re-hearing a loaded track's
+// name mid-set without waiting for the original load announcement.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerStatusTest, FormatTrackName_NoTrackLoaded) {
+    makeManager();
+    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+            m_pManager->formatTrackName(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, TrackButton_TriggersAnnouncement) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(); // creates the tts_track trigger button for the group
+
+    ControlProxy trackButton(QLatin1String(kGroup),
+            QStringLiteral("tts_track"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    trackButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("No track loaded")))
+            << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatTrackName_Concise) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("ConciseAnnouncements")),
+            true);
+    makeManager();
+    EXPECT_QSTRING_EQ("No track loaded.",
+            m_pManager->formatTrackName(QString::fromLatin1(kGroup), 0));
+}
+
+// ---------------------------------------------------------------------------
+// Restart and loop on/off also route through emitCue's per-event feedback
+// mode, same as the original four transport events.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_RestartSilentSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeRestart")),
+            1); // sounds only
+    SpyTtsEngine* pSpy = makeManager();
+    auto pStart = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("start")));
+    setupGroup();
+
+    pStart->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak back-to-start";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_LoopSilentSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeLoop")),
+            1); // sounds only
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "sounds-only mode must not speak loop on";
+
+    m_pLoopEnabled->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "sounds-only mode must not speak loop off";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackBothMode_LoopStillSpeaks) {
+    // Default mode is "both", so loop announcements keep their existing text.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop on", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Master output clipping warning.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Clipping_Announced) {
+    auto pPeak = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Main]"), QStringLiteral("peak_indicator")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pPeak->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Clipping", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Clipping_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceClipping")),
+            false);
+    auto pPeak = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Main]"), QStringLiteral("peak_indicator")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pPeak->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, Clipping_ThrottledOnRepeatedPeaks) {
+    auto pPeak = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Main]"), QStringLiteral("peak_indicator")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pPeak->set(1.0);
+    QCoreApplication::processEvents();
+    ASSERT_EQ(1, pSpy->callCount);
+
+    // A second peak shortly after must not re-announce (throttled).
+    pPeak->set(0.0);
+    pPeak->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(1, pSpy->callCount)
+            << "clipping warning must be throttled during sustained clipping";
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_ClippingSilentSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeClipping")),
+            1); // sounds only
+    auto pPeak = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Main]"), QStringLiteral("peak_indicator")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pPeak->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak the clipping warning";
 }
