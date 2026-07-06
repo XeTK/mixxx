@@ -1,6 +1,7 @@
 #include "preferences/dialog/dlgprefaccessibility.h"
 
 #include <QLabel>
+#include <QSignalBlocker>
 #include <algorithm>
 #include <cmath>
 
@@ -85,22 +86,44 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             [this](int index) { m_ttsRoute = index; });
+    connect(comboBoxFeedbackAll,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) {
+                // Index 0 is Custom (a display state), so ignore it; 1..3 are
+                // the presets mapping to modes 0..2.
+                if (index >= 1) {
+                    applyFeedbackPreset(index - 1);
+                }
+            });
     connect(comboBoxFeedbackPlay,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) { m_feedbackModePlay = index; });
+            [this](int index) {
+                m_feedbackModePlay = index;
+                syncFeedbackAllCombo();
+            });
     connect(comboBoxFeedbackStop,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) { m_feedbackModeStop = index; });
+            [this](int index) {
+                m_feedbackModeStop = index;
+                syncFeedbackAllCombo();
+            });
     connect(comboBoxFeedbackEndOfTrack,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) { m_feedbackModeEndOfTrack = index; });
+            [this](int index) {
+                m_feedbackModeEndOfTrack = index;
+                syncFeedbackAllCombo();
+            });
     connect(comboBoxFeedbackCue,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) { m_feedbackModeCue = index; });
+            [this](int index) {
+                m_feedbackModeCue = index;
+                syncFeedbackAllCombo();
+            });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -231,6 +254,37 @@ void DlgPrefAccessibility::populateFeedbackModeCombos() {
         pCombo->addItem(tr("Sounds"));
         pCombo->addItem(tr("Sounds and speech"));
     }
+    // The master preset: index 0 is Custom (shown when the four differ);
+    // indexes 1..3 map to modes 0..2 and set all four when chosen.
+    comboBoxFeedbackAll->clear();
+    comboBoxFeedbackAll->addItem(tr("Custom"));
+    comboBoxFeedbackAll->addItem(tr("Speech"));
+    comboBoxFeedbackAll->addItem(tr("Sounds"));
+    comboBoxFeedbackAll->addItem(tr("Sounds and speech"));
+}
+
+void DlgPrefAccessibility::applyFeedbackPreset(int mode) {
+    m_feedbackModePlay = mode;
+    m_feedbackModeStop = mode;
+    m_feedbackModeEndOfTrack = mode;
+    m_feedbackModeCue = mode;
+    // Signals are blocked while we set the children so this doesn't recurse
+    // back through the per-combo handlers.
+    for (QComboBox* pCombo : {comboBoxFeedbackPlay,
+                 comboBoxFeedbackStop,
+                 comboBoxFeedbackEndOfTrack,
+                 comboBoxFeedbackCue}) {
+        const QSignalBlocker blocker(pCombo);
+        pCombo->setCurrentIndex(mode);
+    }
+}
+
+void DlgPrefAccessibility::syncFeedbackAllCombo() {
+    const bool allEqual = m_feedbackModePlay == m_feedbackModeStop &&
+            m_feedbackModePlay == m_feedbackModeEndOfTrack &&
+            m_feedbackModePlay == m_feedbackModeCue;
+    const QSignalBlocker blocker(comboBoxFeedbackAll);
+    comboBoxFeedbackAll->setCurrentIndex(allEqual ? m_feedbackModePlay + 1 : 0);
 }
 
 void DlgPrefAccessibility::populateVoiceCombo() {
@@ -270,6 +324,7 @@ void DlgPrefAccessibility::slotUpdate() {
             m_feedbackModeEndOfTrack, 0, comboBoxFeedbackEndOfTrack->count() - 1));
     comboBoxFeedbackCue->setCurrentIndex(
             std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
+    syncFeedbackAllCombo();
     const double duckStrength = readDuckStrengthControl();
     m_duckStrengthPercent = duckStrength > 0.0
             ? static_cast<int>(std::lround(duckStrength * 100))
@@ -384,6 +439,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
             m_feedbackModeEndOfTrack, 0, comboBoxFeedbackEndOfTrack->count() - 1));
     comboBoxFeedbackCue->setCurrentIndex(
             std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
+    syncFeedbackAllCombo();
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();

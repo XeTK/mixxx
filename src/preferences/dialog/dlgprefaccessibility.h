@@ -28,6 +28,12 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     void populateRouteCombo();
     void populateVoiceCombo();
     void populateFeedbackModeCombos();
+    // Apply a preset (0 speech, 1 sounds, 2 both) to all four per-event
+    // feedback combos at once.
+    void applyFeedbackPreset(int mode);
+    // Refresh the "All transport feedback" combo from the four per-event
+    // values: the matching preset when they agree, otherwise Custom.
+    void syncFeedbackAllCombo();
     int indexForVoiceId(const QString& voiceId) const;
 
     AccessibilitySettings m_settings;

@@ -66,10 +66,12 @@ not tie up the speech channel, which matters when you are acting fast.
 The events covered are play, stop, end of track, and headphone cue on
 and off; everything else is always spoken.
 
-Each of the four events is set independently under Preferences,
-Accessibility, in the Playback Announcements group ("Play feedback",
-"Stop feedback", "End of track feedback", "Headphone cue feedback").
-Each offers:
+Set them under Preferences, Accessibility, in the Playback
+Announcements group. "All transport feedback" sets play, stop, end of
+track, and headphone cue at once; or set each with its own combo ("Play
+feedback", "Stop feedback", "End of track feedback", "Headphone cue
+feedback"). When the four differ, "All transport feedback" reads
+Custom. Each combo offers:
 
 - **Speech** — spoken as before.
 - **Sounds** — a short percussive cue, panned to the deck (deck 1 in
