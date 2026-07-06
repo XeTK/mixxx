@@ -468,8 +468,23 @@ void AnnouncementManager::speak(const QString& text) {
 }
 
 void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& speechText) {
-    // 0 = speech, 1 = sounds, 2 = both.
-    const int mode = m_settings.getFeedbackMode();
+    // Per-event feedback mode: 0 = speech, 1 = sounds, 2 = both.
+    int mode = 2;
+    switch (static_cast<EngineEarcon::Id>(earconId)) {
+    case EngineEarcon::Id::Play:
+        mode = m_settings.getFeedbackModePlay();
+        break;
+    case EngineEarcon::Id::Stop:
+        mode = m_settings.getFeedbackModeStop();
+        break;
+    case EngineEarcon::Id::EndOfTrack:
+        mode = m_settings.getFeedbackModeEndOfTrack();
+        break;
+    case EngineEarcon::Id::CueOn:
+    case EngineEarcon::Id::CueOff:
+        mode = m_settings.getFeedbackModeCue();
+        break;
+    }
     if (mode != 1) {
         speak(speechText);
     }

@@ -66,7 +66,10 @@ not tie up the speech channel, which matters when you are acting fast.
 The events covered are play, stop, end of track, and headphone cue on
 and off; everything else is always spoken.
 
-Set this under Preferences, Accessibility, "Transport feedback":
+Each of the four events is set independently under Preferences,
+Accessibility, in the Playback Announcements group ("Play feedback",
+"Stop feedback", "End of track feedback", "Headphone cue feedback").
+Each offers:
 
 - **Speech** — spoken as before.
 - **Sounds** — a short percussive cue, panned to the deck (deck 1 in
@@ -75,6 +78,11 @@ Set this under Preferences, Accessibility, "Transport feedback":
   of track.
 - **Sounds and speech** (default) — both, so you learn which sound
   means what. Once the sounds are familiar, switch to Sounds only.
+
+Because it is per event, you can, for example, keep play and stop as
+sounds but have end of track still spoken with its time remaining. Each
+event's on/off checkbox above still applies: unchecking it silences the
+event entirely regardless of the feedback choice.
 
 Sound level is the `[Earcon],volume` control. In Sounds mode the
 end-of-track cue is just the alert; the spoken time-remaining is only

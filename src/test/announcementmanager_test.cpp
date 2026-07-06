@@ -1607,14 +1607,14 @@ TEST_F(AnnouncementManagerTest, PlaylistEdit_SettingDisabled_Silent) {
 }
 
 // ---------------------------------------------------------------------------
-// Feedback mode: earcon-capable transport events (play/stop/cue/end-of-track)
-// honor FeedbackMode. Earcon sink is null in tests, so we assert the speech
-// side: mode 1 (sounds) suppresses speech, mode 0/2 keep it.
+// Per-event feedback mode: each earcon-capable transport event honors its own
+// FeedbackMode* setting. The earcon sink is null in tests, so we assert the
+// speech side: mode 1 (sounds) suppresses speech, mode 0/2 keep it.
 // ---------------------------------------------------------------------------
 
 TEST_F(AnnouncementManagerPerformanceTest, FeedbackSpeechMode_PlaySpeaks) {
-    config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModePlay")),
             0); // speech
     SpyTtsEngine* pSpy = makeManager();
     setupGroup();
@@ -1624,8 +1624,8 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSpeechMode_PlaySpeaks) {
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_PlaySilentSpeech) {
-    config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModePlay")),
             1); // sounds only
     SpyTtsEngine* pSpy = makeManager();
     setupGroup();
@@ -1636,8 +1636,8 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_PlaySilentSpeech) 
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FeedbackBothMode_PlaySpeaksToo) {
-    config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModePlay")),
             2); // both
     SpyTtsEngine* pSpy = makeManager();
     setupGroup();
@@ -1647,8 +1647,8 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackBothMode_PlaySpeaksToo) {
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_CueSilentSpeech) {
-    config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeCue")),
             1);
     SpyTtsEngine* pSpy = makeManager();
     setupGroup();
@@ -1658,11 +1658,25 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_CueSilentSpeech) {
             << "sounds-only mode must not speak the headphone cue";
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, FeedbackMode_IsPerEvent) {
+    // Play set to sounds-only must not silence the headphone cue, which keeps
+    // its own (default) mode.
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModePlay")),
+            1);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+    EXPECT_EQ(1, pSpy->callCount) << "cue feedback must be independent of play";
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("headphone cue")));
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, FeedbackMode_DoesNotAffectNonEarconEvents) {
-    // Loop announcements are not earcon-capable, so sounds-only mode must not
-    // silence them.
-    config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("FeedbackMode")),
+    // Loop announcements are not earcon-capable, so a sounds-only transport
+    // mode must not silence them.
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModePlay")),
             1);
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

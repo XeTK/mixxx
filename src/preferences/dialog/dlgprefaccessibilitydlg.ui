@@ -31,36 +31,6 @@
        </widget>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayoutFeedback">
-        <item>
-         <widget class="QLabel" name="labelFeedback">
-          <property name="text">
-           <string>Transport feedback:</string>
-          </property>
-          <property name="toolTip">
-           <string>How play, stop, end of track, and headphone cue are signalled: spoken, a short percussive sound (deck 1 left, deck 2 right), or both. Other announcements are always spoken.</string>
-          </property>
-          <property name="buddy">
-           <cstring>comboBoxFeedbackMode</cstring>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="comboBoxFeedbackMode">
-          <property name="toolTip">
-           <string>How play, stop, end of track, and headphone cue are signalled: spoken, a short percussive sound (deck 1 left, deck 2 right), or both. Other announcements are always spoken.</string>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>1</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
        <layout class="QHBoxLayout" name="horizontalLayoutRoute">
         <item>
          <widget class="QLabel" name="labelRoute">
@@ -411,6 +381,84 @@
          <string>Announce end of track</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelFeedbackHeading">
+        <property name="text">
+         <string>For each of the above, choose spoken words, a short percussive sound (deck 1 left, deck 2 right), or both:</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackPlay">
+        <item>
+         <widget class="QLabel" name="labelFeedbackPlay">
+          <property name="text">
+           <string>Play feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackPlay</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackPlay"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackStop">
+        <item>
+         <widget class="QLabel" name="labelFeedbackStop">
+          <property name="text">
+           <string>Stop feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackStop</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackStop"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackEndOfTrack">
+        <item>
+         <widget class="QLabel" name="labelFeedbackEndOfTrack">
+          <property name="text">
+           <string>End of track feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackEndOfTrack</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackEndOfTrack"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFeedbackCue">
+        <item>
+         <widget class="QLabel" name="labelFeedbackCue">
+          <property name="text">
+           <string>Headphone cue feedback:</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFeedbackCue</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFeedbackCue"/>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

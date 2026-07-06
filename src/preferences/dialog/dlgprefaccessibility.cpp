@@ -41,7 +41,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
           m_duckStrengthPercent(kDefaultDuckStrengthPercent),
-          m_feedbackMode(m_settings.getFeedbackModeDefault()),
+          m_feedbackModePlay(m_settings.getFeedbackModePlayDefault()),
+          m_feedbackModeStop(m_settings.getFeedbackModeStopDefault()),
+          m_feedbackModeEndOfTrack(m_settings.getFeedbackModeEndOfTrackDefault()),
+          m_feedbackModeCue(m_settings.getFeedbackModeCueDefault()),
           m_bAnnounceStartup(m_settings.getAnnounceStartupDefault()),
           m_bAnnounceSelection(m_settings.getAnnounceTrackSelectionDefault()),
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
@@ -64,7 +67,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
     setupUi(this);
     populateRouteCombo();
     populateVoiceCombo();
-    populateFeedbackModeCombo();
+    populateFeedbackModeCombos();
 
     if (!TtsEngine::isAvailable()) {
         auto* pWarning = new QLabel(
@@ -82,10 +85,22 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             [this](int index) { m_ttsRoute = index; });
-    connect(comboBoxFeedbackMode,
+    connect(comboBoxFeedbackPlay,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            [this](int index) { m_feedbackMode = index; });
+            [this](int index) { m_feedbackModePlay = index; });
+    connect(comboBoxFeedbackStop,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeStop = index; });
+    connect(comboBoxFeedbackEndOfTrack,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeEndOfTrack = index; });
+    connect(comboBoxFeedbackCue,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_feedbackModeCue = index; });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -205,13 +220,17 @@ void DlgPrefAccessibility::populateRouteCombo() {
     comboBoxTtsRoute->addItem(tr("Main output (audience)"));
 }
 
-void DlgPrefAccessibility::populateFeedbackModeCombo() {
-    // Order must match AccessibilitySettings FeedbackMode: 0 speech, 1 sounds,
-    // 2 both.
-    comboBoxFeedbackMode->clear();
-    comboBoxFeedbackMode->addItem(tr("Speech"));
-    comboBoxFeedbackMode->addItem(tr("Sounds"));
-    comboBoxFeedbackMode->addItem(tr("Sounds and speech"));
+void DlgPrefAccessibility::populateFeedbackModeCombos() {
+    // Order must match the FeedbackMode* settings: 0 speech, 1 sounds, 2 both.
+    for (QComboBox* pCombo : {comboBoxFeedbackPlay,
+                 comboBoxFeedbackStop,
+                 comboBoxFeedbackEndOfTrack,
+                 comboBoxFeedbackCue}) {
+        pCombo->clear();
+        pCombo->addItem(tr("Speech"));
+        pCombo->addItem(tr("Sounds"));
+        pCombo->addItem(tr("Sounds and speech"));
+    }
 }
 
 void DlgPrefAccessibility::populateVoiceCombo() {
@@ -239,9 +258,18 @@ void DlgPrefAccessibility::slotUpdate() {
     m_ttsRoute = m_settings.getTtsRoute();
     m_ttsVoiceId = m_settings.getTtsVoice();
     m_ttsRate = m_settings.getTtsRate();
-    m_feedbackMode = m_settings.getFeedbackMode();
-    comboBoxFeedbackMode->setCurrentIndex(
-            std::clamp(m_feedbackMode, 0, comboBoxFeedbackMode->count() - 1));
+    m_feedbackModePlay = m_settings.getFeedbackModePlay();
+    m_feedbackModeStop = m_settings.getFeedbackModeStop();
+    m_feedbackModeEndOfTrack = m_settings.getFeedbackModeEndOfTrack();
+    m_feedbackModeCue = m_settings.getFeedbackModeCue();
+    comboBoxFeedbackPlay->setCurrentIndex(
+            std::clamp(m_feedbackModePlay, 0, comboBoxFeedbackPlay->count() - 1));
+    comboBoxFeedbackStop->setCurrentIndex(
+            std::clamp(m_feedbackModeStop, 0, comboBoxFeedbackStop->count() - 1));
+    comboBoxFeedbackEndOfTrack->setCurrentIndex(std::clamp(
+            m_feedbackModeEndOfTrack, 0, comboBoxFeedbackEndOfTrack->count() - 1));
+    comboBoxFeedbackCue->setCurrentIndex(
+            std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
     const double duckStrength = readDuckStrengthControl();
     m_duckStrengthPercent = duckStrength > 0.0
             ? static_cast<int>(std::lround(duckStrength * 100))
@@ -296,7 +324,10 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setTtsRoute(m_ttsRoute);
     m_settings.setTtsVoice(m_ttsVoiceId);
     m_settings.setTtsRate(m_ttsRate);
-    m_settings.setFeedbackMode(m_feedbackMode);
+    m_settings.setFeedbackModePlay(m_feedbackModePlay);
+    m_settings.setFeedbackModeStop(m_feedbackModeStop);
+    m_settings.setFeedbackModeEndOfTrack(m_feedbackModeEndOfTrack);
+    m_settings.setFeedbackModeCue(m_feedbackModeCue);
     writeDuckStrengthControl(m_duckStrengthPercent);
     m_settings.setAnnounceStartup(m_bAnnounceStartup);
     m_settings.setAnnounceTrackSelection(m_bAnnounceSelection);
@@ -341,9 +372,18 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
     m_ttsRate = m_settings.getTtsRateDefault();
-    m_feedbackMode = m_settings.getFeedbackModeDefault();
-    comboBoxFeedbackMode->setCurrentIndex(
-            std::clamp(m_feedbackMode, 0, comboBoxFeedbackMode->count() - 1));
+    m_feedbackModePlay = m_settings.getFeedbackModePlayDefault();
+    m_feedbackModeStop = m_settings.getFeedbackModeStopDefault();
+    m_feedbackModeEndOfTrack = m_settings.getFeedbackModeEndOfTrackDefault();
+    m_feedbackModeCue = m_settings.getFeedbackModeCueDefault();
+    comboBoxFeedbackPlay->setCurrentIndex(
+            std::clamp(m_feedbackModePlay, 0, comboBoxFeedbackPlay->count() - 1));
+    comboBoxFeedbackStop->setCurrentIndex(
+            std::clamp(m_feedbackModeStop, 0, comboBoxFeedbackStop->count() - 1));
+    comboBoxFeedbackEndOfTrack->setCurrentIndex(std::clamp(
+            m_feedbackModeEndOfTrack, 0, comboBoxFeedbackEndOfTrack->count() - 1));
+    comboBoxFeedbackCue->setCurrentIndex(
+            std::clamp(m_feedbackModeCue, 0, comboBoxFeedbackCue->count() - 1));
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();

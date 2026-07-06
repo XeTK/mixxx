@@ -27,7 +27,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
   private:
     void populateRouteCombo();
     void populateVoiceCombo();
-    void populateFeedbackModeCombo();
+    void populateFeedbackModeCombos();
     int indexForVoiceId(const QString& voiceId) const;
 
     AccessibilitySettings m_settings;
@@ -37,7 +37,10 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     QString m_ttsVoiceId;
     int m_ttsRate;
     int m_duckStrengthPercent;
-    int m_feedbackMode;
+    int m_feedbackModePlay;
+    int m_feedbackModeStop;
+    int m_feedbackModeEndOfTrack;
+    int m_feedbackModeCue;
     bool m_bAnnounceStartup;
     bool m_bAnnounceSelection;
     bool m_bAnnounceLoad;
