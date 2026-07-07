@@ -134,6 +134,8 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
                   ConfigKey(group, "headSplit"), true, 0.0)),
           m_pHeadSplitDecks(std::make_unique<ControlPushButton>(
                   ConfigKey(group, "headSplitDecks"), true, 0.0)),
+          m_pDisableTouchScratch(std::make_unique<ControlPushButton>(
+                  ConfigKey(group, "disable_touch_scratch"))),
           m_headSplitScratch(kMaxEngineSamples),
 
           m_pKeylockEngine(std::make_unique<ControlObject>(
@@ -205,6 +207,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
     m_pHeadSplitEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_pHeadSplitDecks->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_pHeadSplitEnabled->set(0.0);
+    m_pDisableTouchScratch->setButtonMode(mixxx::control::ButtonMode::Toggle);
 
     // zero out otherwise uninitialized buffers
     m_head.clear();

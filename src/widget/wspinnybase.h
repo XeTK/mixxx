@@ -115,6 +115,9 @@ class WSpinnyBase : public WGLWidget,
     PollingControlProxy m_pTrackSampleRate;
     PollingControlProxy m_pScratchToggle;
     PollingControlProxy m_pScratchPos;
+    // Accessibility: when set, ignore click-and-drag scratching on this
+    // widget so an accidental touch can't disturb playback.
+    PollingControlProxy m_pDisableTouchScratch;
     parented_ptr<ControlProxy> m_pVinylControlSpeedType;
     parented_ptr<ControlProxy> m_pVinylControlEnabled;
     parented_ptr<ControlProxy> m_pSignalEnabled;

@@ -76,6 +76,9 @@ class WWaveformViewer : public WWidget, public TrackDropTarget {
     ControlProxy* m_pScratchPosition;
     ControlProxy* m_pWheel;
     ControlProxy* m_pPlayEnabled;
+    // Accessibility: when set, ignore click-and-drag scratching/bending on
+    // this widget so an accidental touch can't disturb playback.
+    ControlProxy* m_pDisableTouchScratch;
     parented_ptr<ControlProxy> m_pPassthroughEnabled;
     bool m_bScratching;
     bool m_bBending;

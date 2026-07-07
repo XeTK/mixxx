@@ -352,6 +352,11 @@ class EngineMixer : public QObject, public AudioSource {
     // deck 2's in the right, so a blind DJ can monitor both decks at once.
     // Takes precedence over the classic headSplit while enabled.
     std::unique_ptr<ControlPushButton> m_pHeadSplitDecks;
+    // Accessibility: when locked, click-and-drag scratching on the on-screen
+    // waveform and vinyl widgets is ignored on both decks, so an accidental
+    // touch (mouse or touchscreen) can't disturb playback. Read directly by
+    // WWaveformViewer and WSpinnyBase; not consumed here.
+    std::unique_ptr<ControlPushButton> m_pDisableTouchScratch;
     mixxx::SampleBuffer m_headSplitScratch;
     QVarLengthArray<ChannelInfo*, kPreallocatedChannels> m_headSplitLeftChannels;
     QVarLengthArray<ChannelInfo*, kPreallocatedChannels> m_headSplitRightChannels;

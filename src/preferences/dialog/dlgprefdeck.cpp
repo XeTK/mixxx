@@ -42,6 +42,10 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
                   kAppGroup, QStringLiteral("num_decks"), this)),
           m_pNumSamplers(make_parented<ControlProxy>(
                   kAppGroup, QStringLiteral("num_samplers"), this)),
+          m_pDisableTouchScratch(make_parented<ControlProxy>(
+                  QStringLiteral("[Master]"),
+                  QStringLiteral("disable_touch_scratch"),
+                  this)),
           m_iNumConfiguredDecks(0),
           m_iNumConfiguredSamplers(0) {
     setupUi(this);
@@ -229,6 +233,15 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             &QCheckBox::toggled,
             this,
             &DlgPrefDeck::slotDisablePreRollCheckbox);
+
+    m_bDisableTouchScratch = m_pConfig->getValue(
+            ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")), false);
+    checkBoxDisableTouchScratch->setChecked(m_bDisableTouchScratch);
+    m_pDisableTouchScratch->set(m_bDisableTouchScratch ? 1.0 : 0.0);
+    connect(checkBoxDisableTouchScratch,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefDeck::slotDisableTouchScratchCheckbox);
 
     m_bRateDownIncreasesSpeed = m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("RateDir")), kDefaultRateDirectionInverted);
@@ -456,6 +469,9 @@ void DlgPrefDeck::slotUpdate() {
     checkBoxDisablePreRoll->setChecked(m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("DisablePreRoll")), false));
 
+    checkBoxDisableTouchScratch->setChecked(m_pConfig->getValue(
+            ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")), false));
+
     double rateRange = m_rateRangeControls[0]->get();
     int index = ComboBoxRateRange->findData(static_cast<int>(rateRange * 100.0));
     if (index == -1) {
@@ -543,6 +559,7 @@ void DlgPrefDeck::slotResetToDefaults() {
     checkBoxCloneDeckOnLoadDoubleTap->setChecked(kDefaultCloneDeckOnLoad);
 
     checkBoxDisablePreRoll->setChecked(false);
+    checkBoxDisableTouchScratch->setChecked(false);
 
     // Mixxx cue mode
     ComboBoxCueMode->setCurrentIndex(0);
@@ -637,6 +654,10 @@ void DlgPrefDeck::slotCloneDeckOnLoadDoubleTapCheckbox(bool checked) {
 
 void DlgPrefDeck::slotDisablePreRollCheckbox(bool checked) {
     m_bDisablePreRoll = checked;
+}
+
+void DlgPrefDeck::slotDisableTouchScratchCheckbox(bool checked) {
+    m_bDisableTouchScratch = checked;
 }
 
 void DlgPrefDeck::slotSetTrackTimeDisplay(QAbstractButton* b) {
@@ -737,6 +758,10 @@ void DlgPrefDeck::slotApply() {
     for (ControlProxy* pControl : std::as_const(m_disablePreRollControls)) {
         pControl->set(m_bDisablePreRoll ? 1.0 : 0.0);
     }
+
+    m_pConfig->setValue(ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")),
+            m_bDisableTouchScratch);
+    m_pDisableTouchScratch->set(m_bDisableTouchScratch ? 1.0 : 0.0);
 
     // Set rate range
     // Set the config value before setting the CO values in setRateRangeForAllDecks()

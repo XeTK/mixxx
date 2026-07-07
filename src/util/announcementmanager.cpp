@@ -173,6 +173,47 @@ QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
     }
     return kNames[idx];
 }
+
+// Spells out a deck letter so it is pronounced as a letter name rather than
+// misread as a word — "A" in particular is also the indefinite article, so
+// TTS engines often read a bare "A" with its unstressed "uh" pronunciation
+// instead of the letter name "ay". Spelling out every letter keeps this
+// robust across engines rather than special-casing just A.
+QString phoneticLetter(QChar letter) {
+    static const QString kNames[] = {
+            QStringLiteral("Ay"),       // A
+            QStringLiteral("Bee"),      // B
+            QStringLiteral("See"),      // C
+            QStringLiteral("Dee"),      // D
+            QStringLiteral("Ee"),       // E
+            QStringLiteral("Eff"),      // F
+            QStringLiteral("Jee"),      // G
+            QStringLiteral("Aitch"),    // H
+            QStringLiteral("Eye"),      // I
+            QStringLiteral("Jay"),      // J
+            QStringLiteral("Kay"),      // K
+            QStringLiteral("El"),       // L
+            QStringLiteral("Em"),       // M
+            QStringLiteral("En"),       // N
+            QStringLiteral("Oh"),       // O
+            QStringLiteral("Pee"),      // P
+            QStringLiteral("Kew"),      // Q
+            QStringLiteral("Ar"),       // R
+            QStringLiteral("Ess"),      // S
+            QStringLiteral("Tee"),      // T
+            QStringLiteral("You"),      // U
+            QStringLiteral("Vee"),      // V
+            QStringLiteral("Double-u"), // W
+            QStringLiteral("Ex"),       // X
+            QStringLiteral("Why"),      // Y
+            QStringLiteral("Zee"),      // Z
+    };
+    const int idx = letter.toUpper().unicode() - u'A';
+    if (idx < 0 || idx >= static_cast<int>(std::size(kNames))) {
+        return QString(letter);
+    }
+    return kNames[idx];
+}
 } // namespace
 
 // static
@@ -480,6 +521,18 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             ControlFlag::AllowMissingOrInvalid);
     pCrossfaderLock->connectValueChanged(this, [this](double value) {
         speak(value > 0.0 ? tr("Crossfader locked") : tr("Crossfader unlocked"));
+    });
+
+    // Jog wheel touch lock (Alt+J): disables click-and-drag scratching on the
+    // on-screen waveform and vinyl widgets for both decks, so an accidental
+    // touch can't disturb playback. Always confirmed audibly.
+    auto pDisableTouchScratch = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("disable_touch_scratch"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pDisableTouchScratch->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Jog wheel touch locked") : tr("Jog wheel touch unlocked"));
     });
 
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
@@ -1162,9 +1215,10 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
     QStringList parts;
-    // Comma before the letter so TTS says "Loaded deck, A" rather than
-    // gluing it into "Loaded decka". See deckName().
-    parts << tr("Loaded deck, %1").arg(QChar(u'A' + deckIndex));
+    // Comma before the letter so TTS says "Loaded deck, Ay" rather than
+    // gluing it into "Loaded decka"; the letter is spelled out phonetically
+    // for the same reason as deckName().
+    parts << tr("Loaded deck, %1").arg(phoneticLetter(QChar(u'A' + deckIndex)));
     if (!artist.isEmpty()) {
         parts << artist;
     }
@@ -1326,16 +1380,17 @@ QString AnnouncementManager::deckName(const QString& group, int deckIndex) const
         return tr("Deck %1").arg(deckIndex + 1);
     }
     // The comma is deliberate: without a separator TTS engines glue the deck
-    // letter onto the word ("Deck A" -> "Decka"). The comma forces a short
-    // pause so the letter is pronounced on its own.
-    return tr("Deck, %1").arg(QChar(u'A' + deckIndex));
+    // letter onto the word ("Deck A" -> "Decka"). The letter itself is spelled
+    // out phonetically (see phoneticLetter()) since a bare "A" is often
+    // misread as the article rather than the letter name.
+    return tr("Deck, %1").arg(phoneticLetter(QChar(u'A' + deckIndex)));
 }
 
 QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) const {
     if (m_settings.getConciseAnnouncements() && deckIndex >= 0) {
         return m_settings.getDeckNamesAsNumbers()
                 ? QString::number(deckIndex + 1)
-                : QString(QChar(u'A' + deckIndex)) + QStringLiteral(",");
+                : phoneticLetter(QChar(u'A' + deckIndex));
     }
     return deckName(group, deckIndex);
 }

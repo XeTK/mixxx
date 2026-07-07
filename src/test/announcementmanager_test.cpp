@@ -164,25 +164,25 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_FullInfo) {
             QStringLiteral("A minor"));
     // formatForLoad uses the ChromaticKey enum for pronounceable names.
     EXPECT_QSTRING_EQ(
-            "Loaded deck, A. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
+            "Loaded deck, Ay. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
             AnnouncementManager::formatForLoad(pTrack, 0));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_DeckLetter) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral(""));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 0).startsWith(
-            QStringLiteral("Loaded deck, A")));
+            QStringLiteral("Loaded deck, Ay")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 1).startsWith(
-            QStringLiteral("Loaded deck, B")));
+            QStringLiteral("Loaded deck, Bee")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 2).startsWith(
-            QStringLiteral("Loaded deck, C")));
+            QStringLiteral("Loaded deck, See")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_NoBpm) {
     auto pTrack = makeTrack(
             QStringLiteral("Aphex Twin"), QStringLiteral("Windowlicker"), 0.0, QStringLiteral("A minor"));
     const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
-    EXPECT_TRUE(result.contains(QStringLiteral("Loaded deck, A")));
+    EXPECT_TRUE(result.contains(QStringLiteral("Loaded deck, Ay")));
     EXPECT_FALSE(result.contains(QStringLiteral("B P M")));
     EXPECT_TRUE(result.contains(QStringLiteral("Key:")));
 }
@@ -203,7 +203,7 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_BpmRoundsToNearest) {
 TEST_F(AnnouncementManagerTest, FormatForLoad_MissingArtistSkipped) {
     auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral("Windowlicker"), 128.0);
     const QString result = AnnouncementManager::formatForLoad(pTrack, 0);
-    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded deck, A. Windowlicker.")));
+    EXPECT_TRUE(result.startsWith(QStringLiteral("Loaded deck, Ay. Windowlicker.")));
 }
 
 // ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_EnabledByDefault) {
     m_pManager->slotNewTrackLoaded(pTrack, 0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded deck, A.")));
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Loaded deck, Ay.")));
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceLoad_DisabledViaSettings) {
@@ -908,7 +908,7 @@ class AnnouncementManagerStatusTest : public AnnouncementManagerPlaystateTest {
 TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_NoTrackLoaded) {
     makeManager();
 
-    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+    EXPECT_QSTRING_EQ("Deck, Ay. No track loaded.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
 }
 
@@ -924,7 +924,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_FullStatus) {
     m_pRateRatio->set(1.02); // pitch up 2 percent
 
     EXPECT_QSTRING_EQ(
-            "Deck, A. Playing. 1 minute 30 seconds remaining. 128 B P M. "
+            "Deck, Ay. Playing. 1 minute 30 seconds remaining. 128 B P M. "
             "Pitch up 2 percent.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 0));
 }
@@ -940,7 +940,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_StoppedPitchDown) {
     m_pRateRatio->set(0.95); // pitch down 5 percent
 
     EXPECT_QSTRING_EQ(
-            "Deck, B. Stopped. 45 seconds remaining. Pitch down 5 percent.",
+            "Deck, Bee. Stopped. 45 seconds remaining. Pitch down 5 percent.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 1));
 }
 
@@ -1216,7 +1216,7 @@ TEST_F(AnnouncementManagerPerformanceTest, Recording_StartAndStop_Announced) {
 
 TEST_F(AnnouncementManagerStatusTest, FormatTimeRemaining_NoTrack) {
     makeManager();
-    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+    EXPECT_QSTRING_EQ("Deck, Ay. No track loaded.",
             m_pManager->formatTimeRemaining(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1227,7 +1227,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatTimeRemaining_WithTrack) {
     m_pDuration->set(200.0);
     m_pPlayPos->set(0.35); // 130 seconds remaining
 
-    EXPECT_QSTRING_EQ("Deck, A. 2 minutes 10 seconds remaining.",
+    EXPECT_QSTRING_EQ("Deck, Ay. 2 minutes 10 seconds remaining.",
             m_pManager->formatTimeRemaining(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1236,13 +1236,13 @@ TEST_F(AnnouncementManagerStatusTest, FormatBpm_RoundsAndSpells) {
     createStatusControls();
     m_pBpm->set(174.4);
 
-    EXPECT_QSTRING_EQ("Deck, A. 174 B P M.",
+    EXPECT_QSTRING_EQ("Deck, Ay. 174 B P M.",
             m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
 }
 
 TEST_F(AnnouncementManagerStatusTest, FormatBpm_NoneAvailable) {
     makeManager();
-    EXPECT_QSTRING_EQ("Deck, A. No B P M.",
+    EXPECT_QSTRING_EQ("Deck, Ay. No B P M.",
             m_pManager->formatBpm(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1252,20 +1252,20 @@ TEST_F(AnnouncementManagerStatusTest, FormatKey_SpokenName) {
             ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
     pKey->set(22.0); // ChromaticKey A_MINOR
 
-    EXPECT_QSTRING_EQ("Deck, A. Key: A Minor.",
+    EXPECT_QSTRING_EQ("Deck, Ay. Key: A Minor.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 
 TEST_F(AnnouncementManagerStatusTest, FormatKey_Unknown) {
     makeManager();
-    EXPECT_QSTRING_EQ("Deck, A. Key unknown.",
+    EXPECT_QSTRING_EQ("Deck, Ay. Key unknown.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 
 TEST_F(AnnouncementManagerStatusTest, FormatBarPosition_NoDeck) {
     // The stub PlayerManager has no decks, so no track can be resolved.
     makeManager();
-    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+    EXPECT_QSTRING_EQ("Deck, Ay. No track loaded.",
             m_pManager->formatBarPosition(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1422,6 +1422,20 @@ TEST_F(AnnouncementManagerTest, CrossfaderLock_Announced) {
     pLock->set(0.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("Crossfader unlocked", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, DisableTouchScratch_Announced) {
+    auto pLock = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Master]"), QStringLiteral("disable_touch_scratch")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pLock->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Jog wheel touch locked", pSpy->lastText);
+
+    pLock->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Jog wheel touch unlocked", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -1870,7 +1884,7 @@ TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
 
 TEST_F(AnnouncementManagerStatusTest, FormatTrackName_NoTrackLoaded) {
     makeManager();
-    EXPECT_QSTRING_EQ("Deck, A. No track loaded.",
+    EXPECT_QSTRING_EQ("Deck, Ay. No track loaded.",
             m_pManager->formatTrackName(QString::fromLatin1(kGroup), 0));
 }
 

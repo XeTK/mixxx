@@ -107,6 +107,14 @@ the sound alone is just the alert.
 - Crossfader lock: Alt plus X freezes the crossfader where it is, so
   a bump against the fader does nothing. Press again to unlock. Both
   states are spoken.
+- Jog wheel touch lock: Alt plus J stops the on-screen waveform display
+  and the vinyl-look widget from responding to click-and-drag, on both
+  decks, so an accidental brush of the mouse or a touchscreen can't
+  scratch or bend the pitch of whatever is playing. Press again to
+  unlock. Both states are spoken, and it works at any time, including
+  while a track is already playing. Turn it on by default under
+  Preferences, Decks ("Disable jog wheel and waveform touch
+  scratching").
 - Beat click metronome: Alt plus B plays a click on every beat of
   each playing deck — deck 1 in your left ear, deck 2 in your right.
   Every fourth beat is a higher pitched bar marker. Use it to check
@@ -222,6 +230,7 @@ mapped to buttons on a DJ controller:
   `tts_bar`, `tts_track` — the information readouts
 - `[Master],crossfader_lock` — crossfader lock
 - `[Master],headSplitDecks` — per-deck split cue
+- `[Master],disable_touch_scratch` — jog wheel touch lock
 - `[BeatClick],enabled` and `[BeatClick],volume` — metronome
 - `[Tts],duckStrength` — music ducking level
 - `[Earcon],volume` — earcon (sound cue) level

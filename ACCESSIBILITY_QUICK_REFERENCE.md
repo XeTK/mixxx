@@ -19,6 +19,10 @@ loud, so you never have to guess what just happened:
   Deck 1 left, deck 2 right" or "Split cue off".
 - `Alt+X` — Crossfader lock on/off. Says "Crossfader locked" or
   "Crossfader unlocked".
+- `Alt+J` — Jog wheel touch lock on/off. Ignores click-and-drag
+  scratching on the on-screen waveform and vinyl widgets on both
+  decks, so an accidental touch can't disturb playback. Says
+  "Jog wheel touch locked" or "Jog wheel touch unlocked".
 
 ## Deck info on demand
 

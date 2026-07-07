@@ -76,6 +76,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
     void slotLoadWhenDeckPlayingIndexChanged(int comboboxIndex);
     void slotCloneDeckOnLoadDoubleTapCheckbox(bool);
     void slotDisablePreRollCheckbox(bool);
+    void slotDisableTouchScratchCheckbox(bool);
     void slotRateRampingModeLinearButton(bool);
     void slotRateRampSensitivitySlider(int);
 
@@ -104,6 +105,9 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
 
     const parented_ptr<ControlProxy> m_pNumDecks;
     const parented_ptr<ControlProxy> m_pNumSamplers;
+    // Accessibility: single [Master] control (not per-deck like disable_preroll)
+    // since it is also toggled live via Alt+J to lock both decks at once.
+    const parented_ptr<ControlProxy> m_pDisableTouchScratch;
 
     QList<ControlProxy*> m_cueControls;
     QList<ControlProxy*> m_rateControls;
@@ -123,6 +127,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
     bool m_bSetIntroStartAtMainCue;
     bool m_bCloneDeckOnLoadDoubleTap;
     bool m_bDisablePreRoll;
+    bool m_bDisableTouchScratch;
 
     int m_iRateRangePercent;
     bool m_bRateDownIncreasesSpeed;

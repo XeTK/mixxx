@@ -36,6 +36,8 @@ WWaveformViewer::WWaveformViewer(
     m_pWheel = new ControlProxy(
             group, "wheel", this, ControlFlag::NoAssertIfMissing);
     m_pPlayEnabled = new ControlProxy(group, "play", this, ControlFlag::NoAssertIfMissing);
+    m_pDisableTouchScratch = new ControlProxy(
+            "[Master]", "disable_touch_scratch", this, ControlFlag::NoAssertIfMissing);
     m_pPassthroughEnabled = make_parented<ControlProxy>(group, "passthrough", this);
     m_pPassthroughEnabled->connectValueChanged(this, &WWaveformViewer::passthroughChanged);
 
@@ -82,8 +84,12 @@ void WWaveformViewer::mousePressEvent(QMouseEvent* event) {
     }
 
     m_mouseAnchor = event->pos();
+    const bool touchScratchDisabled = m_pDisableTouchScratch->toBool();
 
     if (event->button() == Qt::LeftButton) {
+        if (touchScratchDisabled) {
+            return;
+        }
         // If we are pitch-bending then disable and reset because the two
         // shouldn't be used at once.
         if (m_bBending) {
@@ -109,7 +115,7 @@ void WWaveformViewer::mousePressEvent(QMouseEvent* event) {
                 m_pCueMenuPopup->popup(event->globalPos());
 #endif
             }
-        } else {
+        } else if (!touchScratchDisabled) {
             // If we are scratching then disable and reset because the two shouldn't
             // be used at once.
             if (m_bScratching) {

@@ -36,6 +36,8 @@ WSpinnyBase::WSpinnyBase(
           m_pTrackSampleRate(PollingControlProxy(m_group, QStringLiteral("track_samplerate"))),
           m_pScratchToggle(PollingControlProxy(m_group, QStringLiteral("scratch_position_enable"))),
           m_pScratchPos(PollingControlProxy(m_group, QStringLiteral("scratch_position"))),
+          m_pDisableTouchScratch(PollingControlProxy(
+                  QStringLiteral("[Master]"), QStringLiteral("disable_touch_scratch"))),
           m_pVinylControlSpeedType(nullptr),
           m_pVinylControlEnabled(nullptr),
           m_pSignalEnabled(nullptr),
@@ -554,6 +556,9 @@ void WSpinnyBase::mousePressEvent(QMouseEvent* e) {
     }
 
     if (e->button() == Qt::LeftButton) {
+        if (m_pDisableTouchScratch.toBool()) {
+            return;
+        }
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         int y = static_cast<int>(e->position().y());
         int x = static_cast<int>(e->position().x());

@@ -212,6 +212,26 @@ You can always drag-and-drop tracks on screen to clone a deck.</string>
         </property>
        </widget>
       </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="labelDisableTouchScratch">
+        <property name="text">
+         <string>Jog wheel / waveform touch</string>
+        </property>
+        <property name="buddy">
+         <cstring>checkBoxDisableTouchScratch</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1" colspan="2">
+       <widget class="QCheckBox" name="checkBoxDisableTouchScratch">
+        <property name="toolTip">
+         <string>When enabled, click-and-drag scratching on the on-screen waveform and vinyl widgets is ignored on both decks, so an accidental touch (mouse or touchscreen) can't disturb playback. Also mapped to Alt+J so it can be toggled live during a set.</string>
+        </property>
+        <property name="text">
+         <string>Disable jog wheel and waveform touch scratching</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -690,6 +710,7 @@ You can always drag-and-drop tracks on screen to clone a deck.</string>
   <tabstop>comboBoxLoadWhenDeckPlaying</tabstop>
   <tabstop>checkBoxCloneDeckOnLoadDoubleTap</tabstop>
   <tabstop>checkBoxDisablePreRoll</tabstop>
+  <tabstop>checkBoxDisableTouchScratch</tabstop>
   <tabstop>ComboBoxRateRange</tabstop>
   <tabstop>checkBoxInvertSpeedSlider</tabstop>
   <tabstop>checkBoxResetPitch</tabstop>

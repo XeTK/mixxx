@@ -88,6 +88,13 @@ one-page shortcut cheat sheet.
 - Per-deck `disable_preroll` control + "prevent jogging before track
   start" checkbox under Preferences > Decks — a jog wheel can't seek
   into pre-roll silence.
+- **Jog wheel touch lock** (2026-07-07, `Alt+J`,
+  `[Master],disable_touch_scratch`): ignores click-and-drag scratching
+  on the on-screen waveform and vinyl widgets on both decks, so an
+  accidental touch (mouse or touchscreen) can't disturb playback. Works
+  live at any time, including mid-playback, unlike `disable_preroll`
+  which is a start-up preference only. Checkbox under Preferences >
+  Decks sets the default state; both states are spoken.
 
 ### Bugs fixed and cleanups along the way
 
@@ -101,6 +108,14 @@ one-page shortcut cheat sheet.
   the engine; now bridged with signals like Record/Broadcast).
 - Fixed "Decka"/"Loadeda" — a comma now forces the TTS engine to
   pronounce the deck letter separately.
+- Fixed deck letter "A" being spoken as the indefinite article ("uh")
+  instead of the letter name (2026-07-07). An earlier attempt used an
+  SSML `<say-as interpret-as="characters">` tag, but the TTS pipeline
+  never renders SSML, so it leaked into speech as literal text
+  ("Deck, A,. No track loaded" was actually being read aloud). Replaced
+  with a `phoneticLetter()` lookup table in `announcementmanager.cpp`
+  that spells every deck letter out (A→"Ay", B→"Bee", … Z→"Zee"),
+  which is robust across TTS engines without needing SSML support.
 - Reverted the `Mixxx-Accessibility` CMake project rename: it broke
   development-build resource lookup (empty resource path, no skin,
   "crash on load" when launching mixxx.exe without --resourcePath).
