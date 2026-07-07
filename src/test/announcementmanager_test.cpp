@@ -13,6 +13,7 @@
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
 #include "test/mixxxtest.h"
+#include "track/keyutils.h"
 #include "track/track.h"
 #include "util/duration.h"
 #include "util/ttsengine.h"
@@ -165,6 +166,21 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_FullInfo) {
     // formatForLoad uses the ChromaticKey enum for pronounceable names.
     EXPECT_QSTRING_EQ(
             "Loaded deck, Ay. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
+            AnnouncementManager::formatForLoad(pTrack, 0));
+}
+
+TEST_F(AnnouncementManagerTest, FormatForLoad_LancelotNotation) {
+    auto pNotation = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Library]"), QStringLiteral("key_notation")));
+    pNotation->set(static_cast<double>(KeyUtils::KeyNotation::Lancelot));
+    auto pTrack = makeTrack(
+            QStringLiteral("Aphex Twin"),
+            QStringLiteral("Windowlicker"),
+            128.0,
+            QStringLiteral("C major")); // Lancelot (Camelot) code is "8B".
+
+    EXPECT_QSTRING_EQ(
+            "Loaded deck, Ay. Aphex Twin. Windowlicker. 128 B P M. Key: 8, Bee.",
             AnnouncementManager::formatForLoad(pTrack, 0));
 }
 
@@ -1259,6 +1275,45 @@ TEST_F(AnnouncementManagerStatusTest, FormatKey_SpokenName) {
 TEST_F(AnnouncementManagerStatusTest, FormatKey_Unknown) {
     makeManager();
     EXPECT_QSTRING_EQ("Deck, Ay. Key unknown.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatKey_LancelotNotation) {
+    makeManager();
+    auto pNotation = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Library]"), QStringLiteral("key_notation")));
+    pNotation->set(static_cast<double>(KeyUtils::KeyNotation::Lancelot));
+    auto pKey = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
+    pKey->set(1.0); // ChromaticKey C_MAJOR; Lancelot (Camelot) code is "8B".
+
+    EXPECT_QSTRING_EQ("Deck, Ay. Key: 8, Bee.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatKey_OpenKeyNotation) {
+    makeManager();
+    auto pNotation = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Library]"), QStringLiteral("key_notation")));
+    pNotation->set(static_cast<double>(KeyUtils::KeyNotation::OpenKey));
+    auto pKey = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
+    pKey->set(12.0); // ChromaticKey B_MAJOR; Open Key code is "6d".
+
+    EXPECT_QSTRING_EQ("Deck, Ay. Key: 6, Dee.",
+            m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
+}
+
+TEST_F(AnnouncementManagerStatusTest, FormatKey_LancelotAndTraditionalNotation) {
+    makeManager();
+    auto pNotation = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Library]"), QStringLiteral("key_notation")));
+    pNotation->set(static_cast<double>(KeyUtils::KeyNotation::LancelotAndTraditional));
+    auto pKey = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
+    pKey->set(1.0); // ChromaticKey C_MAJOR
+
+    EXPECT_QSTRING_EQ("Deck, Ay. Key: 8, Bee. C Major.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 

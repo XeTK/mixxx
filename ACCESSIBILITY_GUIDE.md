@@ -52,7 +52,11 @@ deck 1, even numbers are deck 2.
   remaining, BPM, and pitch position.
 - Alt plus 3 or 4: time remaining only.
 - Alt plus 5 or 6: BPM only.
-- Alt plus 7 or 8: musical key (follows keylock).
+- Alt plus 7 or 8: musical key (follows keylock). Spoken in whatever
+  notation Preferences, Interface, Key Notation is set to — the full
+  name ("A Minor") for Traditional, or the short code for Open Key
+  ("5, Dee") and Camelot/Lancelot ("8, Ay"), with the letter always
+  spelled out so it isn't misheard.
 - Alt plus 9 or 0: bar and beat position, for example "Bar 17,
   beat 2." Assumes 4/4 time.
 - Alt plus Shift plus T (deck 1) or Alt plus Shift plus Y (deck 2):

@@ -73,7 +73,9 @@ Key source files:
 
 - "Mixxx ready" once the interface has loaded
 - Track selection while browsing the library (artist, title)
-- Track load: deck letter, artist, title, BPM, musical key
+- Track load: deck letter, artist, title, BPM, musical key (in the
+  Traditional, Open Key, or Camelot/Lancelot notation, matching whatever
+  Preferences > Interface > Key Notation is set to elsewhere in Mixxx)
 - Play / stop / end of track
 - Headphone cue (PFL) toggling
 - Sync, key lock, and quantize toggles

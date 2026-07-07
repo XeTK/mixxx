@@ -214,6 +214,43 @@ QString phoneticLetter(QChar letter) {
     }
     return kNames[idx];
 }
+
+// Speaks the key in whichever notation the user has chosen under
+// Preferences, Interface, Key Notation ([Library],key_notation), so a DJ who
+// reads Camelot ("8A") or Open Key ("5d") codes elsewhere in Mixxx hears the
+// same code instead of always the full traditional name. Falls back to the
+// full name for Traditional/Custom/ID3v2/unset, where a short code isn't
+// what's shown on screen anyway.
+QString keyForSpeechInNotation(mixxx::track::io::key::ChromaticKey key) {
+    if (key == mixxx::track::io::key::INVALID) {
+        return {};
+    }
+    const KeyUtils::KeyNotation notation = KeyUtils::keyNotationFromNumericValue(
+            readGroupControl(QStringLiteral("[Library]"), QStringLiteral("key_notation")));
+    const bool isOpenKey = notation == KeyUtils::KeyNotation::OpenKey ||
+            notation == KeyUtils::KeyNotation::OpenKeyAndTraditional;
+    const bool isLancelot = notation == KeyUtils::KeyNotation::Lancelot ||
+            notation == KeyUtils::KeyNotation::LancelotAndTraditional;
+    if (!isOpenKey && !isLancelot) {
+        return keyForSpeech(key);
+    }
+
+    // Open Key and Lancelot (Camelot) codes are digits followed by exactly
+    // one letter ("5d", "8A"); the letter is spelled out phonetically for
+    // the same reason as phoneticLetter() above.
+    const QString code = KeyUtils::keyToString(key,
+            isOpenKey ? KeyUtils::KeyNotation::OpenKey : KeyUtils::KeyNotation::Lancelot);
+    if (code.isEmpty()) {
+        return keyForSpeech(key);
+    }
+    QString spoken = AnnouncementManager::tr("%1, %2")
+                             .arg(code.left(code.length() - 1), phoneticLetter(code.back()));
+    if (notation == KeyUtils::KeyNotation::OpenKeyAndTraditional ||
+            notation == KeyUtils::KeyNotation::LancelotAndTraditional) {
+        spoken += QStringLiteral(". ") + keyForSpeech(key);
+    }
+    return spoken;
+}
 } // namespace
 
 // static
@@ -1210,7 +1247,7 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     const QString artist = pTrack->getArtist().trimmed();
     const QString title = pTrack->getTitle().trimmed();
     const double bpm = pTrack->getBpm();
-    const QString keyText = keyForSpeech(pTrack->getKey());
+    const QString keyText = keyForSpeechInNotation(pTrack->getKey());
 
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
@@ -1303,7 +1340,7 @@ QString AnnouncementManager::formatKey(const QString& group, int deckIndex) cons
     // keylock-aware, so this reads the currently sounding key.
     const int keyValue = static_cast<int>(
             std::lround(readGroupControl(group, QStringLiteral("key"))));
-    const QString keyText = keyForSpeech(
+    const QString keyText = keyForSpeechInNotation(
             static_cast<mixxx::track::io::key::ChromaticKey>(keyValue));
     if (keyText.isEmpty()) {
         return m_settings.getConciseAnnouncements()

@@ -95,6 +95,16 @@ one-page shortcut cheat sheet.
   live at any time, including mid-playback, unlike `disable_preroll`
   which is a start-up preference only. Checkbox under Preferences >
   Decks sets the default state; both states are spoken.
+- **Musical key spoken in other notations** (2026-07-07): key
+  announcements (track load and the `Alt+7`/`Alt+8` on-demand readout)
+  now follow whatever `[Library],key_notation` is set to elsewhere in
+  Mixxx (Preferences > Interface > Key Notation) instead of always
+  speaking the full traditional name. Open Key ("5d") and Camelot/
+  Lancelot ("8A") short codes are spoken as digit + phonetically
+  spelled letter ("5, Dee" / "8, Ay") via `KeyUtils::keyToString()`;
+  the "…and Traditional" variants append the full name too. Traditional,
+  Custom, and ID3v2 notations are unaffected — they already spoke the
+  full name.
 
 ### Bugs fixed and cleanups along the way
 
@@ -191,6 +201,14 @@ Still open (deferred — see brief 07 for detail):
   changes
 - Announcing the crate/playlist create/rename dialogs and feature-view
   entry (clarified as: dialog text + entering the view)
+- **Playlist/crate accessibility pass (2026-07-07, noted for later)** —
+  broader than the announcement work above: audit whether every
+  playlist/crate action (create, rename, delete, reorder, add/remove
+  tracks, drag-and-drop equivalents) actually has a keyboard path and
+  is operable with the mouse too, not just whether it's announced.
+  Scope not started; do this before or alongside 7I since 7I's
+  announcements are only useful if the underlying actions are reachable
+  without a mouse in the first place.
 
 ### Tier 1 — complete the core blind-DJ loop
 
