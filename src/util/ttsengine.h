@@ -12,8 +12,9 @@ class EngineTts;
 /// the music, ducked for intelligibility, and routed to the headphone or main
 /// output like any other engine signal.
 ///
-/// Synthesis is platform specific (SAPI on Windows, Qt TextToSpeech elsewhere
-/// when available); a silent no-op engine is used when no backend is present.
+/// Synthesis is platform specific (SAPI on Windows, AVSpeechSynthesizer on
+/// macOS, Qt TextToSpeech elsewhere when available); a silent no-op engine is
+/// used when no backend is present.
 class TtsEngine {
   public:
     struct Voice {

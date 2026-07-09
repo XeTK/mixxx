@@ -4,6 +4,9 @@
 
 #include "engine/enginetts.h"
 #include "util/types.h"
+#ifdef Q_OS_MACOS
+#include "util/ttsenginemac.h"
+#endif
 
 #ifdef Q_OS_WIN
 
@@ -398,6 +401,12 @@ static QList<T> enumerateTokens(IEnumSpObjectTokens* pEnum) {
     return result;
 }
 
+#elif defined(Q_OS_MACOS)
+
+// Native backend using AVSpeechSynthesizer lives in ttsenginemac.mm (needs
+// Objective-C++); this avoids depending on the Qt6 TextToSpeech module, which
+// Mixxx's macOS dependency bundle doesn't ship.
+
 #elif defined(MIXXX_USE_QT_TTS)
 
 #include <QAudioFormat>
@@ -442,15 +451,42 @@ class QtTtsEngine final : public TtsEngine {
     }
 
   private:
+    // Extracts frame i's first channel as a normalized [-1, 1] float. The
+    // synthesize() PCM format is backend specific: e.g. Linux's flite-based
+    // backend emits Int16, while macOS's AVSpeechSynthesizer-based backend
+    // emits Float. Both must be handled or speech is silently dropped.
+    static CSAMPLE sampleAt(const QAudioFormat& format, const char* data, int frame) {
+        const int channels = format.channelCount();
+        switch (format.sampleFormat()) {
+        case QAudioFormat::UInt8: {
+            const auto* pcm = reinterpret_cast<const uint8_t*>(data);
+            return (static_cast<CSAMPLE>(pcm[frame * channels]) - 128.0f) / 128.0f;
+        }
+        case QAudioFormat::Int16: {
+            const auto* pcm = reinterpret_cast<const int16_t*>(data);
+            return static_cast<CSAMPLE>(pcm[frame * channels]) / 32768.0f;
+        }
+        case QAudioFormat::Int32: {
+            const auto* pcm = reinterpret_cast<const int32_t*>(data);
+            return static_cast<CSAMPLE>(pcm[frame * channels]) / 2147483648.0f;
+        }
+        case QAudioFormat::Float: {
+            const auto* pcm = reinterpret_cast<const float*>(data);
+            return pcm[frame * channels];
+        }
+        default:
+            return 0.0f;
+        }
+    }
+
     void feed(const QAudioFormat& format, const QByteArray& bytes) {
-        if (!m_pSink || bytes.isEmpty() ||
-                format.sampleFormat() != QAudioFormat::Int16) {
+        const int channels = format.channelCount();
+        const int bytesPerSample = format.bytesPerSample();
+        if (!m_pSink || bytes.isEmpty() || channels <= 0 || bytesPerSample <= 0 ||
+                format.sampleFormat() == QAudioFormat::Unknown) {
             return;
         }
-        const auto* pcm = reinterpret_cast<const int16_t*>(bytes.constData());
-        const int inFrames = static_cast<int>(bytes.size() / sizeof(int16_t)) /
-                format.channelCount();
-        const int channels = format.channelCount();
+        const int inFrames = static_cast<int>(bytes.size() / bytesPerSample) / channels;
         const double ratio = static_cast<double>(format.sampleRate()) / m_sampleRate;
 
         // Nearest-neighbour resample to the engine rate. Speech is forgiving and
@@ -459,8 +495,7 @@ class QtTtsEngine final : public TtsEngine {
         std::vector<CSAMPLE> stereo(static_cast<size_t>(outFrames) * 2);
         for (int i = 0; i < outFrames; ++i) {
             const int srcFrame = static_cast<int>(i * ratio);
-            const int16_t s = pcm[srcFrame * channels];
-            const CSAMPLE f = static_cast<CSAMPLE>(s) / 32768.0f;
+            const CSAMPLE f = sampleAt(format, bytes.constData(), srcFrame);
             stereo[i * 2] = f;
             stereo[i * 2 + 1] = f;
         }
@@ -492,6 +527,8 @@ class NullTtsEngine final : public TtsEngine {
 std::unique_ptr<TtsEngine> TtsEngine::create() {
 #ifdef Q_OS_WIN
     return std::make_unique<SapiTtsEngine>();
+#elif defined(Q_OS_MACOS)
+    return createMacTtsEngine();
 #elif defined(MIXXX_USE_QT_TTS)
     return std::make_unique<QtTtsEngine>();
 #else
@@ -500,7 +537,7 @@ std::unique_ptr<TtsEngine> TtsEngine::create() {
 }
 
 bool TtsEngine::isAvailable() {
-#if defined(Q_OS_WIN) || defined(MIXXX_USE_QT_TTS)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS) || defined(MIXXX_USE_QT_TTS)
     return true;
 #else
     return false;
@@ -510,6 +547,8 @@ bool TtsEngine::isAvailable() {
 QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
 #ifdef Q_OS_WIN
     return enumerateTokens<Voice>(createVoiceEnumerator());
+#elif defined(Q_OS_MACOS)
+    return enumerateMacTtsVoices();
 #elif defined(MIXXX_USE_QT_TTS)
     QTextToSpeech engine;
     QList<TtsEngine::Voice> result;
