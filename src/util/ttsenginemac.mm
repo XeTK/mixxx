@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 #include "engine/enginetts.h"
@@ -157,13 +158,45 @@ std::unique_ptr<TtsEngine> createMacTtsEngine() {
     return std::make_unique<MacTtsEngine>();
 }
 
+namespace {
+
+// Default is the robotic-sounding tier that ships pre-installed; Enhanced and
+// Premium (macOS 13+) are neural voices the user must download separately via
+// System Settings > Accessibility > Spoken Content, but are otherwise free
+// and fully offline once installed.
+QString voiceQualityLabel(AVSpeechSynthesisVoiceQuality quality) {
+    switch (quality) {
+    case AVSpeechSynthesisVoiceQualityPremium:
+        return QStringLiteral("Premium");
+    case AVSpeechSynthesisVoiceQualityEnhanced:
+        return QStringLiteral("Enhanced");
+    default:
+        return QStringLiteral("Default");
+    }
+}
+
+} // namespace
+
 QList<TtsEngine::Voice> enumerateMacTtsVoices() {
-    QList<TtsEngine::Voice> result;
+    std::vector<std::pair<AVSpeechSynthesisVoiceQuality, TtsEngine::Voice>> voices;
     for (AVSpeechSynthesisVoice* voice in [AVSpeechSynthesisVoice speechVoices]) {
         const QString identifier = QString::fromNSString(voice.identifier);
         const QString name = QString::fromNSString(voice.name);
         const QString language = QString::fromNSString(voice.language);
-        result << TtsEngine::Voice{identifier, QStringLiteral("%1 (%2)").arg(name, language)};
+        const QString quality = voiceQualityLabel(voice.quality);
+        voices.emplace_back(voice.quality,
+                TtsEngine::Voice{identifier,
+                        QStringLiteral("%1 — %2 (%3)").arg(name, quality, language)});
+    }
+    // Higher-quality (Enhanced/Premium) voices first so they're easy to spot
+    // instead of buried among the Default voices that ship pre-installed.
+    std::stable_sort(voices.begin(), voices.end(), [](const auto& a, const auto& b) {
+        return a.first > b.first;
+    });
+
+    QList<TtsEngine::Voice> result;
+    for (const auto& [quality, voice] : voices) {
+        result << voice;
     }
     return result;
 }
