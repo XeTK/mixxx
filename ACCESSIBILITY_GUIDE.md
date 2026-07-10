@@ -43,6 +43,32 @@ intelligible. Speech is never recorded or broadcast.
   all in Preferences, Accessibility, with a Test Speech button that
   plays a sample through your current settings.
 
+### macOS: getting better-sounding voices
+
+macOS ships every voice at three possible quality levels, but only the
+robotic-sounding "Default" tier is installed out of the box. The much
+more natural "Enhanced" and "Premium" (neural) versions of the same
+voices — Ava, Nathan, Zoe, Samantha, and others — are free and fully
+offline, but have to be downloaded once:
+
+1. Open System Settings, then Accessibility, then Spoken Content.
+2. Next to "System Voice," open the voice picker and choose "Manage
+   Voices" (or click the small info button next to the dropdown,
+   depending on your macOS version).
+3. Voices are grouped by language. Look for entries marked Enhanced or
+   Premium — most languages offer several. Click the download icon
+   next to any voice you want; each is a few hundred MB, one-time,
+   no internet needed afterward.
+4. Tip: press the play button next to a voice in this list to preview
+   it before downloading, so you're not guessing.
+
+Once downloaded, the new voices appear automatically in Mixxx's voice
+list (reopen Preferences, Accessibility if it was already open). A
+"Voice quality" combo next to the voice picker — macOS only — lets you
+filter the list to All, Default, Enhanced, or Premium, so you can jump
+straight to the voices worth using instead of scrolling past roughly
+150 Default-tier entries.
+
 ## Information on demand
 
 Press these at any time to hear the state of a deck. Odd numbers are
@@ -193,7 +219,8 @@ All settings live under Options, Preferences, Accessibility. In order:
 1. Announce Mixxx ready at startup
 2. Announce audio clipping, and its feedback style (speech/sounds/both)
 3. Speech output: headphones (DJ only) or main output
-4. Voice and speech rate, with a test button
+4. Voice and speech rate, with a test button (macOS also has a "Voice
+   quality" filter — see the macOS section above)
 5. Music ducking during announcements: how far the music drops while
    speech plays
 6. Beat click volume

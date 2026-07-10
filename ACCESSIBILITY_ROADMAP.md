@@ -14,17 +14,32 @@ one-page shortcut cheat sheet.
 ### Core speech engine (the foundation)
 
 - Text-to-speech synthesized off the audio thread (SAPI on Windows,
-  Qt TextToSpeech 6.6+ elsewhere) and mixed into Mixxx's own engine
-  output with sidechain ducking — announcements are heard over the
-  music through the headphone cue or main output, and are never
-  recorded or broadcast. (`src/util/ttsengine.cpp`,
-  `src/engine/enginetts.cpp`, `src/util/announcementmanager.cpp`)
+  AVSpeechSynthesizer on macOS, Qt TextToSpeech 6.6+ elsewhere) and
+  mixed into Mixxx's own engine output with sidechain ducking —
+  announcements are heard over the music through the headphone cue or
+  main output, and are never recorded or broadcast.
+  (`src/util/ttsengine.cpp`, `src/engine/enginetts.cpp`,
+  `src/util/announcementmanager.cpp`)
 - Barge-in: a new announcement interrupts the one in progress.
 - Speech falls back to the main output when no headphone bus is
   configured, so a fresh single-output install is never silent.
 - Voice, speech rate, output routing (headphones vs. main), and music
   ducking strength are all configurable in Preferences > Accessibility,
   with a Test Speech button that applies the ducking slider live.
+- **macOS (2026-07-10):** native AVSpeechSynthesizer backend
+  (`src/util/ttsenginemac.mm`) instead of Qt TextToSpeech, since
+  Mixxx's macOS dependency bundle doesn't ship that Qt module — Qt's
+  path would've left TTS silently disabled on a real Mac. Also fixed a
+  real bug found while verifying this: `QtTtsEngine::feed()` (still
+  used on Linux) hard-required Int16 PCM and silently dropped any
+  other sample format. Voices are labeled and sortable by quality tier
+  (Default/Enhanced/Premium) with a macOS-only filter combo in
+  Preferences, since only the Default tier is installed out of the
+  box and sounds noticeably robotic — see the macOS section of
+  [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md) for how to download
+  better voices. Verified end-to-end with the real gtest suite
+  (`QT_QPA_PLATFORM=cocoa`), not just a code review — see
+  [handoff/03-linux-macos.md](handoff/03-linux-macos.md).
 
 ### Announcements (each independently toggleable in Preferences)
 
@@ -241,8 +256,10 @@ announced.
   happens before the speech engine can talk; a screen reader is needed)
 - Minimal / high-contrast skin (deferred: current focus is fully-blind
   users; low-vision support comes later)
-- Linux and macOS support (the TTS engine already has a Qt backend;
-  needs building, testing, and packaging on those platforms)
+- Linux support (the TTS engine has a Qt backend for it; needs
+  building, testing, and packaging)
+- ~~macOS support~~ (done 2026-07-10 — see Core speech engine above;
+  packaging/installer still outstanding, see handoff/03-linux-macos.md)
 
 ### Known issues / parked
 

@@ -95,7 +95,14 @@ the list for a future build:
   buttons, knobs, faders) — the preferences dialogs and library already
   have them
 - A simplified first-run setup wizard (see the one-time step above)
-- Linux and macOS builds (currently Windows only)
+- Linux builds (currently Windows only)
+- A packaged, installable macOS build. The speech engine itself now
+  works on macOS (native AVSpeechSynthesizer backend, not Qt's, since
+  Mixxx's macOS dependency bundle doesn't ship the Qt TextToSpeech
+  module) and is verified by automated tests, but there's no signed
+  `.app`/installer yet for testers — for now it only runs from a
+  source build. See `handoff/03-linux-macos.md` for the technical
+  details if you're building it yourself.
 
 ## Giving feedback
 
