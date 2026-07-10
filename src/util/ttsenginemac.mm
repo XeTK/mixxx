@@ -164,11 +164,22 @@ namespace {
 // Premium (macOS 13+) are neural voices the user must download separately via
 // System Settings > Accessibility > Spoken Content, but are otherwise free
 // and fully offline once installed.
-QString voiceQualityLabel(AVSpeechSynthesisVoiceQuality quality) {
+TtsEngine::VoiceQuality toVoiceQuality(AVSpeechSynthesisVoiceQuality quality) {
     switch (quality) {
     case AVSpeechSynthesisVoiceQualityPremium:
-        return QStringLiteral("Premium");
+        return TtsEngine::VoiceQuality::Premium;
     case AVSpeechSynthesisVoiceQualityEnhanced:
+        return TtsEngine::VoiceQuality::Enhanced;
+    default:
+        return TtsEngine::VoiceQuality::Default;
+    }
+}
+
+QString voiceQualityLabel(TtsEngine::VoiceQuality quality) {
+    switch (quality) {
+    case TtsEngine::VoiceQuality::Premium:
+        return QStringLiteral("Premium");
+    case TtsEngine::VoiceQuality::Enhanced:
         return QStringLiteral("Enhanced");
     default:
         return QStringLiteral("Default");
@@ -178,24 +189,24 @@ QString voiceQualityLabel(AVSpeechSynthesisVoiceQuality quality) {
 } // namespace
 
 QList<TtsEngine::Voice> enumerateMacTtsVoices() {
-    std::vector<std::pair<AVSpeechSynthesisVoiceQuality, TtsEngine::Voice>> voices;
+    std::vector<TtsEngine::Voice> voices;
     for (AVSpeechSynthesisVoice* voice in [AVSpeechSynthesisVoice speechVoices]) {
         const QString identifier = QString::fromNSString(voice.identifier);
         const QString name = QString::fromNSString(voice.name);
         const QString language = QString::fromNSString(voice.language);
-        const QString quality = voiceQualityLabel(voice.quality);
-        voices.emplace_back(voice.quality,
-                TtsEngine::Voice{identifier,
-                        QStringLiteral("%1 — %2 (%3)").arg(name, quality, language)});
+        const TtsEngine::VoiceQuality quality = toVoiceQuality(voice.quality);
+        voices.push_back(TtsEngine::Voice{identifier,
+                QStringLiteral("%1 — %2 (%3)").arg(name, voiceQualityLabel(quality), language),
+                quality});
     }
     // Higher-quality (Enhanced/Premium) voices first so they're easy to spot
     // instead of buried among the Default voices that ship pre-installed.
     std::stable_sort(voices.begin(), voices.end(), [](const auto& a, const auto& b) {
-        return a.first > b.first;
+        return a.quality > b.quality;
     });
 
     QList<TtsEngine::Voice> result;
-    for (const auto& [quality, voice] : voices) {
+    for (const auto& voice : voices) {
         result << voice;
     }
     return result;

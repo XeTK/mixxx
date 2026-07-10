@@ -60,6 +60,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_pTtsSink(pTtsSink),
           m_ttsRoute(m_settings.getTtsRouteDefault()),
           m_ttsVoiceId(m_settings.getTtsVoiceDefault()),
+          m_ttsVoiceQualityFilter(m_settings.getTtsVoiceQualityFilterDefault()),
           m_ttsRate(m_settings.getTtsRateDefault()),
           m_duckStrengthPercent(kDefaultDuckStrengthPercent),
           m_beatClickVolumePercent(kDefaultBeatClickVolumePercent),
@@ -93,6 +94,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bConcise(m_settings.getConciseAnnouncementsDefault()) {
     setupUi(this);
     populateRouteCombo();
+    populateVoiceQualityCombo();
     populateVoiceCombo();
     populateFeedbackModeCombos();
     populateMixerStyleCombo();
@@ -179,6 +181,17 @@ DlgPrefAccessibility::DlgPrefAccessibility(
                         ? m_voices.at(index - 1).id
                         : QString();
             });
+    connect(comboBoxTtsVoiceQuality,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) {
+                m_ttsVoiceQualityFilter = index;
+                refreshFilteredVoiceCombo();
+            });
+    if (comboBoxTtsVoiceQuality->count() > 0) {
+        comboBoxTtsVoiceQuality->setCurrentIndex(std::clamp(
+                m_ttsVoiceQualityFilter, 0, comboBoxTtsVoiceQuality->count() - 1));
+    }
     connect(sliderTtsRate,
             &QSlider::valueChanged,
             this,
@@ -348,13 +361,51 @@ void DlgPrefAccessibility::syncFeedbackAllCombo() {
     comboBoxFeedbackAll->setCurrentIndex(allEqual ? m_feedbackModePlay + 1 : 0);
 }
 
+void DlgPrefAccessibility::populateVoiceQualityCombo() {
+#ifdef Q_OS_MACOS
+    comboBoxTtsVoiceQuality->clear();
+    comboBoxTtsVoiceQuality->addItem(tr("All"));
+    comboBoxTtsVoiceQuality->addItem(tr("Default"));
+    comboBoxTtsVoiceQuality->addItem(tr("Enhanced"));
+    comboBoxTtsVoiceQuality->addItem(tr("Premium"));
+#else
+    // Only macOS's AVSpeechSynthesisVoice reports a real quality tier; other
+    // backends have no equivalent concept, so there's nothing to filter by.
+    labelVoiceQuality->hide();
+    comboBoxTtsVoiceQuality->hide();
+#endif
+}
+
 void DlgPrefAccessibility::populateVoiceCombo() {
-    m_voices = TtsEngine::enumerateVoices();
+    m_allVoices = TtsEngine::enumerateVoices();
+    refreshFilteredVoiceCombo();
+}
+
+void DlgPrefAccessibility::refreshFilteredVoiceCombo() {
+    m_voices.clear();
+    for (const TtsEngine::Voice& voice : m_allVoices) {
+        // 0 = show all; 1..3 map to TtsEngine::VoiceQuality + 1.
+        if (m_ttsVoiceQualityFilter == 0 ||
+                static_cast<int>(voice.quality) + 1 == m_ttsVoiceQualityFilter) {
+            m_voices << voice;
+        }
+    }
+    // Block signals: repopulating fires currentIndexChanged as items are
+    // added, which would otherwise clobber m_ttsVoiceId with whatever index
+    // 0 resolves to before we get a chance to restore the real selection.
+    const QSignalBlocker blocker(comboBoxTtsVoice);
     comboBoxTtsVoice->clear();
     comboBoxTtsVoice->addItem(tr("Default (system voice)"));
     for (const TtsEngine::Voice& voice : m_voices) {
         comboBoxTtsVoice->addItem(voice.displayName);
     }
+    // Note: this only changes what's visible in the dropdown. If the
+    // currently selected voice is filtered out, it shows as "Default (system
+    // voice)" here but m_ttsVoiceId is left untouched, so switching the
+    // filter back (or applying with the display showing Default) doesn't
+    // silently discard the user's actual choice unless they explicitly pick
+    // something else from the now-visible list.
+    comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
 }
 
 int DlgPrefAccessibility::indexForVoiceId(const QString& voiceId) const {
@@ -372,6 +423,12 @@ int DlgPrefAccessibility::indexForVoiceId(const QString& voiceId) const {
 void DlgPrefAccessibility::slotUpdate() {
     m_ttsRoute = m_settings.getTtsRoute();
     m_ttsVoiceId = m_settings.getTtsVoice();
+    m_ttsVoiceQualityFilter = m_settings.getTtsVoiceQualityFilter();
+    if (comboBoxTtsVoiceQuality->count() > 0) {
+        const QSignalBlocker blocker(comboBoxTtsVoiceQuality);
+        comboBoxTtsVoiceQuality->setCurrentIndex(std::clamp(
+                m_ttsVoiceQualityFilter, 0, comboBoxTtsVoiceQuality->count() - 1));
+    }
     m_ttsRate = m_settings.getTtsRate();
     m_feedbackModePlay = m_settings.getFeedbackModePlay();
     m_feedbackModeStop = m_settings.getFeedbackModeStop();
@@ -431,7 +488,7 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bConcise = m_settings.getConciseAnnouncements();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
-    comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
+    refreshFilteredVoiceCombo();
     sliderTtsRate->setValue(m_ttsRate);
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);
@@ -458,6 +515,7 @@ void DlgPrefAccessibility::slotUpdate() {
 void DlgPrefAccessibility::slotApply() {
     m_settings.setTtsRoute(m_ttsRoute);
     m_settings.setTtsVoice(m_ttsVoiceId);
+    m_settings.setTtsVoiceQualityFilter(m_ttsVoiceQualityFilter);
     m_settings.setTtsRate(m_ttsRate);
     m_settings.setFeedbackModePlay(m_feedbackModePlay);
     m_settings.setFeedbackModeStop(m_feedbackModeStop);
@@ -514,6 +572,12 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     sliderBeatClickVolume->setValue(m_beatClickVolumePercent);
     m_ttsRoute = m_settings.getTtsRouteDefault();
     m_ttsVoiceId = m_settings.getTtsVoiceDefault();
+    m_ttsVoiceQualityFilter = m_settings.getTtsVoiceQualityFilterDefault();
+    if (comboBoxTtsVoiceQuality->count() > 0) {
+        const QSignalBlocker blocker(comboBoxTtsVoiceQuality);
+        comboBoxTtsVoiceQuality->setCurrentIndex(std::clamp(
+                m_ttsVoiceQualityFilter, 0, comboBoxTtsVoiceQuality->count() - 1));
+    }
     m_ttsRate = m_settings.getTtsRateDefault();
     m_feedbackModePlay = m_settings.getFeedbackModePlayDefault();
     m_feedbackModeStop = m_settings.getFeedbackModeStopDefault();
@@ -563,7 +627,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bConcise = m_settings.getConciseAnnouncementsDefault();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
-    comboBoxTtsVoice->setCurrentIndex(indexForVoiceId(m_ttsVoiceId));
+    refreshFilteredVoiceCombo();
     sliderTtsRate->setValue(m_ttsRate);
     spinBoxTtsRate->setValue(m_ttsRate);
     checkBoxAnnounceStartup->setChecked(m_bAnnounceStartup);

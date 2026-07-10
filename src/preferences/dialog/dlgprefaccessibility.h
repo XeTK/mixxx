@@ -27,6 +27,12 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
   private:
     void populateRouteCombo();
     void populateVoiceCombo();
+    // macOS only: shows and fills the quality-tier filter combo; hides it
+    // (and its label) on other platforms, which have no equivalent concept.
+    void populateVoiceQualityCombo();
+    // Rebuilds comboBoxTtsVoice from m_allVoices, applying the current
+    // quality filter, without touching m_ttsVoiceId.
+    void refreshFilteredVoiceCombo();
     void populateFeedbackModeCombos();
     void populateMixerStyleCombo();
     // Apply a preset (0 speech, 1 sounds, 2 both) to all four per-event
@@ -39,9 +45,14 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
 
     AccessibilitySettings m_settings;
     EngineTts* m_pTtsSink;
+    // All voices as reported by the backend, unfiltered; m_voices below is
+    // the (possibly quality-filtered) subset actually shown in the combo box.
+    QList<TtsEngine::Voice> m_allVoices;
     QList<TtsEngine::Voice> m_voices;
     int m_ttsRoute;
     QString m_ttsVoiceId;
+    // macOS only: 0 = show all voices, 1..3 = TtsEngine::VoiceQuality + 1.
+    int m_ttsVoiceQualityFilter;
     int m_ttsRate;
     int m_duckStrengthPercent;
     int m_beatClickVolumePercent;

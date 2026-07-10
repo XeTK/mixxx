@@ -202,6 +202,16 @@ class AccessibilitySettings {
     // Matches EngineTts::Route.
     DEFINE_PREFERENCE_HELPERS(TtsRoute, int, "[Accessibility]", "TtsRoute", 0);
 
+    // macOS only: filters the voice picker by AVSpeechSynthesisVoice quality
+    // tier. 0 = show all, 1 = Default, 2 = Enhanced, 3 = Premium (matches
+    // TtsEngine::VoiceQuality + 1). Purely a browsing aid for the dropdown;
+    // does not affect which voice is actually selected.
+    DEFINE_PREFERENCE_HELPERS(TtsVoiceQualityFilter,
+            int,
+            "[Accessibility]",
+            "TtsVoiceQualityFilter",
+            0);
+
   private:
     UserSettingsPointer m_pConfig;
 };
