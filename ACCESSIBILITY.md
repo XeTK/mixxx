@@ -58,7 +58,7 @@ Key source files:
   an accidental touch (mouse or touchscreen) can't disturb playback.
   Works at any time, including mid-playback; press again to unlock.
   Both states are confirmed audibly.
-- **Per-deck split cue**: `Alt+H` puts deck 1's headphone cue in the
+- **Per-deck split cue**: `Alt+S` puts deck 1's headphone cue in the
   left ear and deck 2's in the right (each as a mono fold-down), so
   both decks can be monitored at once. Other cued sources (samplers,
   preview deck) stay in both ears. Overrides the classic split-cue

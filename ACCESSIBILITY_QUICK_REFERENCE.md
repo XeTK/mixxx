@@ -15,7 +15,7 @@ loud, so you never have to guess what just happened:
   speech is off, there is nothing left to say it).
 - `Alt+B` — Beat click metronome on/off. Says "Beat click on" or
   "Beat click off".
-- `Alt+H` — Per-deck split headphone cue on/off. Says "Split cue on.
+- `Alt+S` — Per-deck split headphone cue on/off. Says "Split cue on.
   Deck 1 left, deck 2 right" or "Split cue off".
 - `Alt+X` — Crossfader lock on/off. Says "Crossfader locked" or
   "Crossfader unlocked".

@@ -49,7 +49,7 @@ Both files are in the same folder as this one.
   speech for play, stop, end of track, headphone cue, back-to-start,
   loop on/off, and audio clipping.
 - A beat-click metronome (`Alt+B`) and per-deck split headphone cue
-  (`Alt+H`) for monitoring both decks by ear.
+  (`Alt+S`) for monitoring both decks by ear.
 - A jog wheel touch lock (`Alt+J`) so an accidental touch on the
   on-screen waveform or vinyl widget can't derail playback.
 - Musical key spoken in whichever notation you use elsewhere in Mixxx —

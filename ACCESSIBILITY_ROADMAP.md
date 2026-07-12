@@ -72,7 +72,7 @@ one-page shortcut cheat sheet.
 - `Alt+Shift+R` — repeat last announcement
 - Odd numbers = deck A, even = deck B. Bindings in all 12 shipped
   keyboard layouts.
-- Full key list, including the batch-2 additions (`Alt+B`, `Alt+H`,
+- Full key list, including the batch-2 additions (`Alt+B`, `Alt+S`,
   `Alt+X`, `Alt+Shift+T`/`Y`), now lives in
   [ACCESSIBILITY_QUICK_REFERENCE.md](ACCESSIBILITY_QUICK_REFERENCE.md)
   (added 2026-07-06).
@@ -92,7 +92,7 @@ one-page shortcut cheat sheet.
   marker (assumes 4/4, phase counted from play start). Sample-accurate
   against the beat grid; headphone bus with main fallback; never
   recorded or broadcast. Level via the persistent `[BeatClick],volume`.
-- **Per-deck split headphone cue** (`Alt+H`, `[Master],headSplitDecks`):
+- **Per-deck split headphone cue** (`Alt+S`, `[Master],headSplitDecks`):
   deck 1's PFL as a mono fold-down in the left ear, deck 2's in the
   right; other cued sources in both ears. Overrides the classic
   cue/main split while active; the head/main mix knob still blends the
