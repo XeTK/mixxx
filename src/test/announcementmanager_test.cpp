@@ -1162,10 +1162,48 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_SpokenAsFraction) {
     m_pManager->slotAnnouncePendingControl();
     EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
 
+    // Default fraction detail is eighths: 5/16 snaps to the nearest eighth
+    // (2.5 eighths rounds away from zero to 3).
     m_pVolume->set(0.3125); // 5/16
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume 3 eighths", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_SixteenthsWhenConfigured) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("MixerFractionDetail")),
+            2);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.3125); // 5/16 spoken exactly at sixteenth detail
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
     EXPECT_QSTRING_EQ("[TestChannel1] volume 5 sixteenths", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_QuartersWhenConfigured) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("MixerFractionDetail")),
+            0);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.3125); // 5/16 snaps to the nearest quarter
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume a quarter", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FilterChange_CenterSplitFraction) {

@@ -122,6 +122,10 @@ class AnnouncementManager : public QObject {
     // of fractions, per the MixerReadoutStyle preference.
     bool mixerReadoutAsPercent() const;
 
+    // Fraction readout denominator (4, 8, or 16), per the
+    // MixerFractionDetail preference.
+    int mixerFractionDenominator() const;
+
     // Suppress hotcue set/cleared announcements briefly after a track load or
     // unload, which rewrites every hotcue status CO.
     void noteTrackChanged(const QString& group);

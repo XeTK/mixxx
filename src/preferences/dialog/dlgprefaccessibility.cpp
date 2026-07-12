@@ -65,6 +65,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_duckStrengthPercent(kDefaultDuckStrengthPercent),
           m_beatClickVolumePercent(kDefaultBeatClickVolumePercent),
           m_mixerReadoutStyle(m_settings.getMixerReadoutStyleDefault()),
+          m_mixerFractionDetail(m_settings.getMixerFractionDetailDefault()),
           m_feedbackModePlay(m_settings.getFeedbackModePlayDefault()),
           m_feedbackModeStop(m_settings.getFeedbackModeStopDefault()),
           m_feedbackModeEndOfTrack(m_settings.getFeedbackModeEndOfTrackDefault()),
@@ -173,6 +174,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
             [this](int index) { m_mixerReadoutStyle = index; });
+    connect(comboBoxFractionDetail,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this,
+            [this](int index) { m_mixerFractionDetail = index; });
     connect(comboBoxTtsVoice,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -335,6 +340,13 @@ void DlgPrefAccessibility::populateMixerStyleCombo() {
     comboBoxMixerStyle->clear();
     comboBoxMixerStyle->addItem(tr("Fractions (e.g. three quarters)"));
     comboBoxMixerStyle->addItem(tr("Percentages (e.g. 75 percent)"));
+
+    // Order must match MixerFractionDetail: 0 quarters, 1 eighths,
+    // 2 sixteenths.
+    comboBoxFractionDetail->clear();
+    comboBoxFractionDetail->addItem(tr("Quarters (coarse)"));
+    comboBoxFractionDetail->addItem(tr("Eighths"));
+    comboBoxFractionDetail->addItem(tr("Sixteenths (fine)"));
 }
 
 void DlgPrefAccessibility::applyFeedbackPreset(int mode) {
@@ -457,6 +469,9 @@ void DlgPrefAccessibility::slotUpdate() {
     m_mixerReadoutStyle = m_settings.getMixerReadoutStyle();
     comboBoxMixerStyle->setCurrentIndex(
             std::clamp(m_mixerReadoutStyle, 0, comboBoxMixerStyle->count() - 1));
+    m_mixerFractionDetail = m_settings.getMixerFractionDetail();
+    comboBoxFractionDetail->setCurrentIndex(std::clamp(
+            m_mixerFractionDetail, 0, comboBoxFractionDetail->count() - 1));
     const double duckStrength = readDuckStrengthControl();
     m_duckStrengthPercent = duckStrength > 0.0
             ? static_cast<int>(std::lround(duckStrength * 100))
@@ -547,6 +562,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setDeckNamesAsNumbers(m_bDeckNumbers);
     m_settings.setConciseAnnouncements(m_bConcise);
     m_settings.setMixerReadoutStyle(m_mixerReadoutStyle);
+    m_settings.setMixerFractionDetail(m_mixerFractionDetail);
 }
 
 void DlgPrefAccessibility::slotTestSpeech() {
@@ -606,6 +622,9 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_mixerReadoutStyle = m_settings.getMixerReadoutStyleDefault();
     comboBoxMixerStyle->setCurrentIndex(
             std::clamp(m_mixerReadoutStyle, 0, comboBoxMixerStyle->count() - 1));
+    m_mixerFractionDetail = m_settings.getMixerFractionDetailDefault();
+    comboBoxFractionDetail->setCurrentIndex(std::clamp(
+            m_mixerFractionDetail, 0, comboBoxFractionDetail->count() - 1));
     m_bAnnounceStartup = m_settings.getAnnounceStartupDefault();
     m_bAnnounceSelection = m_settings.getAnnounceTrackSelectionDefault();
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();

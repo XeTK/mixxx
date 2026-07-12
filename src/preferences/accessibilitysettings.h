@@ -164,6 +164,15 @@ class AccessibilitySettings {
             "MixerReadoutStyle",
             0);
 
+    // How finely fraction readouts resolve: 0 = quarters, 1 = eighths,
+    // 2 = sixteenths. Eighths by default — sixteenths proved too fine to be
+    // useful by ear in tester feedback. Percentages are always exact.
+    DEFINE_PREFERENCE_HELPERS(MixerFractionDetail,
+            int,
+            "[Accessibility]",
+            "MixerFractionDetail",
+            1);
+
     // Speak continuous controls while they move (throttled) instead of only
     // once they come to rest.
     DEFINE_PREFERENCE_HELPERS(AnnounceWhileMoving,

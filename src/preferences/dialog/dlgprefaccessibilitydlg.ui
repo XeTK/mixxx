@@ -741,6 +741,26 @@
         </item>
        </layout>
       </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutFractionDetail">
+        <item>
+         <widget class="QLabel" name="labelFractionDetail">
+          <property name="text">
+           <string>Fraction detail:</string>
+          </property>
+          <property name="toolTip">
+           <string>How finely fraction readouts resolve: quarters, eighths, or sixteenths. Percentages are always exact.</string>
+          </property>
+          <property name="buddy">
+           <cstring>comboBoxFractionDetail</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxFractionDetail"/>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>

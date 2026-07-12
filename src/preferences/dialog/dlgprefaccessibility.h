@@ -57,6 +57,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     int m_duckStrengthPercent;
     int m_beatClickVolumePercent;
     int m_mixerReadoutStyle;
+    int m_mixerFractionDetail;
     int m_feedbackModePlay;
     int m_feedbackModeStop;
     int m_feedbackModeEndOfTrack;

@@ -62,15 +62,22 @@ QString remainingText(int totalSeconds) {
 // ("75 percent") depending on the user's MixerReadoutStyle preference.
 // Fractions match how DJs think of physical controls and read faster;
 // percentages give exact values for users who want them. Fractions are
-// snapped to sixteenths and simplified.
-QString fractionText(double zeroToOne, bool asPercent) {
+// snapped to the user's MixerFractionDetail denominator (4, 8, or 16 —
+// sixteenths proved too fine by ear) and simplified.
+QString fractionText(double zeroToOne, bool asPercent, int denominator) {
     if (asPercent) {
         const int percent = static_cast<int>(
                 std::lround(std::clamp(zeroToOne, 0.0, 1.0) * 100));
         return AnnouncementManager::tr("%1 percent").arg(percent);
     }
-    const int sixteenths = std::clamp(
-            static_cast<int>(std::lround(zeroToOne * 16.0)), 0, 16);
+    // Snap at the requested detail, then express in sixteenths so the naming
+    // below simplifies the result ("a quarter", "3 eighths") the same way at
+    // every detail level.
+    const int snapped = std::clamp(
+            static_cast<int>(std::lround(zeroToOne * denominator)),
+            0,
+            denominator);
+    const int sixteenths = snapped * (16 / denominator);
     switch (sixteenths) {
     case 0:
         return AnnouncementManager::tr("zero");
@@ -99,17 +106,21 @@ QString fractionText(double zeroToOne, bool asPercent) {
 // Center-detented controls (EQ, filter, gain): deviation from center as a
 // signed fraction or percentage — "center", "plus a quarter", "minus 25
 // percent", per MixerReadoutStyle.
-QString centerSplitText(double normalized /* -1 .. +1, 0 = center */, bool asPercent) {
+QString centerSplitText(double normalized /* -1 .. +1, 0 = center */,
+        bool asPercent,
+        int denominator) {
     const double magnitude = std::clamp(std::abs(normalized), 0.0, 1.0);
-    const bool isCenter = asPercent ? std::lround(magnitude * 100) == 0
-                                    : std::lround(magnitude * 16.0) == 0;
+    const bool isCenter = asPercent
+            ? std::lround(magnitude * 100) == 0
+            : std::lround(magnitude * denominator) == 0;
     if (isCenter) {
         return AnnouncementManager::tr("center");
     }
     return normalized > 0
             ? AnnouncementManager::tr("plus %1").arg(
-                      fractionText(magnitude, asPercent))
-            : AnnouncementManager::tr("minus %1").arg(fractionText(magnitude, asPercent));
+                      fractionText(magnitude, asPercent, denominator))
+            : AnnouncementManager::tr("minus %1")
+                      .arg(fractionText(magnitude, asPercent, denominator));
 }
 
 // Normalize a unity-1 gain knob (range 0..4, center 1 — EQ knobs and the
@@ -450,10 +461,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     text = tr("Crossfader center");
                 } else {
                     const bool asPercent = mixerReadoutAsPercent();
+                    const int detail = mixerFractionDenominator();
                     text = value < 0
-                            ? tr("Crossfader left %1").arg(fractionText(-value, asPercent))
+                            ? tr("Crossfader left %1")
+                                      .arg(fractionText(-value, asPercent, detail))
                             : tr("Crossfader right %1")
-                                      .arg(fractionText(value, asPercent));
+                                      .arg(fractionText(value, asPercent, detail));
                 }
                 announceControlDebounced(text);
             });
@@ -479,10 +492,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             text = tr("Headphone mix even");
         } else {
             const bool asPercent = mixerReadoutAsPercent();
+            const int detail = mixerFractionDenominator();
             text = value < 0
-                    ? tr("Headphone mix cue %1").arg(fractionText(-value, asPercent))
+                    ? tr("Headphone mix cue %1")
+                              .arg(fractionText(-value, asPercent, detail))
                     : tr("Headphone mix main %1")
-                              .arg(fractionText(value, asPercent));
+                              .arg(fractionText(value, asPercent, detail));
         }
         announceControlDebounced(text);
     });
@@ -513,7 +528,8 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     announceControlDebounced(QStringLiteral("%1 %2").arg(name,
                             centerSplitText(
                                     (pGainRaw->getParameter() - 0.5) * 2.0,
-                                    mixerReadoutAsPercent())));
+                                    mixerReadoutAsPercent(),
+                                    mixerFractionDenominator())));
                 });
     }
 
@@ -541,7 +557,8 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                         }
                         announceControlDebounced(text.arg(unit).arg(fractionText(
                                 std::clamp(value, 0.0, 1.0),
-                                mixerReadoutAsPercent())));
+                                mixerReadoutAsPercent(),
+                                mixerFractionDenominator())));
                     });
         }
     }
@@ -971,7 +988,8 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                                                         pVolumeRaw->getParameter(),
                                                         0.0,
                                                         1.0),
-                                                mixerReadoutAsPercent())));
+                                                mixerReadoutAsPercent(),
+                                                mixerFractionDenominator())));
             });
 
     // Trim / channel pregain: also a ControlAudioTaperPot, neutral at
@@ -995,7 +1013,8 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                                                 (pPregainRaw->getParameter() -
                                                         0.5) *
                                                         2.0,
-                                                mixerReadoutAsPercent())));
+                                                mixerReadoutAsPercent(),
+                                                mixerFractionDenominator())));
             });
 
     // EQ knobs. Values run 0..4 with unity at 1; spoken as a signed fraction
@@ -1032,7 +1051,8 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                                             name,
                                             centerSplitText(
                                                     normalizeUnityGain(value),
-                                                    mixerReadoutAsPercent())));
+                                                    mixerReadoutAsPercent(),
+                                                    mixerFractionDenominator())));
                 });
     }
 
@@ -1050,7 +1070,8 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         announceControlDebounced(tr("%1 filter %2")
                         .arg(mixerDeckName(group, deckIndex),
                                 centerSplitText((value - 0.5) * 2.0,
-                                        mixerReadoutAsPercent())));
+                                        mixerReadoutAsPercent(),
+                                        mixerFractionDenominator())));
     });
 }
 
@@ -1455,6 +1476,17 @@ QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) 
 
 bool AnnouncementManager::mixerReadoutAsPercent() const {
     return m_settings.getMixerReadoutStyle() == 1;
+}
+
+int AnnouncementManager::mixerFractionDenominator() const {
+    switch (m_settings.getMixerFractionDetail()) {
+    case 0:
+        return 4;
+    case 2:
+        return 16;
+    default:
+        return 8;
+    }
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {
