@@ -658,6 +658,14 @@ void Library::slotShowTrackModel(QAbstractItemModel* model) {
 }
 
 void Library::slotSwitchToView(const QString& view) {
+    // Accessibility: entering a feature's home view (the Playlists or Crates
+    // pane) is otherwise silent — the sidebar announcement only covers moving
+    // the selection, not the pane actually switching.
+    if (view == QStringLiteral("PLAYLISTHOME")) {
+        announceText(tr("Playlists view"));
+    } else if (view == QStringLiteral("CRATEHOME")) {
+        announceText(tr("Crates view"));
+    }
     // qDebug() << "Library::slotSwitchToView" << view;
     emit switchToView(view);
 }

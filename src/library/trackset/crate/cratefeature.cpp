@@ -482,6 +482,13 @@ void CrateFeature::slotRenameCrate() {
     if (readLastRightClickedCrate(&crate)) {
         const QString oldName = crate.getName();
         crate.resetName();
+        // Accessibility: same pattern as the create dialog — announce the
+        // dialog, echo back the entered name, and speak validation failures.
+        m_pLibrary->announceText(
+                tr("Rename crate dialog. A text box is filled in with the "
+                   "current name %1, selected. Type a new name, then press "
+                   "Enter to rename, or Escape to cancel.")
+                        .arg(oldName));
         for (;;) {
             bool ok = false;
             auto newName =
@@ -495,13 +502,16 @@ void CrateFeature::slotRenameCrate() {
             if (!ok || newName.isEmpty()) {
                 return;
             }
+            m_pLibrary->announceText(tr("You entered: %1").arg(newName));
             if (newName.isEmpty()) {
+                m_pLibrary->announceText(tr("A crate cannot have a blank name."));
                 QMessageBox::warning(nullptr,
                         tr("Renaming Crate Failed"),
                         tr("A crate cannot have a blank name."));
                 continue;
             }
             if (m_pTrackCollection->crates().readCrateByName(newName)) {
+                m_pLibrary->announceText(tr("A crate by that name already exists."));
                 QMessageBox::warning(nullptr,
                         tr("Renaming Crate Failed"),
                         tr("A crate by that name already exists."));
@@ -514,6 +524,9 @@ void CrateFeature::slotRenameCrate() {
 
         if (!m_pTrackCollection->updateCrate(crate)) {
             qDebug() << "Failed to rename crate" << crate;
+        } else {
+            m_pLibrary->announceText(
+                    tr("Renamed crate %1 to %2").arg(oldName, crate.getName()));
         }
     } else {
         qDebug() << "Failed to rename selected crate";

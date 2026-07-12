@@ -273,6 +273,13 @@ void BasePlaylistFeature::slotRenamePlaylist() {
     QString newName;
     bool validNameGiven = false;
 
+    // Accessibility: same pattern as the create dialog — announce the
+    // dialog, echo back the entered name, and speak validation failures.
+    m_pLibrary->announceText(
+            tr("Rename playlist dialog. A text box is filled in with the "
+               "current name %1, selected. Type a new name, then press "
+               "Enter to rename, or Escape to cancel.")
+                    .arg(oldName));
     while (!validNameGiven) {
         bool ok = false;
         newName = QInputDialog::getText(nullptr,
@@ -285,14 +292,19 @@ void BasePlaylistFeature::slotRenamePlaylist() {
         if (!ok || oldName == newName) {
             return;
         }
+        m_pLibrary->announceText(
+                newName.isEmpty() ? tr("You entered nothing.")
+                                  : tr("You entered: %1").arg(newName));
 
         int existingId = m_playlistDao.getPlaylistIdFromName(newName);
 
         if (existingId != kInvalidPlaylistId) {
+            m_pLibrary->announceText(tr("A playlist by that name already exists."));
             QMessageBox::warning(nullptr,
                     tr("Renaming Playlist Failed"),
                     tr("A playlist by that name already exists."));
         } else if (newName.isEmpty()) {
+            m_pLibrary->announceText(tr("A playlist cannot have a blank name."));
             QMessageBox::warning(nullptr,
                     tr("Renaming Playlist Failed"),
                     tr("A playlist cannot have a blank name."));
@@ -302,6 +314,8 @@ void BasePlaylistFeature::slotRenamePlaylist() {
     }
 
     m_playlistDao.renamePlaylist(playlistId, newName);
+    m_pLibrary->announceText(
+            tr("Renamed playlist %1 to %2").arg(oldName, newName));
 }
 
 void BasePlaylistFeature::slotDuplicatePlaylist() {
@@ -315,6 +329,12 @@ void BasePlaylistFeature::slotDuplicatePlaylist() {
     QString name;
     bool validNameGiven = false;
 
+    // Accessibility: same pattern as the create dialog.
+    m_pLibrary->announceText(
+            tr("Duplicate playlist dialog. A text box is filled in with "
+               "%1 copy, selected. Type a name for the copy, then press "
+               "Enter to duplicate, or Escape to cancel.")
+                    .arg(oldName));
     while (!validNameGiven) {
         bool ok = false;
         name = QInputDialog::getText(nullptr,
@@ -328,14 +348,19 @@ void BasePlaylistFeature::slotDuplicatePlaylist() {
         if (!ok || oldName == name) {
             return;
         }
+        m_pLibrary->announceText(
+                name.isEmpty() ? tr("You entered nothing.")
+                               : tr("You entered: %1").arg(name));
 
         int existingId = m_playlistDao.getPlaylistIdFromName(name);
 
         if (existingId != kInvalidPlaylistId) {
+            m_pLibrary->announceText(tr("A playlist by that name already exists."));
             QMessageBox::warning(nullptr,
                     tr("Playlist Creation Failed"),
                     tr("A playlist by that name already exists."));
         } else if (name.isEmpty()) {
+            m_pLibrary->announceText(tr("A playlist cannot have a blank name."));
             QMessageBox::warning(nullptr,
                     tr("Playlist Creation Failed"),
                     tr("A playlist cannot have a blank name."));
@@ -348,6 +373,8 @@ void BasePlaylistFeature::slotDuplicatePlaylist() {
 
     if (newPlaylistId != kInvalidPlaylistId) {
         m_playlistDao.copyPlaylistTracks(oldPlaylistId, newPlaylistId);
+        m_pLibrary->announceText(
+                tr("Duplicated playlist %1 as %2").arg(oldName, name));
     }
 }
 

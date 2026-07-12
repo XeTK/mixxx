@@ -123,6 +123,14 @@ CrateId CrateFeatureHelper::duplicateCrate(const Crate& oldCrate) {
             proposeNameForNewCrate(
                     QStringLiteral("%1 %2")
                             .arg(oldCrate.getName(), tr("copy", "//:")));
+    // Accessibility: same pattern as the create dialog above.
+    if (m_pLibrary) {
+        m_pLibrary->announceText(
+                tr("Duplicate crate dialog. A text box is filled in with "
+                   "%1, selected. Type a name for the copy, then press "
+                   "Enter to duplicate, or Escape to cancel.")
+                        .arg(proposedCrateName));
+    }
     Crate newCrate;
     for (;;) {
         bool ok = false;
@@ -138,7 +146,15 @@ CrateId CrateFeatureHelper::duplicateCrate(const Crate& oldCrate) {
         if (!ok) {
             return CrateId();
         }
+        if (m_pLibrary) {
+            m_pLibrary->announceText(
+                    newName.isEmpty() ? tr("You entered nothing.")
+                                      : tr("You entered: %1").arg(newName));
+        }
         if (newName.isEmpty()) {
+            if (m_pLibrary) {
+                m_pLibrary->announceText(tr("A crate cannot have a blank name."));
+            }
             QMessageBox::warning(
                     nullptr,
                     tr("Duplicating Crate Failed"),
@@ -146,6 +162,9 @@ CrateId CrateFeatureHelper::duplicateCrate(const Crate& oldCrate) {
             continue;
         }
         if (m_pTrackCollection->crates().readCrateByName(newName)) {
+            if (m_pLibrary) {
+                m_pLibrary->announceText(tr("A crate by that name already exists."));
+            }
             QMessageBox::warning(
                     nullptr,
                     tr("Duplicating Crate Failed"),
@@ -175,6 +194,10 @@ CrateId CrateFeatureHelper::duplicateCrate(const Crate& oldCrate) {
         if (m_pTrackCollection->addCrateTracks(newCrateId, trackIds)) {
             qDebug() << "Duplicated crate"
                      << oldCrate << "->" << newCrate;
+            if (m_pLibrary) {
+                m_pLibrary->announceText(tr("Duplicated crate %1 as %2")
+                                .arg(oldCrate.getName(), newCrate.getName()));
+            }
         } else {
             qWarning() << "Failed to copy tracks from"
                        << oldCrate << "into" << newCrate;

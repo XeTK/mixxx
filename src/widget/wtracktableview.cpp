@@ -1151,6 +1151,22 @@ void WTrackTableView::moveRows(QList<int> selectedRowsIn, int destRow) {
         selectionModel()->select(model()->index(selectionRestoreStartRow + i, idxCol),
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
     }
+
+    // Accessibility: confirm the move audibly — a blind user gets no other
+    // feedback that Alt+Up/Down (or a drag) actually reordered the playlist.
+    if (m_pLibrary) {
+        const int totalRows = model()->rowCount();
+        if (selectedRowCount == 1) {
+            m_pLibrary->announceText(tr("Moved to position %1 of %2")
+                            .arg(QString::number(selectionRestoreStartRow + 1),
+                                    QString::number(totalRows)));
+        } else {
+            m_pLibrary->announceText(tr("Moved %1 tracks to position %2 of %3")
+                            .arg(QString::number(selectedRowCount),
+                                    QString::number(selectionRestoreStartRow + 1),
+                                    QString::number(totalRows)));
+        }
+    }
 }
 
 void WTrackTableView::moveSelectedTracks(QKeyEvent* event) {
