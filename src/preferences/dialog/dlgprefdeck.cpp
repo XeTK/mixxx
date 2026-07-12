@@ -226,8 +226,10 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             this,
             &DlgPrefDeck::slotCloneDeckOnLoadDoubleTapCheckbox);
 
+    // Default on in this accessibility fork: a blind DJ can't see that a jog
+    // nudge landed in pre-roll silence, so guard against it out of the box.
     m_bDisablePreRoll = m_pConfig->getValue(
-            ConfigKey(kControlsGroup, QStringLiteral("DisablePreRoll")), false);
+            ConfigKey(kControlsGroup, QStringLiteral("DisablePreRoll")), true);
     checkBoxDisablePreRoll->setChecked(m_bDisablePreRoll);
     connect(checkBoxDisablePreRoll,
             &QCheckBox::toggled,
@@ -467,7 +469,7 @@ void DlgPrefDeck::slotUpdate() {
             ConfigKey(kControlsGroup, QStringLiteral("CloneDeckOnLoadDoubleTap")), true));
 
     checkBoxDisablePreRoll->setChecked(m_pConfig->getValue(
-            ConfigKey(kControlsGroup, QStringLiteral("DisablePreRoll")), false));
+            ConfigKey(kControlsGroup, QStringLiteral("DisablePreRoll")), true));
 
     checkBoxDisableTouchScratch->setChecked(m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")), false));
@@ -558,7 +560,7 @@ void DlgPrefDeck::slotResetToDefaults() {
     // Clone decks by double-tapping Load button.
     checkBoxCloneDeckOnLoadDoubleTap->setChecked(kDefaultCloneDeckOnLoad);
 
-    checkBoxDisablePreRoll->setChecked(false);
+    checkBoxDisablePreRoll->setChecked(true);
     checkBoxDisableTouchScratch->setChecked(false);
 
     // Mixxx cue mode
