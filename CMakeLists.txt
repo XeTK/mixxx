@@ -2053,7 +2053,11 @@ if(APPLE)
       target_compile_definitions(mixxx-lib PUBLIC __IOS_ITUNES_LIBRARY__)
     endif()
   else()
-    target_sources(mixxx-lib PRIVATE src/util/darkappearance.mm)
+    target_sources(
+      mixxx-lib
+      PRIVATE src/util/darkappearance.mm src/util/ttsenginemac.mm
+    )
+    target_link_libraries(mixxx-lib PRIVATE "-weak_framework AVFAudio")
 
     option(
       MACOS_ITUNES_LIBRARY

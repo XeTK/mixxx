@@ -12,13 +12,25 @@ class EngineTts;
 /// the music, ducked for intelligibility, and routed to the headphone or main
 /// output like any other engine signal.
 ///
-/// Synthesis is platform specific (SAPI on Windows, Qt TextToSpeech elsewhere
-/// when available); a silent no-op engine is used when no backend is present.
+/// Synthesis is platform specific (SAPI on Windows, AVSpeechSynthesizer on
+/// macOS, Qt TextToSpeech elsewhere when available); a silent no-op engine is
+/// used when no backend is present.
 class TtsEngine {
   public:
+    // Only meaningful on macOS, where AVSpeechSynthesisVoice reports a real
+    // quality tier per installed voice (Enhanced/Premium are downloaded
+    // separately via System Settings; most voices are Default until then).
+    // Other backends have no equivalent concept and always report Default.
+    enum class VoiceQuality {
+        Default,
+        Enhanced,
+        Premium,
+    };
+
     struct Voice {
         QString id;
         QString displayName;
+        VoiceQuality quality = VoiceQuality::Default;
     };
 
     virtual ~TtsEngine() = default;

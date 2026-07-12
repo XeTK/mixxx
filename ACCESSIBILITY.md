@@ -14,20 +14,29 @@ one-page cheat sheet. This file is the technical overview;
 
 ## How it works
 
-Speech is synthesized off the audio thread (SAPI on Windows, Qt
-TextToSpeech on other platforms when built with Qt >= 6.6) and mixed into
-Mixxx's own engine output with sidechain ducking, so announcements are
-heard over the music through the headphone cue or main output like any
-other engine signal. Speech is never recorded or broadcast.
+Speech is synthesized off the audio thread (SAPI on Windows,
+AVSpeechSynthesizer on macOS, Qt TextToSpeech on other platforms when
+built with Qt >= 6.6) and mixed into Mixxx's own engine output with
+sidechain ducking, so announcements are heard over the music through
+the headphone cue or main output like any other engine signal. Speech
+is never recorded or broadcast.
+
+macOS uses AVSpeechSynthesizer directly rather than Qt's TextToSpeech
+module: Mixxx's macOS dependency bundle doesn't ship that Qt module,
+so relying on it would leave TTS silently disabled on a real Mac.
+Talking to Apple's framework directly also means no extra dependency
+to bundle, matching how SAPI is used on Windows.
 
 Key source files:
 
-- `src/util/ttsengine.cpp` — platform speech synthesis to PCM
+- `src/util/ttsengine.cpp` — platform speech synthesis dispatch;
+  `src/util/ttsenginemac.mm` — the macOS AVSpeechSynthesizer backend
 - `src/engine/enginetts.cpp` — lock-free FIFO + ducking mix-in
   (`[Tts]` control group)
 - `src/util/announcementmanager.cpp` — decides what to say and when
 - `src/preferences/dialog/dlgprefaccessibility.cpp` — the
-  Preferences > Accessibility page
+  Preferences > Accessibility page, including the macOS-only voice
+  quality tier filter
 
 ## Using it
 

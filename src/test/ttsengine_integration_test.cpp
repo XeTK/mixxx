@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "control/controlobject.h"
+#include "control/controlproxy.h"
 #include "engine/enginetts.h"
 #include "test/mixxxtest.h"
 #include "util/ttsengine.h"
@@ -36,26 +37,15 @@ class TtsEngineIntegrationTest : public MixxxTest {
         // Route speech to the main output so we can inspect pMain in process().
         m_pEngineTts->setRoute(static_cast<int>(EngineTts::Route::Main));
 
+        // process() flushes the FIFO and bails out unless the user-enabled
+        // toggle is on; a real caller flips this via the preferences/keyboard
+        // shortcut before ever calling say().
+        m_pTtsEnabled = std::make_unique<ControlProxy>(kTtsTestGroup, QStringLiteral("enabled"));
+        m_pTtsEnabled->set(1.0);
+
         m_pTtsEngine = TtsEngine::create();
         m_pTtsEngine->setSampleRate(44100);
         m_pTtsEngine->setSink(m_pEngineTts.get());
-    }
-
-    // Block until the EngineTts FIFO holds audio data, or the timeout expires.
-    // Returns true if audio arrived.
-    bool waitForAudio(
-            std::chrono::milliseconds timeout =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                            kSynthesisTimeout)) {
-        const auto deadline = std::chrono::steady_clock::now() + timeout;
-        while (std::chrono::steady_clock::now() < deadline) {
-            if (!m_pEngineTts->isEmpty()) {
-                return true;
-            }
-            QCoreApplication::processEvents();
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        }
-        return false;
     }
 
     // Drain one callback's worth of audio through process() and return the main
@@ -70,9 +60,41 @@ class TtsEngineIntegrationTest : public MixxxTest {
         return mainBuf;
     }
 
+    // Poll by repeatedly draining process(), the way the real-time audio
+    // thread does, until a non-silent buffer appears or the timeout expires.
+    //
+    // This must drain, not just peek at isEmpty(): say()'s requestFlush() is
+    // only honored on process()'s *next* call, discarding whatever is in the
+    // FIFO at that point. In the real app the audio thread calls process()
+    // continuously, so that flush always lands before any synthesized audio
+    // exists. But a fast synthesis backend (e.g. macOS's AVSpeechSynthesizer,
+    // which renders a whole short utterance in ~1 ms) can fill the FIFO
+    // before this test ever calls process() — so the first process() call
+    // must be part of the polling loop, or it discards real audio via the
+    // still-pending flush and the test would wrongly conclude nothing was
+    // produced.
+    bool waitForNonSilentAudio(std::vector<CSAMPLE>* pOutput,
+            std::chrono::milliseconds timeout =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                            kSynthesisTimeout)) {
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (std::chrono::steady_clock::now() < deadline) {
+            *pOutput = drainOneBuffer();
+            if (std::any_of(pOutput->begin(), pOutput->end(), [](CSAMPLE s) {
+                    return s != 0.0f;
+                })) {
+                return true;
+            }
+            QCoreApplication::processEvents();
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+
     std::unique_ptr<ControlObject> m_pSampleRate;
     std::unique_ptr<EngineTts> m_pEngineTts;
     std::unique_ptr<TtsEngine> m_pTtsEngine;
+    std::unique_ptr<ControlProxy> m_pTtsEnabled;
 };
 
 // Verify that calling say() with the real platform TTS backend actually causes
@@ -86,17 +108,10 @@ TEST_F(TtsEngineIntegrationTest, SayProducesAudioInOutputBuffer) {
 
     m_pTtsEngine->say(QStringLiteral("Hello"));
 
-    ASSERT_TRUE(waitForAudio())
-            << "FIFO was still empty after " << kSynthesisTimeout.count()
+    std::vector<CSAMPLE> output;
+    EXPECT_TRUE(waitForNonSilentAudio(&output))
+            << "No non-silent buffer appeared within " << kSynthesisTimeout.count()
             << " s — the TTS backend produced no audio";
-
-    const std::vector<CSAMPLE> output = drainOneBuffer();
-
-    const bool hasSignal = std::any_of(
-            output.begin(), output.end(), [](CSAMPLE s) { return s != 0.0f; });
-    EXPECT_TRUE(hasSignal)
-            << "Output buffer was all zeros after TTS synthesis — audio was "
-               "produced in the FIFO but process() did not mix it into the output";
 }
 
 // A second utterance arriving while the first is still queued must interrupt
@@ -110,11 +125,7 @@ TEST_F(TtsEngineIntegrationTest, SecondSayInterruptsAndProducesAudio) {
     m_pTtsEngine->say(QStringLiteral("First message"));
     m_pTtsEngine->say(QStringLiteral("Second message"));
 
-    ASSERT_TRUE(waitForAudio())
-            << "FIFO was still empty after barge-in — no audio produced";
-
-    const std::vector<CSAMPLE> output = drainOneBuffer();
-    const bool hasSignal = std::any_of(
-            output.begin(), output.end(), [](CSAMPLE s) { return s != 0.0f; });
-    EXPECT_TRUE(hasSignal) << "Output buffer was silent after barge-in say()";
+    std::vector<CSAMPLE> output;
+    EXPECT_TRUE(waitForNonSilentAudio(&output))
+            << "No non-silent buffer appeared after barge-in say()";
 }
