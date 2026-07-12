@@ -524,6 +524,16 @@ void WMainMenuBar::initialize() {
     QString ttsTitle = tr("Enable &Text-to-Speech");
     QString ttsText = tr("Speak announcements for accessibility (track load, search, etc.)");
     auto* pOptionsTts = new QAction(ttsTitle, this);
+    // Show (and own) the same key the keyboard mapping binds to [Tts],enabled,
+    // so the menu advertises the shortcut. Qt's shortcut map consumes the key
+    // press before KeyboardEventFilter sees it, so this doesn't double-toggle
+    // with the kbd.cfg binding — and the toggle keeps working even when
+    // Mixxx keyboard shortcuts are disabled, which matters for a blind user.
+    pOptionsTts->setShortcut(
+            safeKeySequence(m_pKbdConfig->getValue(
+                    ConfigKey("[Tts]", "enabled"),
+                    QStringLiteral("Alt+Shift+A"))));
+    pOptionsTts->setShortcutContext(Qt::ApplicationShortcut);
     pOptionsTts->setCheckable(true);
     pOptionsTts->setStatusTip(ttsText);
     pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));

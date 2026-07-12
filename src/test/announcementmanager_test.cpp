@@ -1479,6 +1479,45 @@ TEST_F(AnnouncementManagerTest, CrossfaderLock_Announced) {
     EXPECT_QSTRING_EQ("Crossfader unlocked", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerTest, CrossfaderMove_WhileLocked_Silent) {
+    // While the lock is on the engine ignores the crossfader control, so a
+    // position readout would describe a fader that isn't doing anything.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pLock = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Master]"), QStringLiteral("crossfader_lock")));
+    auto pCrossfader = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Master]"), QStringLiteral("crossfader")));
+    SpyTtsEngine* pSpy = makeManager(); // proxies attach in init()
+
+    // Unlocked: moving the crossfader speaks its position.
+    pCrossfader->set(-1.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Crossfader left full", pSpy->lastText);
+
+    pLock->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Crossfader locked", pSpy->lastText);
+    const int callsAfterLock = pSpy->callCount;
+
+    // Locked: position changes stay silent.
+    pCrossfader->set(1.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(callsAfterLock, pSpy->callCount)
+            << "crossfader position must not be announced while locked";
+
+    // Unlocking restores the readout.
+    pLock->set(0.0);
+    QCoreApplication::processEvents();
+    pCrossfader->set(0.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Crossfader center", pSpy->lastText);
+}
+
 TEST_F(AnnouncementManagerTest, DisableTouchScratch_Announced) {
     auto pLock = std::make_unique<ControlObject>(ConfigKey(
             QStringLiteral("[Master]"), QStringLiteral("disable_touch_scratch")));

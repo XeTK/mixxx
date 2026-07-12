@@ -420,29 +420,43 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         emitCue(static_cast<int>(EngineEarcon::Id::Clipping), -1, tr("Clipping"));
     });
 
+    // Crossfader lock (Alt+X): always confirmed audibly — it is a direct user
+    // action, and silently locking the crossfader would be baffling.
+    auto pCrossfaderLock = make_parented<ControlProxy>(
+            QStringLiteral("[Master]"),
+            QStringLiteral("crossfader_lock"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pCrossfaderLock->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Crossfader locked") : tr("Crossfader unlocked"));
+    });
+
     // Crossfader position, debounced while it moves. -1 is full left, +1 full
-    // right; treat the middle five percent as center.
+    // right; treat the middle five percent as center. While the lock is on the
+    // engine ignores the control, so a position readout would describe a fader
+    // that isn't actually doing anything — stay quiet instead.
     auto pCrossfader = make_parented<ControlProxy>(
             QStringLiteral("[Master]"),
             QStringLiteral("crossfader"),
             this,
             ControlFlag::AllowMissingOrInvalid);
-    pCrossfader->connectValueChanged(this, [this](double value) {
-        if (!m_settings.getAnnounceMixer()) {
-            return;
-        }
-        QString text;
-        if (std::abs(value) < 0.05) {
-            text = tr("Crossfader center");
-        } else {
-            const bool asPercent = mixerReadoutAsPercent();
-            text = value < 0
-                    ? tr("Crossfader left %1").arg(fractionText(-value, asPercent))
-                    : tr("Crossfader right %1")
-                              .arg(fractionText(value, asPercent));
-        }
-        announceControlDebounced(text);
-    });
+    pCrossfader->connectValueChanged(this,
+            [this, pLock = static_cast<ControlProxy*>(pCrossfaderLock)](double value) {
+                if (!m_settings.getAnnounceMixer() || pLock->toBool()) {
+                    return;
+                }
+                QString text;
+                if (std::abs(value) < 0.05) {
+                    text = tr("Crossfader center");
+                } else {
+                    const bool asPercent = mixerReadoutAsPercent();
+                    text = value < 0
+                            ? tr("Crossfader left %1").arg(fractionText(-value, asPercent))
+                            : tr("Crossfader right %1")
+                                      .arg(fractionText(value, asPercent));
+                }
+                announceControlDebounced(text);
+            });
 
     // Headphone mix knob: -1 is full cue (PFL'd decks only), +1 is full main
     // (audience mix), debounced while it moves. A linear ControlPotmeter, so
@@ -551,17 +565,6 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             ControlFlag::AllowMissingOrInvalid);
     pBeatClick->connectValueChanged(this, [this](double value) {
         speak(value > 0.0 ? tr("Beat click on") : tr("Beat click off"));
-    });
-
-    // Crossfader lock (Alt+X): always confirmed audibly — it is a direct user
-    // action, and silently locking the crossfader would be baffling.
-    auto pCrossfaderLock = make_parented<ControlProxy>(
-            QStringLiteral("[Master]"),
-            QStringLiteral("crossfader_lock"),
-            this,
-            ControlFlag::AllowMissingOrInvalid);
-    pCrossfaderLock->connectValueChanged(this, [this](double value) {
-        speak(value > 0.0 ? tr("Crossfader locked") : tr("Crossfader unlocked"));
     });
 
     // Jog wheel touch lock (Alt+J): disables click-and-drag scratching on the
