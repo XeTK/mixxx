@@ -58,10 +58,22 @@ Both files are in the same folder as this one.
 - Quick add to crate/playlist (`Alt+Shift+C` / `Alt+Shift+P`): pops a
   menu of your crate/playlist names next to the selected track, each
   one spoken as you arrow through it, `Enter` to add.
-- Spoken New Playlist / New Crate / Delete Playlist / Delete Crate
-  dialogs (`Ctrl+N`, `Ctrl+Shift+N`, and their right-click Delete
-  actions): announces the dialog opening, reads back what you typed,
-  and speaks validation errors like a duplicate name.
+- Spoken playlist and crate dialogs — create, rename, duplicate, and
+  delete (`Ctrl+N`, `Ctrl+Shift+N`, and the right-click actions):
+  announces the dialog opening, reads back what you typed, speaks
+  validation errors like a duplicate name, and confirms the result.
+- Track reordering in playlists is spoken: `Alt+Up`/`Alt+Down` (and
+  PageUp/PageDown/Home/End) move the selected tracks, confirmed with
+  "Moved to position 4 of 12". Entering the Playlists or Crates pane
+  is announced too.
+- Effects announcements: effects turning on and off by name, a new
+  effect being loaded, your deck being routed through a unit, and the
+  filter knob's effect type — with its own checkbox in Preferences.
+- Beat jump announcements: size changes and forward/back jumps.
+- Hold-aware sync: a quick press says "beat synced. Hold sync to
+  lock"; holding until it latches says "sync locked".
+- Mixer fractions now resolve in eighths by default ("Fraction detail"
+  in Preferences can set quarters or sixteenths).
 - Accessible names for the preferences dialogs, library search box,
   sidebar, and track table, for use with JAWS/NVDA/VoiceOver.
 
@@ -88,17 +100,9 @@ See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full technical rundown.
 Please don't be surprised if these don't do anything yet — they're on
 the list for a future build:
 
-- Beat jump and beat loop announcements (the secondary loop/jump modes)
-- Effects: announcing an effect unit turning on/off, an effect being
-  selected, or the effect changing when you switch the filter
-- Announcing the crate/playlist rename/duplicate dialogs (create and
-  delete are done, above), and announcing when you switch into the
-  Playlists or Crates view
-- The rest of the playlist/crate accessibility pass — reordering
-  tracks and any remaining drag-and-drop-only actions may still be
-  easier with a mouse than a keyboard. If you find one that's
-  mouse-only, that's expected for now and exactly the kind of thing
-  worth noting in your feedback
+- The rest of the playlist/crate accessibility pass — if you find an
+  action that's still mouse-only, that's expected for now and exactly
+  the kind of thing worth noting in your feedback
 - More screen-reader labels on the custom-painted deck widgets (play/cue
   buttons, knobs, faders) — the preferences dialogs and library already
   have them

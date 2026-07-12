@@ -252,21 +252,51 @@ Done since (2026-07-08):
   to the screen reader to notice the dialog. The create loop then
   reopens the input dialog as before.
 
-Still open (deferred — see brief 07 for detail):
+Done since (2026-07-12) — this closes out feedback batch 2 entirely:
 
-- Beat jump and beat loop (secondary deck modes) announcements
-- Effect unit on/off; effect selected; effect type when the filter
-  changes
-- Announcing playlist/crate feature-view entry (switching into the
-  Playlists or Crates sidebar view) — create and delete dialogs are
-  now done (above); rename/duplicate dialogs and view-entry remain
+- **Crossfader readout silenced while locked** — with the Alt+X lock
+  engaged the engine ignores the control, so the position announcement
+  described a fader that wasn't doing anything. Regression-tested.
+- **TTS menu item shows its shortcut** — the Options menu entry now
+  displays (and owns) the key from the `[Tts],enabled` kbd.cfg binding
+  (Alt+Shift+A by default), so a remap shows up in the menu too. The
+  toggle also keeps working when Mixxx keyboard shortcuts are disabled.
+- **Split cue moved Alt+H → Alt+S** — Alt+H is the &Help menu
+  accelerator on Windows, so the old binding also popped the menu open.
+- **Prevent jogging into pre-roll now defaults on** (Preferences >
+  Decks can still disable it).
+- **Fraction detail setting** — sixteenths were too fine by ear; new
+  Quarters/Eighths/Sixteenths combo, default Eighths. Percentages
+  remain exact.
+- **Hold-aware sync announcements** — a short press speaks "beat
+  synced. Hold sync to lock", a hold speaks "sync locked" once it
+  actually latches, unlatching speaks "sync off". No more misleading
+  "sync on ... sync off" narration of the momentary pulse.
+- **Effects announcements (7F/7G/7H)** — per-effect on/off with the
+  real effect name, effect selection (debounced), unit routing per
+  deck, and the filter knob's QuickEffect preset name. New "Announce
+  effects" checkbox, on by default.
+- **Beat jump announcements (7E)** — size changes and forward/back
+  jumps speak with the size in beats, under the loop setting.
+- **Rename and duplicate dialogs (7I)** — playlists and crates now
+  announce those dialogs, echo the entered text, speak validation
+  errors, and confirm success, matching the create/delete dialogs.
+- **Playlists/Crates view entry announced (7I)** — switching into
+  either pane speaks "Playlists view"/"Crates view".
+- **Track reorder confirmed audibly** — Alt+Up/Down (and drag-and-drop)
+  reordering in playlists speaks "Moved to position N of M". The
+  keyboard path itself already existed upstream (Alt+Up/Down/PageUp/
+  PageDown/Home/End on a selection).
+
+Still open:
+
 - **Playlist/crate accessibility pass (2026-07-07, in progress)** —
   broader than the announcement work above: audit whether every
   playlist/crate action (create, rename, delete, reorder, remove
   tracks, drag-and-drop equivalents) actually has a keyboard path and
   is operable with the mouse too, not just whether it's announced.
-  Quick add (above) is the first slice; rename/delete/reorder and the
-  context-menu-vs-keyboard gap generally are still unaudited.
+  Quick add, dialogs, and reorder (above) are done; the remaining
+  context-menu-vs-keyboard gap is still unaudited.
 
 ### Tier 1 — complete the core blind-DJ loop
 

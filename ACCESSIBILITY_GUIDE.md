@@ -152,7 +152,7 @@ the sound alone is just the alert.
   headphones and are never recorded. Its volume has its own slider in
   Preferences, Accessibility ("Beat click volume") — turn it up if the
   clicks are hard to hear over a loud mix.
-- Per-deck split cue: Alt plus H puts deck 1's headphone cue in your
+- Per-deck split cue: Alt plus S puts deck 1's headphone cue in your
   left ear and deck 2's in your right, each folded to mono. Combined
   with the beat click, each ear carries one deck's audio and grid.
   Press again to return to normal stereo cueing.
@@ -177,12 +177,27 @@ Transport and decks:
 
 Performance controls:
 
-- Sync, key lock, and quantize toggles
+- Sync, hold-aware: a quick press of the sync button speaks "beat
+  synced. Hold sync to lock"; keep it held and "sync locked" confirms
+  once the lock actually engages; pressing again speaks "sync off"
+- Key lock and quantize toggles
 - Loops turning on and off with their size, and loop size changes
+- Beat jump: size changes and forward/back jumps, with the size in
+  beats
 - Hotcues 1 to 8 being set, cleared, or pressed; setting the main cue
   point
 - Pitch fader position after it stops moving, with the resulting BPM
 - Recording started and stopped
+
+Effects (its own "Announce effects" checkbox, on by default):
+
+- An effect turning on or off, by name ("Unit 1 Echo on")
+- A different effect being loaded into a slot ("Unit 2: Flanger
+  loaded")
+- Your deck being routed through an effect unit ("Deck A effect unit
+  2 on")
+- The filter knob's effect type when you switch it ("Deck A filter:
+  Moog Filter")
 
 Mixer (off by default — turn on "Announce mixer controls"):
 
@@ -195,12 +210,14 @@ Mixer (off by default — turn on "Announce mixer controls"):
 
 Values are spoken as fractions of the control's travel by default, for
 example "volume three quarters" or "E Q low minus a quarter" —
-center-detented knobs speak their deviation from center. Prefer exact
-numbers? Switch "Speak mixer values as" in Preferences, Accessibility
-to Percentages, and the same readouts become "volume 75 percent" /
-"E Q low minus 25 percent". If you prefer running commentary while a
-control moves, enable "Announce controls while they move"; otherwise
-only the resting value is spoken.
+center-detented knobs speak their deviation from center. Fractions
+resolve in eighths by default; "Fraction detail" in Preferences,
+Accessibility offers Quarters (coarser) or Sixteenths (finer). Prefer
+exact numbers? Switch "Speak mixer values as" to Percentages, and the
+same readouts become "volume 75 percent" / "E Q low minus 25 percent".
+If you prefer running commentary while a control moves, enable
+"Announce controls while they move"; otherwise only the resting value
+is spoken.
 
 Library:
 
@@ -231,6 +248,17 @@ Library:
   you're about to delete and reminds you that No is the default button
   — pressing Enter without moving focus cancels, it does not delete.
   Once you do confirm, it speaks "Deleted playlist/crate X".
+- Renaming or duplicating a playlist or crate works the same way: the
+  dialog announces itself with the prefilled name, reads back what you
+  typed, speaks any problem with the name, and confirms the result
+  ("Renamed playlist Warmup to Openers").
+- Switching into the Playlists or Crates pane speaks "Playlists view"
+  or "Crates view".
+- Reordering inside a playlist: select a track (or several) and press
+  Alt plus Up or Alt plus Down to move it; Alt plus Page Up / Page
+  Down move further, Alt plus Home / End go to the ends. Every move is
+  confirmed: "Moved to position 4 of 12". (Dragging with the mouse
+  speaks the same confirmation.)
 
 ## Preferences reference
 
@@ -247,9 +275,11 @@ All settings live under Options, Preferences, Accessibility. In order:
 7. Speak deck names as numbers: "Deck 1" instead of "Deck A"
 8. Concise announcements: shortest possible phrasing
 9. Speak mixer values as fractions or percentages
-10. One checkbox per announcement category, most with their own
-    feedback-style combo (speech/sounds/both) for play, stop, end of
-    track, headphone cue, back-to-start, and loop on/off
+10. Fraction detail: quarters, eighths (default), or sixteenths
+11. One checkbox per announcement category — including "Announce
+    effects" — most with their own feedback-style combo
+    (speech/sounds/both) for play, stop, end of track, headphone cue,
+    back-to-start, and loop on/off
 
 ## Using a screen reader alongside Mixxx
 

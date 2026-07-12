@@ -1,13 +1,12 @@
 # Task 07 — Feedback batch 2 (bugs, regressions, and requests)
 
-Field notes from the blind tester, 2026-07-05. Status as of 2026-07-06:
-7A, 7B, 7C, 7D, 7J, 7K, 7L, and 7M are implemented, tested, and
-documented (see [ACCESSIBILITY_ROADMAP.md](../ACCESSIBILITY_ROADMAP.md)
-and [ACCESSIBILITY_GUIDE.md](../ACCESSIBILITY_GUIDE.md)). 7E, 7F, 7G,
-7H, and 7I remain open — this brief now covers only that remaining
-work. Each announcement item follows the established pattern
-(ControlProxy observer in `announcementmanager.cpp`, a settings gate, a
-`tr()` string, a unit test).
+Field notes from the blind tester, 2026-07-05. Status as of 2026-07-12:
+**everything in this brief is done.** 7A, 7B, 7C, 7D, 7J, 7K, 7L, and
+7M landed 2026-07-06; 7E (beat jump), 7F/7G/7H (effects), and 7I
+(rename/duplicate dialogs + Playlists/Crates view entry; create/delete
+had landed 2026-07-08) landed 2026-07-12. See
+[ACCESSIBILITY_ROADMAP.md](../ACCESSIBILITY_ROADMAP.md) and
+[ACCESSIBILITY_GUIDE.md](../ACCESSIBILITY_GUIDE.md).
 
 ## Done
 
@@ -71,51 +70,30 @@ User meant a clipping/peak warning, and picked the earcon option
 throttled to one warning per 5 seconds, with its own feedback-mode
 combo and a center-panned earcon (whole-mix event, not deck-panned).
 
-## Still open
+### 7E. Beat jump — DONE (2026-07-12)
 
-### 7E. Secondary deck modes: beat jump and beat loop
+`beatjump_size` changes and `beatjump_forward`/`_backward` presses are
+announced with the size in beats, gated by AnnounceLoop, debounced.
+Beat-loop activations were already covered by the existing
+`loop_enabled` observer.
 
-Announce beat-jump size/moves (`[ChannelN],beatjump_size`,
-`beatjump_forward`/`_backward`) and beat-loop activations
-(`beatloop_N_toggle`, `beatlooproll_N_activate`). New AnnounceLoop-ish
-gate or reuse AnnounceLoop. Not started.
+### 7F/7G/7H. Effects — DONE (2026-07-12)
 
-### 7F. Effect unit on/off
+Per-effect enables (`[EffectRack1_EffectUnitN_EffectM],enabled`), unit
+routing (`group_[ChannelI]_enable`), effect selection (`loaded_effect`,
+debounced), and the deck filter's QuickEffect chain preset
+(`loaded_chain_preset`) all speak, under a new AnnounceEffects setting
+(on by default). Real effect/preset names come from resolvers injected
+in `coreservices.cpp` (`AnnouncementManager::setEffectNameResolvers`),
+so the announcement manager stays decoupled from the effects headers;
+tests inject fakes and everything falls back to numeric descriptions
+without a resolver.
 
-Announce effect-unit and per-effect enable toggles
-(`[EffectRack1_EffectUnitN],group_[ChannelI]_enable` and
-`[EffectRack1_EffectUnitN_EffectM],enabled`). New AnnounceEffect gate.
-Not started.
+### 7I. Crate/playlist UI — DONE (create/delete 2026-07-08, the rest 2026-07-12)
 
-### 7G. Effect selected
-
-When an effect is loaded into a slot, announce its name. The loaded
-effect exposes metadata; find the control/signal that fires on effect
-load (EffectSlot / EffectChain). Likely needs a signal from the effects
-system rather than a plain CO. Not started.
-
-### 7H. Effect type when the filter is changed
-
-When the QuickEffect (filter) super-knob's underlying effect is
-switched, announce the new effect's name. Related to 7G; the QuickEffect
-chain's loaded effect name. Not started.
-
-### 7I. Announce the crate/playlist UI — CLARIFIED, NOT YET BUILT
-
-User confirmed both: (1) the new/rename text-entry dialogs for
-playlists and crates, and (2) announcing when a feature view (e.g. the
-Playlists or Crates pane) is entered. Neither is implemented yet.
-Likely touches the sidebar feature view classes and the
-new/rename `QInputDialog` call sites in the library UI — needs a survey
-of where those live before wiring in `announcementmanager.cpp`-style
-observers or direct `speak()` calls at the dialog/view level.
-
-## Suggested build order for what remains
-
-1. 7I (dialogs + view-entry) — concrete, scoped, no more clarification
-   needed.
-2. 7E (beat jump/beat loop) — same CO-observer pattern already used
-   throughout, just needs the beatjump/beatloop control names surveyed.
-3. 7F/7G/7H (effects) as a group — these share the same research need
-   (finding the right EffectSlot/EffectChain signal) so are cheapest to
-   do together.
+Create, delete, rename, and duplicate dialogs for playlists and crates
+all announce the dialog, echo back the entered text, speak validation
+failures, and confirm success. Entering the Playlists or Crates pane
+speaks "Playlists view"/"Crates view" (`Library::slotSwitchToView`).
+Bonus: reordering tracks (Alt+Up/Down/PageUp/PageDown/Home/End — an
+existing upstream feature) now confirms "Moved to position N of M".

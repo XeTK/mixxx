@@ -60,6 +60,16 @@ With a track selected in the library:
 If you have none yet, it speaks a reminder instead of opening an empty
 menu: `Ctrl+Shift+N` makes a new crate, `Ctrl+N` a new playlist.
 
+## Reordering tracks in a playlist
+
+With one or more tracks selected in a playlist:
+
+- `Alt+Up` / `Alt+Down` — Move the selection one row up or down.
+- `Alt+PageUp` / `Alt+PageDown` — Move it a screenful.
+- `Alt+Home` / `Alt+End` — Move it to the very top or bottom.
+
+Every move is confirmed out loud: "Moved to position 4 of 12".
+
 ## Where the rest lives
 
 Everything else — per-event sound/speech choices, mixer announcements,
