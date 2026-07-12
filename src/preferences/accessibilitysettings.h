@@ -92,6 +92,15 @@ class AccessibilitySettings {
             "AnnounceRecording",
             true);
 
+    // Spoken feedback for the effects section: unit routing toggles,
+    // per-effect enables, which effect is loaded, and the deck filter
+    // (QuickEffect) preset.
+    DEFINE_PREFERENCE_HELPERS(AnnounceEffects,
+            bool,
+            "[Accessibility]",
+            "AnnounceEffects",
+            true);
+
     // Spoken readout of volume faders, EQ knobs, and the crossfader while
     // they move. Off by default: during a live mix these move constantly.
     DEFINE_PREFERENCE_HELPERS(AnnounceMixer,

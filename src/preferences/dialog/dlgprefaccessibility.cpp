@@ -89,6 +89,7 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceLoop(m_settings.getAnnounceLoopDefault()),
           m_bAnnounceHotcue(m_settings.getAnnounceHotcueDefault()),
           m_bAnnounceRecording(m_settings.getAnnounceRecordingDefault()),
+          m_bAnnounceEffects(m_settings.getAnnounceEffectsDefault()),
           m_bAnnounceMixer(m_settings.getAnnounceMixerDefault()),
           m_bAnnounceWhileMoving(m_settings.getAnnounceWhileMovingDefault()),
           m_bDeckNumbers(m_settings.getDeckNamesAsNumbersDefault()),
@@ -287,6 +288,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceRecording = checked; });
+    connect(checkBoxAnnounceEffects,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bAnnounceEffects = checked; });
     connect(checkBoxAnnounceMixer,
             &QCheckBox::toggled,
             this,
@@ -497,6 +502,7 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceLoop = m_settings.getAnnounceLoop();
     m_bAnnounceHotcue = m_settings.getAnnounceHotcue();
     m_bAnnounceRecording = m_settings.getAnnounceRecording();
+    m_bAnnounceEffects = m_settings.getAnnounceEffects();
     m_bAnnounceMixer = m_settings.getAnnounceMixer();
     m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMoving();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbers();
@@ -521,6 +527,7 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);
     checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
     checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
+    checkBoxAnnounceEffects->setChecked(m_bAnnounceEffects);
     checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
     checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);
@@ -557,6 +564,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceLoop(m_bAnnounceLoop);
     m_settings.setAnnounceHotcue(m_bAnnounceHotcue);
     m_settings.setAnnounceRecording(m_bAnnounceRecording);
+    m_settings.setAnnounceEffects(m_bAnnounceEffects);
     m_settings.setAnnounceMixer(m_bAnnounceMixer);
     m_settings.setAnnounceWhileMoving(m_bAnnounceWhileMoving);
     m_settings.setDeckNamesAsNumbers(m_bDeckNumbers);
@@ -640,6 +648,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceLoop = m_settings.getAnnounceLoopDefault();
     m_bAnnounceHotcue = m_settings.getAnnounceHotcueDefault();
     m_bAnnounceRecording = m_settings.getAnnounceRecordingDefault();
+    m_bAnnounceEffects = m_settings.getAnnounceEffectsDefault();
     m_bAnnounceMixer = m_settings.getAnnounceMixerDefault();
     m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMovingDefault();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbersDefault();
@@ -664,6 +673,7 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceLoop->setChecked(m_bAnnounceLoop);
     checkBoxAnnounceHotcue->setChecked(m_bAnnounceHotcue);
     checkBoxAnnounceRecording->setChecked(m_bAnnounceRecording);
+    checkBoxAnnounceEffects->setChecked(m_bAnnounceEffects);
     checkBoxAnnounceMixer->setChecked(m_bAnnounceMixer);
     checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);

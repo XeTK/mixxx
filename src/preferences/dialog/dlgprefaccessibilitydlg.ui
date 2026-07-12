@@ -702,6 +702,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceEffects">
+        <property name="toolTip">
+         <string>Speak effect unit routing toggles, per-effect on/off, which effect is loaded, and the deck filter preset.</string>
+        </property>
+        <property name="text">
+         <string>Announce effects</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceMixer">
         <property name="toolTip">
          <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. Off by default because these move constantly during a mix.</string>

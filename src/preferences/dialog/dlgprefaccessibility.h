@@ -81,6 +81,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceLoop;
     bool m_bAnnounceHotcue;
     bool m_bAnnounceRecording;
+    bool m_bAnnounceEffects;
     bool m_bAnnounceMixer;
     bool m_bAnnounceWhileMoving;
     bool m_bDeckNumbers;

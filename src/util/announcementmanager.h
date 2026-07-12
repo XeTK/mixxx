@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -94,6 +95,20 @@ class AnnouncementManager : public QObject {
     void connectGroupControls(const QString& group, int deckIndex = -1);
     void setDeckHasTrack(const QString& group, bool value);
 
+    // Plain methods below — not slots. (moc chokes on std::function
+    // parameters when it generates slot invokers.)
+  public:
+    // Name lookups for effects announcements, injected from CoreServices
+    // where the EffectsManager lives (this class stays decoupled from the
+    // effects headers, and tests inject fakes). Null-safe: without resolvers
+    // the announcements fall back to numeric descriptions.
+    // effectName: display name of the effect loaded in the given unit/slot
+    // (1-based), empty when nothing is loaded. quickEffectName: chain preset
+    // name of the deck group's QuickEffect (filter knob).
+    void setEffectNameResolvers(
+            std::function<QString(int unit, int slot)> effectName,
+            std::function<QString(const QString& deckGroup)> quickEffectName);
+
   private:
     void connectDeck(int deckIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
@@ -183,4 +198,8 @@ class AnnouncementManager : public QObject {
     // Last clipping announcement (ms since epoch), so sustained clipping
     // doesn't repeat the warning on every peak.
     qint64 m_lastClippingAnnounceMs{0};
+
+    // Effects name lookups; see setEffectNameResolvers().
+    std::function<QString(int unit, int slot)> m_effectNameResolver;
+    std::function<QString(const QString& deckGroup)> m_quickEffectNameResolver;
 };

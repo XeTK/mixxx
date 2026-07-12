@@ -1069,6 +1069,157 @@ TEST_F(AnnouncementManagerPerformanceTest, SyncShortPress_BeatSyncAnnounced) {
     EXPECT_QSTRING_EQ("[TestChannel1] beat synced. Hold sync to lock", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, BeatjumpSize_AnnouncedDebounced) {
+    auto pSize = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("beatjump_size")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pSize->set(4.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] beat jump size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, BeatjumpForward_AnnouncedWithSize) {
+    auto pSize = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("beatjump_size")));
+    pSize->set(8.0);
+    auto pForward = std::make_unique<ControlObject>(ConfigKey(
+            QLatin1String(kGroup), QStringLiteral("beatjump_forward")));
+    auto pBackward = std::make_unique<ControlObject>(ConfigKey(
+            QLatin1String(kGroup), QStringLiteral("beatjump_backward")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pForward->set(1.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] jump forward 8 beats", pSpy->lastText);
+
+    pBackward->set(1.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] jump back 8 beats", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, Beatjump_LoopSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLoop")),
+            false);
+    auto pSize = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("beatjump_size")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pSize->set(4.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Effects announcements: per-effect enables, effect selection, unit routing,
+// filter (QuickEffect) preset.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, EffectSlotEnable_Announced) {
+    auto pEnabled = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1_Effect2]"),
+            QStringLiteral("enabled")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Unit 1 effect 2 on", pSpy->lastText);
+
+    pEnabled->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Unit 1 effect 2 off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, EffectSlotEnable_ResolverSuppliesName) {
+    auto pEnabled = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit3_Effect1]"),
+            QStringLiteral("enabled")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QStringLiteral("Echo"); },
+            [](const QString&) { return QString(); });
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Unit 3 Echo on", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, EffectLoaded_AnnouncedDebounced) {
+    auto pLoaded = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit2_Effect1]"),
+            QStringLiteral("loaded_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QStringLiteral("Flanger"); },
+            [](const QString&) { return QString(); });
+
+    pLoaded->set(4.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "effect selection must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 2: Flanger loaded", pSpy->lastText);
+
+    pLoaded->set(0.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 2 effect 1 cleared", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, EffectUnitRouting_Announced) {
+    auto pRouting = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("group_[TestChannel1]_enable")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRouting->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] effect unit 1 on", pSpy->lastText);
+
+    pRouting->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] effect unit 1 off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, QuickEffectPreset_AnnouncedWithName) {
+    auto pPreset = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[QuickEffectRack1_[TestChannel1]]"),
+            QStringLiteral("loaded_chain_preset")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QString(); },
+            [](const QString&) { return QStringLiteral("Moog Filter"); });
+    setupGroup();
+
+    pPreset->set(2.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] filter: Moog Filter", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, Effects_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"),
+                    QStringLiteral("AnnounceEffects")),
+            false);
+    auto pEnabled = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1_Effect1]"),
+            QStringLiteral("enabled")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, SyncHold_LockAnnounced) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

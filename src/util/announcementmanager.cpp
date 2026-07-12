@@ -601,6 +601,61 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         speak(value > 0.0 ? tr("Jog wheel touch locked") : tr("Jog wheel touch unlocked"));
     });
 
+    // Standard effect units: per-effect enable toggles and effect selection.
+    // Slot groups are [EffectRack1_EffectUnitU_EffectS]; the loaded_effect CO
+    // holds a 1-based index into the visible effects list (0 = empty), so the
+    // spoken name comes from the injected resolver when available.
+    for (int unit = 1; unit <= 4; ++unit) {
+        for (int slot = 1; slot <= 4; ++slot) {
+            const QString slotGroup =
+                    QStringLiteral("[EffectRack1_EffectUnit%1_Effect%2]")
+                            .arg(unit)
+                            .arg(slot);
+            auto pEnabled = make_parented<ControlProxy>(slotGroup,
+                    QStringLiteral("enabled"),
+                    this,
+                    ControlFlag::AllowMissingOrInvalid);
+            pEnabled->connectValueChanged(this, [this, unit, slot](double value) {
+                if (!m_settings.getAnnounceEffects()) {
+                    return;
+                }
+                QString name = m_effectNameResolver
+                        ? m_effectNameResolver(unit, slot)
+                        : QString();
+                if (name.isEmpty()) {
+                    name = tr("effect %1").arg(slot);
+                }
+                speak((value > 0.0 ? tr("Unit %1 %2 on") : tr("Unit %1 %2 off"))
+                                .arg(QString::number(unit), name));
+            });
+
+            auto pLoaded = make_parented<ControlProxy>(slotGroup,
+                    QStringLiteral("loaded_effect"),
+                    this,
+                    ControlFlag::AllowMissingOrInvalid);
+            pLoaded->connectValueChanged(this, [this, unit, slot](double value) {
+                if (!m_settings.getAnnounceEffects()) {
+                    return;
+                }
+                if (value <= 0.0) {
+                    announceControlDebounced(
+                            tr("Unit %1 effect %2 cleared").arg(unit).arg(slot));
+                    return;
+                }
+                QString name = m_effectNameResolver
+                        ? m_effectNameResolver(unit, slot)
+                        : QString();
+                if (name.isEmpty()) {
+                    name = tr("effect %1").arg(static_cast<int>(value));
+                }
+                // Debounced: the effect selector knob can tick through
+                // several effects per second.
+                announceControlDebounced(
+                        tr("Unit %1: %2 loaded").arg(QString::number(unit), name));
+            });
+        }
+    }
+
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
     // user who missed an announcement can re-hear it instead of guessing.
     // Trigger mode so each keypress fires even though the value doesn't change.
@@ -984,6 +1039,46 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                                 QString::number(value)));
     });
 
+    // Beat jump: size changes and the actual jumps. Debounced — the size
+    // ticker and repeated jump presses can fire several times a second.
+    auto pBeatjumpSize = make_parented<ControlProxy>(group,
+            QStringLiteral("beatjump_size"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pBeatjumpSize->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceLoop() || value <= 0.0) {
+            return;
+        }
+        announceControlDebounced(tr("%1 beat jump size %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                QString::number(value)));
+    });
+
+    const struct {
+        const char* control;
+        QString text;
+    } beatjumps[] = {
+            {"beatjump_forward", tr("%1 jump forward %2 beats")},
+            {"beatjump_backward", tr("%1 jump back %2 beats")},
+    };
+    for (const auto& jump : beatjumps) {
+        auto pJump = make_parented<ControlProxy>(group,
+                QLatin1String(jump.control),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pJump->connectValueChanged(this,
+                [this, group, deckIndex, text = jump.text](double value) {
+                    if (!m_settings.getAnnounceLoop() || value <= 0.0) {
+                        return;
+                    }
+                    const double size = readGroupControl(
+                            group, QStringLiteral("beatjump_size"));
+                    announceControlDebounced(text.arg(
+                            mixerDeckName(group, deckIndex),
+                            QString::number(size > 0.0 ? size : 1.0)));
+                });
+    }
+
     // Continuously-variable deck controls, debounced so only the value where
     // the control comes to rest is spoken.
     auto pRateRatio = make_parented<ControlProxy>(group,
@@ -1116,6 +1211,57 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                                         mixerReadoutAsPercent(),
                                         mixerFractionDenominator())));
     });
+
+    // Effect unit routing: [EffectRack1_EffectUnitU],group_[ChannelN]_enable
+    // switches this deck through unit U. A distinct event from the per-effect
+    // enables above — this is "is my deck going through the unit at all".
+    for (int unit = 1; unit <= 4; ++unit) {
+        auto pRouting = make_parented<ControlProxy>(
+                QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                QStringLiteral("group_%1_enable").arg(group),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pRouting->connectValueChanged(this,
+                [this, group, deckIndex, unit](double value) {
+                    if (!m_settings.getAnnounceEffects()) {
+                        return;
+                    }
+                    speak((value > 0.0 ? tr("%1 effect unit %2 on")
+                                       : tr("%1 effect unit %2 off"))
+                                    .arg(deckName(group, deckIndex),
+                                            QString::number(unit)));
+                });
+    }
+
+    // Filter knob effect type: the QuickEffect chain preset. The CO holds an
+    // index into the chain preset list; the resolver supplies the name.
+    auto pQuickEffectPreset = make_parented<ControlProxy>(quickEffectGroup,
+            QStringLiteral("loaded_chain_preset"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pQuickEffectPreset->connectValueChanged(this,
+            [this, group, deckIndex](double value) {
+                if (!m_settings.getAnnounceEffects()) {
+                    return;
+                }
+                QString name = m_quickEffectNameResolver
+                        ? m_quickEffectNameResolver(group)
+                        : QString();
+                if (name.isEmpty()) {
+                    name = tr("preset %1").arg(static_cast<int>(value));
+                }
+                // Debounced: the preset selector can tick through several
+                // presets per second.
+                announceControlDebounced(tr("%1 filter: %2")
+                                .arg(mixerDeckName(group, deckIndex), name));
+            });
+}
+
+void AnnouncementManager::setEffectNameResolvers(
+        std::function<QString(int unit, int slot)> effectName,
+        std::function<QString(const QString& deckGroup)> quickEffectName) {
+    m_effectNameResolver = std::move(effectName);
+    m_quickEffectNameResolver = std::move(quickEffectName);
 }
 
 void AnnouncementManager::setDeckHasTrack(const QString& group, bool value) {

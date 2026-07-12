@@ -15,6 +15,10 @@
 #include "controllers/controllermanager.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "database/mixxxdb.h"
+#include "effects/backends/effectmanifest.h"
+#include "effects/chains/quickeffectchain.h"
+#include "effects/effectchain.h"
+#include "effects/effectslot.h"
 #include "effects/effectsmanager.h"
 #include "engine/enginemixer.h"
 #ifdef __RUBBERBAND__
@@ -646,6 +650,33 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pEngine->getTts(),
             m_pEngine->getEarcon(),
             this);
+
+    // Let effects announcements speak real effect/preset names. The raw
+    // pointer is safe: the announcement manager only calls these while the
+    // app is running, and CoreServices owns both objects.
+    EffectsManager* pEffectsForNames = m_pEffectsManager.get();
+    m_pAnnouncementManager->setEffectNameResolvers(
+            [pEffectsForNames](int unit, int slot) -> QString {
+                EffectChainPointer pChain =
+                        pEffectsForNames->getStandardEffectChain(unit - 1);
+                if (!pChain) {
+                    return QString();
+                }
+                const QList<EffectSlotPointer>& effectSlots =
+                        pChain->getEffectSlots();
+                if (slot < 1 || slot > effectSlots.size() ||
+                        !effectSlots[slot - 1]) {
+                    return QString();
+                }
+                EffectManifestPointer pManifest =
+                        effectSlots[slot - 1]->getManifest();
+                return pManifest ? pManifest->displayName() : QString();
+            },
+            [pEffectsForNames](const QString& deckGroup) -> QString {
+                QuickEffectChainPointer pChain =
+                        pEffectsForNames->getQuickEffectChain(deckGroup);
+                return pChain ? pChain->presetName() : QString();
+            });
 
     bool musicDirAdded = false;
 
