@@ -48,6 +48,18 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
   to deck 1 / deck 2, with an announcement of deck, artist, title,
   BPM, and key.
 
+## Adding a track to a crate or playlist
+
+With a track selected in the library:
+
+- `Alt+Shift+C` — Add to crate. Opens a small menu of your crate names;
+  arrow through it to hear each one (with its position, e.g. "House,
+  2 of 5"), `Enter` to add, `Escape` to cancel.
+- `Alt+Shift+P` — Add to playlist. Same as above, for playlists.
+
+If you have none yet, it speaks a reminder instead of opening an empty
+menu: `Ctrl+Shift+N` makes a new crate, `Ctrl+N` a new playlist.
+
 ## Where the rest lives
 
 Everything else — per-event sound/speech choices, mixer announcements,

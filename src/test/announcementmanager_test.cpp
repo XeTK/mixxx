@@ -1728,6 +1728,47 @@ TEST_F(AnnouncementManagerTest, CrateEdit_Announced) {
     EXPECT_QSTRING_EQ("Removed from crate House", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerTest, QuickPicker_ItemWithPositionAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotQuickPickerItemHighlighted(QStringLiteral("House"), 1, 3);
+
+    EXPECT_QSTRING_EQ("House, 2 of 3", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, QuickPicker_PlainTextStillWorks) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    // No position info: status messages like "No crates yet" have none.
+    m_pManager->slotQuickPickerItemHighlighted(
+            QStringLiteral("No crates yet. Press Control Shift N to create one."),
+            -1,
+            0);
+
+    EXPECT_QSTRING_EQ("No crates yet. Press Control Shift N to create one.", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, QuickPicker_EmptyTextIsSilent) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotQuickPickerItemHighlighted(QString(), -1, 0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, QuickPicker_AnnouncedRegardlessOfPlaylistSetting) {
+    // The picker is a deliberate, on-demand action, so it isn't gated by
+    // AnnouncePlaylist the way ambient add/remove confirmations are.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlaylist")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotQuickPickerItemHighlighted(QStringLiteral("Warmup"), 0, 2);
+
+    EXPECT_QSTRING_EQ("Warmup, 1 of 2", pSpy->lastText);
+}
+
 TEST_F(AnnouncementManagerTest, PlaylistEdit_SettingDisabled_Silent) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlaylist")),

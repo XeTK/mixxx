@@ -417,7 +417,7 @@ void CrateFeature::onRightClickChild(
 
 void CrateFeature::slotCreateCrate() {
     CrateId crateId =
-            CrateFeatureHelper(m_pTrackCollection, m_pConfig)
+            CrateFeatureHelper(m_pTrackCollection, m_pConfig, m_pLibrary)
                     .createEmptyCrate();
     if (crateId.isValid()) {
         // expand Crates and scroll to new crate
@@ -445,6 +445,14 @@ void CrateFeature::slotDeleteCrate() {
             storePrevSiblingCrateId(crateId);
         }
 
+        // Accessibility: same reasoning as the create dialog. Also spells
+        // out that No is the default button, since a stray Enter press must
+        // not delete anything.
+        m_pLibrary->announceText(
+                tr("Delete crate dialog. Delete crate %1? No is selected by "
+                   "default; press Escape or Enter for no, or move to Yes "
+                   "and press Enter to delete.")
+                        .arg(crate.getName()));
         QMessageBox::StandardButton btn = QMessageBox::question(nullptr,
                 tr("Confirm Deletion"),
                 tr("Do you really want to delete crate <b>%1</b>?")
@@ -454,6 +462,7 @@ void CrateFeature::slotDeleteCrate() {
         if (btn == QMessageBox::Yes) {
             if (m_pTrackCollection->deleteCrate(crateId)) {
                 qDebug() << "Deleted crate" << crate;
+                m_pLibrary->announceText(tr("Deleted crate %1").arg(crate.getName()));
                 return;
             }
         } else {
@@ -515,7 +524,7 @@ void CrateFeature::slotDuplicateCrate() {
     Crate crate;
     if (readLastRightClickedCrate(&crate)) {
         CrateId newCrateId =
-                CrateFeatureHelper(m_pTrackCollection, m_pConfig)
+                CrateFeatureHelper(m_pTrackCollection, m_pConfig, m_pLibrary)
                         .duplicateCrate(crate);
         if (newCrateId.isValid()) {
             qDebug() << "Duplicate crate" << crate << ", new crate:" << newCrateId;

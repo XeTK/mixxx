@@ -59,6 +59,7 @@ class AnnouncementManager : public QObject {
             bool expanded = false);
     void slotPlaylistTracksEdited(const QString& name, int added, int removed);
     void slotCrateTracksEdited(const QString& name, int added, int removed);
+    void slotQuickPickerItemHighlighted(const QString& text, int row, int siblingCount);
     void slotSearchTextChanged(const QString& text);
     void slotAnnounceSearch();
 

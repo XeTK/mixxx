@@ -185,6 +185,26 @@ Library:
 - Search feedback while typing
 - Confirmation when you add a track to or remove it from a playlist
   or crate
+- With a track selected, Alt plus Shift plus C (crate) or Alt plus
+  Shift plus P (playlist) opens a small menu of your crate or playlist
+  names. Arrow through it and each name is spoken with its position
+  ("House, 2 of 5"); press Enter to add the track, Escape to back out
+  without adding it. If you don't have any yet, it tells you instead
+  of opening an empty menu — Control plus Shift plus N makes a new
+  crate, Control plus N a new playlist.
+- Control plus N (new playlist) or Control plus Shift plus N (new
+  crate) speaks that the dialog opened, and that its text box already
+  has a name filled in and selected — type to replace it, or press
+  Enter to accept it as-is. Once you press Enter, it reads back
+  exactly what you typed ("You entered: Warmup") before checking
+  whether the name is valid, so you can catch a typo before it becomes
+  the playlist or crate's name. If the name is already taken or blank,
+  it speaks the problem ("A playlist by that name already exists") and
+  the dialog reopens so you can try again.
+- Deleting a playlist or crate (from its right-click menu) speaks what
+  you're about to delete and reminds you that No is the default button
+  — pressing Enter without moving focus cancels, it does not delete.
+  Once you do confirm, it speaks "Deleted playlist/crate X".
 
 ## Preferences reference
 

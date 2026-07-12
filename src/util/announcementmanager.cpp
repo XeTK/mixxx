@@ -337,6 +337,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotCrateTracksEdited);
         connect(pLibrary,
+                &Library::quickPickerItemHighlighted,
+                this,
+                &AnnouncementManager::slotQuickPickerItemHighlighted);
+        connect(pLibrary,
                 &Library::search,
                 this,
                 &AnnouncementManager::slotSearchTextChanged);
@@ -1186,6 +1190,20 @@ void AnnouncementManager::slotCrateTracksEdited(
     } else if (removed > 1) {
         speak(tr("Removed %1 tracks from crate %2").arg(removed).arg(name));
     }
+}
+
+void AnnouncementManager::slotQuickPickerItemHighlighted(
+        const QString& text, int row, int siblingCount) {
+    // Unconditional: the picker was opened on purpose, so hearing its items
+    // isn't gated by a settings toggle the way ambient sidebar browsing is.
+    if (text.isEmpty()) {
+        return;
+    }
+    QString spoken = text;
+    if (row >= 0 && siblingCount > 1) {
+        spoken += tr(", %1 of %2").arg(row + 1).arg(siblingCount);
+    }
+    speak(spoken);
 }
 
 void AnnouncementManager::slotLibraryFocusChanged(double value) {

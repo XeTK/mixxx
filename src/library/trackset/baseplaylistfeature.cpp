@@ -367,6 +367,15 @@ void BasePlaylistFeature::slotCreatePlaylist() {
     QString name;
     bool validNameGiven = false;
 
+    // Accessibility: the dialog's own title/label are standard Qt (and
+    // readable by a screen reader), but Mixxx's own speech announces it too,
+    // consistent with everything else in the accessibility fork, and spells
+    // out that the default text is preselected and ready to type over.
+    m_pLibrary->announceText(tr(
+            "New playlist dialog. A text box is filled "
+            "in with New Playlist, selected. Type a "
+            "name, then press Enter to create it, or "
+            "Escape to cancel."));
     while (!validNameGiven) {
         bool ok = false;
         name = QInputDialog::getText(nullptr,
@@ -379,14 +388,24 @@ void BasePlaylistFeature::slotCreatePlaylist() {
         if (!ok) {
             return;
         }
+        // Accessibility: echo back what was actually entered/accepted,
+        // since a blind user can't proofread it visually before it's used
+        // as the new playlist's name.
+        m_pLibrary->announceText(
+                name.isEmpty() ? tr("You entered nothing.")
+                               : tr("You entered: %1").arg(name));
 
         int existingId = m_playlistDao.getPlaylistIdFromName(name);
 
         if (existingId != kInvalidPlaylistId) {
+            // Accessibility: speak the failure too, rather than leaving it
+            // to the screen reader to notice and read the message box.
+            m_pLibrary->announceText(tr("A playlist by that name already exists."));
             QMessageBox::warning(nullptr,
                     tr("Playlist Creation Failed"),
                     tr("A playlist by that name already exists."));
         } else if (name.isEmpty()) {
+            m_pLibrary->announceText(tr("A playlist cannot have a blank name."));
             QMessageBox::warning(nullptr,
                     tr("Playlist Creation Failed"),
                     tr("A playlist cannot have a blank name."));
@@ -444,10 +463,19 @@ void BasePlaylistFeature::slotDeletePlaylist() {
         return;
     }
 
+    const QString playlistName = m_playlistDao.getPlaylistName(playlistId);
+    // Accessibility: same reasoning as the create dialog. Also spells out
+    // that No is the default button, since a stray Enter press must not
+    // delete anything.
+    m_pLibrary->announceText(
+            tr("Delete playlist dialog. Delete playlist %1? No is selected "
+               "by default; press Escape or Enter for no, or move to Yes "
+               "and press Enter to delete.")
+                    .arg(playlistName));
     QMessageBox::StandardButton btn = QMessageBox::question(nullptr,
             tr("Confirm Deletion"),
             tr("Do you really want to delete playlist <b>%1</b>?")
-                    .arg(m_playlistDao.getPlaylistName(playlistId)),
+                    .arg(playlistName),
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
     if (btn == QMessageBox::No) {
@@ -455,6 +483,7 @@ void BasePlaylistFeature::slotDeletePlaylist() {
     }
 
     m_playlistDao.deletePlaylist(playlistId);
+    m_pLibrary->announceText(tr("Deleted playlist %1").arg(playlistName));
 }
 
 void BasePlaylistFeature::slotImportPlaylist() {

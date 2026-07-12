@@ -110,6 +110,15 @@ class Library: public QObject {
     std::unique_ptr<mixxx::LibraryExporter> makeLibraryExporter(QWidget* parent);
 #endif
 
+    /// Speaks `text` through the accessibility TTS system, with an optional
+    /// list position ("3 of 12"). For on-demand pickers (e.g. quick add to
+    /// crate/playlist) that aren't otherwise wired into Library's signals.
+    void announceQuickPickerItem(const QString& text, int row = -1, int siblingCount = 0);
+
+    /// Speaks `text` through the accessibility TTS system. For one-off
+    /// events with no natural position, e.g. a create/rename dialog opening.
+    void announceText(const QString& text);
+
   public slots:
     void slotShowTrackModel(QAbstractItemModel* model);
     void slotSwitchToView(const QString& view);
@@ -164,6 +173,11 @@ class Library: public QObject {
     // confirmation. Counts are per-signal deltas.
     void playlistTracksEdited(const QString& name, int added, int removed);
     void crateTracksEdited(const QString& name, int added, int removed);
+    // A transient on-demand picker (e.g. quick add to crate/playlist) moved
+    // to a new item; row/siblingCount give position ("3 of 12") like
+    // sidebarItemActivated. Always spoken, since the picker was invoked on
+    // purpose so hearing its items isn't optional.
+    void quickPickerItemHighlighted(const QString& text, int row, int siblingCount);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
 #ifdef __ENGINEPRIME__
     void exportLibrary();

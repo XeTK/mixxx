@@ -478,6 +478,14 @@ void Library::bindSidebarWidget(WLibrarySidebar* pSidebarWidget) {
     }
 }
 
+void Library::announceQuickPickerItem(const QString& text, int row, int siblingCount) {
+    emit quickPickerItemHighlighted(text, row, siblingCount);
+}
+
+void Library::announceText(const QString& text) {
+    emit quickPickerItemHighlighted(text, -1, 0);
+}
+
 void Library::bindLibraryWidget(
         WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) {
     m_pLibraryWidget = pLibraryWidget;

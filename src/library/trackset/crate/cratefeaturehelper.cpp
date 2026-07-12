@@ -3,6 +3,7 @@
 #include <QInputDialog>
 #include <QLineEdit>
 
+#include "library/library.h"
 #include "library/trackcollection.h"
 #include "library/trackset/crate/crate.h"
 #include "library/trackset/crate/cratesummary.h"
@@ -10,9 +11,11 @@
 
 CrateFeatureHelper::CrateFeatureHelper(
         TrackCollection* pTrackCollection,
-        UserSettingsPointer pConfig)
+        UserSettingsPointer pConfig,
+        Library* pLibrary)
         : m_pTrackCollection(pTrackCollection),
-          m_pConfig(pConfig) {
+          m_pConfig(pConfig),
+          m_pLibrary(pLibrary) {
 }
 
 QString CrateFeatureHelper::proposeNameForNewCrate(
@@ -36,6 +39,18 @@ QString CrateFeatureHelper::proposeNameForNewCrate(
 CrateId CrateFeatureHelper::createEmptyCrate() {
     const QString proposedCrateName =
             proposeNameForNewCrate(tr("New Crate"));
+    // Accessibility: the dialog's own title/label are standard Qt (and
+    // readable by a screen reader), but Mixxx's own speech announces it too,
+    // consistent with everything else in the accessibility fork, and spells
+    // out that the proposed name is preselected and ready to type over.
+    if (m_pLibrary) {
+        m_pLibrary->announceText(tr(
+                "New crate dialog. A text box is filled "
+                "in with %1, selected. Type a name, "
+                "then press Enter to create it, or "
+                "Escape to cancel.")
+                        .arg(proposedCrateName));
+    }
     Crate newCrate;
     for (;;) {
         bool ok = false;
@@ -51,7 +66,18 @@ CrateId CrateFeatureHelper::createEmptyCrate() {
         if (!ok) {
             return CrateId();
         }
+        // Accessibility: echo back what was actually entered/accepted,
+        // since a blind user can't proofread it visually before it's used
+        // as the new crate's name.
+        if (m_pLibrary) {
+            m_pLibrary->announceText(
+                    newName.isEmpty() ? tr("You entered nothing.")
+                                      : tr("You entered: %1").arg(newName));
+        }
         if (newName.isEmpty()) {
+            if (m_pLibrary) {
+                m_pLibrary->announceText(tr("A crate cannot have a blank name."));
+            }
             QMessageBox::warning(
                     nullptr,
                     tr("Creating Crate Failed"),
@@ -59,6 +85,11 @@ CrateId CrateFeatureHelper::createEmptyCrate() {
             continue;
         }
         if (m_pTrackCollection->crates().readCrateByName(newName)) {
+            // Accessibility: speak the failure too, rather than leaving it
+            // to the screen reader to notice and read the message box.
+            if (m_pLibrary) {
+                m_pLibrary->announceText(tr("A crate by that name already exists."));
+            }
             QMessageBox::warning(
                     nullptr,
                     tr("Creating Crate Failed"),

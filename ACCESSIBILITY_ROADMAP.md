@@ -194,21 +194,64 @@ Done:
 
 166 accessibility tests pass (up from 144).
 
+Done since (2026-07-08):
+
+- **Quick add to crate/playlist** (`Alt+Shift+C` / `Alt+Shift+P`,
+  `[Library],AddToCrate`/`AddToPlaylist`) — the first slice of the
+  playlist/crate accessibility pass below. With a track selected,
+  opens a plain menu of crate/playlist names next to it; each name is
+  spoken with its position (`Library::quickPickerItemHighlighted`,
+  unconditional — the picker was opened on purpose) as you arrow
+  through, Enter adds via the existing `PlaylistDAO`/`TrackCollection`
+  calls (which already fire the "Added to crate/playlist X"
+  confirmation, so no new wiring was needed there). Speaks a reminder
+  instead of an empty menu if you have none yet. Does not yet cover
+  "Create New" from inside the picker — use the existing
+  `Ctrl+N`/`Ctrl+Shift+N` shortcuts first.
+- **New Playlist / New Crate dialog announcements** — pressing
+  `Ctrl+N`/`Ctrl+Shift+N` now speaks that the dialog opened and that
+  its text box already has a name pre-filled and selected (the exact
+  proposed name for crates, since `CrateFeatureHelper` may suffix it
+  " 2", " 3", etc. if the plain name is taken). Threaded a `Library*`
+  into `CrateFeatureHelper` (optional, nullptr-safe) to reach
+  `Library::announceText()`; `BasePlaylistFeature` already had
+  `m_pLibrary`. Rename/duplicate dialogs and the validation-failure
+  message boxes are unchanged (screen-reader-only, as before) — only
+  the two "create new" dialogs got the new announcement.
+- **Delete Playlist / Delete Crate dialog announcements** — deleting a
+  playlist or crate from its right-click menu speaks what's about to
+  be deleted and that No is the default (safe) button before the
+  `QMessageBox::question` confirmation opens, then "Deleted
+  playlist/crate X" once `deletePlaylist()`/`deleteCrate()` succeeds.
+  Same `Library::announceText()` mechanism; no new signal needed.
+- **Entered-text echo on the create dialogs** — after pressing Enter in
+  the New Playlist/New Crate dialog, Mixxx reads back exactly what was
+  typed ("You entered: Warmup") before running the existing duplicate-
+  name/blank-name validation, so a typo is caught before it becomes
+  the name rather than only visually. Re-announces on every retry
+  through the validation loop, not just the first attempt.
+- **Duplicate/blank-name validation errors spoken** — if the entered
+  name is already taken or blank, Mixxx now speaks the same message
+  the `QMessageBox::warning()` shows ("A playlist/crate by that name
+  already exists" / "cannot have a blank name") instead of leaving it
+  to the screen reader to notice the dialog. The create loop then
+  reopens the input dialog as before.
+
 Still open (deferred — see brief 07 for detail):
 
 - Beat jump and beat loop (secondary deck modes) announcements
 - Effect unit on/off; effect selected; effect type when the filter
   changes
-- Announcing the crate/playlist create/rename dialogs and feature-view
-  entry (clarified as: dialog text + entering the view)
-- **Playlist/crate accessibility pass (2026-07-07, noted for later)** —
+- Announcing playlist/crate feature-view entry (switching into the
+  Playlists or Crates sidebar view) — create and delete dialogs are
+  now done (above); rename/duplicate dialogs and view-entry remain
+- **Playlist/crate accessibility pass (2026-07-07, in progress)** —
   broader than the announcement work above: audit whether every
-  playlist/crate action (create, rename, delete, reorder, add/remove
+  playlist/crate action (create, rename, delete, reorder, remove
   tracks, drag-and-drop equivalents) actually has a keyboard path and
   is operable with the mouse too, not just whether it's announced.
-  Scope not started; do this before or alongside 7I since 7I's
-  announcements are only useful if the underlying actions are reachable
-  without a mouse in the first place.
+  Quick add (above) is the first slice; rename/delete/reorder and the
+  context-menu-vs-keyboard gap generally are still unaudited.
 
 ### Tier 1 — complete the core blind-DJ loop
 

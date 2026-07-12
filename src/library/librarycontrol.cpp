@@ -323,6 +323,29 @@ LibraryControl::LibraryControl(Library* pLibrary)
                 &LibraryControl::slotAutoDjAddReplace);
     }
 
+    // Accessibility: quick keyboard-driven add-to-crate/playlist picker.
+    m_pAddToCrate = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "AddToCrate"));
+#ifdef MIXXX_USE_QML
+    if (!CmdlineArgs::Instance().isQml())
+#endif
+    {
+        connect(m_pAddToCrate.get(),
+                &ControlPushButton::valueChanged,
+                this,
+                &LibraryControl::slotAddToCrate);
+    }
+
+    m_pAddToPlaylist = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "AddToPlaylist"));
+#ifdef MIXXX_USE_QML
+    if (!CmdlineArgs::Instance().isQml())
+#endif
+    {
+        connect(m_pAddToPlaylist.get(),
+                &ControlPushButton::valueChanged,
+                this,
+                &LibraryControl::slotAddToPlaylist);
+    }
+
     // Sort controls
     m_pSortColumn = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "sort_column"));
     m_pSortOrder = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "sort_order"));
@@ -702,6 +725,28 @@ void LibraryControl::slotAutoDjAddReplace(double v) {
     WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
     if (pTrackTableView) {
         pTrackTableView->addToAutoDJReplace();
+    }
+}
+
+void LibraryControl::slotAddToCrate(double v) {
+    if (!m_pLibraryWidget || v <= 0) {
+        return;
+    }
+
+    WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
+    if (pTrackTableView) {
+        pTrackTableView->quickAddSelectionToCrate();
+    }
+}
+
+void LibraryControl::slotAddToPlaylist(double v) {
+    if (!m_pLibraryWidget || v <= 0) {
+        return;
+    }
+
+    WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
+    if (pTrackTableView) {
+        pTrackTableView->quickAddSelectionToPlaylist();
     }
 }
 

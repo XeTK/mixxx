@@ -20,6 +20,7 @@ class DlgTagFetcher;
 class DlgTrackInfo;
 class ExternalTrackCollection;
 class Library;
+class QMenu;
 class WTrackMenu;
 
 class WTrackTableView : public WLibraryTableView {
@@ -66,6 +67,13 @@ class WTrackTableView : public WLibraryTableView {
     void addToAutoDJTop();
     void addToAutoDJReplace();
     void selectTrack(const TrackId&);
+
+    // Accessibility: a lightweight keyboard-driven alternative to the
+    // right-click "Add to Playlist"/"Add to Crate" submenus. Pops a plain
+    // menu of playlist/crate names next to the selection; each name is
+    // spoken as the user arrows through it (see Library::quickPickerItemHighlighted).
+    void quickAddSelectionToPlaylist();
+    void quickAddSelectionToCrate();
 
     void removeSelectedTracks();
     void cutSelectedTracks();
@@ -163,6 +171,9 @@ class WTrackTableView : public WLibraryTableView {
 
   private:
     void addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc);
+    // Shows pMenu next to the current selection, speaking each item's name
+    // (with position) as the user arrows through it.
+    void showQuickAddPickerMenu(QMenu* pMenu);
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragLeaveEvent(QDragLeaveEvent* event) override;

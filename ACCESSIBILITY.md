@@ -97,6 +97,19 @@ Key source files:
 - Search feedback ("Searching: …" / "Search cleared")
 - On-demand track re-announce per deck (`tts_track`), for re-hearing
   a loaded track's name mid-set
+- Quick add-to-crate / add-to-playlist (`Alt+Shift+C` / `Alt+Shift+P`):
+  a small menu of your crate or playlist names pops up next to the
+  selected track, each name spoken (with its position) as you arrow
+  through it, `Enter` to add
+- The New Playlist / New Crate dialogs (`Ctrl+N` / `Ctrl+Shift+N`):
+  Mixxx speaks that the dialog opened and that its text box already has
+  a name filled in and selected, ready to type over; after you press
+  Enter it reads back exactly what you typed, then speaks a "that name
+  already exists" or "cannot have a blank name" error and reopens the
+  dialog if the name isn't valid
+- Delete Playlist / Delete Crate confirmation dialogs: speaks what's
+  about to be deleted and that No is the default (safe) button, plus a
+  final "Deleted playlist/crate X" once it's gone
 
 Each category can be toggled independently in Preferences >
 Accessibility.

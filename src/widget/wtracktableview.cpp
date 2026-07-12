@@ -1,6 +1,7 @@
 #include "widget/wtracktableview.h"
 
 #include <QDrag>
+#include <QMenu>
 #include <QModelIndex>
 #include <QScrollBar>
 #include <QShortcut>
@@ -15,6 +16,7 @@
 #include "library/searchqueryparser.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
+#include "library/trackset/crate/cratesummary.h"
 #include "mixer/playermanager.h"
 #include "moc_wtracktableview.cpp"
 #include "preferences/colorpalettesettings.h"
@@ -26,6 +28,7 @@
 #include "util/assert.h"
 #include "util/defs.h"
 #include "util/dnd.h"
+#include "util/qt.h"
 #include "util/time.h"
 #include "widget/wtrackmenu.h"
 #include "widget/wtracktableviewheader.h"
@@ -1662,6 +1665,103 @@ void WTrackTableView::addToAutoDJTop() {
 
 void WTrackTableView::addToAutoDJReplace() {
     addToAutoDJ(PlaylistDAO::AutoDJSendLoc::REPLACE);
+}
+
+void WTrackTableView::showQuickAddPickerMenu(QMenu* pMenu) {
+    const QList<QAction*> actions = pMenu->actions();
+    if (actions.isEmpty()) {
+        return;
+    }
+    // Speak the unescaped name (stored in the action's data; text() may be
+    // escaped for QAction's mnemonic handling) with its position, matching
+    // sidebar navigation ("3 of 12"). Deduplicated in case setActiveAction()
+    // below also triggers hovered() for the same action on some Qt versions.
+    auto pLastAnnounced = std::make_shared<QAction*>(nullptr);
+    auto announceAction = [this, pMenu, pLastAnnounced](QAction* pAction) {
+        if (*pLastAnnounced == pAction) {
+            return;
+        }
+        *pLastAnnounced = pAction;
+        const QString name = pAction->data().isValid() ? pAction->data().toString()
+                                                       : pAction->text();
+        const int row = pMenu->actions().indexOf(pAction);
+        m_pLibrary->announceQuickPickerItem(name, row, pMenu->actions().size());
+    };
+    connect(pMenu, &QMenu::hovered, this, announceAction);
+    // The menu is freshly built on every invocation (unlike WTrackMenu's
+    // persistent submenus), so free it once closed instead of leaking one
+    // QMenu per keypress for the life of the table view.
+    connect(pMenu, &QMenu::aboutToHide, pMenu, &QObject::deleteLater);
+    const QPoint pos = viewport()->mapToGlobal(visualRect(currentIndex()).bottomLeft());
+    pMenu->popup(pos);
+    pMenu->setActiveAction(actions.first());
+    announceAction(actions.first());
+}
+
+void WTrackTableView::quickAddSelectionToPlaylist() {
+    const QList<TrackId> trackIds = getSelectedTrackIds();
+    if (trackIds.isEmpty()) {
+        m_pLibrary->announceQuickPickerItem(tr("No track selected"));
+        return;
+    }
+
+    PlaylistDAO& playlistDao = m_pLibrary->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const QList<QPair<int, QString>> playlists =
+            playlistDao.getPlaylists(PlaylistDAO::PLHT_NOT_HIDDEN);
+    if (playlists.isEmpty()) {
+        m_pLibrary->announceQuickPickerItem(
+                tr("No playlists yet. Press Control N to create one."));
+        return;
+    }
+
+    auto pMenu = make_parented<QMenu>(this);
+    for (const auto& [id, name] : playlists) {
+        QAction* pAction = pMenu->addAction(mixxx::escapeTextPropertyWithoutShortcuts(name));
+        pAction->setData(name);
+        pAction->setEnabled(!playlistDao.isPlaylistLocked(id));
+        connect(pAction, &QAction::triggered, this, [this, id, trackIds] {
+            PlaylistDAO& dao = m_pLibrary->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+            m_pLibrary->trackCollectionManager()->unhideTracks(trackIds);
+            dao.appendTracksToPlaylist(trackIds, id);
+        });
+    }
+    showQuickAddPickerMenu(pMenu.get());
+}
+
+void WTrackTableView::quickAddSelectionToCrate() {
+    const QList<TrackId> trackIds = getSelectedTrackIds();
+    if (trackIds.isEmpty()) {
+        m_pLibrary->announceQuickPickerItem(tr("No track selected"));
+        return;
+    }
+
+    CrateSummarySelectResult allCrates(m_pLibrary->trackCollectionManager()
+                    ->internalCollection()
+                    ->crates()
+                    .selectCrateSummaries());
+    auto pMenu = make_parented<QMenu>(this);
+    CrateSummary crate;
+    while (allCrates.populateNext(&crate)) {
+        const QString name = crate.getName();
+        QAction* pAction = pMenu->addAction(mixxx::escapeTextPropertyWithoutShortcuts(name));
+        pAction->setData(name);
+        pAction->setEnabled(!crate.isLocked());
+        const CrateId crateId = crate.getId();
+        connect(pAction, &QAction::triggered, this, [this, crateId, trackIds] {
+            m_pLibrary->trackCollectionManager()->internalCollection()->addCrateTracks(
+                    crateId, trackIds);
+        });
+    }
+    if (pMenu->actions().isEmpty()) {
+        m_pLibrary->announceQuickPickerItem(
+                tr("No crates yet. Press Control Shift N to create one."));
+        return;
+    }
+    showQuickAddPickerMenu(pMenu.get());
 }
 
 void WTrackTableView::selectTrack(const TrackId& trackId) {
