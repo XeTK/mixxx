@@ -36,6 +36,11 @@ constexpr int kNumAnnouncedHotcues = 8;
 // Minimum gap between clipping warnings so sustained clipping doesn't repeat
 // the announcement on every ~500 ms peak-indicator cycle.
 constexpr qint64 kClippingThrottleMs = 5000;
+// sync_enabled is LongPressLatching: it flips to 1 on press and reverts on a
+// release within ControlPushButtonBehavior::kLongPressLatchingTimeMillis
+// (300 ms). Probe slightly after that window to tell a latched hold from a
+// one-shot beat-sync press.
+constexpr int kSyncLatchProbeMs = 450;
 
 double readGroupControl(const QString& group, const QString& name) {
     return ControlProxy(group, name, nullptr, ControlFlag::AllowMissingOrInvalid).get();
@@ -814,6 +819,45 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
     });
 
+    // Sync is a hold-to-latch button: a short press beat-syncs once (the CO
+    // pulses 1 then reverts), holding past the latch threshold locks sync on.
+    // Announce what actually happened instead of narrating the pulse as
+    // "sync on ... sync off", which testers found misleading.
+    auto* pSyncLatchProbe = new QTimer(this);
+    pSyncLatchProbe->setSingleShot(true);
+    pSyncLatchProbe->setInterval(kSyncLatchProbeMs);
+    auto pSyncEnabled = make_parented<ControlProxy>(group,
+            QStringLiteral("sync_enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    connect(pSyncLatchProbe,
+            &QTimer::timeout,
+            this,
+            [this, group, deckIndex, pSync = static_cast<ControlProxy*>(pSyncEnabled)]() {
+                if (pSync->toBool() && m_settings.getAnnounceSync()) {
+                    speak(tr("%1 sync locked").arg(deckName(group, deckIndex)));
+                }
+            });
+    pSyncEnabled->connectValueChanged(this,
+            [this, group, deckIndex, pSyncLatchProbe](double value) {
+                if (!m_settings.getAnnounceSync()) {
+                    pSyncLatchProbe->stop();
+                    return;
+                }
+                if (value > 0.0) {
+                    // Might be a short press; wait out the latch window
+                    // before claiming sync is locked.
+                    pSyncLatchProbe->start();
+                } else if (pSyncLatchProbe->isActive()) {
+                    // Released inside the window: a one-shot beat sync.
+                    pSyncLatchProbe->stop();
+                    speak(tr("%1 beat synced. Hold sync to lock")
+                                    .arg(deckName(group, deckIndex)));
+                } else {
+                    speak(tr("%1 sync off").arg(deckName(group, deckIndex)));
+                }
+            });
+
     // Simple on/off toggles a performing DJ relies on. All gated by
     // AnnounceSync since they are aspects of staying in time with the mix.
     const struct {
@@ -821,7 +865,6 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         QString enabledText;
         QString disabledText;
     } toggles[] = {
-            {"sync_enabled", tr("%1 sync on"), tr("%1 sync off")},
             {"keylock", tr("%1 key lock on"), tr("%1 key lock off")},
             {"quantize", tr("%1 quantize on"), tr("%1 quantize off")},
     };

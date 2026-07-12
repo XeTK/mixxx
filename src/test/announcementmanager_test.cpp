@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <QCoreApplication>
+#include <QEventLoop>
+#include <QTimer>
 
 #include "audio/types.h"
 #include "control/controlaudiotaperpot.h"
@@ -1039,14 +1041,43 @@ class AnnouncementManagerPerformanceTest : public AnnouncementManagerPlaystateTe
     std::unique_ptr<ControlObject> m_pVolume;
 };
 
-TEST_F(AnnouncementManagerPerformanceTest, SyncToggle_Announced) {
+namespace {
+// Spin the event loop long enough for the sync latch-probe timer (450 ms)
+// to fire.
+void waitPastSyncLatchWindow() {
+    QEventLoop loop;
+    QTimer::singleShot(600, &loop, &QEventLoop::quit);
+    loop.exec();
+}
+} // namespace
+
+TEST_F(AnnouncementManagerPerformanceTest, SyncShortPress_BeatSyncAnnounced) {
+    // sync_enabled is hold-to-latch: a short press pulses 1 then reverts to
+    // 0 and performs a one-shot beat sync. The pulse must not be narrated as
+    // "sync on ... sync off".
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();
     setupGroup();
 
     m_pSync->set(1.0);
     QCoreApplication::processEvents();
-    EXPECT_QSTRING_EQ("[TestChannel1] sync on", pSpy->lastText);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "no announcement until the latch window resolves";
+
+    m_pSync->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] beat synced. Hold sync to lock", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, SyncHold_LockAnnounced) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pSync->set(1.0);
+    QCoreApplication::processEvents();
+    waitPastSyncLatchWindow();
+    EXPECT_QSTRING_EQ("[TestChannel1] sync locked", pSpy->lastText);
 
     m_pSync->set(0.0);
     QCoreApplication::processEvents();
