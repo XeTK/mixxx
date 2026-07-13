@@ -288,6 +288,26 @@ Done since (2026-07-12) — this closes out feedback batch 2 entirely:
   keyboard path itself already existed upstream (Alt+Up/Down/PageUp/
   PageDown/Home/End on a selection).
 
+Done since (2026-07-13):
+
+- **Beat click / earcon routing fix** — the click and the sound cues
+  were hard-wired to the headphone bus whenever one was configured; a
+  DJ who routed speech to main (or monitored a different output than
+  Mixxx's headphone bus) heard every announcement but never a click.
+  Both engines now follow the "Speech output" setting
+  (`[Tts],route_to_main`), so they are always audible wherever
+  announcements are heard. Regression-tested in both engine suites.
+- **Numark Scratch accessibility shift-layer** (shipped in the
+  mapping): Shift+CUE speaks the deck status without touching PFL,
+  Shift+HOTCUE mode repeats the last announcement, Shift+ROLL mode
+  toggles the beat click, Shift+SAMPLER mode toggles split cue.
+- **DDJ-400 accessibility pads** (opt-in mapping setting, off by
+  default): the Hot Cue pad mode becomes spoken deck info on pads 1-6
+  (status/time/BPM/key/bar/track), repeat on pad 7, beat click on pad
+  8, split cue on Shift+7, speech toggle on Shift+8. Shift+pads 1-6 do
+  nothing so stored hotcues can't be cleared by accident; all other
+  pad modes unaffected.
+
 Still open:
 
 - **Playlist/crate accessibility pass (2026-07-07, in progress)** —

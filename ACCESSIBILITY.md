@@ -68,15 +68,23 @@ Key source files:
   each playing deck — deck 1 in the left ear, deck 2 in the right, so
   both grids can be followed at once. Every fourth beat is a higher
   pitched bar marker (assumes 4/4, counted from where playback
-  started). Clicks go to the headphone output (or main if no
-  headphones are configured) and are never recorded or broadcast.
-  Level is the `[BeatClick],volume` control.
+  started). Clicks (and the earcon sound cues) follow the "Speech
+  output" setting — headphones by default, falling back to main when
+  no headphone output is configured, or main when speech is routed
+  there — and are never recorded or broadcast. Level is the
+  `[BeatClick],volume` control.
 - **Preferences > Accessibility**: choose the voice, speech rate, output
   routing (headphone cue vs. main), and which announcements are spoken.
   A Test button speaks a sample through the current routing.
 - All of the above are plain Mixxx controls (`[Tts],enabled`,
   `[Tts],repeat`, `[ChannelN],tts_status`), so they can also be mapped
   to controller buttons.
+- **Built-in controller layers**: the shipped Numark Scratch mapping
+  carries an accessibility layer on its Shift button (deck status,
+  repeat, beat click, split cue), and the DDJ-400 mapping has an
+  opt-in setting that turns the Hot Cue pads into accessibility pads.
+  See the "Controller mapping" section of
+  [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md) for the layouts.
 
 ## What is announced
 

@@ -74,6 +74,17 @@ Both files are in the same folder as this one.
   lock"; holding until it latches says "sync locked".
 - Mixer fractions now resolve in eighths by default ("Fraction detail"
   in Preferences can set quarters or sixteenths).
+- The beat click and earcon sound cues now follow the "Speech output"
+  setting, so they are always audible wherever you hear announcements
+  — if you can hear Mixxx talking, you can hear the click.
+- Controller accessibility layers: on the **Numark Scratch**, hold
+  Shift — Shift+CUE speaks that deck's status, Shift+HOTCUE mode
+  repeats the last announcement, Shift+ROLL mode toggles the beat
+  click, Shift+SAMPLER mode toggles split cue. On the **DDJ-400**, an
+  opt-in mapping setting ("Use the Hot Cue pads as accessibility
+  pads") turns the Hot Cue pads into spoken deck info, repeat, beat
+  click, split cue, and speech toggles — see the guide for the pad
+  layout.
 - Accessible names for the preferences dialogs, library search box,
   sidebar, and track table, for use with JAWS/NVDA/VoiceOver.
 

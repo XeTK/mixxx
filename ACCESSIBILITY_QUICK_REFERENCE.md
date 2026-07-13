@@ -70,6 +70,37 @@ With one or more tracks selected in a playlist:
 
 Every move is confirmed out loud: "Moved to position 4 of 12".
 
+## Numark Scratch mixer (hold Shift)
+
+- `Shift+CUE` (either channel) — Speak that deck's status. Does not
+  change the cue/PFL state.
+- `Shift+HOTCUE mode button` — Repeat the last announcement.
+- `Shift+ROLL mode button` — Beat click metronome on/off.
+- `Shift+SAMPLER mode button` — Per-deck split cue on/off.
+
+Without Shift everything behaves as normal.
+
+## Pioneer DDJ-400 accessibility pads (opt-in)
+
+Turn on "Use the Hot Cue pads as accessibility pads" under
+Preferences > Controllers > DDJ-400. In Hot Cue pad mode, left pads
+speak deck 1, right pads deck 2:
+
+- Pad 1 — Full deck status
+- Pad 2 — Time remaining
+- Pad 3 — BPM
+- Pad 4 — Musical key
+- Pad 5 — Bar and beat position
+- Pad 6 — Track name
+- Pad 7 — Repeat last announcement
+- Pad 8 — Beat click metronome on/off
+- `Shift+Pad 7` — Per-deck split cue on/off
+- `Shift+Pad 8` — Speech on/off
+
+Hot cues are unavailable from the pads while this is on (Shift+pads
+1-6 do nothing, so nothing can be cleared by accident). Untick the
+setting to get normal hot cues back; other pad modes are unaffected.
+
 ## Where the rest lives
 
 Everything else — per-event sound/speech choices, mixer announcements,
