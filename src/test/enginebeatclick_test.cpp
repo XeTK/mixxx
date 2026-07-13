@@ -106,6 +106,30 @@ TEST_F(EngineBeatClickTest, NoHeadphones_FallsBackToMain) {
             << "click dropped on single-output setup";
 }
 
+TEST_F(EngineBeatClickTest, SpeechRoutedToMain_ClicksFollow) {
+    // Regression: the clicks were hard-wired head-else-main, so a DJ who
+    // routed speech to the main output (and had a headphone bus configured
+    // but not monitored) heard announcements fine but never heard a click.
+    auto pRoute = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Tts]"), QStringLiteral("route_to_main")));
+    pRoute->set(1.0);
+    // Recreate the engine so its route proxy binds to the CO created above.
+    // Destroy the old instance first: assignment would construct the new
+    // engine (and its [BeatClick] controls) while the old one still owns
+    // controls with the same keys, leaving the new ones dead.
+    m_pClick.reset();
+    m_pClick = std::make_unique<EngineBeatClick>(
+            QList<EngineBeatClick::DeckSource>{{kDeckA, 0}, {kDeckB, 1}});
+    enable();
+    cueDeckBeforeBeat(kDeckA);
+    m_pClick->process(m_main.data(), m_head.data(), kFrames);
+
+    EXPECT_GT(channelEnergy(m_main, 0), 0.0)
+            << "click must follow speech to the main output";
+    EXPECT_EQ(0.0, channelEnergy(m_head, 0))
+            << "click still went to headphones despite the main route";
+}
+
 TEST_F(EngineBeatClickTest, StoppedDeck_Silent) {
     enable();
     cueDeckBeforeBeat(kDeckA);

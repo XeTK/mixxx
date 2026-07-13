@@ -148,10 +148,13 @@ the sound alone is just the alert.
 - Beat click metronome: Alt plus B plays a click on every beat of
   each playing deck — deck 1 in your left ear, deck 2 in your right.
   Every fourth beat is a higher pitched bar marker. Use it to check
-  beat grids or to practice beatmatching. The clicks go to your
-  headphones and are never recorded. Its volume has its own slider in
-  Preferences, Accessibility ("Beat click volume") — turn it up if the
-  clicks are hard to hear over a loud mix.
+  beat grids or to practice beatmatching. The clicks are never
+  recorded, and they go wherever your announcements go: the "Speech
+  output" setting in Preferences, Accessibility routes speech, the
+  beat click, and the earcon sound cues together — headphones or main
+  output. So if you can hear Mixxx talking, you can hear the click.
+  Its volume has its own slider ("Beat click volume") — turn it up if
+  the clicks are hard to hear over a loud mix.
 - Per-deck split cue: Alt plus S puts deck 1's headphone cue in your
   left ear and deck 2's in your right, each folded to mono. Combined
   with the beat click, each ear carries one deck's audio and grid.

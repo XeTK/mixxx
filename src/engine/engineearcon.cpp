@@ -85,6 +85,13 @@ EngineEarcon::EngineEarcon()
             kDefaultVolume);
     m_pSampleRate = std::make_unique<ControlProxy>(
             QStringLiteral("[App]"), QStringLiteral("samplerate"), nullptr);
+
+    // Follow the speech output route so the cues land wherever the DJ
+    // actually hears announcements (the "Speech output" preference).
+    m_pRouteToMain = std::make_unique<ControlProxy>(QStringLiteral("[Tts]"),
+            QStringLiteral("route_to_main"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
 }
 
 EngineEarcon::~EngineEarcon() = default;
@@ -117,8 +124,12 @@ void EngineEarcon::spawn(Id id, Pan pan, double sampleRate) {
 }
 
 void EngineEarcon::process(CSAMPLE* pMain, CSAMPLE* pHead, int iFrames) {
-    // Prefer the headphone bus so the audience never hears the cues.
-    CSAMPLE* pOut = pHead ? pHead : pMain;
+    // Follow the speech route: headphones by default so the audience never
+    // hears the cues (falling back to main), or main when the DJ routes
+    // announcements there — same reasoning as EngineBeatClick.
+    CSAMPLE* pOut = m_pRouteToMain->toBool()
+            ? (pMain ? pMain : pHead)
+            : (pHead ? pHead : pMain);
 
     const double sampleRate = m_pSampleRate->get();
 

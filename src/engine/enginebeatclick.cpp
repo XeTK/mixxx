@@ -45,6 +45,13 @@ EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
     m_pSampleRate = std::make_unique<ControlProxy>(
             QStringLiteral("[App]"), QStringLiteral("samplerate"), nullptr);
 
+    // Follow the speech output route so the clicks land wherever the DJ
+    // actually hears announcements (the "Speech output" preference).
+    m_pRouteToMain = std::make_unique<ControlProxy>(QStringLiteral("[Tts]"),
+            QStringLiteral("route_to_main"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
     for (const DeckSource& source : decks) {
         Deck deck;
         deck.pPlay = std::make_unique<ControlProxy>(
@@ -63,9 +70,14 @@ EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
 EngineBeatClick::~EngineBeatClick() = default;
 
 void EngineBeatClick::process(CSAMPLE* pMain, CSAMPLE* pHead, int iFrames) {
-    // Route to headphones when available so the audience never hears the
-    // clicks; fall back to main on single-output setups.
-    CSAMPLE* pOut = pHead ? pHead : pMain;
+    // Follow the speech route: headphones by default so the audience never
+    // hears the clicks (falling back to main on single-output setups), or
+    // main when the DJ routes announcements there. Previously the clicks
+    // were hard-wired head-else-main, so a configured-but-unmonitored
+    // headphone bus swallowed them while speech stayed audible on main.
+    CSAMPLE* pOut = m_pRouteToMain->toBool()
+            ? (pMain ? pMain : pHead)
+            : (pHead ? pHead : pMain);
     if (!pOut) {
         return;
     }

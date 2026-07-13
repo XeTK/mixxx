@@ -93,6 +93,28 @@ TEST_F(EngineEarconTest, NoHeadphones_FallsBackToMain) {
             << "earcon dropped on a single-output setup";
 }
 
+TEST_F(EngineEarconTest, SpeechRoutedToMain_EarconsFollow) {
+    // Regression: earcons were hard-wired head-else-main, so with speech
+    // routed to main and an unmonitored headphone bus configured, the DJ
+    // heard announcements but no sound cues.
+    auto pRoute = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Tts]"), QStringLiteral("route_to_main")));
+    pRoute->set(1.0);
+    // Recreate the engine so its route proxy binds to the CO created above.
+    // Destroy the old instance first: assignment would construct the new
+    // engine (and its [Earcon] controls) while the old one still owns
+    // controls with the same keys, leaving the new ones dead.
+    m_pEarcon.reset();
+    m_pEarcon = std::make_unique<EngineEarcon>();
+    m_pEarcon->trigger(EngineEarcon::Id::Play, EngineEarcon::Pan::Left);
+    renderBuffers(m_pEarcon.get(), &m_main, &m_head, 10);
+
+    EXPECT_GT(channelEnergy(m_main, 0), 0.0)
+            << "earcon must follow speech to the main output";
+    EXPECT_EQ(0.0, channelEnergy(m_head, 0))
+            << "earcon still went to headphones despite the main route";
+}
+
 TEST_F(EngineEarconTest, GestureFinishes_ReturnsToSilence) {
     m_pEarcon->trigger(EngineEarcon::Id::EndOfTrack, EngineEarcon::Pan::Left);
     // Drain the whole gesture (3 pips out to ~195 ms ≈ 9 buffers at 44.1k).

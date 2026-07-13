@@ -19,9 +19,12 @@ class ControlPushButton;
 /// accented at a higher pitch as a bar marker (assumes 4/4; the bar phase is
 /// counted from when the deck starts playing).
 ///
-/// Clicks are mixed into the headphone bus, falling back to main when no
-/// headphone output is configured. Toggled with [BeatClick],enabled
-/// (keyboard: Alt+B); level via the persistent [BeatClick],volume control.
+/// Clicks follow the speech output route ([Tts],route_to_main): the
+/// headphone bus by default (falling back to main when no headphone output
+/// is configured), or the main output when speech is routed there — so the
+/// clicks are always audible wherever the DJ actually hears announcements.
+/// Toggled with [BeatClick],enabled (keyboard: Alt+B); level via the
+/// persistent [BeatClick],volume control.
 ///
 /// process() is called from the audio callback; everything it touches is
 /// lock-free (control atomics and per-deck POD state).
@@ -68,4 +71,5 @@ class EngineBeatClick {
     std::unique_ptr<ControlPushButton> m_pEnabled;
     std::unique_ptr<ControlPotmeter> m_pVolume;
     std::unique_ptr<ControlProxy> m_pSampleRate;
+    std::unique_ptr<ControlProxy> m_pRouteToMain;
 };

@@ -77,4 +77,5 @@ class EngineEarcon {
     FIFO<Trigger> m_fifo;
     std::unique_ptr<ControlPotmeter> m_pVolume;
     std::unique_ptr<ControlProxy> m_pSampleRate;
+    std::unique_ptr<ControlProxy> m_pRouteToMain;
 };

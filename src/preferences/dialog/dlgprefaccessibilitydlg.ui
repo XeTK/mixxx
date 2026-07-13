@@ -65,7 +65,7 @@
            <string>Speech output:</string>
           </property>
           <property name="toolTip">
-           <string>Which Mixxx output announcements are mixed into. Headphones (cue) keeps them DJ-only; Main sends them to the audience. The music is automatically ducked while speaking.</string>
+           <string>Which Mixxx output announcements, the beat click, and sound cues are mixed into. Headphones (cue) keeps them DJ-only; Main sends them to the audience. The music is automatically ducked while speaking.</string>
           </property>
           <property name="buddy">
            <cstring>comboBoxTtsRoute</cstring>
@@ -75,7 +75,7 @@
         <item>
          <widget class="QComboBox" name="comboBoxTtsRoute">
           <property name="toolTip">
-           <string>Which Mixxx output announcements are mixed into. Headphones (cue) keeps them DJ-only; Main sends them to the audience. The music is automatically ducked while speaking.</string>
+           <string>Which Mixxx output announcements, the beat click, and sound cues are mixed into. Headphones (cue) keeps them DJ-only; Main sends them to the audience. The music is automatically ducked while speaking.</string>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
