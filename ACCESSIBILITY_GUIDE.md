@@ -336,6 +336,31 @@ Each action confirms itself out loud. Without Shift, all four buttons
 keep their normal functions. (While Shift is held the pad-mode
 buttons no longer switch pad modes — release Shift first.)
 
+### Pioneer DDJ-400 (built in, opt-in)
+
+The shipped DDJ-400 mapping has an optional accessibility pad layer,
+off by default. Turn it on under Preferences, Controllers, DDJ-400:
+check "Use the Hot Cue pads as accessibility pads". While enabled, the
+Hot Cue pad mode speaks instead of triggering hotcues:
+
+- Pad 1 — full deck status (playing or stopped, time remaining, BPM,
+  pitch)
+- Pad 2 — time remaining
+- Pad 3 — BPM
+- Pad 4 — musical key
+- Pad 5 — bar and beat position
+- Pad 6 — track name (artist and title)
+- Pad 7 — repeat the last announcement
+- Pad 8 — beat click metronome on/off
+- Shift plus pad 7 — per-deck split cue on/off
+- Shift plus pad 8 — speech on/off
+
+Pads 1 to 6 speak about their own deck (left pads deck 1, right pads
+deck 2). Shift plus pads 1 to 6 deliberately do nothing, so a stray
+press can't clear stored hotcues. The other pad modes (Beat Loop, Beat
+Jump, Sampler) are unaffected. Untick the setting to get normal hot
+cues back.
+
 ## Known limitations
 
 - Announcements are English only for now.

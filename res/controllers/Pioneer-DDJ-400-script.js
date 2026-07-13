@@ -663,6 +663,62 @@ PioneerDDJ400.quickJumpBack = function(_channel, _control, value, _status, group
 };
 
 //
+// Accessibility pads (optional, off by default)
+//
+// When the "Use the Hot Cue pads as accessibility pads" mapping setting is
+// enabled, the Hot Cue pad mode speaks through Mixxx's built-in
+// text-to-speech instead of triggering hotcues:
+//   Pads 1-6: deck status, time remaining, BPM, key, bar position, track name
+//   Pad 7:    repeat the last announcement
+//   Pad 8:    beat click metronome on/off
+//   Shift+7:  per-deck split cue on/off
+//   Shift+8:  speech on/off
+// Every action confirms itself out loud, so no LED feedback is needed.
+
+PioneerDDJ400.accessibilityPads = !!engine.getSetting("accessibilityPads");
+
+PioneerDDJ400.accessibilityPadKeys = [
+    "tts_status", "tts_time", "tts_bpm", "tts_key", "tts_bar", "tts_track",
+];
+
+PioneerDDJ400.hotcuePad = function(_channel, control, value, _status, group) {
+    if (!PioneerDDJ400.accessibilityPads) {
+        engine.setValue(group, `hotcue_${control + 1}_activate`, value > 0 ? 1 : 0);
+        return;
+    }
+    if (value === 0) {
+        return;
+    }
+    switch (control) {
+    case 0x06:
+        engine.setValue("[Tts]", "repeat", 1);
+        break;
+    case 0x07:
+        script.toggleControl("[BeatClick]", "enabled");
+        break;
+    default:
+        engine.setValue(group, PioneerDDJ400.accessibilityPadKeys[control], 1);
+    }
+};
+
+PioneerDDJ400.hotcuePadShift = function(_channel, control, value, _status, group) {
+    if (!PioneerDDJ400.accessibilityPads) {
+        engine.setValue(group, `hotcue_${control + 1}_clear`, value > 0 ? 1 : 0);
+        return;
+    }
+    if (value === 0) {
+        return;
+    }
+    if (control === 0x06) {
+        script.toggleControl("[Master]", "headSplitDecks");
+    } else if (control === 0x07) {
+        script.toggleControl("[Tts]", "enabled");
+    }
+    // Shift + pads 1-6 deliberately do nothing in accessibility mode, so a
+    // stray press can't clear stored hotcues the DJ can't see.
+};
+
+//
 // Shutdown
 //
 
