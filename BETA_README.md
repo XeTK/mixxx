@@ -53,8 +53,9 @@ Both files are in the same folder as this one.
 - A jog wheel touch lock (`Alt+J`) so an accidental touch on the
   on-screen waveform or vinyl widget can't derail playback.
 - Musical key spoken in whichever notation you use elsewhere in Mixxx —
-  full names ("A Minor"), Open Key ("5, Dee"), or Camelot/Lancelot
-  ("8, Alpha").
+  full names ("A Minor"), Open Key ("5, Delta"), or Camelot/Lancelot
+  ("8, Alpha") — letters spelled out with the NATO phonetic alphabet
+  (Alpha, Bravo, Charlie, …) so they're never misheard.
 - Quick add to crate/playlist (`Alt+Shift+C` / `Alt+Shift+P`): pops a
   menu of your crate/playlist names next to the selected track, each
   one spoken as you arrow through it, `Enter` to add.

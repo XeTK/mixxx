@@ -22,7 +22,7 @@ for a one-page cheat sheet.
 3. Arrow up and down: each track's artist and title is spoken.
 4. Load the highlighted track: Shift plus Left Arrow loads deck 1,
    Shift plus Right Arrow loads deck 2. You will hear, for example:
-   "Loaded deck, A. Artist. Title. 128 B P M. Key: A Minor."
+   "Loaded deck, Alpha. Artist. Title. 128 B P M. Key: A Minor."
 5. Press D to play deck 1 or L to play deck 2 (US keyboard layout).
    You will hear "Playing."
 
@@ -81,8 +81,9 @@ deck 1, even numbers are deck 2.
 - Alt plus 7 or 8: musical key (follows keylock). Spoken in whatever
   notation Preferences, Interface, Key Notation is set to — the full
   name ("A Minor") for Traditional, or the short code for Open Key
-  ("5, Dee") and Camelot/Lancelot ("8, Alpha"), with the letter always
-  spelled out so it isn't misheard.
+  ("5, Delta") and Camelot/Lancelot ("8, Alpha"), with the letter
+  always spelled out using the NATO phonetic alphabet (Alpha, Bravo,
+  Charlie, …) so it isn't misheard.
 - Alt plus 9 or 0: bar and beat position, for example "Bar 17,
   beat 2." Assumes 4/4 time.
 - Alt plus Shift plus T (deck 1) or Alt plus Shift plus Y (deck 2):
@@ -91,7 +92,7 @@ deck 1, even numbers are deck 2.
 
 Tip: turn on "Concise announcements" in Preferences, Accessibility to
 shorten these to just the value — Alt plus 5 then says "128." instead
-of "Deck, A. 128 B P M."
+of "Deck, Alpha. 128 B P M."
 
 ## Sounds instead of speech (earcons)
 

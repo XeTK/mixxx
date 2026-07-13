@@ -191,45 +191,50 @@ QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
 }
 
 // Spells out a deck letter so it is pronounced as a letter name rather than
-// misread as a word — "A" in particular is also the indefinite article, so
-// TTS engines often read a bare "A" with its unstressed "uh" pronunciation
-// instead of the letter name "ay". Spelling out every letter keeps this
-// robust across engines rather than special-casing just A.
+// misread as a word — a bare "A" in particular is also the indefinite
+// article, so TTS engines often read it with its unstressed "uh"
+// pronunciation instead of the letter name.
 //
-// A uses the NATO "Alpha" instead of "Ay": confirmed by rendering both
-// through macOS's speech synthesis and comparing the audio that "Ay" (and
-// "Aye") produce byte-identical output to "Eye" — the engine resolves it to
-// the interjection/vote-term "aye" ("the ayes have it", pronounced like "I"),
-// not the letter name. "Alpha" is the one entry here that isn't a common
-// single-syllable homograph, but it's the only letter with this problem.
+// Uses the NATO/ICAO phonetic alphabet rather than short single-syllable
+// English words (an earlier version used "Ay", "Bee", "See", …). "Ay" for A
+// turned out to be a real homograph: it's also the vote/nautical interjection
+// ("the ayes have it"), and macOS's speech synthesis resolves it to the same
+// pronunciation as "eye"/"I" — confirmed by rendering "Ay", "Aye", and "eye"
+// and diffing the audio, which was byte-for-byte identical for all three.
+// Rather than track down whether any of the other 25 short words have a
+// similar hidden ambiguity on some engine/voice, every letter now uses the
+// NATO word, which exists specifically to be unambiguous over a voice
+// channel. Confirmed no two NATO words collide by rendering and diffing all
+// 26. Costs a syllable or two of brevity per letter; correctness matters
+// more for an accessibility feature meant to be trusted at face value.
 QString phoneticLetter(QChar letter) {
     static const QString kNames[] = {
             QStringLiteral("Alpha"),    // A
-            QStringLiteral("Bee"),      // B
-            QStringLiteral("See"),      // C
-            QStringLiteral("Dee"),      // D
-            QStringLiteral("Ee"),       // E
-            QStringLiteral("Eff"),      // F
-            QStringLiteral("Jee"),      // G
-            QStringLiteral("Aitch"),    // H
-            QStringLiteral("Eye"),      // I
-            QStringLiteral("Jay"),      // J
-            QStringLiteral("Kay"),      // K
-            QStringLiteral("El"),       // L
-            QStringLiteral("Em"),       // M
-            QStringLiteral("En"),       // N
-            QStringLiteral("Oh"),       // O
-            QStringLiteral("Pee"),      // P
-            QStringLiteral("Kew"),      // Q
-            QStringLiteral("Ar"),       // R
-            QStringLiteral("Ess"),      // S
-            QStringLiteral("Tee"),      // T
-            QStringLiteral("You"),      // U
-            QStringLiteral("Vee"),      // V
-            QStringLiteral("Double-u"), // W
-            QStringLiteral("Ex"),       // X
-            QStringLiteral("Why"),      // Y
-            QStringLiteral("Zee"),      // Z
+            QStringLiteral("Bravo"),    // B
+            QStringLiteral("Charlie"),  // C
+            QStringLiteral("Delta"),    // D
+            QStringLiteral("Echo"),     // E
+            QStringLiteral("Foxtrot"),  // F
+            QStringLiteral("Golf"),     // G
+            QStringLiteral("Hotel"),    // H
+            QStringLiteral("India"),    // I
+            QStringLiteral("Juliet"),   // J
+            QStringLiteral("Kilo"),     // K
+            QStringLiteral("Lima"),     // L
+            QStringLiteral("Mike"),     // M
+            QStringLiteral("November"), // N
+            QStringLiteral("Oscar"),    // O
+            QStringLiteral("Papa"),     // P
+            QStringLiteral("Quebec"),   // Q
+            QStringLiteral("Romeo"),    // R
+            QStringLiteral("Sierra"),   // S
+            QStringLiteral("Tango"),    // T
+            QStringLiteral("Uniform"),  // U
+            QStringLiteral("Victor"),   // V
+            QStringLiteral("Whiskey"),  // W
+            QStringLiteral("X-ray"),    // X
+            QStringLiteral("Yankee"),   // Y
+            QStringLiteral("Zulu"),     // Z
     };
     const int idx = letter.toUpper().unicode() - u'A';
     if (idx < 0 || idx >= static_cast<int>(std::size(kNames))) {

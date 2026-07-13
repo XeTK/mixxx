@@ -116,7 +116,7 @@ one-page shortcut cheat sheet.
   Mixxx (Preferences > Interface > Key Notation) instead of always
   speaking the full traditional name. Open Key ("5d") and Camelot/
   Lancelot ("8A") short codes are spoken as digit + phonetically
-  spelled letter ("5, Dee" / "8, Alpha") via `KeyUtils::keyToString()`;
+  spelled letter ("5, Delta" / "8, Alpha") via `KeyUtils::keyToString()`;
   the "…and Traditional" variants append the full name too. Traditional,
   Custom, and ID3v2 notations are unaffected — they already spoke the
   full name.
@@ -141,16 +141,21 @@ one-page shortcut cheat sheet.
   with a `phoneticLetter()` lookup table in `announcementmanager.cpp`
   that spells every deck letter out (A→"Ay", B→"Bee", … Z→"Zee"),
   which is robust across TTS engines without needing SSML support.
-- Fixed deck letter "A" again (2026-07-13) — this time "Ay" itself
-  turned out to be a homograph: it's also the vote/nautical interjection
-  ("the ayes have it"), which macOS's speech synthesis resolves to the
-  same pronunciation as "eye"/"I", not the intended letter name.
-  Confirmed by rendering "Ay", "Aye", and "eye" through macOS's speech
-  engine and comparing the audio — byte-for-byte identical. Changed the
-  `phoneticLetter()` entry for A to "Alpha" (the NATO phonetic alphabet
-  word), the one letter in the table that isn't a short common word,
-  because it's also the one letter with a same-spelling homograph
-  problem; the other 25 entries are unaffected.
+- Fixed deck letter "A" again, then switched the whole alphabet
+  (2026-07-13): "Ay" turned out to be a homograph — it's also the
+  vote/nautical interjection ("the ayes have it"), which macOS's speech
+  synthesis resolves to the same pronunciation as "eye"/"I", not the
+  intended letter name. Confirmed by rendering "Ay", "Aye", and "eye"
+  through macOS's speech engine and comparing the audio — byte-for-byte
+  identical. Rather than special-case just A and risk the same class of
+  bug hiding in one of the other 25 short English words (which weren't
+  individually re-verified), replaced the entire `phoneticLetter()`
+  table with the NATO/ICAO phonetic alphabet (Alpha, Bravo, Charlie, …
+  Zulu) — the standard built specifically to be unambiguous over a
+  voice channel. Confirmed no two of the 26 NATO words collide by
+  rendering and diffing all of them. Costs a syllable or two of
+  brevity per letter versus the old short words, but correctness wins
+  for an accessibility feature meant to be trusted at face value.
 - Reverted the `Mixxx-Accessibility` CMake project rename: it broke
   development-build resource lookup (empty resource path, no skin,
   "crash on load" when launching mixxx.exe without --resourcePath).

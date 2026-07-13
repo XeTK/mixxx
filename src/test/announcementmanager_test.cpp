@@ -182,7 +182,7 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_LancelotNotation) {
             QStringLiteral("C major")); // Lancelot (Camelot) code is "8B".
 
     EXPECT_QSTRING_EQ(
-            "Loaded deck, Alpha. Aphex Twin. Windowlicker. 128 B P M. Key: 8, Bee.",
+            "Loaded deck, Alpha. Aphex Twin. Windowlicker. 128 B P M. Key: 8, Bravo.",
             AnnouncementManager::formatForLoad(pTrack, 0));
 }
 
@@ -191,9 +191,9 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_DeckLetter) {
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 0).startsWith(
             QStringLiteral("Loaded deck, Alpha")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 1).startsWith(
-            QStringLiteral("Loaded deck, Bee")));
+            QStringLiteral("Loaded deck, Bravo")));
     EXPECT_TRUE(AnnouncementManager::formatForLoad(pTrack, 2).startsWith(
-            QStringLiteral("Loaded deck, See")));
+            QStringLiteral("Loaded deck, Charlie")));
 }
 
 TEST_F(AnnouncementManagerTest, FormatForLoad_NoBpm) {
@@ -958,7 +958,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatDeckStatus_StoppedPitchDown) {
     m_pRateRatio->set(0.95); // pitch down 5 percent
 
     EXPECT_QSTRING_EQ(
-            "Deck, Bee. Stopped. 45 seconds remaining. Pitch down 5 percent.",
+            "Deck, Bravo. Stopped. 45 seconds remaining. Pitch down 5 percent.",
             m_pManager->formatDeckStatus(QString::fromLatin1(kGroup), 1));
 }
 
@@ -1507,7 +1507,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatKey_LancelotNotation) {
             ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
     pKey->set(1.0); // ChromaticKey C_MAJOR; Lancelot (Camelot) code is "8B".
 
-    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 8, Bee.",
+    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 8, Bravo.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1520,7 +1520,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatKey_OpenKeyNotation) {
             ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
     pKey->set(12.0); // ChromaticKey B_MAJOR; Open Key code is "6d".
 
-    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 6, Dee.",
+    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 6, Delta.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 
@@ -1533,7 +1533,7 @@ TEST_F(AnnouncementManagerStatusTest, FormatKey_LancelotAndTraditionalNotation) 
             ConfigKey(QLatin1String(kGroup), QStringLiteral("key")));
     pKey->set(1.0); // ChromaticKey C_MAJOR
 
-    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 8, Bee. C Major.",
+    EXPECT_QSTRING_EQ("Deck, Alpha. Key: 8, Bravo. C Major.",
             m_pManager->formatKey(QString::fromLatin1(kGroup), 0));
 }
 
