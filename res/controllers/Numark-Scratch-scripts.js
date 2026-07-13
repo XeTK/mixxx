@@ -83,11 +83,13 @@ NumarkScratch.shutdown = function() {
 };
 
 NumarkScratch.shift = function() {
+    NumarkScratch.shiftPressed = true;
     NumarkScratch.deck.shift();
     NumarkScratch.effect.shift();
 };
 
 NumarkScratch.unshift = function() {
+    NumarkScratch.shiftPressed = false;
     NumarkScratch.deck.unshift();
     NumarkScratch.effect.unshift();
 };
@@ -209,6 +211,19 @@ NumarkScratch.Deck = function(number) {
         output: function(value) {
             const note = (value === 0x00 ? 0x80 : 0x90) + channel;
             midi.sendShortMsg(note, 0x1B, this.outValueScale(value));
+        },
+        // Accessibility: shift + CUE speaks the deck's status (playing or
+        // stopped, time remaining, BPM, pitch) through Mixxx's built-in
+        // text-to-speech, without touching the PFL state.
+        shift: function() {
+            this.input = function(midiChannel, control, value) {
+                if (this.isPress(midiChannel, control, value)) {
+                    engine.setValue(`[Channel${channel}]`, "tts_status", 1);
+                }
+            };
+        },
+        unshift: function() {
+            this.input = components.Button.prototype.input;
         }
     });
 
@@ -306,7 +321,30 @@ NumarkScratch.PadSection = function(deckNumber) {
     this.modes[NumarkScratch.PadModeControls.SAMPLER] = new NumarkScratch.ModeSampler(deckNumber);
     this.modes[NumarkScratch.PadModeControls.ROLL] = new NumarkScratch.ModeRoll(deckNumber);
 
-    this.modeButtonPress = function(channel, control, _value) {
+    this.modeButtonPress = function(channel, control, value, status) {
+        // Both press and release are routed here; only act on the press.
+        if ((status & 0xF0) === 0x80 || value === 0) {
+            return;
+        }
+        // Accessibility layer: while shift is held the mode buttons control
+        // Mixxx's spoken feedback instead of switching pad modes. Each
+        // action confirms itself out loud, so no LED feedback is needed.
+        if (NumarkScratch.shiftPressed) {
+            switch (control) {
+            case NumarkScratch.PadModeControls.HOTCUE:
+                // Repeat the last spoken announcement.
+                engine.setValue("[Tts]", "repeat", 1);
+                return;
+            case NumarkScratch.PadModeControls.ROLL:
+                // Beat click metronome on/off.
+                script.toggleControl("[BeatClick]", "enabled");
+                return;
+            case NumarkScratch.PadModeControls.SAMPLER:
+                // Per-deck split headphone cue on/off.
+                script.toggleControl("[Master]", "headSplitDecks");
+                return;
+            }
+        }
         this.setMode(channel, control);
     };
 

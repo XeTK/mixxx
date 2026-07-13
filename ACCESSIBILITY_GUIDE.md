@@ -319,6 +319,23 @@ mapped to buttons on a DJ controller:
 - `[Tts],duckStrength` — music ducking level
 - `[Earcon],volume` — earcon (sound cue) level
 
+### Numark Scratch (built in)
+
+The shipped Numark Scratch mapping already carries an accessibility
+layer on the Shift button (hold Shift, then press):
+
+- Shift plus a channel's CUE button — speak that deck's full status
+  (playing or stopped, time remaining, BPM, pitch). The CUE (PFL)
+  state itself is not changed.
+- Shift plus the HOTCUE pad-mode button — repeat the last
+  announcement.
+- Shift plus the ROLL pad-mode button — beat click metronome on/off.
+- Shift plus the SAMPLER pad-mode button — per-deck split cue on/off.
+
+Each action confirms itself out loud. Without Shift, all four buttons
+keep their normal functions. (While Shift is held the pad-mode
+buttons no longer switch pad modes — release Shift first.)
+
 ## Known limitations
 
 - Announcements are English only for now.
