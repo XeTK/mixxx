@@ -116,7 +116,7 @@ one-page shortcut cheat sheet.
   Mixxx (Preferences > Interface > Key Notation) instead of always
   speaking the full traditional name. Open Key ("5d") and Camelot/
   Lancelot ("8A") short codes are spoken as digit + phonetically
-  spelled letter ("5, Dee" / "8, Ay") via `KeyUtils::keyToString()`;
+  spelled letter ("5, Dee" / "8, Alpha") via `KeyUtils::keyToString()`;
   the "…and Traditional" variants append the full name too. Traditional,
   Custom, and ID3v2 notations are unaffected — they already spoke the
   full name.
@@ -141,6 +141,16 @@ one-page shortcut cheat sheet.
   with a `phoneticLetter()` lookup table in `announcementmanager.cpp`
   that spells every deck letter out (A→"Ay", B→"Bee", … Z→"Zee"),
   which is robust across TTS engines without needing SSML support.
+- Fixed deck letter "A" again (2026-07-13) — this time "Ay" itself
+  turned out to be a homograph: it's also the vote/nautical interjection
+  ("the ayes have it"), which macOS's speech synthesis resolves to the
+  same pronunciation as "eye"/"I", not the intended letter name.
+  Confirmed by rendering "Ay", "Aye", and "eye" through macOS's speech
+  engine and comparing the audio — byte-for-byte identical. Changed the
+  `phoneticLetter()` entry for A to "Alpha" (the NATO phonetic alphabet
+  word), the one letter in the table that isn't a short common word,
+  because it's also the one letter with a same-spelling homograph
+  problem; the other 25 entries are unaffected.
 - Reverted the `Mixxx-Accessibility` CMake project rename: it broke
   development-build resource lookup (empty resource path, no skin,
   "crash on load" when launching mixxx.exe without --resourcePath).

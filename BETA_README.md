@@ -54,7 +54,7 @@ Both files are in the same folder as this one.
   on-screen waveform or vinyl widget can't derail playback.
 - Musical key spoken in whichever notation you use elsewhere in Mixxx —
   full names ("A Minor"), Open Key ("5, Dee"), or Camelot/Lancelot
-  ("8, Ay").
+  ("8, Alpha").
 - Quick add to crate/playlist (`Alt+Shift+C` / `Alt+Shift+P`): pops a
   menu of your crate/playlist names next to the selected track, each
   one spoken as you arrow through it, `Enter` to add.

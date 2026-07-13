@@ -195,9 +195,16 @@ QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
 // TTS engines often read a bare "A" with its unstressed "uh" pronunciation
 // instead of the letter name "ay". Spelling out every letter keeps this
 // robust across engines rather than special-casing just A.
+//
+// A uses the NATO "Alpha" instead of "Ay": confirmed by rendering both
+// through macOS's speech synthesis and comparing the audio that "Ay" (and
+// "Aye") produce byte-identical output to "Eye" — the engine resolves it to
+// the interjection/vote-term "aye" ("the ayes have it", pronounced like "I"),
+// not the letter name. "Alpha" is the one entry here that isn't a common
+// single-syllable homograph, but it's the only letter with this problem.
 QString phoneticLetter(QChar letter) {
     static const QString kNames[] = {
-            QStringLiteral("Ay"),       // A
+            QStringLiteral("Alpha"),    // A
             QStringLiteral("Bee"),      // B
             QStringLiteral("See"),      // C
             QStringLiteral("Dee"),      // D
@@ -1483,7 +1490,7 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     // "B P M" with spaces causes TTS engines to read each letter individually
     // rather than trying to pronounce it as a word.
     QStringList parts;
-    // Comma before the letter so TTS says "Loaded deck, Ay" rather than
+    // Comma before the letter so TTS says "Loaded deck, Alpha" rather than
     // gluing it into "Loaded decka"; the letter is spelled out phonetically
     // for the same reason as deckName().
     parts << tr("Loaded deck, %1").arg(phoneticLetter(QChar(u'A' + deckIndex)));
