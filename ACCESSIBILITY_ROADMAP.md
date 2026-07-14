@@ -313,9 +313,17 @@ Done since (2026-07-13):
   (`[Tts],route_to_main`), so they are always audible wherever
   announcements are heard. Regression-tested in both engine suites.
 - **Numark Scratch accessibility shift-layer** (shipped in the
-  mapping): Shift+CUE speaks the deck status without touching PFL,
-  Shift+HOTCUE mode repeats the last announcement, Shift+ROLL mode
-  toggles the beat click, Shift+SAMPLER mode toggles split cue.
+  mapping): Shift+CUE speaks the deck status without touching PFL;
+  on Effect Unit 1, Shift+Echo repeats the last announcement,
+  Shift+Delay toggles the beat click, Shift+Flanger toggles split
+  cue. (2026-07-14: originally tried on the single pad-mode selector
+  button, but live MIDI capture showed one physical press fires the
+  handler for *both* decks simultaneously, so the two toggle actions
+  cancelled themselves out — and the button cycles blind through 3
+  states with no way to tell which one you're in. Moved to Effect
+  Unit 1's three FX buttons instead: physically discrete, no
+  double-fire, reliably identifiable by position. Unit 2's FX
+  buttons keep their original Shift-to-toggle-that-effect behavior.)
 - **DDJ-400 accessibility pads** (opt-in mapping setting, off by
   default): the Hot Cue pad mode becomes spoken deck info on pads 1-6
   (status/time/BPM/key/bar/track), repeat on pad 7, beat click on pad

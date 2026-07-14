@@ -74,11 +74,16 @@ Every move is confirmed out loud: "Moved to position 4 of 12".
 
 - `Shift+CUE` (either channel) — Speak that deck's status. Does not
   change the cue/PFL state.
-- `Shift+HOTCUE mode button` — Repeat the last announcement.
-- `Shift+ROLL mode button` — Beat click metronome on/off.
-- `Shift+SAMPLER mode button` — Per-deck split cue on/off.
+- `Shift+Echo` (Effect Unit 1, leftmost FX button) — Repeat the last
+  announcement.
+- `Shift+Delay` (Effect Unit 1, middle FX button) — Beat click
+  metronome on/off.
+- `Shift+Flanger` (Effect Unit 1, right FX button) — Per-deck split
+  cue on/off.
 
-Without Shift everything behaves as normal.
+Without Shift everything behaves as normal. Effect Unit 2's FX buttons
+(Reverb/V.Echo/Phaser) keep their usual Shift-to-toggle-that-effect
+behavior — only Unit 1's three are repurposed.
 
 ## Pioneer DDJ-400 accessibility pads (opt-in)
 

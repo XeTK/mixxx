@@ -3,7 +3,7 @@
   <info>
     <name>Numark Scratch</name>
     <author>Al Hadebe(NotYourAverageAl)</author>
-    <description>Mapping for the Numark Scratch Mixer. Accessibility (this fork): Shift+CUE speaks the deck status; Shift+HOTCUE mode repeats the last announcement; Shift+ROLL mode toggles the beat click metronome; Shift+SAMPLER mode toggles the per-deck split cue.</description>
+    <description>Mapping for the Numark Scratch Mixer. Accessibility (this fork): Shift+CUE (either channel) speaks the deck status; on Effect Unit 1, Shift+Echo repeats the last announcement, Shift+Delay toggles the beat click metronome, Shift+Flanger toggles the per-deck split cue. Effect Unit 2's Shift+button behavior (toggle that effect) is unchanged.</description>
     <forums>https://mixxx.discourse.group/t/numark-scratch-mapping/25186</forums>
     <manual>https://manual.mixxx.org/latest/en/hardware/controllers/numark_scratch</manual>
   </info>

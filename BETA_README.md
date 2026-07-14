@@ -79,9 +79,10 @@ Both files are in the same folder as this one.
   setting, so they are always audible wherever you hear announcements
   — if you can hear Mixxx talking, you can hear the click.
 - Controller accessibility layers: on the **Numark Scratch**, hold
-  Shift — Shift+CUE speaks that deck's status, Shift+HOTCUE mode
-  repeats the last announcement, Shift+ROLL mode toggles the beat
-  click, Shift+SAMPLER mode toggles split cue. On the **DDJ-400**, an
+  Shift — Shift+CUE speaks that deck's status; on Effect Unit 1,
+  Shift+Echo repeats the last announcement, Shift+Delay toggles the
+  beat click, Shift+Flanger toggles split cue (Effect Unit 2's FX
+  buttons are unchanged). On the **DDJ-400**, an
   opt-in mapping setting ("Use the Hot Cue pads as accessibility
   pads") turns the Hot Cue pads into spoken deck info, repeat, beat
   click, split cue, and speech toggles — see the guide for the pad

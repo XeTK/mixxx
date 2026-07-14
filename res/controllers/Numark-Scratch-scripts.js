@@ -83,13 +83,11 @@ NumarkScratch.shutdown = function() {
 };
 
 NumarkScratch.shift = function() {
-    NumarkScratch.shiftPressed = true;
     NumarkScratch.deck.shift();
     NumarkScratch.effect.shift();
 };
 
 NumarkScratch.unshift = function() {
-    NumarkScratch.shiftPressed = false;
     NumarkScratch.deck.unshift();
     NumarkScratch.effect.unshift();
 };
@@ -116,6 +114,20 @@ NumarkScratch.EffectUnit = function(deckNumber) {
         });
     };
 
+    // Accessibility: on unit 1 only (Echo/Delay/Flanger, MIDI channel 9),
+    // Shift + FX button speaks/toggles instead of enabling that effect,
+    // since these are three individually addressable physical buttons
+    // (unlike the single pad-mode selector, which cycles blind through
+    // three states and can't be targeted reliably without sight). Unit 2's
+    // buttons keep their original shift-to-toggle-that-effect behavior.
+    const accessibilityActions = deckNumber === 1
+        ? [
+            () => engine.setValue("[Tts]", "repeat", 1),
+            () => script.toggleControl("[BeatClick]", "enabled"),
+            () => script.toggleControl("[Master]", "headSplitDecks"),
+        ]
+        : null;
+
     this.effectButtons = [];
     for (let i = 0; i < 3; i++) {
         this.effectButtons[i] = new components.Button({
@@ -123,10 +135,18 @@ NumarkScratch.EffectUnit = function(deckNumber) {
             midi: [0x98 + deckNumber - 1, (deckNumber - 1) * 3 + i],
             inKey: "enabled",
             outKey: "enabled", // Bind the LED state to the effect enabled state
-            shift: function() {
-                this.input = components.Button.prototype.input;
-                this.type = components.Button.prototype.types.toggle;
-            },
+            shift: accessibilityActions
+                ? function() {
+                    this.input = function(channel, control, value) {
+                        if (this.isPress(channel, control, value)) {
+                            accessibilityActions[i]();
+                        }
+                    };
+                }
+                : function() {
+                    this.input = components.Button.prototype.input;
+                    this.type = components.Button.prototype.types.toggle;
+                },
             unshift: function() {
                 this.input = inputUnshifted;
             },
@@ -322,28 +342,12 @@ NumarkScratch.PadSection = function(deckNumber) {
     this.modes[NumarkScratch.PadModeControls.ROLL] = new NumarkScratch.ModeRoll(deckNumber);
 
     this.modeButtonPress = function(channel, control, value, status) {
-        // Both press and release are routed here; only act on the press.
+        // Both press and release are routed here, and this single physical
+        // button fires once per deck (channel 5 and channel 6) on every
+        // press; only act on one press event per deck instance, which is
+        // exactly what setMode() below already does per PadSection.
         if ((status & 0xF0) === 0x80 || value === 0) {
             return;
-        }
-        // Accessibility layer: while shift is held the mode buttons control
-        // Mixxx's spoken feedback instead of switching pad modes. Each
-        // action confirms itself out loud, so no LED feedback is needed.
-        if (NumarkScratch.shiftPressed) {
-            switch (control) {
-            case NumarkScratch.PadModeControls.HOTCUE:
-                // Repeat the last spoken announcement.
-                engine.setValue("[Tts]", "repeat", 1);
-                return;
-            case NumarkScratch.PadModeControls.ROLL:
-                // Beat click metronome on/off.
-                script.toggleControl("[BeatClick]", "enabled");
-                return;
-            case NumarkScratch.PadModeControls.SAMPLER:
-                // Per-deck split headphone cue on/off.
-                script.toggleControl("[Master]", "headSplitDecks");
-                return;
-            }
         }
         this.setMode(channel, control);
     };

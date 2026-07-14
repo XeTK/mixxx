@@ -328,14 +328,20 @@ layer on the Shift button (hold Shift, then press):
 - Shift plus a channel's CUE button — speak that deck's full status
   (playing or stopped, time remaining, BPM, pitch). The CUE (PFL)
   state itself is not changed.
-- Shift plus the HOTCUE pad-mode button — repeat the last
+- Shift plus Effect Unit 1's Echo button — repeat the last
   announcement.
-- Shift plus the ROLL pad-mode button — beat click metronome on/off.
-- Shift plus the SAMPLER pad-mode button — per-deck split cue on/off.
+- Shift plus Effect Unit 1's Delay button — beat click metronome
+  on/off.
+- Shift plus Effect Unit 1's Flanger button — per-deck split cue
+  on/off.
 
-Each action confirms itself out loud. Without Shift, all four buttons
-keep their normal functions. (While Shift is held the pad-mode
-buttons no longer switch pad modes — release Shift first.)
+Each action confirms itself out loud. Without Shift, all these buttons
+keep their normal functions, and Effect Unit 2's three FX buttons
+(Reverb, V.Echo, Phaser) are untouched — Shift still toggles those
+effects individually, same as upstream. (The single pad-mode selector
+button was deliberately left alone: it cycles blind through Hotcue,
+Roll, and Sampler with no way to tell which state you're in without
+looking, so it isn't a reliable target for a blind DJ.)
 
 ### Pioneer DDJ-400 (built in, opt-in)
 
