@@ -1964,6 +1964,80 @@ TEST_F(AnnouncementManagerTest, Sidebar_PlainTitleStillWorks) {
     EXPECT_QSTRING_EQ("Tracks", pSpy->lastText);
 }
 
+// ---------------------------------------------------------------------------
+// Vinyl control (DVS) state announcements
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerVinylTest : public AnnouncementManagerTest {
+  protected:
+    static constexpr const char* kGroup = "[TestChannel1]";
+
+    // Call after makeManager() to create the vinyl COs and wire up the
+    // observers.
+    void setupGroup() {
+        m_pEnabled = std::make_unique<ControlObject>(ConfigKey(
+                QLatin1String(kGroup), QStringLiteral("vinylcontrol_enabled")));
+        m_pMode = std::make_unique<ControlObject>(ConfigKey(
+                QLatin1String(kGroup), QStringLiteral("vinylcontrol_mode")));
+        m_pCueing = std::make_unique<ControlObject>(ConfigKey(
+                QLatin1String(kGroup), QStringLiteral("vinylcontrol_cueing")));
+        m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
+    }
+
+    void set(ControlObject* pControl, double v) {
+        pControl->set(v);
+        QCoreApplication::processEvents();
+    }
+
+    std::unique_ptr<ControlObject> m_pEnabled;
+    std::unique_ptr<ControlObject> m_pMode;
+    std::unique_ptr<ControlObject> m_pCueing;
+};
+
+TEST_F(AnnouncementManagerVinylTest, VinylEnabled_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    set(m_pEnabled.get(), 1.0);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("vinyl control on")));
+
+    set(m_pEnabled.get(), 0.0);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("vinyl control off")));
+}
+
+TEST_F(AnnouncementManagerVinylTest, VinylMode_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    // Default is 0 (absolute); move away first so each set is a transition.
+    set(m_pMode.get(), 1.0);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("vinyl relative mode")));
+
+    // Automatic flips (record end -> constant) speak through the same path.
+    set(m_pMode.get(), 2.0);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("vinyl constant mode")));
+
+    set(m_pMode.get(), 0.0);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("vinyl absolute mode")));
+}
+
+TEST_F(AnnouncementManagerVinylTest, VinylCueing_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    set(m_pCueing.get(), 1.0);
+    EXPECT_TRUE(pSpy->lastText.contains(
+            QStringLiteral("needle drop goes to cue point")));
+
+    set(m_pCueing.get(), 2.0);
+    EXPECT_TRUE(pSpy->lastText.contains(
+            QStringLiteral("needle drop goes to nearest hotcue")));
+
+    set(m_pCueing.get(), 0.0);
+    EXPECT_TRUE(pSpy->lastText.contains(
+            QStringLiteral("needle drop cueing off")));
+}
+
 TEST_F(AnnouncementManagerTest, PlaylistEdit_Announced) {
     SpyTtsEngine* pSpy = makeManager();
 
