@@ -207,6 +207,8 @@ void CueControl::createControls() {
                 m_group, "vinylcontrol_enabled");
         m_pVinylControlMode = std::make_unique<ControlProxy>(
                 m_group, "vinylcontrol_mode");
+        m_pVinylControlTransportActive = std::make_unique<ControlProxy>(
+                m_group, "vinylcontrol_transport_active");
     }
 
     m_pHotcueFocus = std::make_unique<ControlObject>(ConfigKey(m_group, "hotcue_focus"));
@@ -1030,11 +1032,17 @@ void CueControl::hotcueGotoAndStop(HotcueControl* pControl, double value) {
     }
 
     if (m_currentlyPreviewingIndex == Cue::kNoHotCue) {
-        m_pPlay->set(0.0);
+        if (!isVinylTransportActive()) {
+            // A stop would be overridden while the timecode signal owns the
+            // play state; degrade to a plain jump to the hotcue.
+            m_pPlay->set(0.0);
+        }
         seekExact(position);
     } else {
         // this becomes a play latch command if we are previewing
-        m_pPlay->set(0.0);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+        }
     }
 }
 
@@ -1209,9 +1217,11 @@ void CueControl::hotcueActivatePreview(HotcueControl* pControl, double value) {
         // This is a release of a previewing hotcue
         const mixxx::audio::FramePos position = pControl->getPreviewingPosition();
         updateCurrentlyPreviewingIndex(Cue::kNoHotCue);
-        m_pPlay->set(0.0);
-        if (position.isValid()) {
-            seekExact(position);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+            if (position.isValid()) {
+                seekExact(position);
+            }
         }
     }
 
@@ -1424,7 +1434,11 @@ void CueControl::cueGotoAndStop(double value) {
     }
 
     if (m_currentlyPreviewingIndex == Cue::kNoHotCue) {
-        m_pPlay->set(0.0);
+        if (!isVinylTransportActive()) {
+            // A stop would be overridden while the timecode signal owns the
+            // play state; degrade to a plain jump to the cue point.
+            m_pPlay->set(0.0);
+        }
         const auto mainCuePosition =
                 mixxx::audio::FramePos::fromEngineSamplePosMaybeInvalid(
                         m_pCuePoint->get());
@@ -1433,7 +1447,9 @@ void CueControl::cueGotoAndStop(double value) {
         }
     } else {
         // this becomes a play latch command if we are previewing
-        m_pPlay->set(0.0);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+        }
     }
 }
 
@@ -1455,8 +1471,10 @@ void CueControl::cuePreview(double value) {
         m_pPlay->set(1.0);
     } else if (m_currentlyPreviewingIndex == kMainCueIndex) {
         updateCurrentlyPreviewingIndex(Cue::kNoHotCue);
-        m_pPlay->set(0.0);
-        seekExact(mainCuePosition);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+            seekExact(mainCuePosition);
+        }
     }
 }
 
@@ -1489,7 +1507,13 @@ void CueControl::cueCDJ(double value) {
             seekAbs(mainCuePosition);
         } else if (freely_playing || trackAt == TrackAt::End) {
             // Jump to cue when playing or when at end position
-            m_pPlay->set(0.0);
+            if (!isVinylTransportActive()) {
+                // While the timecode signal owns the play state a stop
+                // request would be overridden right away, bouncing the deck
+                // between the cue point and playback. Jump only; the record
+                // keeps playing from the cue point (like other DVS systems).
+                m_pPlay->set(0.0);
+            }
             seekAbs(mainCuePosition);
         } else if (trackAt == TrackAt::Cue) {
             // paused at cue point
@@ -1513,9 +1537,11 @@ void CueControl::cueCDJ(double value) {
         }
     } else if (m_currentlyPreviewingIndex == kMainCueIndex) {
         updateCurrentlyPreviewingIndex(Cue::kNoHotCue);
-        m_pPlay->set(0.0);
-        // Need to unlock before emitting any signals to prevent deadlock.
-        seekExact(mainCuePosition);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+            // Need to unlock before emitting any signals to prevent deadlock.
+            seekExact(mainCuePosition);
+        }
     }
 
     // indicator may flash because the delayed adoption of seekAbs
@@ -1557,13 +1583,17 @@ void CueControl::cueDenon(double value) {
             updateCurrentlyPreviewingIndex(kMainCueIndex);
             m_pPlay->set(1.0);
         } else {
-            m_pPlay->set(0.0);
+            if (!isVinylTransportActive()) {
+                m_pPlay->set(0.0);
+            }
             seekExact(mainCuePosition);
         }
     } else if (m_currentlyPreviewingIndex == kMainCueIndex) {
         updateCurrentlyPreviewingIndex(Cue::kNoHotCue);
-        m_pPlay->set(0.0);
-        seekExact(mainCuePosition);
+        if (!isVinylTransportActive()) {
+            m_pPlay->set(0.0);
+            seekExact(mainCuePosition);
+        }
     }
 }
 
@@ -1588,7 +1618,9 @@ void CueControl::cuePlay(double value) {
     if (value > 0) {
         if (freely_playing) {
             updateCurrentlyPreviewingIndex(Cue::kNoHotCue);
-            m_pPlay->set(0.0);
+            if (!isVinylTransportActive()) {
+                m_pPlay->set(0.0);
+            }
             seekAbs(mainCuePosition);
         } else if (trackAt == TrackAt::ElseWhere) {
             // Pause not at cue point and not at end position
@@ -2286,6 +2318,19 @@ CueControl::TrackAt CueControl::getTrackAt() const {
         }
     }
     return TrackAt::ElseWhere;
+}
+
+bool CueControl::isVinylTransportActive() const {
+    // True while the timecode signal is driving this deck's play state
+    // (absolute or relative mode with the record moving). Vinyl control
+    // re-asserts the play state every analysis window then, so stopping the
+    // deck from software would immediately be overridden and the deck would
+    // bounce between the cue point and vinyl playback. Cue and hotcue actions
+    // must be seek-only while this is the case. With the needle up or in
+    // constant mode the flag is false and software transport works normally.
+    return m_pVinylControlEnabled && m_pVinylControlEnabled->toBool() &&
+            m_pVinylControlTransportActive &&
+            m_pVinylControlTransportActive->toBool();
 }
 
 mixxx::audio::FramePos CueControl::getQuantizedCurrentPosition() {

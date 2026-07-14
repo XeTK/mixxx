@@ -82,6 +82,20 @@ class VinylControlXwax : public VinylControl {
     // Whether to force a resync on the next analysis loop.
     bool m_bForceResync;
 
+    // Whether the pending force-resync was caused by losing the timecode
+    // signal (as opposed to a track change, mode change or enable).
+    bool m_bResyncFromDropout;
+
+    // Whether we already issued the one-shot stop for the current signal
+    // loss. Software transport stays usable until the signal returns.
+    bool m_bSignalLostStopIssued;
+
+    // How long the timecode signal has been gone, in seconds.
+    double m_dSignalLostSeconds;
+
+    // The engine sample rate, used to convert buffer sizes to seconds.
+    double m_dSampleRate;
+
     // The Vinyl Control mode and the previous mode.
     int m_iVCMode;
     int m_iOldVCMode;

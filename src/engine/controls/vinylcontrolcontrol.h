@@ -37,6 +37,7 @@ class VinylControlControl : public EngineControl {
     std::unique_ptr<ControlPushButton> m_pControlVinylWantEnabled;
     std::unique_ptr<ControlPushButton> m_pControlVinylCueing;
     std::unique_ptr<ControlPushButton> m_pControlVinylSignalEnabled;
+    std::unique_ptr<ControlObject> m_pControlVinylTransportActive;
     PollingControlProxy m_playEnabled;
     PollingControlProxy m_inputConfigured;
 
