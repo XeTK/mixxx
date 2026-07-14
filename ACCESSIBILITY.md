@@ -149,7 +149,12 @@ control.
 
 - Per-deck `disable_preroll` control and a "prevent jogging before track
   start" checkbox under Preferences > Decks, so a jog wheel cannot seek
-  into pre-roll silence before the track begins.
+  into pre-roll silence before the track begins. A "Pre-roll limit" spin
+  box (per-deck `preroll_limit_beats` control) sets how much pre-roll is
+  still allowed before the clamp: default 4 beats, 0 clamps hard at the
+  track start, and 1 second is used when the track has no BPM. This is
+  also the same clamp applied to timecode-vinyl lead-in seeks when the
+  option is on. (Also proposed upstream as PR #16573.)
 - `[Master],disable_touch_scratch` control and a "disable jog wheel and
   waveform touch scratching" checkbox under Preferences > Decks, backing
   the `Alt+J` jog wheel touch lock described above.

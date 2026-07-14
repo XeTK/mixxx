@@ -404,6 +404,15 @@ How cue buttons behave with vinyl control:
   only a real needle lift of about half a second or more counts as a
   needle drop.
 
+"Prevent jogging before track start" (Preferences, Decks — on by
+default in this fork) also applies to vinyl: dropping the needle in
+the record's lead-in area clamps the deck near the track start
+instead of leaving you in silent pre-roll. The "Pre-roll limit" spin
+box next to it sets how much run-up is still allowed — 4 beats by
+default, so you keep a natural backspin-and-release feel; set it to 0
+to clamp hard at the first beat, or turn the checkbox off to allow
+unlimited pre-roll like stock Mixxx.
+
 ## Known limitations
 
 - Announcements are English only for now.
