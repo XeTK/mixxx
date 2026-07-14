@@ -362,6 +362,48 @@ press can't clear stored hotcues. The other pad modes (Beat Loop, Beat
 Jump, Sampler) are unaffected. Untick the setting to get normal hot
 cues back.
 
+## Timecode vinyl (DVS)
+
+Mixxx can be driven from timecode records or CDs through a supported
+sound card or DVS mixer (the Numark Scratch is one). Configure the
+deck inputs under Preferences, Sound Hardware, Input, then enable
+vinyl control per deck.
+
+Keyboard controls (all spoken as they change):
+
+- Ctrl+T / Ctrl+Y / Ctrl+U / Ctrl+I — vinyl control on/off for decks
+  1 to 4 ("vinyl control on").
+- Ctrl+Shift+Y (deck 1) / Ctrl+Shift+U (deck 2) — cycle the vinyl
+  mode: absolute (the needle position is the track position),
+  relative (the record controls speed and direction, software
+  controls position), constant (emergency mode near the end of the
+  record).
+- Ctrl+Alt+Y (deck 1) / Ctrl+Alt+U (deck 2) — cycle needle-drop
+  cueing for relative mode: off, "goes to cue point", or "goes to
+  nearest hotcue". With cueing on, lifting the needle and dropping it
+  anywhere jumps playback to the cue instead of following the needle.
+
+Mode changes are announced even when Mixxx changes them by itself:
+setting a loop or seeking while playing drops absolute mode to
+relative, and reaching the end of the record switches to constant
+mode, so you always hear why the deck stopped following the
+turntable.
+
+How cue buttons behave with vinyl control:
+
+- While the record is spinning, the timecode signal owns play and
+  stop. Cue and hotcue presses jump the deck to the cue point and
+  playback continues from there — the same as other DVS systems. To
+  stop, stop the record.
+- With the needle up, all software transport works normally: play,
+  cue preview and hotcue previews from the keyboard or a controller
+  behave exactly as without vinyl control. The moment the needle
+  comes back down, the timecode takes over again.
+- Brief timecode dropouts (a dirty needle, a worn spot) no longer
+  yank playback back to the nearest cue in needle-drop cueing mode;
+  only a real needle lift of about half a second or more counts as a
+  needle drop.
+
 ## Known limitations
 
 - Announcements are English only for now.
