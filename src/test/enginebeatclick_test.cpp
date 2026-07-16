@@ -40,8 +40,9 @@ class EngineBeatClickTest : public MixxxTest {
             m_controls.push_back(std::make_unique<ControlObject>(
                     ConfigKey(QLatin1String(group), QStringLiteral("bpm"))));
         }
-        m_pClick = std::make_unique<EngineBeatClick>(
-                QList<EngineBeatClick::DeckSource>{{kDeckA, 0}, {kDeckB, 1}});
+        m_pClick = std::make_unique<EngineBeatClick>();
+        m_pClick->addDeck(kDeckA, 0);
+        m_pClick->addDeck(kDeckB, 1);
         m_head.assign(kSamples, 0.0f);
         m_main.assign(kSamples, 0.0f);
     }
@@ -97,6 +98,46 @@ TEST_F(EngineBeatClickTest, DeckB_ClicksRightOnly) {
     EXPECT_EQ(0.0, channelEnergy(m_head, 0)) << "deck B click leaked to left";
 }
 
+TEST(EngineBeatClickConstructionOrderTest, DeckAddedAfterConstruction_StillClicks) {
+    // Regression: EngineBeatClick is constructed as part of EngineMixer's own
+    // construction, which happens before PlayerManager creates any deck - so
+    // a ControlProxy bound to e.g. "[Channel1],play" at *construction* time
+    // would permanently latch onto the AllowMissingOrInvalid default control
+    // (ControlProxy never re-binds), reading "not playing" forever regardless
+    // of real deck state. This reproduces that ordering: construct the engine
+    // first, create the deck's controls after, then addDeck().
+    auto pSampleRate = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("samplerate")));
+    pSampleRate->set(44100.0);
+
+    auto pClick = std::make_unique<EngineBeatClick>();
+    ControlProxy(QStringLiteral("[BeatClick]"), QStringLiteral("enabled")).set(1.0);
+
+    // Deck controls created only now, after EngineBeatClick already exists.
+    constexpr const char* kDeck = "[TestClickOrderDeck]";
+    auto pPlay = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kDeck), QStringLiteral("play")));
+    auto pBeatDistance = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kDeck), QStringLiteral("beat_distance")));
+    auto pBpm = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kDeck), QStringLiteral("bpm")));
+
+    pClick->addDeck(kDeck, 0);
+
+    const double beatFrames = 60.0 / 120.0 * 44100.0; // 22050
+    pPlay->set(1.0);
+    pBpm->set(120.0);
+    pBeatDistance->set(1.0 - 500.0 / beatFrames);
+
+    std::vector<CSAMPLE> head(kSamples, 0.0f);
+    std::vector<CSAMPLE> main(kSamples, 0.0f);
+    pClick->process(main.data(), head.data(), kFrames);
+
+    EXPECT_GT(channelEnergy(head, 0), 0.0)
+            << "click never renders when the deck's controls are created "
+               "after EngineBeatClick itself, matching real app startup order";
+}
+
 TEST_F(EngineBeatClickTest, NoHeadphones_FallsBackToMain) {
     enable();
     cueDeckBeforeBeat(kDeckA);
@@ -118,8 +159,9 @@ TEST_F(EngineBeatClickTest, SpeechRoutedToMain_ClicksFollow) {
     // engine (and its [BeatClick] controls) while the old one still owns
     // controls with the same keys, leaving the new ones dead.
     m_pClick.reset();
-    m_pClick = std::make_unique<EngineBeatClick>(
-            QList<EngineBeatClick::DeckSource>{{kDeckA, 0}, {kDeckB, 1}});
+    m_pClick = std::make_unique<EngineBeatClick>();
+    m_pClick->addDeck(kDeckA, 0);
+    m_pClick->addDeck(kDeckB, 1);
     enable();
     cueDeckBeforeBeat(kDeckA);
     m_pClick->process(m_main.data(), m_head.data(), kFrames);

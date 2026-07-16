@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QList>
 #include <QString>
 #include <memory>
 #include <vector>
@@ -28,15 +27,27 @@ class ControlPushButton;
 ///
 /// process() is called from the audio callback; everything it touches is
 /// lock-free (control atomics and per-deck POD state).
+///
+/// Per-deck controls (play/bpm/beat_distance) are added via addDeck() rather
+/// than passed to the constructor: EngineBeatClick is constructed as part of
+/// EngineMixer's own construction, which happens before PlayerManager creates
+/// any deck, so binding a ControlProxy to e.g. "[Channel1],play" at
+/// construction time would permanently latch onto the AllowMissingOrInvalid
+/// default control (silently, since ControlProxy never re-binds) instead of
+/// the real one created moments later - reading "not playing" forever
+/// regardless of actual deck state. addDeck() is called from
+/// EngineMixer::addChannel() once the channel (and its controls) genuinely
+/// exist.
 class EngineBeatClick {
   public:
-    struct DeckSource {
-        QString group;
-        int channel; // 0 = left, 1 = right
-    };
-
-    explicit EngineBeatClick(const QList<DeckSource>& decks);
+    EngineBeatClick();
     ~EngineBeatClick();
+
+    /// Start tracking a deck's play/bpm/beat_distance controls. Call only
+    /// once the deck's own controls already exist (i.e. after the channel
+    /// has been added to the engine). channel selects the ear: 0 = left,
+    /// 1 = right.
+    void addDeck(const QString& group, int channel);
 
     /// Audio-callback side. Buffers are interleaved stereo, iFrames frames.
     /// pHead may be null when no headphone output is configured.

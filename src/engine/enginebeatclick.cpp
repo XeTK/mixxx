@@ -28,7 +28,7 @@ constexpr double kMinBeatFraction = 0.5;
 constexpr double kDefaultVolume = 0.75;
 } // namespace
 
-EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
+EngineBeatClick::EngineBeatClick() {
     m_pEnabled = std::make_unique<ControlPushButton>(
             ConfigKey(kGroup, QStringLiteral("enabled")));
     m_pEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
@@ -51,20 +51,18 @@ EngineBeatClick::EngineBeatClick(const QList<DeckSource>& decks) {
             QStringLiteral("route_to_main"),
             nullptr,
             ControlFlag::AllowMissingOrInvalid);
+}
 
-    for (const DeckSource& source : decks) {
-        Deck deck;
-        deck.pPlay = std::make_unique<ControlProxy>(
-                source.group, QStringLiteral("play"), nullptr, ControlFlag::AllowMissingOrInvalid);
-        deck.pBeatDistance = std::make_unique<ControlProxy>(source.group,
-                QStringLiteral("beat_distance"),
-                nullptr,
-                ControlFlag::AllowMissingOrInvalid);
-        deck.pBpm = std::make_unique<ControlProxy>(
-                source.group, QStringLiteral("bpm"), nullptr, ControlFlag::AllowMissingOrInvalid);
-        deck.channel = source.channel;
-        m_decks.push_back(std::move(deck));
-    }
+void EngineBeatClick::addDeck(const QString& group, int channel) {
+    Deck deck;
+    deck.pPlay = std::make_unique<ControlProxy>(
+            group, QStringLiteral("play"), nullptr, ControlFlag::AllowMissingOrInvalid);
+    deck.pBeatDistance = std::make_unique<ControlProxy>(
+            group, QStringLiteral("beat_distance"), nullptr, ControlFlag::AllowMissingOrInvalid);
+    deck.pBpm = std::make_unique<ControlProxy>(
+            group, QStringLiteral("bpm"), nullptr, ControlFlag::AllowMissingOrInvalid);
+    deck.channel = channel;
+    m_decks.push_back(std::move(deck));
 }
 
 EngineBeatClick::~EngineBeatClick() = default;

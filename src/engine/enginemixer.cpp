@@ -89,10 +89,7 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
           m_pTalkoverDucking(
                   std::make_unique<EngineTalkoverDucking>(pConfig, group)),
           m_pTts(std::make_unique<EngineTts>(QStringLiteral("[Tts]"))),
-          m_pBeatClick(std::make_unique<EngineBeatClick>(QList<EngineBeatClick::DeckSource>{
-                  {QStringLiteral("[Channel1]"), 0},
-                  {QStringLiteral("[Channel2]"), 1},
-          })),
+          m_pBeatClick(std::make_unique<EngineBeatClick>()),
           m_pEarcon(std::make_unique<EngineEarcon>()),
           m_pMainDelay(
                   std::make_unique<EngineDelay>(ConfigKey(group, "delay"))),
@@ -999,6 +996,18 @@ void EngineMixer::addChannel(std::unique_ptr<EngineChannel> pChannel) {
 
     if (pBuffer != nullptr) {
         pBuffer->bindWorkers(m_pWorkerScheduler);
+    }
+
+    // Accessibility beat-click metronome: only decks 1 and 2 get a click
+    // (deck 1 left ear, deck 2 right). Must happen here, after the channel's
+    // own controls already exist - EngineBeatClick is constructed earlier,
+    // as part of EngineMixer's own construction, before any deck exists.
+    if (m_pBeatClick) {
+        if (group == QLatin1String("[Channel1]")) {
+            m_pBeatClick->addDeck(group, 0);
+        } else if (group == QLatin1String("[Channel2]")) {
+            m_pBeatClick->addDeck(group, 1);
+        }
     }
 }
 
