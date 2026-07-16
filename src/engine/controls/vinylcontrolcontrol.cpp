@@ -70,6 +70,14 @@ VinylControlControl::VinylControlControl(const QString& group, UserSettingsPoint
             this);
     m_pControlVinylSignalEnabled->set(1);
     m_pControlVinylSignalEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
+
+    // Set by VinylControlXwax while the timecode signal is driving this deck's
+    // play state. CueControl reads it to decide whether cue/hotcue actions may
+    // stop the deck or have to be seek-only (a software stop would be
+    // re-overridden by the vinyl engine within one analysis window).
+    m_pControlVinylTransportActive = std::make_unique<ControlObject>(
+            ConfigKey(group, QStringLiteral("vinylcontrol_transport_active")), this);
+    m_pControlVinylTransportActive->set(0);
 }
 
 void VinylControlControl::trackLoaded(TrackPointer pNewTrack) {

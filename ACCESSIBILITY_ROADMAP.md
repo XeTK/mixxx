@@ -171,6 +171,28 @@ one-page shortcut cheat sheet.
 - 125 unit tests cover the announcement manager, engine speech sink,
   and beat-click metronome.
 
+### Digital vinyl (DVS) + controller coexistence (2026-07-14, branch `dvs-cueing-2026-07-14`) — see [handoff/08-dvs-cueing.md](handoff/08-dvs-cueing.md)
+
+- Fixed the "cueing jumps backwards and forwards / gets stuck" fight
+  between the cue controls and the vinyl engine: while the timecode
+  signal drives a deck (new `[ChannelN],vinylcontrol_transport_active`
+  control), cue/hotcue presses are seek-only — jump and keep playing,
+  as on other DVS systems — instead of issuing a stop that vinyl
+  control immediately overrides.
+- With the needle up, software transport now works: the vinyl engine's
+  no-signal stop fires once per signal loss instead of continuously,
+  so play, cue previews, and hotcue previews from keyboard or a
+  controller are no longer killed after 0.3 seconds (and the pitch
+  fader is no longer snapped back to zero while the record is stopped).
+- Needle-drop cueing (relative mode) only seeks to a cue when the
+  signal was actually gone for ≥ 0.4 s — brief dropouts from a dirty
+  needle no longer yank playback back to the nearest hotcue.
+- Vinyl control state is spoken: enabled/disabled, mode
+  (absolute/relative/constant, including the automatic flips), and the
+  needle-drop cueing mode.
+- 226 tests pass in the affected suites (7 new). Needs hardware
+  validation with a timecode deck — checklist in the handoff brief.
+
 ### Local build environment (this machine)
 
 - App-local DLL deployment (81 DLLs next to mixxx.exe) so the exe runs

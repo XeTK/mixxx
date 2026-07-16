@@ -20,6 +20,7 @@
 #include "track/track.h"
 #include "util/parented_ptr.h"
 #include "util/ttsengine.h"
+#include "vinylcontrol/defs_vinylcontrol.h"
 
 namespace {
 constexpr int kSelectionDebounceMs = 400;
@@ -1267,6 +1268,65 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 announceControlDebounced(tr("%1 filter: %2")
                                 .arg(mixerDeckName(group, deckIndex), name));
             });
+
+    // Vinyl control (DVS) state. Not gated by a preference: mode changes also
+    // happen automatically (a loop or a seek drops absolute mode to relative,
+    // the end of the record switches to constant mode), and without feedback
+    // a blind DJ has no way to know why the deck stopped following the
+    // turntable.
+    auto pVinylEnabled = make_parented<ControlProxy>(group,
+            QStringLiteral("vinylcontrol_enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pVinylEnabled->connectValueChanged(this, [this, group, deckIndex](double value) {
+        speak((value > 0.0 ? tr("%1 vinyl control on")
+                           : tr("%1 vinyl control off"))
+                        .arg(deckName(group, deckIndex)));
+    });
+
+    auto pVinylMode = make_parented<ControlProxy>(group,
+            QStringLiteral("vinylcontrol_mode"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pVinylMode->connectValueChanged(this, [this, group, deckIndex](double value) {
+        QString modeText;
+        switch (static_cast<int>(value)) {
+        case MIXXX_VCMODE_ABSOLUTE:
+            modeText = tr("%1 vinyl absolute mode");
+            break;
+        case MIXXX_VCMODE_RELATIVE:
+            modeText = tr("%1 vinyl relative mode");
+            break;
+        case MIXXX_VCMODE_CONSTANT:
+            modeText = tr("%1 vinyl constant mode");
+            break;
+        default:
+            return;
+        }
+        speak(modeText.arg(deckName(group, deckIndex)));
+    });
+
+    auto pVinylCueing = make_parented<ControlProxy>(group,
+            QStringLiteral("vinylcontrol_cueing"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pVinylCueing->connectValueChanged(this, [this, group, deckIndex](double value) {
+        QString cueingText;
+        switch (static_cast<int>(value)) {
+        case MIXXX_RELATIVE_CUE_OFF:
+            cueingText = tr("%1 needle drop cueing off");
+            break;
+        case MIXXX_RELATIVE_CUE_ONECUE:
+            cueingText = tr("%1 needle drop goes to cue point");
+            break;
+        case MIXXX_RELATIVE_CUE_HOTCUE:
+            cueingText = tr("%1 needle drop goes to nearest hotcue");
+            break;
+        default:
+            return;
+        }
+        speak(cueingText.arg(deckName(group, deckIndex)));
+    });
 }
 
 void AnnouncementManager::setEffectNameResolvers(

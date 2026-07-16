@@ -290,6 +290,7 @@ class CueControl : public EngineControl {
     mixxx::audio::FramePos quantizeCuePoint(mixxx::audio::FramePos position);
     mixxx::audio::FramePos getQuantizedCurrentPosition();
     TrackAt getTrackAt() const;
+    bool isVinylTransportActive() const;
     void seekOnLoad(mixxx::audio::FramePos seekOnLoadPosition);
     void setHotcueFocusIndex(int hotcueIndex);
     int getHotcueFocusIndex() const;
@@ -358,6 +359,7 @@ class CueControl : public EngineControl {
 
     std::unique_ptr<ControlProxy> m_pVinylControlEnabled;
     std::unique_ptr<ControlProxy> m_pVinylControlMode;
+    std::unique_ptr<ControlProxy> m_pVinylControlTransportActive;
 
     std::unique_ptr<ControlObject> m_pHotcueFocus;
     std::unique_ptr<ControlPushButton> m_pHotcueFocusColorNext;

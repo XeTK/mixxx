@@ -65,6 +65,8 @@ class VinylControl : public QObject {
     // Is pitch changing very quickly?
     ControlProxy* scratching;
     ControlProxy* vinylStatus;
+    // True while the timecode signal is driving the deck's play state.
+    ControlProxy* transportActive;
     // looping enabled?
     ControlProxy* loopEnabled;
     // show the signal in the skin?

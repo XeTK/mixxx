@@ -127,6 +127,11 @@ Key source files:
 - Delete Playlist / Delete Crate confirmation dialogs: speaks what's
   about to be deleted and that No is the default (safe) button, plus a
   final "Deleted playlist/crate X" once it's gone
+- Vinyl control (DVS) state per deck: enabled/disabled, the mode
+  (absolute / relative / constant — including automatic mode changes,
+  such as dropping to relative on a seek or to constant at the record
+  end), and the needle-drop cueing mode (always on, no preference
+  gate — you need to hear why a deck stopped following the turntable)
 
 Each category can be toggled independently in Preferences >
 Accessibility.
@@ -144,11 +149,23 @@ control.
 
 - Per-deck `disable_preroll` control and a "prevent jogging before track
   start" checkbox under Preferences > Decks, so a jog wheel cannot seek
-  into pre-roll silence before the track begins.
+  into pre-roll silence before the track begins. A "Pre-roll limit" spin
+  box (per-deck `preroll_limit_beats` control) sets how much pre-roll is
+  still allowed before the clamp: default 4 beats, 0 clamps hard at the
+  track start, and 1 second is used when the track has no BPM. This is
+  also the same clamp applied to timecode-vinyl lead-in seeks when the
+  option is on. (Also proposed upstream as PR #16573.)
 - `[Master],disable_touch_scratch` control and a "disable jog wheel and
   waveform touch scratching" checkbox under Preferences > Decks, backing
   the `Alt+J` jog wheel touch lock described above.
 - `Alt+Shift+A` TTS toggle added to all shipped keyboard layouts.
+- Vinyl control (DVS) transport arbitration
+  (`[ChannelN],vinylcontrol_transport_active`): while the timecode
+  signal drives a deck, cue and hotcue presses jump without stopping
+  (a software stop would fight the vinyl engine and bounce playback);
+  with the needle up, play and cue/hotcue previews from keyboard or a
+  controller work normally instead of being force-stopped after 0.3 s.
+  Brief timecode dropouts no longer re-trigger needle-drop cue seeks.
 
 ## Known limitations
 

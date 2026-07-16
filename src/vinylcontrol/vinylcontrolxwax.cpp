@@ -29,6 +29,11 @@ constexpr int kChannels = 2;
 // Sample threshold below which we consider there to be no signal.
 constexpr double kMinSignal = 75.0 / SAMPLE_MAXIMUM;
 
+// How long the timecode signal must have been gone for the reacquisition to
+// count as a needle drop (which may seek to a cue in relative cueing mode)
+// rather than a brief dropout from a dirty needle or marginal signal.
+constexpr double kNeedleDropCueSeconds = 0.4;
+
 bool VinylControlXwax::s_bLUTInitialized = false;
 QMutex VinylControlXwax::s_xwaxLUTMutex;
 
@@ -44,6 +49,10 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
           m_iPosition(-1),
           m_bAtRecordEnd(false),
           m_bForceResync(false),
+          m_bResyncFromDropout(false),
+          m_bSignalLostStopIssued(false),
+          m_dSignalLostSeconds(0.0),
+          m_dSampleRate(44100.0),
           m_iVCMode(static_cast<int>(mode->get())),
           m_iOldVCMode(MIXXX_VCMODE_ABSOLUTE),
           m_dOldFilePos(0.0),
@@ -138,6 +147,9 @@ VinylControlXwax::VinylControlXwax(UserSettingsPointer pConfig, const QString& g
 
     const auto sampleRate = static_cast<unsigned int>(ControlObject::get(
             ConfigKey(QStringLiteral("[App]"), QStringLiteral("samplerate"))));
+    if (sampleRate > 0) {
+        m_dSampleRate = static_cast<double>(sampleRate);
+    }
 
     // Set pitch ring size to 1/4 of one revolution -- a full revolution adds
     // too much stickiness to the pitch.
@@ -274,6 +286,8 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
     double duration_inaccurate = duration->get();
     if (duration_inaccurate != m_dOldDurationInaccurate) {
         m_bForceResync = true;
+        // A track change is not a dropout: a pending cueing seek is wanted.
+        m_bResyncFromDropout = false;
         m_dOldDurationInaccurate = duration_inaccurate;
         m_dOldDuration = trackSamples->get() / 2 / trackSampleRate->get();
 
@@ -311,6 +325,7 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
             m_iVCMode = reportedMode;
             if (reportedMode == MIXXX_VCMODE_ABSOLUTE) {
                 m_bForceResync = true;
+                m_bResyncFromDropout = false;
             }
         }
 
@@ -361,8 +376,8 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
                    m_iPosition <= static_cast<int>(m_uiSafeZone) &&
                    m_dVinylPosition > 0 &&
                    checkSteadyPitch(dVinylPitch, filePosition) > 0.5) {
-            //if good position, and safe, and not in leadin, and steady,
-            //disable
+            // if good position, and safe, and not in lead-in, and steady,
+            // disable
             disableRecordEndMode();
         }
 
@@ -396,6 +411,14 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
     if(bHaveSignal) {
         //POSITION: MAYBE  PITCH: YES
 
+        // The signal is back; re-arm the one-shot stop for the next loss.
+        m_bSignalLostStopIssued = false;
+        if (!m_bForceResync) {
+            // No resync pending, so the needle-lift timer is stale.
+            m_dSignalLostSeconds = 0.0;
+            m_bResyncFromDropout = false;
+        }
+
         if (m_iPosition != -1) {
             //POSITION: YES  PITCH: YES
 
@@ -416,21 +439,31 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
             //qDebug() << "drift" << m_dDriftAmt;
 
             if (m_bForceResync) {
-                //if forceresync was set but we're no longer absolute,
-                //it no longer applies
-                //if we're in relative mode then we'll do a sync
-                //because it might select a cue
+                // if forceresync was set but we're no longer absolute,
+                // it no longer applies
+                // if we're in relative mode then we'll do a sync
+                // because it might select a cue
+                //
+                //  Cueing seeks are only performed for a real needle lift
+                //  (signal lost for a while), not for a brief dropout from a
+                //  dirty needle or marginal signal -- otherwise every dropout
+                //  yanks playback back to the nearest cue.
                 if (m_iVCMode == MIXXX_VCMODE_ABSOLUTE ||
-                        (m_iVCMode == MIXXX_VCMODE_RELATIVE && cueing->toBool())) {
+                        (m_iVCMode == MIXXX_VCMODE_RELATIVE && cueing->toBool() &&
+                                (!m_bResyncFromDropout ||
+                                        m_dSignalLostSeconds >=
+                                                kNeedleDropCueSeconds))) {
                     syncPosition();
                     resetSteadyPitch(dVinylPitch, m_dVinylPosition);
                 }
                 m_bForceResync = false;
+                m_bResyncFromDropout = false;
+                m_dSignalLostSeconds = 0.0;
             } else if (fabs(m_dDriftAmt) > 0.1 &&
                     m_dVinylPosition < -2.0) {
-                //At first I thought it was a bug to resync to leadin in relative mode,
-                //but after using it that way it's actually pretty convenient.
-                //qDebug() << "Vinyl leadin";
+                // At first I thought it was a bug to resync to lead-in in relative mode,
+                // but after using it that way it's actually pretty convenient.
+                // qDebug() << "Vinyl lead-in";
                 syncPosition();
                 resetSteadyPitch(dVinylPitch, m_dVinylPosition);
                 if (uiUpdateTime(filePosition)) {
@@ -544,11 +577,18 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
         //if it hasn't been long,
         //let the track play a bit more before deciding we've stopped
 
-        m_pRateRatio->set(1.0);
+        // Track how long the signal has been gone so we can tell a real
+        // needle lift from a brief dropout when it comes back.
+        m_dSignalLostSeconds += static_cast<double>(nFrames) / m_dSampleRate;
 
-        if (fabs(filePosition - m_dOldFilePos) >= 0.3 ||
-                filePosition == m_dOldFilePos) {
-            //We are not playing any more
+        if (!m_bSignalLostStopIssued &&
+                (fabs(filePosition - m_dOldFilePos) >= 0.3 ||
+                        filePosition == m_dOldFilePos)) {
+            // Issue the stop exactly once per signal loss. Software transport
+            // (play, cue and hotcue previews from keyboard or a controller)
+            // stays usable while the needle is up; the timecode signal takes
+            // over again as soon as it returns.
+            m_pRateRatio->set(1.0);
             togglePlayButton(false);
             resetSteadyPitch(0.0, 0.0);
             m_pVCRate->set(0.0);
@@ -560,6 +600,8 @@ void VinylControlXwax::analyzeSamples(CSAMPLE* pSamples, size_t nFrames) {
             m_iQualityRingIndex = 0;
             m_iQualityRingFilled = 0;
             m_bForceResync = true;
+            m_bResyncFromDropout = true;
+            m_bSignalLostStopIssued = true;
             vinylStatus->set(VINYL_STATUS_OK);
         }
     }
@@ -591,6 +633,8 @@ void VinylControlXwax::enableConstantMode() {
     m_iVCMode = MIXXX_VCMODE_CONSTANT;
     mode->set((double)m_iVCMode);
     togglePlayButton(true);
+    // In constant mode the play button is under user control again.
+    transportActive->set(0.0);
     double rate = m_pVCRate->get();
     m_pRateRatio->set(fabs(rate));
     m_pVCRate->set(rate);
@@ -601,6 +645,8 @@ void VinylControlXwax::enableConstantMode(double rate) {
     m_iVCMode = MIXXX_VCMODE_CONSTANT;
     mode->set((double)m_iVCMode);
     togglePlayButton(true);
+    // In constant mode the play button is under user control again.
+    transportActive->set(0.0);
     m_pRateRatio->set(fabs(rate));
     m_pVCRate->set(rate);
 }
@@ -613,9 +659,16 @@ void VinylControlXwax::disableRecordEndMode() {
 }
 
 void VinylControlXwax::togglePlayButton(bool on) {
-    if (m_bIsEnabled && (playButton->get() > 0) != on) {
+    if (!m_bIsEnabled) {
+        return;
+    }
+    if ((playButton->get() > 0) != on) {
         playButton->set((float)on); //and we all float on all right
     }
+    // Tell CueControl whether the timecode signal currently owns the play
+    // state. While it does, software stop requests would be re-overridden
+    // here within one analysis window, so cue actions must be seek-only.
+    transportActive->set(on ? 1.0 : 0.0);
 }
 
 void VinylControlXwax::resetSteadyPitch(double pitch, double time) {
@@ -662,6 +715,7 @@ bool VinylControlXwax::checkEnabled(bool was, bool is) {
         m_pVCRate->set(m_pRateRatio->get());
         resetSteadyPitch(0.0, 0.0);
         m_bForceResync = true;
+        m_bResyncFromDropout = false;
         if (!was) {
             m_dOldFilePos = 0.0;
         }
@@ -673,6 +727,7 @@ bool VinylControlXwax::checkEnabled(bool was, bool is) {
         vinylStatus->set(VINYL_STATUS_OK);
     } else if (!is) {
         vinylStatus->set(VINYL_STATUS_DISABLED);
+        transportActive->set(0.0);
     }
 
     return is;

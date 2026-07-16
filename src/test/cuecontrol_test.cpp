@@ -594,28 +594,30 @@ TEST_F(CueControlTest, OutroCue_SetStartEnd_ClearStartEnd) {
 // main cue point was stored at a negative (pre-roll) position.
 
 TEST_F(CueControlTest, DisablePreRoll_NegativeCuePoint_GatedCueStartsPlay) {
-    // Regression test: with disable_preroll enabled, a CDJ-mode CUE press
-    // while paused at track start must start gated playback even when the
-    // stored main cue position is negative (i.e. in pre-roll space).
+    // Regression test: with disable_preroll enabled and limit=0 (hard clamp),
+    // a CDJ-mode CUE press while paused at track start must start gated
+    // playback even when the stored cue is in pre-roll space. getTrackAt()
+    // must clamp the cue comparison to the pre-roll limit so the deck is
+    // recognised as being at the cue.
     ControlProxy disablePreRoll(m_sGroup1, "disable_preroll");
+    ControlProxy preRollLimit(m_sGroup1, "preroll_limit_beats");
     ControlProxy cueCdj(m_sGroup1, "cue_cdj");
     ControlProxy play(m_sGroup1, "play");
 
     disablePreRoll.set(1.0);
+    preRollLimit.set(0.0); // hard clamp at track start
 
     TrackPointer pTrack = createTestTrack();
-    // Simulate a cue that was placed in pre-roll before disable_preroll was on.
     pTrack->setMainCuePosition(mixxx::audio::FramePos(-100.0));
 
     loadTrack(pTrack);
 
-    // EngineBuffer must clamp the play position to track start.
+    // With limit=0, EngineBuffer clamps the deck to track start.
     EXPECT_FRAMEPOS_EQ(mixxx::audio::kStartFramePos, getCurrentFramePos());
-    // Playback must not have started automatically.
     EXPECT_FALSE(play.toBool());
 
-    // Press CDJ CUE. With the fix, getTrackAt() should recognise that the
-    // deck is effectively at the cue point (both at 0) and start gated play.
+    // getTrackAt() clamps the cue (-100) to the limit (0), so deck and cue
+    // are both seen as 0 → gated play starts.
     cueCdj.set(1.0);
     ProcessBuffer();
 
@@ -659,4 +661,119 @@ TEST_F(CueControlTest, DisablePreRoll_Off_NegativeCuePoint_NormalBehavior) {
     // CDJ CUE when not at cue point and not playing → cueSet, no play.
     EXPECT_FALSE(play.toBool());
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(100.0), m_pCuePoint);
+}
+
+// ---------------------------------------------------------------------------
+// Vinyl control (DVS) transport arbitration
+//
+// While the timecode signal drives the deck's play state
+// (vinylcontrol_transport_active, set by VinylControlXwax), a software stop
+// from the cue controls would be re-overridden by the vinyl engine within one
+// analysis window, bouncing the deck between the cue point and playback.
+// Cue actions must be seek-only in that state, and must keep their normal
+// stop semantics when the needle is up (transport inactive).
+// ---------------------------------------------------------------------------
+
+class CueControlVinylTest : public CueControlTest {
+  protected:
+    void SetUp() override {
+        CueControlTest::SetUp();
+        m_pPlay = std::make_unique<ControlProxy>(m_sGroup1, "play");
+        m_pVinylTransportActive = std::make_unique<ControlProxy>(
+                m_sGroup1, "vinylcontrol_transport_active");
+    }
+
+    // vinylcontrol_enabled guards its change request on a configured input;
+    // confirm directly like the vinyl engine does.
+    void setVinylEnabled(bool enabled) {
+        ControlObject::getControl(
+                ConfigKey(m_sGroup1, QStringLiteral("vinylcontrol_enabled")))
+                ->setAndConfirm(enabled ? 1.0 : 0.0);
+    }
+
+    std::unique_ptr<ControlProxy> m_pPlay;
+    std::unique_ptr<ControlProxy> m_pVinylTransportActive;
+};
+
+TEST_F(CueControlVinylTest, CueCDJ_TransportActive_SeekOnlyKeepsPlaying) {
+    TrackPointer pTrack = createTestTrack();
+    const auto cuePos = mixxx::audio::FramePos(500.0);
+    pTrack->setMainCuePosition(cuePos);
+    loadTrack(pTrack);
+
+    setCurrentFramePos(mixxx::audio::FramePos(44100.0));
+    m_pPlay->set(1.0);
+    setVinylEnabled(true);
+    m_pVinylTransportActive->set(1.0);
+
+    ControlProxy cueCdj(m_sGroup1, "cue_cdj");
+    cueCdj.set(1.0);
+    ProcessBuffer();
+    cueCdj.set(0.0);
+    ProcessBuffer();
+
+    // The deck jumped to the cue point but was not stopped: the record is
+    // still spinning and would have forced play back on anyway.
+    EXPECT_TRUE(m_pPlay->toBool());
+    EXPECT_NEAR(cuePos.value(),
+            getCurrentFramePos().value(),
+            20000.0); // within a couple of engine buffers of the cue
+}
+
+TEST_F(CueControlVinylTest, CueCDJ_TransportInactive_NormalStop) {
+    TrackPointer pTrack = createTestTrack();
+    pTrack->setMainCuePosition(mixxx::audio::FramePos(500.0));
+    loadTrack(pTrack);
+
+    setCurrentFramePos(mixxx::audio::FramePos(44100.0));
+    m_pPlay->set(1.0);
+    setVinylEnabled(true);
+    // Needle up: the vinyl engine is not forcing the play state.
+    m_pVinylTransportActive->set(0.0);
+
+    ControlProxy cueCdj(m_sGroup1, "cue_cdj");
+    cueCdj.set(1.0);
+    ProcessBuffer();
+
+    // Normal CDJ semantics still apply: jump to cue and stop.
+    EXPECT_FALSE(m_pPlay->toBool());
+}
+
+TEST_F(CueControlVinylTest, CueGotoAndStop_TransportActive_SeekOnly) {
+    TrackPointer pTrack = createTestTrack();
+    const auto cuePos = mixxx::audio::FramePos(500.0);
+    pTrack->setMainCuePosition(cuePos);
+    loadTrack(pTrack);
+
+    setCurrentFramePos(mixxx::audio::FramePos(44100.0));
+    m_pPlay->set(1.0);
+    setVinylEnabled(true);
+    m_pVinylTransportActive->set(1.0);
+
+    ControlProxy cueGotoAndStop(m_sGroup1, "cue_gotoandstop");
+    cueGotoAndStop.set(1.0);
+    ProcessBuffer();
+
+    EXPECT_TRUE(m_pPlay->toBool());
+    EXPECT_NEAR(cuePos.value(), getCurrentFramePos().value(), 20000.0);
+}
+
+TEST_F(CueControlVinylTest, CueGotoAndStop_VinylDisabled_NormalStop) {
+    TrackPointer pTrack = createTestTrack();
+    const auto cuePos = mixxx::audio::FramePos(500.0);
+    pTrack->setMainCuePosition(cuePos);
+    loadTrack(pTrack);
+
+    setCurrentFramePos(mixxx::audio::FramePos(44100.0));
+    m_pPlay->set(1.0);
+    setVinylEnabled(false);
+    // A stale transport flag must not affect decks with vinyl disabled.
+    m_pVinylTransportActive->set(1.0);
+
+    ControlProxy cueGotoAndStop(m_sGroup1, "cue_gotoandstop");
+    cueGotoAndStop.set(1.0);
+    ProcessBuffer();
+
+    EXPECT_FALSE(m_pPlay->toBool());
+    EXPECT_FRAMEPOS_EQ(cuePos, getCurrentFramePos());
 }

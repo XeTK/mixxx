@@ -38,6 +38,7 @@ VinylControl::VinylControl(UserSettingsPointer pConfig, const QString& group)
     cueing = new ControlProxy(group, "vinylcontrol_cueing", this);
     scratching = new ControlProxy(group, "vinylcontrol_scratching", this);
     vinylStatus = new ControlProxy(group, "vinylcontrol_status", this);
+    transportActive = new ControlProxy(group, "vinylcontrol_transport_active", this);
     loopEnabled = new ControlProxy(group, "loop_enabled", this);
     signalenabled = new ControlProxy(
             group, "vinylcontrol_signal_enabled", this);
@@ -68,6 +69,7 @@ VinylControl::~VinylControl() {
     bool wasEnabled = m_bIsEnabled;
     enabled->set(false);
     vinylStatus->set(VINYL_STATUS_DISABLED);
+    transportActive->set(0.0);
     if (wasEnabled) {
         // if vinyl control is just restarting, indicate that it should
         // be enabled
