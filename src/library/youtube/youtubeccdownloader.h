@@ -57,4 +57,6 @@ class YouTubeCcDownloader : public QObject {
     QProcess* m_pProcess = nullptr;
     YouTubeCcTrack m_currentTrack;
     QString m_resolvedPath;
+    // Set if yt-dlp reported the video was skipped by the CC license filter.
+    bool m_wasFilteredOut = false;
 };

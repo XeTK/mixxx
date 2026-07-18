@@ -19,6 +19,10 @@ QStringList buildArgs(const QString& cacheDir, const YouTubeCcTrack& track) {
             QStringLiteral("--no-playlist"),
             QStringLiteral("--newline"),
             QStringLiteral("--windows-filenames"),
+            // Hard CC gate: refuse to download anything that isn't Creative
+            // Commons, even if a stale search result slipped through.
+            QStringLiteral("--match-filter"),
+            youtubeCcLicenseMatchFilter(),
             QStringLiteral("-f"),
             QStringLiteral("bestaudio[ext=m4a]/bestaudio"),
             QStringLiteral("-o"),
@@ -84,6 +88,7 @@ void YouTubeCcDownloader::download(const YouTubeCcTrack& track) {
 
     m_currentTrack = track;
     m_resolvedPath.clear();
+    m_wasFilteredOut = false;
 
     m_pProcess = new QProcess(this);
     m_pProcess->setProcessChannelMode(QProcess::MergedChannels);
@@ -122,6 +127,11 @@ void YouTubeCcDownloader::onReadyReadStandardOutput() {
     const QString out = QString::fromUtf8(m_pProcess->readAllStandardOutput());
     const QStringList lines = out.split(QChar('\n'), Qt::SkipEmptyParts);
     for (const QString& line : lines) {
+        // yt-dlp prints "does not pass filter (license=...), skipping .." when
+        // the video is rejected by the CC match-filter.
+        if (line.contains(QStringLiteral("does not pass filter"))) {
+            m_wasFilteredOut = true;
+        }
         const QRegularExpressionMatch m = rePercent.match(line);
         if (m.hasMatch()) {
             int pct = qBound(0, static_cast<int>(m.captured(1).toDouble()), 100);
@@ -138,6 +148,12 @@ void YouTubeCcDownloader::onProcessFinished(int exitCode) {
     m_pProcess = nullptr;
 
     const YouTubeCcTrack track = m_currentTrack;
+    if (m_wasFilteredOut) {
+        emit failed(track.videoId,
+                tr("This video is not licensed under Creative Commons and "
+                   "was not downloaded."));
+        return;
+    }
     if (exitCode != 0) {
         emit failed(track.videoId,
                 tr("yt-dlp exited with code %1.").arg(exitCode));

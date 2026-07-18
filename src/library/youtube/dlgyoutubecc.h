@@ -49,9 +49,6 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
 
   private:
     void setupUi();
-    /// Ensure an API key is configured, prompting the user once if needed.
-    /// Returns false if the user declined to provide one.
-    bool ensureApiKey();
     QString ytDlpPath() const;
     QString cacheDir() const;
     void startDownload(int row);

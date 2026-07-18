@@ -3,18 +3,23 @@
 Search Creative Commons–licensed music on YouTube and load it into Mixxx as a
 normal, fully analyzable track (waveform, beatgrid, BPM, key, cue, loop, sync).
 
-Only Creative Commons content is offered: the search is filtered to
-`videoLicense=creativeCommon` at the YouTube Data API, and each result's license
-is re-verified via `videos.list` before it can be downloaded. Commercial /
-standard-licensed videos never appear and cannot be fetched.
+Only Creative Commons content is offered. The license is enforced by `yt-dlp`
+itself via a `--match-filter` on the license field, for both search and
+download, so commercial / standard-licensed videos never appear and cannot be
+fetched. **No YouTube Data API key or Google account is required** — the only
+dependency is `yt-dlp`.
 
 ## How the flow works
 
-1. **Search** — `YouTubeCcSearchTask` calls the YouTube Data API v3
-   (`search.list` + `videos.list`) using a locally stored API key. Metadata only.
-2. **Download** — on double-click, `YouTubeCcDownloader` runs `yt-dlp` to fetch
-   the audio-only stream (no re-encode, so no ffmpeg needed) into a per-user
-   cache directory, keyed by videoId (re-fetch is skipped if already cached).
+1. **Search** — `YouTubeCcSearchTask` runs
+   `yt-dlp "ytsearchN:<query>" --match-filter "license=Creative Commons
+   Attribution license (reuse allowed)" --print ...` and parses one
+   tab-separated line per matching video. Metadata only. (Because each result is
+   extracted to check its license, a search takes a few seconds.)
+2. **Download** — on double-click, `YouTubeCcDownloader` runs `yt-dlp` (with the
+   same CC match-filter as a hard gate) to fetch the audio-only stream — no
+   re-encode, so no ffmpeg needed — into a per-user cache directory, keyed by
+   videoId (re-fetch is skipped if already cached).
 3. **Load** — the downloaded file is added to the collection via
    `TrackCollectionManager::resolveTrackIdsFromLocations` (which analyzes it like
    any local file) and loaded. Attribution (source URL, uploader, CC BY) is
@@ -23,16 +28,12 @@ standard-licensed videos never appear and cannot be fetched.
 ## One-time setup
 
 - **yt-dlp** must be installed and on your `PATH` (or set an explicit path in
-  the config key below). See https://github.com/yt-dlp/yt-dlp.
-- **YouTube Data API key** (free): Google Cloud console → APIs & Services →
-  Enable "YouTube Data API v3" → Credentials → create an API key. The feature
-  prompts for it on the first search and stores it locally.
+  the config key below). See https://github.com/yt-dlp/yt-dlp. That's it.
 
 ## Config keys (`mixxx.cfg`, group `[youtube_cc]`)
 
 | Key           | Default   | Meaning                                  |
 |---------------|-----------|------------------------------------------|
-| `api_key`     | *(empty)* | YouTube Data API v3 key                  |
 | `ytdlp_path`  | `yt-dlp`  | Path to the yt-dlp executable            |
 
 The cache directory is `<settings>/youtube_cc_cache`. The feature itself can be
@@ -44,4 +45,5 @@ hidden via `[library] ShowYouTubeCcLibrary = 0`.
   audio; see the project discussion for why that path is a non-starter.
 - Attribution is recorded in the comment; CC BY also requires attribution in any
   public performance/redistribution — that remains the user's responsibility.
-- Search costs YouTube Data API quota (~100 units per search; 10k/day default).
+- Search does a full extraction per result to read the license, so it is slower
+  than a metadata-only API call (a few seconds for ~15 results).

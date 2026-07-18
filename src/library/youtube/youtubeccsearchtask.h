@@ -1,40 +1,38 @@
 #pragma once
 
 #include <QList>
-#include <QNetworkAccessManager>
 #include <QObject>
-#include <QPointer>
 #include <QString>
 
 #include "library/youtube/youtubecctrack.h"
 
-class QNetworkReply;
+class QProcess;
 
-/// Queries the YouTube Data API v3 for Creative Commons licensed music.
+/// Searches YouTube for Creative Commons licensed music via `yt-dlp`.
 ///
-/// All results are filtered to `videoLicense=creativeCommon` at the API, so
-/// every track returned is licensed for reuse (with attribution). A single
-/// instance may be reused for successive searches; a new search cancels any
-/// in-flight request.
+/// Uses `yt-dlp "ytsearchN:<query>"` with a `--match-filter` on the license
+/// field, so only Creative Commons (CC BY) videos are returned — enforced by
+/// yt-dlp itself. No YouTube Data API key and no Google account are required;
+/// the only dependency is the same `yt-dlp` used for downloading.
 ///
-/// Requires a YouTube Data API key (free, from the Google Cloud console).
-/// Only the public `search`/`videos` endpoints are used, so no OAuth or user
-/// login is involved.
+/// A single instance may be reused; a new search cancels any in-flight one.
 class YouTubeCcSearchTask : public QObject {
     Q_OBJECT
   public:
     explicit YouTubeCcSearchTask(QObject* parent = nullptr);
     ~YouTubeCcSearchTask() override;
 
-    void setApiKey(const QString& apiKey) {
-        m_apiKey = apiKey;
-    }
-    bool hasApiKey() const {
-        return !m_apiKey.isEmpty();
+    /// Path to the yt-dlp executable (looked up on PATH if just "yt-dlp").
+    void setYtDlpPath(const QString& path) {
+        m_ytDlpPath = path;
     }
 
-    /// Start a search. Emits succeeded() or failed() when done.
-    void search(const QString& query, int maxResults = 25);
+    bool isBusy() const;
+
+    /// Start a search. Emits succeeded() or failed() when done. Because each
+    /// result is fully extracted to check its license, a search of N results
+    /// may take a few seconds.
+    void search(const QString& query, int maxResults = 15);
     void abort();
 
   signals:
@@ -42,15 +40,10 @@ class YouTubeCcSearchTask : public QObject {
     void failed(const QString& message);
 
   private slots:
-    void onSearchReplyFinished();
-    void onDetailsReplyFinished();
+    void onProcessFinished(int exitCode);
+    void onProcessErrorOccurred();
 
   private:
-    void requestDetails(QList<YouTubeCcTrack> tracks);
-
-    QNetworkAccessManager m_network;
-    QString m_apiKey;
-    QPointer<QNetworkReply> m_pReply;
-    // Search results awaiting the follow-up videos.list (duration/license) call.
-    QList<YouTubeCcTrack> m_pendingTracks;
+    QString m_ytDlpPath;
+    QProcess* m_pProcess = nullptr;
 };

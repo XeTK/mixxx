@@ -3,7 +3,6 @@
 #include <QAbstractItemView>
 #include <QHBoxLayout>
 #include <QHeaderView>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QProgressBar>
@@ -24,7 +23,6 @@
 
 namespace {
 
-const ConfigKey kApiKeyConfigKey = ConfigKey("[youtube_cc]", "api_key");
 const ConfigKey kYtDlpPathConfigKey = ConfigKey("[youtube_cc]", "ytdlp_path");
 
 QString formatDuration(int secs) {
@@ -142,30 +140,6 @@ void DlgYouTubeCc::setFocus() {
     m_pSearchEdit->setFocus();
 }
 
-bool DlgYouTubeCc::ensureApiKey() {
-    const QString key = m_pConfig->getValueString(kApiKeyConfigKey);
-    if (!key.isEmpty()) {
-        m_pSearchTask->setApiKey(key);
-        return true;
-    }
-    bool ok = false;
-    const QString entered = QInputDialog::getText(this,
-            tr("YouTube Data API key required"),
-            tr("Enter your YouTube Data API v3 key.\n\n"
-               "Create one for free in the Google Cloud console under\n"
-               "APIs & Services → Credentials. It is stored locally and used\n"
-               "only to search for Creative Commons videos."),
-            QLineEdit::Normal,
-            QString(),
-            &ok);
-    if (!ok || entered.trimmed().isEmpty()) {
-        return false;
-    }
-    m_pConfig->set(kApiKeyConfigKey, ConfigValue(entered.trimmed()));
-    m_pSearchTask->setApiKey(entered.trimmed());
-    return true;
-}
-
 QString DlgYouTubeCc::ytDlpPath() const {
     const QString path = m_pConfig->getValueString(kYtDlpPathConfigKey);
     return path.isEmpty() ? QStringLiteral("yt-dlp") : path;
@@ -180,12 +154,9 @@ void DlgYouTubeCc::slotSearchClicked() {
     if (query.isEmpty()) {
         return;
     }
-    if (!ensureApiKey()) {
-        setStatus(tr("A YouTube Data API key is required to search."));
-        return;
-    }
-    setStatus(tr("Searching…"));
+    setStatus(tr("Searching… (checking licenses, this can take a few seconds)"));
     m_pSearchButton->setEnabled(false);
+    m_pSearchTask->setYtDlpPath(ytDlpPath());
     m_pSearchTask->search(query);
 }
 
