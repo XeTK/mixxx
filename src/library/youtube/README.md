@@ -25,6 +25,12 @@ dependency is `yt-dlp`.
    any local file) and loaded. Attribution (source URL, uploader, CC BY) is
    written into the track comment.
 
+The view has two tabs: **Search results** and **Downloaded**. The Downloaded
+tab lists everything already in the cache directory (parsed from the
+`<title> [<videoId>].<ext>` filenames) so previously fetched tracks can be
+reloaded instantly, without searching or re-downloading. Downloaded tracks are
+also added to your main Mixxx library, so they show up under **Tracks** too.
+
 ## One-time setup
 
 - **yt-dlp** must be installed and on your `PATH` (or set an explicit path in
