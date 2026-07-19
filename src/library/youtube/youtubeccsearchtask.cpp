@@ -2,27 +2,41 @@
 
 #include <QProcess>
 #include <QStringList>
+#include <QUrl>
 #include <QtDebug>
 
 #include "moc_youtubeccsearchtask.cpp"
 
 namespace {
 
-// One line per matching video, tab-separated. Titles/channels do not contain
-// tab characters, so this is safe to split on. Duration is whole seconds
+// One line per video, tab-separated. Titles/channels do not contain tab
+// characters, so this is safe to split on. Duration is whole seconds
 // (or "NA" when unknown).
 const QString kPrintTemplate =
         QStringLiteral("%(id)s\t%(title)s\t%(channel)s\t%(duration)s");
 
+// YouTube's own "Creative Commons" search filter — the `sp=` code behind
+// Filters -> Features -> Creative Commons. It restricts the results page to CC
+// videos server-side, so a fast flat extraction is enough. We do NOT use a
+// yt-dlp --match-filter on the license here, because the per-video `license`
+// field is not populated during a search (it comes back "NA"); the download
+// step still hard-gates on the license via a full extraction.
+const QString kCreativeCommonsSpFilter = QStringLiteral("EgIwAQ%3D%3D");
+
 QStringList buildArgs(const QString& query, int maxResults) {
+    const QString encodedQuery = QString::fromUtf8(QUrl::toPercentEncoding(query));
+    const QString url =
+            QStringLiteral("https://www.youtube.com/results?search_query=") +
+            encodedQuery +
+            QStringLiteral("&sp=") + kCreativeCommonsSpFilter;
     return QStringList{
-            QStringLiteral("ytsearch%1:%2").arg(maxResults).arg(query),
-            // The CC gate: only videos whose license is Creative Commons pass.
-            QStringLiteral("--match-filter"),
-            youtubeCcLicenseMatchFilter(),
+            url,
+            // Flat: list the results page without extracting each video.
+            QStringLiteral("--flat-playlist"),
+            QStringLiteral("--playlist-items"),
+            QStringLiteral("1:%1").arg(maxResults),
             QStringLiteral("--print"),
             kPrintTemplate,
-            // Keep going if an individual video fails to extract.
             QStringLiteral("--ignore-errors"),
             QStringLiteral("--no-warnings"),
     };

@@ -10,10 +10,13 @@ class QProcess;
 
 /// Searches YouTube for Creative Commons licensed music via `yt-dlp`.
 ///
-/// Uses `yt-dlp "ytsearchN:<query>"` with a `--match-filter` on the license
-/// field, so only Creative Commons (CC BY) videos are returned — enforced by
-/// yt-dlp itself. No YouTube Data API key and no Google account are required;
-/// the only dependency is the same `yt-dlp` used for downloading.
+/// Runs yt-dlp against YouTube's own "Creative Commons" search filter (the
+/// `sp=` results-page parameter), so only CC-licensed videos are returned,
+/// filtered server-side. No YouTube Data API key and no Google account are
+/// required; the only dependency is the same `yt-dlp` used for downloading.
+/// (A `--match-filter` on the license is not used here because yt-dlp does not
+/// populate the per-video `license` field during a search; the download step
+/// still hard-gates on the license via a full extraction.)
 ///
 /// A single instance may be reused; a new search cancels any in-flight one.
 class YouTubeCcSearchTask : public QObject {
@@ -29,9 +32,7 @@ class YouTubeCcSearchTask : public QObject {
 
     bool isBusy() const;
 
-    /// Start a search. Emits succeeded() or failed() when done. Because each
-    /// result is fully extracted to check its license, a search of N results
-    /// may take a few seconds.
+    /// Start a search. Emits succeeded() or failed() when done.
     void search(const QString& query, int maxResults = 15);
     void abort();
 

@@ -183,7 +183,7 @@ void DlgYouTubeCc::slotSearchClicked() {
     if (query.isEmpty()) {
         return;
     }
-    setStatus(tr("Searching… (checking licenses, this can take a few seconds)"));
+    setStatus(tr("Searching…"));
     m_pSearchButton->setEnabled(false);
     m_pSearchTask->setYtDlpPath(ytDlpPath());
     m_pSearchTask->search(query);
