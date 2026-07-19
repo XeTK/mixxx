@@ -1399,6 +1399,7 @@ add_library(
   src/library/youtube/youtubeccdownloader.cpp
   src/library/youtube/youtubeccfeature.cpp
   src/library/youtube/youtubeccsearchtask.cpp
+  src/library/youtube/youtubecctrackmodel.cpp
   src/library/library_prefs.cpp
   src/library/library.cpp
   src/library/librarycontrol.cpp

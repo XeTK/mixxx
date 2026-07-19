@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QList>
-#include <QStringList>
 #include <QWidget>
 
 #include "library/libraryview.h"
@@ -13,17 +12,17 @@ class Library;
 class WLibrary;
 class YouTubeCcSearchTask;
 class YouTubeCcDownloader;
-class QLineEdit;
-class QPushButton;
 class QTableWidget;
-class QTabWidget;
+class QPushButton;
 class QLabel;
 class QProgressBar;
 
-/// Library view for searching Creative Commons music on YouTube and loading
-/// it into Mixxx. Search results are metadata only; double-clicking (or the
-/// Load button) downloads the audio via yt-dlp, adds it to the library so it
-/// gets analyzed like any other file, and loads it.
+/// Search-results view for the YouTube (CC) feature. It has no search box of
+/// its own: the main Mixxx library search bar drives it via onSearch(). Results
+/// are Creative Commons videos (metadata only); double-clicking (or the Load
+/// button) downloads the audio via yt-dlp, adds it to the library so it gets
+/// analyzed like any other file, loads it, and notifies the feature so the
+/// Downloaded table refreshes.
 class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     Q_OBJECT
   public:
@@ -34,18 +33,20 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     void onShow() override;
     bool hasFocus() const override;
     void setFocus() override;
+    void onSearch(const QString& text) override;
 
   signals:
     void loadTrack(TrackPointer pTrack);
     void trackSelected(TrackPointer pTrack);
+    /// Emitted after a track has been downloaded and added to the library.
+    void downloaded();
 
   private slots:
-    void slotSearchClicked();
     void slotSearchSucceeded(const QList<YouTubeCcTrack>& results);
     void slotSearchFailed(const QString& message);
     void slotResultActivated(int row, int column);
-    void slotDownloadedActivated(int row, int column);
     void slotLoadSelected();
+    void slotSelectionChanged();
     void slotDownloadProgress(const QString& videoId, int percent);
     void slotDownloadSucceeded(const YouTubeCcTrack& track, const QString& localPath);
     void slotDownloadFailed(const QString& videoId, const QString& message);
@@ -55,22 +56,12 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     QString ytDlpPath() const;
     QString cacheDir() const;
     void startDownload(int row);
-    /// Update the shared Load button's label/enabled state for the active tab.
-    void updateLoadButtonState();
-    /// Rescan the cache directory and repopulate the Downloaded tab.
-    void refreshDownloaded();
-    /// Add an already-downloaded cache file to the library and load it.
-    void loadCachedPath(const QString& path);
     void setStatus(const QString& message);
 
     UserSettingsPointer m_pConfig;
     Library* const m_pLibrary;
 
-    QLineEdit* m_pSearchEdit;
-    QPushButton* m_pSearchButton;
-    QTabWidget* m_pTabs;
     QTableWidget* m_pResults;
-    QTableWidget* m_pDownloaded;
     QPushButton* m_pLoadButton;
     QLabel* m_pStatus;
     QProgressBar* m_pProgress;
@@ -78,6 +69,4 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     YouTubeCcSearchTask* m_pSearchTask;
     YouTubeCcDownloader* m_pDownloader;
     QList<YouTubeCcTrack> m_currentResults;
-    // Absolute paths of the files shown in the Downloaded tab, by row.
-    QStringList m_downloadedPaths;
 };
