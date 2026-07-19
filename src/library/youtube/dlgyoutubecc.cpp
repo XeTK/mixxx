@@ -6,11 +6,14 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QStringList>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
 #include <QtDebug>
 
+#include "control/controlproxy.h"
+#include "controllers/keyboard/keyboardeventfilter.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
 #include "library/youtube/youtubeccdownloader.h"
@@ -69,6 +72,46 @@ DlgYouTubeCc::DlgYouTubeCc(WLibrary* parent, UserSettingsPointer pConfig, Librar
             &YouTubeCcDownloader::failed,
             this,
             &DlgYouTubeCc::slotDownloadFailed);
+
+    setupLoadShortcuts();
+}
+
+DlgYouTubeCc::~DlgYouTubeCc() = default;
+
+void DlgYouTubeCc::setupLoadShortcuts() {
+    // Observe the same controls the library load shortcuts drive, so e.g.
+    // Shift+Left / Shift+Right load the selected result to a deck. LibraryControl
+    // also observes these but no-ops for a non-track-table view, so there is no
+    // conflict; our handler is gated on this view being visible.
+    const QStringList deckGroups = {
+            QStringLiteral("[Channel1]"), QStringLiteral("[Channel2]")};
+    for (const QString& group : deckGroups) {
+        auto pLoad = std::make_unique<ControlProxy>(
+                ConfigKey(group, QStringLiteral("LoadSelectedTrack")));
+        pLoad->connectValueChanged(this, [this, group](double v) {
+            if (v > 0) {
+                loadSelectedToGroup(group, false);
+            }
+        });
+        m_loadControls.push_back(std::move(pLoad));
+
+        auto pLoadAndPlay = std::make_unique<ControlProxy>(
+                ConfigKey(group, QStringLiteral("LoadSelectedTrackAndPlay")));
+        pLoadAndPlay->connectValueChanged(this, [this, group](double v) {
+            if (v > 0) {
+                loadSelectedToGroup(group, true);
+            }
+        });
+        m_loadControls.push_back(std::move(pLoadAndPlay));
+    }
+}
+
+void DlgYouTubeCc::loadSelectedToGroup(const QString& group, bool play) {
+    // Only respond when this search view is the active library view.
+    if (!isVisible()) {
+        return;
+    }
+    startDownload(m_pResults->currentRow(), group, play);
 }
 
 void DlgYouTubeCc::setupUi() {
@@ -152,6 +195,12 @@ void DlgYouTubeCc::setFocus() {
     m_pResults->setFocus();
 }
 
+void DlgYouTubeCc::installKeyboardFilter(KeyboardEventFilter* pKeyboard) {
+    // The filter must sit on the table itself so it sees the key before the
+    // table's own selection handling (which would otherwise eat Shift+Left/Right).
+    m_pResults->installEventFilter(pKeyboard);
+}
+
 void DlgYouTubeCc::onSearch(const QString& text) {
     const QString query = text.trimmed();
     if (query.isEmpty()) {
@@ -220,7 +269,7 @@ void DlgYouTubeCc::slotSelectionChanged() {
     m_pLoadButton->setEnabled(m_pResults->currentRow() >= 0);
 }
 
-void DlgYouTubeCc::startDownload(int row) {
+void DlgYouTubeCc::startDownload(int row, const QString& group, bool play) {
     if (row < 0 || row >= m_currentResults.size()) {
         return;
     }
@@ -229,6 +278,8 @@ void DlgYouTubeCc::startDownload(int row) {
         return;
     }
     const YouTubeCcTrack& track = m_currentResults.at(row);
+    m_pendingLoadGroup = group;
+    m_pendingLoadPlay = play;
     m_pDownloader->setYtDlpPath(ytDlpPath());
     m_pDownloader->setCacheDir(cacheDir());
     // Determinate progress for downloads (search uses indeterminate mode).
@@ -275,7 +326,13 @@ void DlgYouTubeCc::slotDownloadSucceeded(const YouTubeCcTrack& track, const QStr
 
     setStatus(tr("Loaded \"%1\".").arg(pTrack->getTitle()));
     emit downloaded();
-    emit loadTrack(pTrack);
+    if (m_pendingLoadGroup.isEmpty()) {
+        emit loadTrack(pTrack);
+    } else {
+        emit loadTrackToPlayer(pTrack, m_pendingLoadGroup, m_pendingLoadPlay);
+    }
+    m_pendingLoadGroup.clear();
+    m_pendingLoadPlay = false;
 }
 
 void DlgYouTubeCc::slotDownloadFailed(const QString& videoId, const QString& message) {
