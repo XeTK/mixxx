@@ -1,11 +1,11 @@
-#include "library/youtube/youtubeccsearchtask.h"
+#include "library/youtube/youtubesearchtask.h"
 
 #include <QProcess>
 #include <QStringList>
 #include <QUrl>
 #include <QtDebug>
 
-#include "moc_youtubeccsearchtask.cpp"
+#include "moc_youtubesearchtask.cpp"
 
 namespace {
 
@@ -45,20 +45,20 @@ QStringList buildArgs(const QString& query, int maxResults) {
 
 } // anonymous namespace
 
-YouTubeCcSearchTask::YouTubeCcSearchTask(QObject* parent)
+YouTubeSearchTask::YouTubeSearchTask(QObject* parent)
         : QObject(parent),
           m_ytDlpPath(QStringLiteral("yt-dlp")) {
 }
 
-YouTubeCcSearchTask::~YouTubeCcSearchTask() {
+YouTubeSearchTask::~YouTubeSearchTask() {
     abort();
 }
 
-bool YouTubeCcSearchTask::isBusy() const {
+bool YouTubeSearchTask::isBusy() const {
     return m_pProcess != nullptr;
 }
 
-void YouTubeCcSearchTask::abort() {
+void YouTubeSearchTask::abort() {
     if (m_pProcess) {
         m_pProcess->disconnect(this);
         m_pProcess->kill();
@@ -67,11 +67,11 @@ void YouTubeCcSearchTask::abort() {
     }
 }
 
-void YouTubeCcSearchTask::search(const QString& query, int maxResults) {
+void YouTubeSearchTask::search(const QString& query, int maxResults) {
     abort();
     const QString trimmed = query.trimmed();
     if (trimmed.isEmpty()) {
-        emit succeeded(QList<YouTubeCcTrack>());
+        emit succeeded(QList<YouTubeTrack>());
         return;
     }
 
@@ -83,11 +83,11 @@ void YouTubeCcSearchTask::search(const QString& query, int maxResults) {
     connect(m_pProcess,
             &QProcess::errorOccurred,
             this,
-            &YouTubeCcSearchTask::onProcessErrorOccurred);
+            &YouTubeSearchTask::onProcessErrorOccurred);
     m_pProcess->start(m_ytDlpPath, buildArgs(trimmed, maxResults));
 }
 
-void YouTubeCcSearchTask::onProcessFinished(int exitCode) {
+void YouTubeSearchTask::onProcessFinished(int exitCode) {
     if (!m_pProcess) {
         return;
     }
@@ -96,7 +96,7 @@ void YouTubeCcSearchTask::onProcessFinished(int exitCode) {
     m_pProcess->deleteLater();
     m_pProcess = nullptr;
 
-    QList<YouTubeCcTrack> results;
+    QList<YouTubeTrack> results;
     const QList<QByteArray> lines = out.split('\n');
     for (const QByteArray& rawLine : lines) {
         const QString line = QString::fromUtf8(rawLine).trimmed();
@@ -109,7 +109,7 @@ void YouTubeCcSearchTask::onProcessFinished(int exitCode) {
         if (fields.size() < 2 || fields.at(0).length() != 11) {
             continue;
         }
-        YouTubeCcTrack track;
+        YouTubeTrack track;
         track.videoId = fields.at(0);
         track.title = fields.at(1);
         track.channelTitle = fields.value(2);
@@ -129,7 +129,7 @@ void YouTubeCcSearchTask::onProcessFinished(int exitCode) {
     emit succeeded(results);
 }
 
-void YouTubeCcSearchTask::onProcessErrorOccurred() {
+void YouTubeSearchTask::onProcessErrorOccurred() {
     if (!m_pProcess) {
         return;
     }

@@ -7,15 +7,15 @@
 #include <vector>
 
 #include "library/libraryview.h"
-#include "library/youtube/youtubecctrack.h"
+#include "library/youtube/youtubetrack.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
 
 class Library;
 class WLibrary;
 class KeyboardEventFilter;
-class YouTubeCcSearchTask;
-class YouTubeCcDownloader;
+class YouTubeSearchTask;
+class YouTubeDownloader;
 class ControlProxy;
 class QTableWidget;
 class QPushButton;
@@ -28,11 +28,11 @@ class QProgressBar;
 /// button) downloads the audio via yt-dlp, adds it to the library so it gets
 /// analyzed like any other file, loads it, and notifies the feature so the
 /// Downloaded table refreshes.
-class DlgYouTubeCc : public QWidget, public virtual LibraryView {
+class DlgYouTube : public QWidget, public virtual LibraryView {
     Q_OBJECT
   public:
-    DlgYouTubeCc(WLibrary* parent, UserSettingsPointer pConfig, Library* pLibrary);
-    ~DlgYouTubeCc() override;
+    DlgYouTube(WLibrary* parent, UserSettingsPointer pConfig, Library* pLibrary);
+    ~DlgYouTube() override;
 
     // LibraryView
     void onShow() override;
@@ -52,13 +52,13 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     void downloaded();
 
   private slots:
-    void slotSearchSucceeded(const QList<YouTubeCcTrack>& results);
+    void slotSearchSucceeded(const QList<YouTubeTrack>& results);
     void slotSearchFailed(const QString& message);
     void slotResultActivated(int row, int column);
     void slotLoadSelected();
     void slotSelectionChanged();
     void slotDownloadProgress(const QString& videoId, int percent);
-    void slotDownloadSucceeded(const YouTubeCcTrack& track, const QString& localPath);
+    void slotDownloadSucceeded(const YouTubeTrack& track, const QString& localPath);
     void slotDownloadFailed(const QString& videoId, const QString& message);
 
   private:
@@ -84,9 +84,9 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     QLabel* m_pStatus;
     QProgressBar* m_pProgress;
 
-    YouTubeCcSearchTask* m_pSearchTask;
-    YouTubeCcDownloader* m_pDownloader;
-    QList<YouTubeCcTrack> m_currentResults;
+    YouTubeSearchTask* m_pSearchTask;
+    YouTubeDownloader* m_pDownloader;
+    QList<YouTubeTrack> m_currentResults;
     std::vector<std::unique_ptr<ControlProxy>> m_loadControls;
     // Deck to load the current download into (empty = generic preview load).
     QString m_pendingLoadGroup;

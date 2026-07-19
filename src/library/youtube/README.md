@@ -1,4 +1,4 @@
-# YouTube (CC) library feature
+# YouTube library feature
 
 Search Creative Commons–licensed music on YouTube and load it into Mixxx as a
 normal, fully analyzable track (waveform, beatgrid, BPM, key, cue, loop, sync).
@@ -11,14 +11,14 @@ dependency is `yt-dlp`.
 
 ## How the flow works
 
-1. **Search** — `YouTubeCcSearchTask` runs `yt-dlp` against YouTube's own
+1. **Search** — `YouTubeSearchTask` runs `yt-dlp` against YouTube's own
    Creative Commons results filter
    (`https://www.youtube.com/results?search_query=<q>&sp=EgIwAQ%3D%3D`) with
    `--flat-playlist --print ...` and parses one tab-separated line per video.
    The `sp=` code is YouTube's server-side CC filter, so results are CC without
    needing to extract each video (yt-dlp does not populate the per-video
    `license` field during a search). Metadata only, and fast.
-2. **Download** — on double-click, `YouTubeCcDownloader` runs `yt-dlp` (with the
+2. **Download** — on double-click, `YouTubeDownloader` runs `yt-dlp` (with the
    same CC match-filter as a hard gate) to fetch the audio-only stream — no
    re-encode, so no ffmpeg needed — into a per-user cache directory, keyed by
    videoId (re-fetch is skipped if already cached).
@@ -32,10 +32,10 @@ dependency is `yt-dlp`.
 The feature follows the standard Mixxx layout instead of a bespoke panel:
 
 - The **main library search bar** drives search — there is no search box inside
-  the view. Typing while the "YouTube (CC)" root is selected runs a CC search
-  (`DlgYouTubeCc::onSearch`).
+  the view. Typing while the "YouTube" root is selected runs a Creative Commons search
+  (`DlgYouTube::onSearch`).
 - The sidebar has a **"Downloaded" child node**. It shows a native track table
-  (`YouTubeCcTrackModel`, a `BaseSqlTableModel` filtered to the cache directory)
+  (`YouTubeTrackModel`, a `BaseSqlTableModel` filtered to the cache directory)
   — sortable columns, right-click actions, drag-to-deck, and the main search bar
   filters it, exactly like the main **Tracks** view. Downloaded tracks are also
   in your main library, so they appear under **Tracks** too.
@@ -43,7 +43,7 @@ The feature follows the standard Mixxx layout instead of a bespoke panel:
 Search results themselves stay a lightweight custom list, because they are
 remote videos with no local file / analysis until downloaded, so they can't be
 a native track table. The standard **load-to-deck shortcuts still work on
-them** (e.g. Shift+Left / Shift+Right): `DlgYouTubeCc` observes the
+them** (e.g. Shift+Left / Shift+Right): `DlgYouTube` observes the
 `[ChannelN],LoadSelectedTrack(AndPlay)` controls and, when its view is active,
 downloads the selected result and loads it to that deck.
 
@@ -52,14 +52,14 @@ downloads the selected result and loads it to that deck.
 - **yt-dlp** must be installed and on your `PATH` (or set an explicit path in
   the config key below). See https://github.com/yt-dlp/yt-dlp. That's it.
 
-## Config keys (`mixxx.cfg`, group `[youtube_cc]`)
+## Config keys (`mixxx.cfg`, group `[youtube]`)
 
 | Key           | Default   | Meaning                                  |
 |---------------|-----------|------------------------------------------|
 | `ytdlp_path`  | `yt-dlp`  | Path to the yt-dlp executable            |
 
-The cache directory is `<settings>/youtube_cc_cache`. The feature itself can be
-hidden via `[library] ShowYouTubeCcLibrary = 0`.
+The cache directory is `<settings>/youtube_cache`. The feature itself can be
+hidden via `[library] ShowYouTubeLibrary = 0`.
 
 ## Scope / limitations
 

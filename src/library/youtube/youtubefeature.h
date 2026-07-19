@@ -8,8 +8,8 @@
 #include "preferences/usersettings.h"
 #include "util/parented_ptr.h"
 
-class DlgYouTubeCc;
-class YouTubeCcTrackModel;
+class DlgYouTube;
+class YouTubeTrackModel;
 class Library;
 class WLibrary;
 class KeyboardEventFilter;
@@ -19,11 +19,11 @@ class KeyboardEventFilter;
 /// shows a search view (driven by the main library search bar), and a
 /// "Downloaded" child node shows a native track table of previously fetched
 /// tracks.
-class YouTubeCcFeature : public LibraryFeature {
+class YouTubeFeature : public LibraryFeature {
     Q_OBJECT
   public:
-    YouTubeCcFeature(Library* pLibrary, UserSettingsPointer pConfig);
-    ~YouTubeCcFeature() override = default;
+    YouTubeFeature(Library* pLibrary, UserSettingsPointer pConfig);
+    ~YouTubeFeature() override = default;
 
     QVariant title() override;
     void bindLibraryWidget(WLibrary* libraryWidget,
@@ -39,7 +39,7 @@ class YouTubeCcFeature : public LibraryFeature {
 
   private:
     parented_ptr<TreeItemModel> m_pSidebarModel;
-    DlgYouTubeCc* m_pSearchView;
-    YouTubeCcTrackModel* m_pDownloadedModel;
+    DlgYouTube* m_pSearchView;
+    YouTubeTrackModel* m_pDownloadedModel;
     const QString m_title;
 };

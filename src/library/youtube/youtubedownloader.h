@@ -3,22 +3,22 @@
 #include <QObject>
 #include <QString>
 
-#include "library/youtube/youtubecctrack.h"
+#include "library/youtube/youtubetrack.h"
 
 class QProcess;
 
 /// Downloads the audio of a single YouTube video via the external `yt-dlp`
 /// tool into a local cache directory. Only ever invoked for Creative Commons
-/// licensed tracks (see YouTubeCcSearchTask / the UI gate).
+/// licensed tracks (see YouTubeSearchTask / the UI gate).
 ///
 /// The download is audio-only and is not re-encoded, so `ffmpeg` is not
 /// required. Files are cached by videoId; a second request for an already
 /// cached track completes immediately without spawning a process.
-class YouTubeCcDownloader : public QObject {
+class YouTubeDownloader : public QObject {
     Q_OBJECT
   public:
-    explicit YouTubeCcDownloader(QObject* parent = nullptr);
-    ~YouTubeCcDownloader() override;
+    explicit YouTubeDownloader(QObject* parent = nullptr);
+    ~YouTubeDownloader() override;
 
     /// Path to the yt-dlp executable (looked up on PATH if just "yt-dlp").
     void setYtDlpPath(const QString& path) {
@@ -38,12 +38,12 @@ class YouTubeCcDownloader : public QObject {
     /// Start downloading the given track. Emits progress()/succeeded()/failed().
     /// Only one download runs at a time; a second call while busy is rejected
     /// via failed().
-    void download(const YouTubeCcTrack& track);
+    void download(const YouTubeTrack& track);
     void cancel();
 
   signals:
     void progress(const QString& videoId, int percent);
-    void succeeded(const YouTubeCcTrack& track, const QString& localPath);
+    void succeeded(const YouTubeTrack& track, const QString& localPath);
     void failed(const QString& videoId, const QString& message);
 
   private slots:
@@ -55,7 +55,7 @@ class YouTubeCcDownloader : public QObject {
     QString m_ytDlpPath;
     QString m_cacheDir;
     QProcess* m_pProcess = nullptr;
-    YouTubeCcTrack m_currentTrack;
+    YouTubeTrack m_currentTrack;
     QString m_resolvedPath;
     // Set if yt-dlp reported the video was skipped by the CC license filter.
     bool m_wasFilteredOut = false;

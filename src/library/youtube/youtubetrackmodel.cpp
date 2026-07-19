@@ -1,4 +1,4 @@
-#include "library/youtube/youtubecctrackmodel.h"
+#include "library/youtube/youtubetrackmodel.h"
 
 #include <QDir>
 
@@ -7,19 +7,19 @@
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "mixer/playerinfo.h"
-#include "moc_youtubecctrackmodel.cpp"
+#include "moc_youtubetrackmodel.cpp"
 
-YouTubeCcTrackModel::YouTubeCcTrackModel(QObject* parent,
+YouTubeTrackModel::YouTubeTrackModel(QObject* parent,
         TrackCollectionManager* pTrackCollectionManager,
         const QString& cacheDir)
         : BaseSqlTableModel(parent,
                   pTrackCollectionManager,
-                  "mixxx.db.model.youtube_cc") {
+                  "mixxx.db.model.youtube") {
     setTableModel(cacheDir);
 }
 
-void YouTubeCcTrackModel::setTableModel(const QString& cacheDir) {
-    const QString tableName("youtube_cc_view");
+void YouTubeTrackModel::setTableModel(const QString& cacheDir) {
+    const QString tableName("youtube_view");
 
     QStringList columns;
     columns << "library." + LIBRARYTABLE_ID
@@ -58,7 +58,7 @@ void YouTubeCcTrackModel::setTableModel(const QString& cacheDir) {
             Qt::DescendingOrder);
 }
 
-bool YouTubeCcTrackModel::isColumnInternal(int column) {
+bool YouTubeTrackModel::isColumnInternal(int column) {
     return column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_ID) ||
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_URL) ||
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_CUEPOINT) ||
@@ -82,7 +82,7 @@ bool YouTubeCcTrackModel::isColumnInternal(int column) {
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_COVERART_HASH);
 }
 
-TrackModel::Capabilities YouTubeCcTrackModel::getCapabilities() const {
+TrackModel::Capabilities YouTubeTrackModel::getCapabilities() const {
     return Capability::AddToAutoDJ |
             Capability::AddToTrackSet |
             Capability::EditMetadata |
