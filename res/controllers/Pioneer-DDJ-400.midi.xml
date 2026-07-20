@@ -15,7 +15,28 @@
                 default="false"
                 label="Use the Hot Cue pads as accessibility pads">
                 <description>
-                    In Hot Cue pad mode, pads 1 to 6 speak deck information (status, time remaining, BPM, key, bar position, track name), pad 7 repeats the last announcement, and pad 8 toggles the beat click metronome. Shift plus pad 7 toggles the per-deck split cue; Shift plus pad 8 toggles speech on or off. Hot cues cannot be set, triggered, or cleared from the pads while this is enabled.
+                    In Hot Cue pad mode, pads 1 to 6 speak deck information (status, time remaining, BPM, key, bar position, track name), pad 7 repeats the last announcement, and pad 8 toggles the beat click metronome. Shift plus pad 1 halves the deck's BPM grid and Shift plus pad 2 doubles it (for fixing a half-tempo analysis by ear); Shift plus pad 7 toggles the per-deck split cue; Shift plus pad 8 toggles speech on or off. Hot cues cannot be set, triggered, or cleared from the pads while this is enabled.
+                </description>
+            </option>
+            <option
+                variable="disableJogScratch"
+                type="boolean"
+                default="false"
+                label="Disable jog wheel scratching">
+                <description>
+                    Touching the top of the jog wheel no longer grabs the track like vinyl, so a stray touch cannot stop or scratch playback. The outer edge and platter rotation still nudge the pitch for beat matching. Shift plus jog still seeks.
+                </description>
+            </option>
+            <option
+                variable="jogSensitivity"
+                type="real"
+                min="0.1"
+                max="5.0"
+                step="0.1"
+                default="1.0"
+                label="Jog wheel sensitivity">
+                <description>
+                    Scales how strongly the jog wheel nudges the pitch (and how fast scratching responds while jog scratching is enabled). 1.0 is the stock feel; lower is gentler, higher is more aggressive.
                 </description>
             </option>
         </group>

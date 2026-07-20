@@ -482,9 +482,9 @@ PioneerDDJ400.jogTurn = function(channel, _control, value, _status, group) {
     }
 
     if (engine.isScratching(deckNum)) {
-        engine.scratchTick(deckNum, newVal);
+        engine.scratchTick(deckNum, newVal * this.jogSensitivity);
     } else { // fallback
-        engine.setValue(group, "jog", newVal * this.bendScale);
+        engine.setValue(group, "jog", newVal * this.bendScale * this.jogSensitivity);
     }
 };
 
@@ -706,6 +706,16 @@ PioneerDDJ400.quickJumpBack = function(_channel, _control, value, _status, group
 
 PioneerDDJ400.accessibilityPads = !!engine.getSetting("accessibilityPads");
 
+// Accessibility (this fork): jog handling tweaks, see the mapping settings.
+// Disabling jog scratch turns the platter top into a no-op so a stray touch
+// can't stop or scratch playback; rotation still nudges the pitch.
+if (engine.getSetting("disableJogScratch")) {
+    PioneerDDJ400.vinylMode = false;
+}
+// Scales the pitch-bend nudge and, when scratching is enabled, the scratch
+// response. 1.0 = stock feel.
+PioneerDDJ400.jogSensitivity = engine.getSetting("jogSensitivity") || 1.0;
+
 PioneerDDJ400.accessibilityPadKeys = [
     "tts_status", "tts_time", "tts_bpm", "tts_key", "tts_bar", "tts_track",
 ];
@@ -738,12 +748,17 @@ PioneerDDJ400.hotcuePadShift = function(_channel, control, value, _status, group
     if (value === 0) {
         return;
     }
-    if (control === 0x06) {
+    if (control === 0x00) {
+        // Fix a half-tempo misanalysis by ear; confirmed out loud.
+        engine.setValue(group, "beats_set_halve", 1);
+    } else if (control === 0x01) {
+        engine.setValue(group, "beats_set_double", 1);
+    } else if (control === 0x06) {
         script.toggleControl("[Master]", "headSplitDecks");
     } else if (control === 0x07) {
         script.toggleControl("[Tts]", "enabled");
     }
-    // Shift + pads 1-6 deliberately do nothing in accessibility mode, so a
+    // Shift + pads 3-6 deliberately do nothing in accessibility mode, so a
     // stray press can't clear stored hotcues the DJ can't see.
 };
 

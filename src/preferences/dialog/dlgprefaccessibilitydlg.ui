@@ -488,6 +488,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxSmartCue">
+        <property name="toolTip">
+         <string>Loading a track into a stopped deck moves the headphone cue to that deck automatically, like the smart cue on Denon players. A playing deck never has its cue taken away.</string>
+        </property>
+        <property name="text">
+         <string>Smart cue: headphone cue follows loaded track</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceStop">
         <property name="toolTip">
          <string>Speak "Stopped" when a deck is paused by the user.</string>

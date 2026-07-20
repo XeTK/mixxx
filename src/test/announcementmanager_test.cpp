@@ -62,11 +62,16 @@ class StubPlayerManager : public PlayerManagerInterface {
     BaseTrackPlayer* getDeckBase(int) const override { return nullptr; }
     PreviewDeck* getPreviewDeck(int) const override { return nullptr; }
     Sampler* getSampler(int) const override { return nullptr; }
-    int numberOfDecks() const override { return 0; }
+    int numberOfDecks() const override {
+        return m_deckCount;
+    }
     int numberOfSamplers() const override { return 0; }
     int numberOfPreviewDecks() const override { return 0; }
 
     ControlObject m_numDecks;
+    // Settable so smart-cue tests can pretend decks exist without real
+    // BaseTrackPlayers (the deck lookups still return null).
+    int m_deckCount = 0;
 };
 
 // Build a track with the given metadata for use in tests.
@@ -2699,4 +2704,68 @@ TEST_F(AnnouncementManagerPerformanceTest, BeatsHalveDouble_Announced) {
     pDouble->set(1.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] B P M doubled", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Smart cue: loading into a stopped deck moves the headphone cue there.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, SmartCue_MovesPflToLoadedIdleDeck) {
+    auto pPlay1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("play")));
+    auto pPlay2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("play")));
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    makeManager();
+
+    // Deck 1 is being previewed; a track lands in stopped deck 2.
+    pPfl1->set(1.0);
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    EXPECT_EQ(0.0, pPfl1->get()) << "cue must leave the old deck";
+    EXPECT_EQ(1.0, pPfl2->get()) << "cue must follow the loaded track";
+}
+
+TEST_F(AnnouncementManagerTest, SmartCue_PlayingDeckKeepsItsCue) {
+    auto pPlay2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("play")));
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    makeManager();
+
+    // Deck 2 is live (playing); loading into it must not touch any cue.
+    pPlay2->set(1.0);
+    pPfl1->set(1.0);
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    EXPECT_EQ(1.0, pPfl1->get());
+    EXPECT_EQ(0.0, pPfl2->get());
+}
+
+TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("SmartCue")),
+            false);
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    makeManager();
+
+    pPfl1->set(1.0);
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    EXPECT_EQ(1.0, pPfl1->get());
+    EXPECT_EQ(0.0, pPfl2->get());
 }

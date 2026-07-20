@@ -1530,6 +1530,29 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
     if (pTrack && m_settings.getAnnounceTrackLoad()) {
         speak(formatForLoad(pTrack, deckIndex));
     }
+
+    // Smart cue (like Denon players): the freshly loaded track becomes what
+    // the headphones preview — the whole point of loading a track is to
+    // hear it next, so the cue follows the load instead of making the DJ
+    // hunt for the right cue button. Only when the target deck is not
+    // playing: a live deck never has its cue stolen mid-mix. The pfl
+    // changes themselves are announced by the existing cue observers.
+    if (!pTrack || deckIndex < 0 || !m_pPlayerManager ||
+            !m_settings.getSmartCue()) {
+        return;
+    }
+    const QString group = PlayerManager::groupForDeck(deckIndex);
+    if (readGroupControl(group, QStringLiteral("play")) > 0.0) {
+        return;
+    }
+    const int numDecks = m_pPlayerManager->numberOfDecks();
+    for (int i = 0; i < numDecks; ++i) {
+        ControlProxy(PlayerManager::groupForDeck(i),
+                QStringLiteral("pfl"),
+                nullptr,
+                ControlFlag::AllowMissingOrInvalid)
+                .set(i == deckIndex ? 1.0 : 0.0);
+    }
 }
 
 // static

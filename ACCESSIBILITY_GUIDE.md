@@ -181,6 +181,14 @@ the sound alone is just the alert.
   library's Alt plus Shift plus P/C, but for what's on the deck — so
   when a track is going down well you can file it mid-mix without
   hunting it down in the library. The add is confirmed out loud.
+- Smart cue (on by default): loading a track into a stopped deck moves
+  the headphone cue to that deck automatically — like the smart cue on
+  Denon players, the thing you just loaded is what you preview next.
+  The switch is spoken through the normal cue announcements ("Deck 2
+  headphone cue on. Deck 1 headphone cue off"). A playing deck never
+  has its cue taken away, and loading into a playing deck (when
+  allowed) doesn't touch the cue at all. Turn it off with the "Smart
+  cue" checkbox in Preferences, Accessibility.
 
 ## What gets announced automatically
 
@@ -323,6 +331,7 @@ All settings live under Options, Preferences, Accessibility. In order:
     effects" — most with their own feedback-style combo
     (speech/sounds/both) for play, stop, end of track, headphone cue,
     back-to-start, and loop on/off
+12. Smart cue: headphone cue follows the loaded track (on by default)
 
 ## Using a screen reader alongside Mixxx
 
@@ -410,14 +419,29 @@ Hot Cue pad mode speaks instead of triggering hotcues:
 - Pad 6 — track name (artist and title)
 - Pad 7 — repeat the last announcement
 - Pad 8 — beat click metronome on/off
+- Shift plus pad 1 — halve this deck's BPM grid
+- Shift plus pad 2 — double this deck's BPM grid (the pad-sized
+  version of Control plus Alt plus H/D, for fixing a half-tempo
+  analysis by ear — confirmed out loud)
 - Shift plus pad 7 — per-deck split cue on/off
 - Shift plus pad 8 — speech on/off
 
-Pads 1 to 6 speak about their own deck (left pads deck 1, right pads
-deck 2). Shift plus pads 1 to 6 deliberately do nothing, so a stray
-press can't clear stored hotcues. The other pad modes (Beat Loop, Beat
-Jump, Sampler) are unaffected. Untick the setting to get normal hot
-cues back.
+Pads speak about and act on their own deck (left pads deck 1, right
+pads deck 2). Shift plus pads 3 to 6 deliberately do nothing, so a
+stray press can't clear stored hotcues. The other pad modes (Beat
+Loop, Beat Jump, Sampler) are unaffected. Untick the setting to get
+normal hot cues back.
+
+Two more settings live next to it on the same page:
+
+- "Disable jog wheel scratching" — touching the top of the jog wheel
+  no longer grabs the track like vinyl, so a stray touch can't stop or
+  scratch playback; the platter still nudges the pitch for
+  beatmatching, and Shift plus jog still seeks.
+- "Jog wheel sensitivity" — scales how strongly the jog nudges the
+  pitch (and how fast scratching responds while scratching is
+  enabled). 1.0 is the stock feel; lower is gentler, higher more
+  aggressive.
 
 Independent of that setting, the mapping speaks the layer buttons
 themselves: pressing Shift says "Shift", and each pad mode button
