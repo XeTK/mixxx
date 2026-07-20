@@ -1100,6 +1100,168 @@
             <!-- BEAT FX SECTION END-->
             <!-- EFFECT Section END -->
 
+            <!-- PAD MODE SECTION START: accessibility spoken feedback for the pad mode buttons -->
+            <control>
+                <description>HOT CUE MODE (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>BEAT LOOP MODE (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>BEAT JUMP MODE (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>SAMPLER MODE (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>KEYBOARD MODE (SHIFT+HOT CUE) (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>PAD FX1 MODE (SHIFT+BEAT LOOP) (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>PAD FX2 MODE (SHIFT+BEAT JUMP) (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>KEY SHIFT MODE (SHIFT+SAMPLER) (DECK1) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x90</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>HOT CUE MODE (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>BEAT LOOP MODE (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>BEAT JUMP MODE (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>SAMPLER MODE (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>KEYBOARD MODE (SHIFT+HOT CUE) (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>PAD FX1 MODE (SHIFT+BEAT LOOP) (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>PAD FX2 MODE (SHIFT+BEAT JUMP) (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <description>KEY SHIFT MODE (SHIFT+SAMPLER) (DECK2) - press - announce pad mode</description>
+                <group>[PadMode]</group>
+                <key>PioneerDDJ400.padModePressed</key>
+                <status>0x91</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <!-- PAD MODE SECTION END -->
             <!-- HOT CUE MODE START -->
             <control>
                 <description>PAD 1 (DECK1) HOT CUE MODE - press - set hotcue</description>

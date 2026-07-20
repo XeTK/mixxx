@@ -36,6 +36,11 @@ const Grain kLoopOff[] = {{1047.0, 0.0, 55.0}, {698.0, 50.0, 70.0}};
 // A low, urgent double-buzz distinct from every other gesture's mid-high
 // register, so a clipping warning can never be mistaken for a routine cue.
 const Grain kClipping[] = {{350.0, 0.0, 60.0}, {350.0, 70.0, 60.0}};
+// Transport cue preview: one very short high tick, terse enough that rapid
+// repeated cue taps while beat-matching read as a rhythm, not a nag. Sits
+// above the CueOn/CueOff (headphone cue) pitches so the two cue families
+// stay distinct.
+const Grain kCuePreview[] = {{988.0, 0.0, 40.0}};
 
 struct Gesture {
     const Grain* grains;
@@ -62,6 +67,8 @@ Gesture gestureFor(EngineEarcon::Id id) {
         return {kLoopOff, 2};
     case EngineEarcon::Id::Clipping:
         return {kClipping, 2};
+    case EngineEarcon::Id::CuePreview:
+        return {kCuePreview, 1};
     }
     return {nullptr, 0};
 }

@@ -85,11 +85,15 @@ NumarkScratch.shutdown = function() {
 NumarkScratch.shift = function() {
     NumarkScratch.deck.shift();
     NumarkScratch.effect.shift();
+    // Accessibility: announce the shift layer engaging ([Tts],shift is
+    // spoken on the press only).
+    engine.setValue("[Tts]", "shift", 1);
 };
 
 NumarkScratch.unshift = function() {
     NumarkScratch.deck.unshift();
     NumarkScratch.effect.unshift();
+    engine.setValue("[Tts]", "shift", 0);
 };
 
 NumarkScratch.EffectUnit = function(deckNumber) {
@@ -369,6 +373,19 @@ NumarkScratch.PadSection = function(deckNumber) {
         });
 
         this.currentMode = newMode;
+
+        // Accessibility: speak which pad layer is now active. The mode
+        // button cycles blind through three states with no tactile or LED
+        // cue a blind DJ can use, so this is the only way to know where the
+        // pads landed. [Tts],pad_mode ignores same-value writes, which
+        // also deduplicates this button's both-decks-at-once firing.
+        const spokenModes = {};
+        spokenModes[NumarkScratch.PadModeControls.HOTCUE] = 1; // "hot cues"
+        spokenModes[NumarkScratch.PadModeControls.SAMPLER] = 4; // "sampler"
+        spokenModes[NumarkScratch.PadModeControls.ROLL] = 9; // "loop roll"
+        if (control in spokenModes) {
+            engine.setValue("[Tts]", "pad_mode", spokenModes[control]);
+        }
     };
 
     this.currentMode = this.modes[NumarkScratch.PadModeControls.HOTCUE];

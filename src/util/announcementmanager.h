@@ -62,6 +62,7 @@ class AnnouncementManager : public QObject {
     void slotCrateTracksEdited(const QString& name, int added, int removed);
     void slotQuickPickerItemHighlighted(const QString& text, int row, int siblingCount);
     void slotSearchTextChanged(const QString& text);
+    void slotSearchResultCount(int count);
     void slotAnnounceSearch();
 
     // Speaks the pending debounced control announcement (tempo/mixer moves).
@@ -124,6 +125,19 @@ class AnnouncementManager : public QObject {
     // spoken, once the control stops moving.
     void announceControlDebounced(const QString& text);
 
+    // Keyed variant for knobs and faders: `key` identifies the physical
+    // control (group + control name), `name` is the spoken prefix ("A
+    // volume") and `valueText` the position ("a half"). When the same
+    // control keeps moving, the name is spoken only once and subsequent
+    // announcements are just the new value; an unchanged value (a worn pot
+    // jittering around its resting point) is suppressed entirely.
+    void announceControlDebounced(
+            const QString& key, const QString& name, const QString& valueText);
+
+    // Shared tail of both overloads: speak now (announce-while-moving mode)
+    // or arm the debounce timer.
+    void startControlDebounce();
+
     // Spoken deck name for announcements — "Deck, A" or "Deck 1" depending on
     // the naming preference; falls back to the raw group name when the deck
     // index is unknown (tests).
@@ -183,11 +197,33 @@ class AnnouncementManager : public QObject {
     // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.
     std::vector<std::unique_ptr<ControlObject>> m_pStatusButtons;
     std::unique_ptr<ControlObject> m_pRepeatButton;
+    // Controller feedback hooks driven by controller mappings: [Tts],shift
+    // (1 while the hardware shift button is held) and [Tts],pad_mode (an
+    // enumerated pad-mode id; see the pad-mode table in the .cpp).
+    std::unique_ptr<ControlObject> m_pShiftControl;
+    std::unique_ptr<ControlObject> m_pPadModeControl;
     QString m_lastSpoken;
 
     // Debounced announcements for continuously-variable controls.
     QTimer m_controlDebounce;
     QString m_pendingControlText;
+    // Pending keyed control announcement (see the keyed
+    // announceControlDebounced overload); mutually exclusive with
+    // m_pendingControlText.
+    QString m_pendingControlKey;
+    QString m_pendingControlName;
+    QString m_pendingControlValue;
+    // The keyed control last spoken (or currently moving), for the
+    // name-on-touch and name-once logic. Any unrelated announcement clears
+    // the key.
+    QString m_lastControlKey;
+    qint64 m_lastControlSpokenMs{0};
+    // Last spoken value text per control key, session-lifetime: the jitter
+    // and no-change guard. A control whose readout hasn't changed makes no
+    // announcement at all — neither name nor value.
+    QHash<QString, QString> m_lastValueByKey;
+    // Result count of the pending library search (-1 = unknown).
+    int m_pendingSearchCount{-1};
     // Last immediate utterance in announce-while-moving mode (ms since epoch).
     qint64 m_lastMovingSpeakMs{0};
 

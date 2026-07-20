@@ -28,6 +28,12 @@ constexpr int kSearchDebounceMs = 600;
 constexpr int kControlDebounceMs = 400;
 // Minimum gap between spoken updates in announce-while-moving mode.
 constexpr qint64 kMovingThrottleMs = 300;
+// How long a knob/fader keeps its spoken "context": while the same control
+// keeps moving within this window, only the new value is spoken ("a half"
+// instead of "A volume a half"), and an unchanged value is suppressed
+// entirely — a worn pot jittering around its resting point would otherwise
+// repeat the same readout forever.
+constexpr qint64 kControlContextMs = 8000;
 // Track load/unload rewrites every hotcue status CO; suppress hotcue
 // announcements for this long afterwards so a load doesn't fire a burst
 // of "hotcue set" messages.
@@ -150,6 +156,23 @@ QString pitchText(double rateRatio) {
     return rateRatio > 1.0
             ? AnnouncementManager::tr("Pitch up %1 percent").arg(percentText)
             : AnnouncementManager::tr("Pitch down %1 percent").arg(percentText);
+}
+
+// The same deviation without the leading "Pitch" word, for the fader
+// readout where the control is already named ("Deck 1 pitch" on touch,
+// "up 2 percent" at rest). Empty at exactly normal speed.
+QString pitchDeviationText(double rateRatio) {
+    if (rateRatio <= 0.0 || std::abs(rateRatio - 1.0) < 0.0005) {
+        return {};
+    }
+    const double percent = std::abs(rateRatio - 1.0) * 100.0;
+    QString percentText = QString::number(percent, 'f', 1);
+    if (percentText.endsWith(QStringLiteral(".0"))) {
+        percentText.chop(2);
+    }
+    return rateRatio > 1.0
+            ? AnnouncementManager::tr("up %1 percent").arg(percentText)
+            : AnnouncementManager::tr("down %1 percent").arg(percentText);
 }
 
 // Returns a fully-spelled pronounceable key name for the given ChromaticKey,
@@ -373,6 +396,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 &Library::search,
                 this,
                 &AnnouncementManager::slotSearchTextChanged);
+        connect(pLibrary,
+                &Library::searchResultCountChanged,
+                this,
+                &AnnouncementManager::slotSearchResultCount);
     }
 
     connect(pPlayerManager,
@@ -474,19 +501,19 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 if (!m_settings.getAnnounceMixer() || pLock->toBool()) {
                     return;
                 }
-                QString text;
+                QString valueText;
                 if (std::abs(value) < 0.05) {
-                    text = tr("Crossfader center");
+                    valueText = tr("center");
                 } else {
                     const bool asPercent = mixerReadoutAsPercent();
                     const int detail = mixerFractionDenominator();
-                    text = value < 0
-                            ? tr("Crossfader left %1")
-                                      .arg(fractionText(-value, asPercent, detail))
-                            : tr("Crossfader right %1")
-                                      .arg(fractionText(value, asPercent, detail));
+                    valueText = value < 0
+                            ? tr("left %1").arg(fractionText(-value, asPercent, detail))
+                            : tr("right %1").arg(fractionText(value, asPercent, detail));
                 }
-                announceControlDebounced(text);
+                announceControlDebounced(QStringLiteral("[Master]crossfader"),
+                        tr("Crossfader"),
+                        valueText);
             });
 
     // Headphone mix knob: -1 is full cue (PFL'd decks only), +1 is full main
@@ -505,24 +532,27 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         if (!m_settings.getAnnounceMixer()) {
             return;
         }
-        QString text;
+        QString valueText;
         if (std::abs(value) < 0.05) {
-            text = tr("Headphone mix even");
+            valueText = tr("even");
         } else {
             const bool asPercent = mixerReadoutAsPercent();
             const int detail = mixerFractionDenominator();
-            text = value < 0
-                    ? tr("Headphone mix cue %1")
-                              .arg(fractionText(-value, asPercent, detail))
-                    : tr("Headphone mix main %1")
-                              .arg(fractionText(value, asPercent, detail));
+            valueText = value < 0
+                    ? tr("cue %1").arg(fractionText(-value, asPercent, detail))
+                    : tr("main %1").arg(fractionText(value, asPercent, detail));
         }
-        announceControlDebounced(text);
+        announceControlDebounced(QStringLiteral("[Master]headMix"),
+                tr("Headphone mix"),
+                valueText);
     });
 
     // Main and headphone volume knobs, debounced. Both are ControlAudioTaperPot
     // with neutral parameter 0.5 (center of the knob = unity), so read the
-    // knob position via getParameter(), not the dB-tapered gain value.
+    // knob position via getParameter(), not the dB-tapered gain value. Spoken
+    // as plain knob travel ("a half", "three quarters") — a center-split
+    // readout ("minus a quarter") made testers think the volume itself had
+    // gone negative.
     const struct {
         const char* control;
         QString name;
@@ -539,15 +569,17 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         pGain->connectValueChanged(this,
                 [this,
                         name = gain.name,
+                        key = QStringLiteral("[Master]") + QLatin1String(gain.control),
                         pGainRaw = static_cast<ControlProxy*>(pGain)](double) {
                     if (!m_settings.getAnnounceMixer()) {
                         return;
                     }
-                    announceControlDebounced(QStringLiteral("%1 %2").arg(name,
-                            centerSplitText(
-                                    (pGainRaw->getParameter() - 0.5) * 2.0,
+                    announceControlDebounced(key,
+                            name,
+                            fractionText(
+                                    std::clamp(pGainRaw->getParameter(), 0.0, 1.0),
                                     mixerReadoutAsPercent(),
-                                    mixerFractionDenominator())));
+                                    mixerFractionDenominator()));
                 });
     }
 
@@ -560,8 +592,8 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             const char* control;
             QString text;
         } knobs[] = {
-                {"mix", tr("Effect %1 mix %2")},
-                {"super1", tr("Effect %1 super %2")},
+                {"mix", tr("Effect %1 mix")},
+                {"super1", tr("Effect %1 super")},
         };
         for (const auto& knob : knobs) {
             auto pKnob = make_parented<ControlProxy>(unitGroup,
@@ -569,14 +601,18 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     this,
                     ControlFlag::AllowMissingOrInvalid);
             pKnob->connectValueChanged(this,
-                    [this, unit, text = knob.text](double value) {
+                    [this,
+                            name = knob.text.arg(unit),
+                            key = unitGroup + QLatin1String(knob.control)](double value) {
                         if (!m_settings.getAnnounceMixer()) {
                             return;
                         }
-                        announceControlDebounced(text.arg(unit).arg(fractionText(
-                                std::clamp(value, 0.0, 1.0),
-                                mixerReadoutAsPercent(),
-                                mixerFractionDenominator())));
+                        announceControlDebounced(key,
+                                name,
+                                fractionText(
+                                        std::clamp(value, 0.0, 1.0),
+                                        mixerReadoutAsPercent(),
+                                        mixerFractionDenominator()));
                     });
         }
     }
@@ -684,11 +720,83 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 }
             });
     m_pRepeatButton = std::move(pRepeat);
+
+    // Controller feedback hooks. Neither control does anything by itself —
+    // a controller mapping drives them, which makes wiring them up the
+    // mapping's opt-in.
+    //
+    // [Tts],shift: set to 1 while the hardware shift button is held.
+    // Announced on the press only; narrating the release too would double
+    // the chatter for no information.
+    auto pShift = std::make_unique<ControlPushButton>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("shift")));
+    connect(pShift.get(),
+            &ControlObject::valueChanged,
+            this,
+            [this](double value) {
+                if (value > 0.0) {
+                    speak(tr("Shift"));
+                }
+            });
+    m_pShiftControl = std::move(pShift);
+
+    // [Tts],pad_mode: which layer the controller's performance pads are in.
+    // Values are a fixed cross-controller vocabulary; a mapping sets the one
+    // matching the mode button that was pressed. Setting the same value
+    // again is silent (no CO change), which conveniently deduplicates
+    // hardware that fires one mode press for both decks at once (Numark
+    // Scratch).
+    auto pPadMode = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("pad_mode")));
+    connect(pPadMode.get(),
+            &ControlObject::valueChanged,
+            this,
+            [this](double value) {
+                QString mode;
+                switch (static_cast<int>(value)) {
+                case 1:
+                    mode = tr("hot cues");
+                    break;
+                case 2:
+                    mode = tr("beat loop");
+                    break;
+                case 3:
+                    mode = tr("beat jump");
+                    break;
+                case 4:
+                    mode = tr("sampler");
+                    break;
+                case 5:
+                    mode = tr("keyboard");
+                    break;
+                case 6:
+                    mode = tr("pad effects 1");
+                    break;
+                case 7:
+                    mode = tr("pad effects 2");
+                    break;
+                case 8:
+                    mode = tr("key shift");
+                    break;
+                case 9:
+                    mode = tr("loop roll");
+                    break;
+                default:
+                    return;
+                }
+                speak(tr("Pads, %1").arg(mode));
+            });
+    m_pPadModeControl = std::move(pPadMode);
 }
 
 AnnouncementManager::~AnnouncementManager() = default;
 
 void AnnouncementManager::speak(const QString& text) {
+    // Any announcement invalidates the knob/fader name-once context: after an
+    // unrelated utterance the next control move must name the control again.
+    // slotAnnouncePendingControl() restores the context after its own speak().
+    m_lastControlKey.clear();
+
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
         return;
@@ -743,6 +851,7 @@ void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& sp
         break;
     case EngineEarcon::Id::CueOn:
     case EngineEarcon::Id::CueOff:
+    case EngineEarcon::Id::CuePreview:
         mode = m_settings.getFeedbackModeCue();
         break;
     case EngineEarcon::Id::Restart:
@@ -810,7 +919,12 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             // when CueControl starts the preview, so this read is race-free.
             if (readGroupControl(group, QStringLiteral("cue_default")) > 0.0) {
                 m_deckCuePreview[group] = true;
-                speak(tr("Cue"));
+                // Earcon-capable: repeated cue taps while beat-matching turned
+                // "Cue" into an irritating chant — the Cue feedback mode lets
+                // the user pick a short tick instead.
+                emitCue(static_cast<int>(EngineEarcon::Id::CuePreview),
+                        deckIndex,
+                        tr("Cue"));
             } else {
                 emitCue(static_cast<int>(EngineEarcon::Id::Play), deckIndex, tr("Playing"));
             }
@@ -1102,18 +1216,42 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (!m_settings.getAnnounceTempo()) {
             return;
         }
-        const QString pitch = pitchText(value);
-        const QString deck = mixerDeckName(group, deckIndex);
-        QString text = pitch.isEmpty()
-                ? tr("%1 pitch zero").arg(deck)
-                : QStringLiteral("%1 %2").arg(deck, pitch);
+        const QString deviation = pitchDeviationText(value);
+        QString valueText = deviation.isEmpty() ? tr("zero") : deviation;
         // Say the resulting BPM — the number the DJ is actually chasing.
         const double bpm = readGroupControl(group, QStringLiteral("bpm"));
         if (bpm > 0.0) {
-            text += tr(". %1 B P M").arg(static_cast<int>(std::lround(bpm)));
+            valueText += tr(". %1 B P M").arg(static_cast<int>(std::lround(bpm)));
         }
-        announceControlDebounced(text);
+        announceControlDebounced(group + QStringLiteral("rate_ratio"),
+                tr("%1 pitch").arg(mixerDeckName(group, deckIndex)),
+                valueText);
     });
+
+    // Fixing a half/double-tempo misanalysis (common for 160+ BPM genres —
+    // the analyzer has no tempo-range hint) is done with beats_set_halve /
+    // beats_set_double; confirm the action. The new BPM is not read here:
+    // the engine updates the bpm CO on its own schedule, so reading it back
+    // immediately would race — the tts_bpm hotkey gives the exact number.
+    const struct {
+        const char* control;
+        QString text;
+    } beatsAdjust[] = {
+            {"beats_set_halve", tr("%1 B P M halved")},
+            {"beats_set_double", tr("%1 B P M doubled")},
+    };
+    for (const auto& adjust : beatsAdjust) {
+        auto pAdjust = make_parented<ControlProxy>(group,
+                QLatin1String(adjust.control),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pAdjust->connectValueChanged(this,
+                [this, group, deckIndex, text = adjust.text](double value) {
+                    if (value > 0.0 && m_settings.getAnnounceTempo()) {
+                        speak(text.arg(deckName(group, deckIndex)));
+                    }
+                });
+    }
 
     // volume is a ControlAudioTaperPot (dB-tapered): get() returns the linear
     // gain multiplier, not the fader position, so a physical half-way fader
@@ -1132,15 +1270,12 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 if (!m_settings.getAnnounceMixer()) {
                     return;
                 }
-                announceControlDebounced(tr("%1 volume %2")
-                                .arg(mixerDeckName(group, deckIndex),
-                                        fractionText(
-                                                std::clamp(
-                                                        pVolumeRaw->getParameter(),
-                                                        0.0,
-                                                        1.0),
-                                                mixerReadoutAsPercent(),
-                                                mixerFractionDenominator())));
+                announceControlDebounced(group + QStringLiteral("volume"),
+                        tr("%1 volume").arg(mixerDeckName(group, deckIndex)),
+                        fractionText(
+                                std::clamp(pVolumeRaw->getParameter(), 0.0, 1.0),
+                                mixerReadoutAsPercent(),
+                                mixerFractionDenominator()));
             });
 
     // Trim / channel pregain: also a ControlAudioTaperPot, neutral at
@@ -1158,14 +1293,12 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 if (!m_settings.getAnnounceMixer()) {
                     return;
                 }
-                announceControlDebounced(tr("%1 trim %2")
-                                .arg(mixerDeckName(group, deckIndex),
-                                        centerSplitText(
-                                                (pPregainRaw->getParameter() -
-                                                        0.5) *
-                                                        2.0,
-                                                mixerReadoutAsPercent(),
-                                                mixerFractionDenominator())));
+                announceControlDebounced(group + QStringLiteral("pregain"),
+                        tr("%1 trim").arg(mixerDeckName(group, deckIndex)),
+                        centerSplitText(
+                                (pPregainRaw->getParameter() - 0.5) * 2.0,
+                                mixerReadoutAsPercent(),
+                                mixerFractionDenominator()));
             });
 
     // EQ knobs. Values run 0..4 with unity at 1; spoken as a signed fraction
@@ -1190,20 +1323,21 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                         group,
                         deckIndex,
                         bandName = band.name,
-                        conciseName = band.conciseName](double value) {
+                        conciseName = band.conciseName,
+                        key = eqGroup + QLatin1String(band.control)](double value) {
                     if (!m_settings.getAnnounceMixer()) {
                         return;
                     }
                     const QString name = m_settings.getConciseAnnouncements()
                             ? conciseName
                             : bandName;
-                    announceControlDebounced(QStringLiteral("%1 %2 %3")
-                                    .arg(mixerDeckName(group, deckIndex),
-                                            name,
-                                            centerSplitText(
-                                                    normalizeUnityGain(value),
-                                                    mixerReadoutAsPercent(),
-                                                    mixerFractionDenominator())));
+                    announceControlDebounced(key,
+                            QStringLiteral("%1 %2").arg(
+                                    mixerDeckName(group, deckIndex), name),
+                            centerSplitText(
+                                    normalizeUnityGain(value),
+                                    mixerReadoutAsPercent(),
+                                    mixerFractionDenominator()));
                 });
     }
 
@@ -1214,15 +1348,15 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             QStringLiteral("super1"),
             this,
             ControlFlag::AllowMissingOrInvalid);
-    pFilter->connectValueChanged(this, [this, group, deckIndex](double value) {
+    pFilter->connectValueChanged(this, [this, group, deckIndex, quickEffectGroup](double value) {
         if (!m_settings.getAnnounceMixer()) {
             return;
         }
-        announceControlDebounced(tr("%1 filter %2")
-                        .arg(mixerDeckName(group, deckIndex),
-                                centerSplitText((value - 0.5) * 2.0,
-                                        mixerReadoutAsPercent(),
-                                        mixerFractionDenominator())));
+        announceControlDebounced(quickEffectGroup + QStringLiteral("super1"),
+                tr("%1 filter").arg(mixerDeckName(group, deckIndex)),
+                centerSplitText((value - 0.5) * 2.0,
+                        mixerReadoutAsPercent(),
+                        mixerFractionDenominator()));
     });
 
     // Effect unit routing: [EffectRack1_EffectUnitU],group_[ChannelN]_enable
@@ -1531,18 +1665,34 @@ void AnnouncementManager::slotLibraryFocusChanged(double value) {
 
 void AnnouncementManager::slotSearchTextChanged(const QString& text) {
     m_pendingSearch = text;
+    // The result count for the new query arrives separately (the track table
+    // applies the search synchronously and reports back); forget the count of
+    // the previous query so a missing report can't attach a stale number.
+    m_pendingSearchCount = -1;
     m_searchDebounce.start();
+}
+
+void AnnouncementManager::slotSearchResultCount(int count) {
+    m_pendingSearchCount = count;
 }
 
 void AnnouncementManager::slotAnnounceSearch() {
     if (!m_settings.getAnnounceSearch()) {
         return;
     }
-    if (m_pendingSearch.isEmpty()) {
-        speak(tr("Search cleared"));
-    } else {
-        speak(tr("Searching: %1").arg(m_pendingSearch));
+    QString text = m_pendingSearch.isEmpty()
+            ? tr("Search cleared")
+            : tr("Searching: %1").arg(m_pendingSearch);
+    // Say how many tracks the filter left — the whole point of filtering is
+    // knowing whether anything (or too much) matched.
+    if (m_pendingSearchCount == 0) {
+        text += tr(". No tracks");
+    } else if (m_pendingSearchCount == 1) {
+        text += tr(". 1 track");
+    } else if (m_pendingSearchCount > 1) {
+        text += tr(". %1 tracks").arg(m_pendingSearchCount);
     }
+    speak(text);
 }
 
 // static
@@ -1751,7 +1901,45 @@ int AnnouncementManager::mixerFractionDenominator() const {
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {
+    m_pendingControlKey.clear();
+    m_pendingControlName.clear();
+    m_pendingControlValue.clear();
     m_pendingControlText = text;
+    startControlDebounce();
+}
+
+void AnnouncementManager::announceControlDebounced(
+        const QString& key, const QString& name, const QString& valueText) {
+    m_pendingControlText.clear();
+    m_pendingControlKey = key;
+    m_pendingControlName = name;
+    m_pendingControlValue = valueText;
+
+    // Name on touch: the first movement of a control names it right away
+    // ("Deck 1 volume") so the DJ knows what they grabbed; the value
+    // follows once it stops moving. Only when the readout is actually
+    // changing — a worn pot jittering on its resting value would otherwise
+    // chant the name instead of the value — and not in while-moving mode,
+    // which already speaks name and value immediately.
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const bool sameControl = key == m_lastControlKey &&
+            now - m_lastControlSpokenMs < kControlContextMs;
+    if (sameControl) {
+        // Active movement keeps the spoken context alive: a long slow drag
+        // must not re-announce the name halfway through.
+        m_lastControlSpokenMs = now;
+    } else if (!m_settings.getAnnounceWhileMoving() &&
+            valueText != m_lastValueByKey.value(key)) {
+        speak(name);
+        // speak() clears the control context; restore it so the resting
+        // value is spoken without repeating the name.
+        m_lastControlKey = key;
+        m_lastControlSpokenMs = now;
+    }
+    startControlDebounce();
+}
+
+void AnnouncementManager::startControlDebounce() {
     // While-moving mode speaks immediately, throttled so rapid knob sweeps
     // don't queue an utterance per tick; the debounce timer still fires
     // afterwards so the final resting value is always spoken.
@@ -1767,10 +1955,43 @@ void AnnouncementManager::announceControlDebounced(const QString& text) {
 }
 
 void AnnouncementManager::slotAnnouncePendingControl() {
-    if (!m_pendingControlText.isEmpty()) {
-        speak(m_pendingControlText);
-        m_pendingControlText.clear();
+    if (m_pendingControlKey.isEmpty()) {
+        if (!m_pendingControlText.isEmpty()) {
+            speak(m_pendingControlText);
+            m_pendingControlText.clear();
+        }
+        return;
     }
+    const QString key = m_pendingControlKey;
+    const QString name = m_pendingControlName;
+    const QString value = m_pendingControlValue;
+    m_pendingControlKey.clear();
+    m_pendingControlName.clear();
+    m_pendingControlValue.clear();
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const bool sameControl = key == m_lastControlKey &&
+            now - m_lastControlSpokenMs < kControlContextMs;
+    if (value == m_lastValueByKey.value(key)) {
+        // The control settled on the same readout it last announced (a
+        // jittery pot does this constantly; so does nudging a control
+        // that's already where you want it): stay quiet, but keep the
+        // context fresh so a real change still gets the short value-only
+        // announcement.
+        if (sameControl) {
+            m_lastControlSpokenMs = now;
+        }
+        return;
+    }
+    const QString fullText = name + QStringLiteral(" ") + value;
+    speak(sameControl ? value : fullText);
+    // speak() clears the control context (any unrelated announcement
+    // invalidates it); restore it, and let the repeat key re-speak the full
+    // text even when only the value was said.
+    m_lastSpoken = fullText;
+    m_lastControlKey = key;
+    m_lastValueByKey.insert(key, value);
+    m_lastControlSpokenMs = now;
 }
 
 void AnnouncementManager::noteTrackChanged(const QString& group) {

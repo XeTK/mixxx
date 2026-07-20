@@ -515,6 +515,35 @@ PioneerDDJ400.jogTouch = function(channel, _control, value) {
 
 PioneerDDJ400.shiftPressed = function(channel, _control, value, _status, _group) {
     PioneerDDJ400.shiftButtonDown[channel] = value === 0x7F;
+    // Accessibility: announce the shift layer engaging. Either deck's shift
+    // button counts; [Tts],shift speaks on the press only, so holding both
+    // or rolling between them stays quiet.
+    engine.setValue("[Tts]", "shift",
+        (PioneerDDJ400.shiftButtonDown[0] || PioneerDDJ400.shiftButtonDown[1]) ? 1 : 0);
+};
+
+// Accessibility: speak which pad layer a mode button selected. The hardware
+// switches the pads' MIDI notes internally, so without this a blind DJ has
+// no way to tell which of the eight layers the pads landed in. The values
+// are [Tts],pad_mode's fixed vocabulary; a repeated press of the same mode
+// stays silent (same-value CO writes don't re-announce).
+PioneerDDJ400.padModePressed = function(_channel, control, value, _status, _group) {
+    if (value === 0) {
+        return;
+    }
+    const spokenModes = {
+        0x1B: 1, // hot cues
+        0x6D: 2, // beat loop
+        0x20: 3, // beat jump
+        0x22: 4, // sampler
+        0x69: 5, // keyboard
+        0x1E: 6, // pad effects 1
+        0x6B: 7, // pad effects 2
+        0x6F: 8, // key shift
+    };
+    if (control in spokenModes) {
+        engine.setValue("[Tts]", "pad_mode", spokenModes[control]);
+    }
 };
 
 

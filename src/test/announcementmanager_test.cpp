@@ -1297,11 +1297,14 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
 
     m_pRateRatio->set(1.05);
     QCoreApplication::processEvents();
-    EXPECT_EQ(0, pSpy->callCount) << "tempo announcement must be debounced";
+    // Name on touch: the fader names itself the moment it moves; the value
+    // is debounced until it stops.
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText);
 
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("[TestChannel1] Pitch up 5 percent", pSpy->lastText);
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent) {
@@ -1326,9 +1329,11 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerEnabled_Spoken) {
 
     m_pVolume->set(0.5);
     QCoreApplication::processEvents();
+    // Two utterances: the name on touch, the value at rest.
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText);
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("[TestChannel1] volume a half", pSpy->lastText);
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_SpokenAsFraction) {
@@ -1342,14 +1347,15 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_SpokenAsFraction) {
     m_pVolume->set(0.75);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+    EXPECT_QSTRING_EQ("three quarters", pSpy->lastText);
 
     // Default fraction detail is eighths: 5/16 snaps to the nearest eighth
-    // (2.5 eighths rounds away from zero to 3).
+    // (2.5 eighths rounds away from zero to 3). The same control moving
+    // again within the context window speaks only the new value.
     m_pVolume->set(0.3125); // 5/16
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume 3 eighths", pSpy->lastText);
+    EXPECT_QSTRING_EQ("3 eighths", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_SixteenthsWhenConfigured) {
@@ -1367,7 +1373,7 @@ TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_SixteenthsWhenConfigur
     m_pVolume->set(0.3125); // 5/16 spoken exactly at sixteenth detail
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume 5 sixteenths", pSpy->lastText);
+    EXPECT_QSTRING_EQ("5 sixteenths", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_QuartersWhenConfigured) {
@@ -1385,7 +1391,7 @@ TEST_F(AnnouncementManagerPerformanceTest, FractionDetail_QuartersWhenConfigured
     m_pVolume->set(0.3125); // 5/16 snaps to the nearest quarter
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume a quarter", pSpy->lastText);
+    EXPECT_QSTRING_EQ("a quarter", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, FilterChange_CenterSplitFraction) {
@@ -1403,12 +1409,13 @@ TEST_F(AnnouncementManagerPerformanceTest, FilterChange_CenterSplitFraction) {
     pSuper->set(0.25); // halfway toward full cut = minus a half
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] filter minus a half", pSpy->lastText);
+    EXPECT_QSTRING_EQ("minus a half", pSpy->lastText);
 
+    // Same knob still moving: name-once, value only.
     pSuper->set(0.5);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] filter center", pSpy->lastText);
+    EXPECT_QSTRING_EQ("center", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, MainVolume_Announced) {
@@ -1422,12 +1429,14 @@ TEST_F(AnnouncementManagerPerformanceTest, MainVolume_Announced) {
 
     // [Master],gain is a ControlAudioTaperPot with neutral parameter 0.5; the
     // test CO has no taper behavior attached, so getParameter() is identity
-    // and the raw value IS the fader parameter here. 0.25 is a quarter of the
-    // way from minimum to center, i.e. half of the cut range below center.
-    pMainGain->set(0.25); // half of the cut range = minus a half
+    // and the raw value IS the knob parameter here. Spoken as plain knob
+    // travel — a center-split "minus" readout made testers think the volume
+    // itself had gone negative.
+    pMainGain->set(0.25);
     QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Main volume", pSpy->lastText) << "name on touch";
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Main volume minus a half", pSpy->lastText);
+    EXPECT_QSTRING_EQ("a quarter", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, Recording_StartAndStop_Announced) {
@@ -1632,7 +1641,7 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_IncludesNewBpm) {
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
 
-    EXPECT_QSTRING_EQ("[TestChannel1] Pitch up 5 percent. 131 B P M", pSpy->lastText);
+    EXPECT_QSTRING_EQ("up 5 percent. 131 B P M", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -1711,11 +1720,11 @@ TEST_F(AnnouncementManagerTest, CrossfaderMove_WhileLocked_Silent) {
             QStringLiteral("[Master]"), QStringLiteral("crossfader")));
     SpyTtsEngine* pSpy = makeManager(); // proxies attach in init()
 
-    // Unlocked: moving the crossfader speaks its position.
+    // Unlocked: moving the crossfader names it, then speaks its position.
     pCrossfader->set(-1.0);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Crossfader left full", pSpy->lastText);
+    EXPECT_QSTRING_EQ("left full", pSpy->lastText);
 
     pLock->set(1.0);
     QCoreApplication::processEvents();
@@ -1729,13 +1738,15 @@ TEST_F(AnnouncementManagerTest, CrossfaderMove_WhileLocked_Silent) {
     EXPECT_EQ(callsAfterLock, pSpy->callCount)
             << "crossfader position must not be announced while locked";
 
-    // Unlocking restores the readout.
+    // Unlocking restores the readout ("Crossfader unlocked" reset the
+    // spoken context, so the move names the fader again before the value).
     pLock->set(0.0);
     QCoreApplication::processEvents();
     pCrossfader->set(0.0);
     QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Crossfader", pSpy->lastText);
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Crossfader center", pSpy->lastText);
+    EXPECT_QSTRING_EQ("center", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, DisableTouchScratch_Announced) {
@@ -1827,7 +1838,7 @@ TEST_F(AnnouncementManagerPerformanceTest, Trim_CenterSplit) {
     pPregain->set(0.375); // a quarter below unity
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] trim minus a quarter", pSpy->lastText);
+    EXPECT_QSTRING_EQ("minus a quarter", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -1859,13 +1870,13 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_TaperedControl_HalfFader
                "isn't exercising the bug";
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume a half", pSpy->lastText)
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText)
             << "announcement must read the fader position, not the tapered "
                "gain value: "
             << pSpy->lastText.toStdString();
 }
 
-TEST_F(AnnouncementManagerPerformanceTest, MainVolume_TaperedControl_CenterIsCenter) {
+TEST_F(AnnouncementManagerPerformanceTest, MainVolume_TaperedControl_ReadsKnobTravel) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
             true);
@@ -1874,15 +1885,16 @@ TEST_F(AnnouncementManagerPerformanceTest, MainVolume_TaperedControl_CenterIsCen
             ConfigKey(QStringLiteral("[Master]"), QStringLiteral("gain")), -14, 14, 0.5);
     SpyTtsEngine* pSpy = makeManager();
 
-    // The constructor already sets parameter to neutralParameter (0.5, i.e.
-    // this same "center" value), so setParameter(0.5) alone would be a no-op
-    // that never fires valueChanged. Move away first to force a real
-    // transition back to center.
+    // The constructor already sets parameter to neutralParameter (0.5), so
+    // setParameter(0.5) alone would be a no-op that never fires
+    // valueChanged. Move away first to force a real transition back.
     pMainGain->setParameter(0.0);
     pMainGain->setParameter(0.5); // knob centered = unity gain = 0 dB
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Main volume center", pSpy->lastText);
+    // Plain knob travel, read from the parameter (not the dB-tapered gain
+    // value): center of the knob is "a half", not "center" or a taper echo.
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, EffectUnitMix_Announced) {
@@ -1895,8 +1907,9 @@ TEST_F(AnnouncementManagerPerformanceTest, EffectUnitMix_Announced) {
 
     pMix->set(0.5);
     QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Effect 1 mix", pSpy->lastText) << "name on touch";
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Effect 1 mix a half", pSpy->lastText);
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, WhileMoving_SpeaksImmediately) {
@@ -2212,7 +2225,7 @@ TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_Percent_Volume) {
     m_pVolume->set(0.75);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume 75 percent", pSpy->lastText);
+    EXPECT_QSTRING_EQ("75 percent", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_Percent_CenterSplit) {
@@ -2231,7 +2244,7 @@ TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_Percent_CenterSplit
     pPregain->set(0.25); // half below center on the -1..1 split scale
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] trim minus 50 percent", pSpy->lastText);
+    EXPECT_QSTRING_EQ("minus 50 percent", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_DefaultIsFractions) {
@@ -2245,7 +2258,7 @@ TEST_F(AnnouncementManagerPerformanceTest, MixerReadoutStyle_DefaultIsFractions)
     m_pVolume->set(0.75);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+    EXPECT_QSTRING_EQ("three quarters", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -2262,8 +2275,9 @@ TEST_F(AnnouncementManagerTest, HeadMix_LeaningCue_Announced) {
 
     pHeadMix->set(-0.75);
     QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Headphone mix", pSpy->lastText) << "name on touch";
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Headphone mix cue three quarters", pSpy->lastText);
+    EXPECT_QSTRING_EQ("cue three quarters", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, HeadMix_LeaningMain_Announced) {
@@ -2277,7 +2291,7 @@ TEST_F(AnnouncementManagerTest, HeadMix_LeaningMain_Announced) {
     pHeadMix->set(0.5);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Headphone mix main a half", pSpy->lastText);
+    EXPECT_QSTRING_EQ("main a half", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, HeadMix_Even_Announced) {
@@ -2292,7 +2306,7 @@ TEST_F(AnnouncementManagerTest, HeadMix_Even_Announced) {
     pHeadMix->set(0.0);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_QSTRING_EQ("Headphone mix even", pSpy->lastText);
+    EXPECT_QSTRING_EQ("even", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
@@ -2446,4 +2460,243 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_ClippingSilentSpee
     QCoreApplication::processEvents();
     EXPECT_EQ(0, pSpy->callCount)
             << "sounds-only mode must not speak the clipping warning";
+}
+
+// ---------------------------------------------------------------------------
+// Knob/fader announcement context: name-once while the same control keeps
+// moving, jitter suppression for a control resting on the same readout, and
+// context reset when any other announcement interleaves.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, ControlContext_JitterSuppressed) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText) << "name on touch";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
+    const int callsAfterFirst = pSpy->callCount;
+
+    // A worn pot jitters by a hair: same spoken readout, so stay quiet —
+    // neither the name nor the value — instead of chanting forever.
+    m_pVolume->set(0.505);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(callsAfterFirst, pSpy->callCount)
+            << "unchanged readout must be suppressed; spoke: "
+            << pSpy->lastText.toStdString();
+
+    // A real move still gets announced - value only, name already said.
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("three quarters", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, ControlContext_ResetByOtherAnnouncement) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pKeylock = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("keylock")));
+    setupGroup();
+
+    m_pVolume->set(0.25);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("a quarter", pSpy->lastText);
+
+    // An unrelated announcement (keylock) invalidates the context...
+    pKeylock->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] key lock on", pSpy->lastText);
+
+    // ...so the next volume move names the control again on touch.
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText);
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("three quarters", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, NameOnTouch_SilentWhenReadoutUnchanged) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pKeylock = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("keylock")));
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl(); // "…volume" + "a half" spoken
+
+    // Another announcement expires the spoken context...
+    pKeylock->set(1.0);
+    QCoreApplication::processEvents();
+    const int calls = pSpy->callCount;
+
+    // ...but a touch that doesn't change the readout must still stay
+    // completely silent — no name, no value. This is the worn-pot guard:
+    // without it, a jittery pot would announce its name after every
+    // unrelated announcement.
+    m_pVolume->set(0.505);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(calls, pSpy->callCount)
+            << "spoke: " << pSpy->lastText.toStdString();
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, ControlContext_RepeatSpeaksFullText) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.25);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("three quarters", pSpy->lastText);
+
+    // The repeat key restores the full wording even though only the value
+    // was spoken, so "what was that?" always has a complete answer.
+    ControlProxy repeatButton(QStringLiteral("[Tts]"),
+            QStringLiteral("repeat"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    repeatButton.set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume three quarters", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Cue preview earcon: the transport cue tap honors the Cue feedback mode
+// instead of unconditionally speaking "Cue".
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, CuePreview_SoundsOnlyMode_NoSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeCue")),
+            1); // sounds only
+    SpyTtsEngine* pSpy = makeManager();
+    auto pCueDefault = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("cue_default")));
+    setupGroup();
+
+    pCueDefault->set(1.0);
+    setPlay(1.0);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only Cue mode must not speak the cue preview; spoke: "
+            << pSpy->lastText.toStdString();
+}
+
+// ---------------------------------------------------------------------------
+// Controller feedback hooks: [Tts],shift and [Tts],pad_mode.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Shift_AnnouncedOnPressOnly) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],shift control
+
+    ControlProxy shift(QStringLiteral("[Tts]"),
+            QStringLiteral("shift"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    shift.set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Shift", pSpy->lastText);
+    const int callsAfterPress = pSpy->callCount;
+
+    shift.set(0.0); // release stays silent
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterPress, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, PadMode_AnnouncedByVocabulary) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    padMode.set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, hot cues", pSpy->lastText);
+
+    padMode.set(4.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, sampler", pSpy->lastText);
+
+    // Same mode again: no CO change, no announcement - this is what absorbs
+    // the Numark Scratch firing one mode press for both decks.
+    const int calls = pSpy->callCount;
+    padMode.set(4.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(calls, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
+// Search result count folded into the spoken search announcement.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Search_IncludesResultCount) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSearchTextChanged(QStringLiteral("techno"));
+    m_pManager->slotSearchResultCount(42);
+    m_pManager->slotAnnounceSearch();
+    EXPECT_QSTRING_EQ("Searching: techno. 42 tracks", pSpy->lastText);
+
+    m_pManager->slotSearchTextChanged(QStringLiteral("technoz"));
+    m_pManager->slotSearchResultCount(0);
+    m_pManager->slotAnnounceSearch();
+    EXPECT_QSTRING_EQ("Searching: technoz. No tracks", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Search_NoCountReported_PlainAnnouncement) {
+    SpyTtsEngine* pSpy = makeManager();
+
+    // A view that never reports a count (not a track table) must not
+    // inherit a stale count from an earlier query.
+    m_pManager->slotSearchTextChanged(QStringLiteral("house"));
+    m_pManager->slotSearchResultCount(7);
+    m_pManager->slotAnnounceSearch();
+    m_pManager->slotSearchTextChanged(QStringLiteral("garage"));
+    m_pManager->slotAnnounceSearch();
+    EXPECT_QSTRING_EQ("Searching: garage", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// BPM halve/double confirmation (fixing a half-tempo misanalysis by ear).
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, BeatsHalveDouble_Announced) {
+    auto pHalve = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("beats_set_halve")));
+    auto pDouble = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("beats_set_double")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pHalve->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] B P M halved", pSpy->lastText);
+
+    pDouble->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] B P M doubled", pSpy->lastText);
 }

@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <memory>
+#include <vector>
 
 #include "control/controlproxy.h"
 #include "library/library_decl.h"
@@ -125,6 +126,9 @@ class LibraryControl : public QObject {
     // Accessibility: quick keyboard-driven add-to-crate/playlist picker.
     void slotAddToCrate(double v);
     void slotAddToPlaylist(double v);
+    // Opens the crate/playlist picker for the track loaded in the given
+    // deck (1-based).
+    void deckQuickAdd(int deck, bool toPlaylist);
 
     void maybeCreateGroupController(const QString& group);
     void slotNumDecksChanged(double v);
@@ -187,6 +191,11 @@ class LibraryControl : public QObject {
     // Accessibility: quick keyboard-driven add-to-crate/playlist picker.
     std::unique_ptr<ControlObject> m_pAddToCrate;
     std::unique_ptr<ControlObject> m_pAddToPlaylist;
+    // Per-deck variants ([ChannelN],quick_add_to_playlist / _crate): pick up
+    // the track loaded in that deck instead of the library selection, so a
+    // track can be filed into a crate or playlist mid-mix without leaving
+    // the decks.
+    std::vector<std::unique_ptr<ControlObject>> m_deckQuickAddControls;
 
     // Controls to sort the track view
     std::unique_ptr<ControlEncoder> m_pSortColumn;

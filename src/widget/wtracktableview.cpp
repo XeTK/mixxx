@@ -656,6 +656,11 @@ void WTrackTableView::onSearch(const QString& text) {
     TrackId prevTrack = getCurrentTrackId();
     saveCurrentIndex();
     pTrackModel->search(text);
+    // search() applies synchronously; report the filtered row count so the
+    // spoken search announcement can include it.
+    if (m_pLibrary && model()) {
+        m_pLibrary->announceSearchResultCount(model()->rowCount());
+    }
     if (queryIsLessSpecific) {
         // If the user removed query terms, we try to select the same
         // tracks as before
@@ -1515,6 +1520,14 @@ void WTrackTableView::loadSelectedTrackToGroup(const QString& group,
     if (!allowLoadTrackIntoPlayingDeck &&
             !PlayerManager::isPreviewDeckGroup(group) &&
             ControlObject::get(ConfigKey(group, "play")) > 0.0) {
+        // Say why nothing happened: to a blind user a silently ignored load
+        // press is indistinguishable from a broken key.
+        int deckNumber = 0;
+        const QString target = PlayerManager::isDeckGroup(group, &deckNumber)
+                ? tr("Deck %1").arg(deckNumber)
+                : group;
+        m_pLibrary->announceText(
+                tr("%1 is playing, load blocked. Stop the deck first.").arg(target));
         return;
     }
     auto index = indices.at(0);
@@ -1720,6 +1733,13 @@ void WTrackTableView::quickAddSelectionToPlaylist() {
         m_pLibrary->announceQuickPickerItem(tr("No track selected"));
         return;
     }
+    quickAddTracksToPlaylist(trackIds);
+}
+
+void WTrackTableView::quickAddTracksToPlaylist(const QList<TrackId>& trackIds) {
+    if (trackIds.isEmpty()) {
+        return;
+    }
 
     PlaylistDAO& playlistDao = m_pLibrary->trackCollectionManager()
                                        ->internalCollection()
@@ -1752,6 +1772,13 @@ void WTrackTableView::quickAddSelectionToCrate() {
     const QList<TrackId> trackIds = getSelectedTrackIds();
     if (trackIds.isEmpty()) {
         m_pLibrary->announceQuickPickerItem(tr("No track selected"));
+        return;
+    }
+    quickAddTracksToCrate(trackIds);
+}
+
+void WTrackTableView::quickAddTracksToCrate(const QList<TrackId>& trackIds) {
+    if (trackIds.isEmpty()) {
         return;
     }
 

@@ -74,6 +74,10 @@ class WTrackTableView : public WLibraryTableView {
     // spoken as the user arrows through it (see Library::quickPickerItemHighlighted).
     void quickAddSelectionToPlaylist();
     void quickAddSelectionToCrate();
+    // Same pickers for an explicit track list (e.g. the track loaded in a
+    // deck) instead of the table selection.
+    void quickAddTracksToPlaylist(const QList<TrackId>& trackIds);
+    void quickAddTracksToCrate(const QList<TrackId>& trackIds);
 
     void removeSelectedTracks();
     void cutSelectedTracks();

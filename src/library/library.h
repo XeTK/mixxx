@@ -119,6 +119,11 @@ class Library: public QObject {
     /// events with no natural position, e.g. a create/rename dialog opening.
     void announceText(const QString& text);
 
+    /// Reports how many tracks the just-applied library search matched, so
+    /// the spoken search announcement can include the count. Called by the
+    /// track table right after it applies a search.
+    void announceSearchResultCount(int count);
+
   public slots:
     void slotShowTrackModel(QAbstractItemModel* model);
     void slotSwitchToView(const QString& view);
@@ -178,6 +183,9 @@ class Library: public QObject {
     // sidebarItemActivated. Always spoken, since the picker was invoked on
     // purpose so hearing its items isn't optional.
     void quickPickerItemHighlighted(const QString& text, int row, int siblingCount);
+    // The just-applied library search matched `count` tracks; folded into the
+    // spoken search announcement.
+    void searchResultCountChanged(int count);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
 #ifdef __ENGINEPRIME__
     void exportLibrary();

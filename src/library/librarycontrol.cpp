@@ -12,8 +12,10 @@
 #include "control/controlpushbutton.h"
 #include "library/library.h"
 #include "library/libraryview.h"
+#include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "moc_librarycontrol.cpp"
+#include "track/track.h"
 #include "util/cmdlineargs.h"
 #include "widget/wlibrary.h"
 #include "widget/wlibrarysidebar.h"
@@ -344,6 +346,40 @@ LibraryControl::LibraryControl(Library* pLibrary)
                 &ControlPushButton::valueChanged,
                 this,
                 &LibraryControl::slotAddToPlaylist);
+    }
+
+    // Per-deck quick-add: the same pickers, but for the track loaded in a
+    // deck — so a track already playing can be filed into a crate or
+    // playlist without hunting it down in the library again. Fixed at four
+    // decks like the keyboard layouts.
+#ifdef MIXXX_USE_QML
+    if (!CmdlineArgs::Instance().isQml())
+#endif
+    {
+        for (int deck = 1; deck <= 4; ++deck) {
+            const QString group = QStringLiteral("[Channel%1]").arg(deck);
+            const struct {
+                const char* control;
+                bool toPlaylist;
+            } quickAdds[] = {
+                    {"quick_add_to_playlist", true},
+                    {"quick_add_to_crate", false},
+            };
+            for (const auto& quickAdd : quickAdds) {
+                auto pControl = std::make_unique<ControlPushButton>(
+                        ConfigKey(group, QLatin1String(quickAdd.control)));
+                pControl->setButtonMode(mixxx::control::ButtonMode::Trigger);
+                connect(pControl.get(),
+                        &ControlPushButton::valueChanged,
+                        this,
+                        [this, deck, toPlaylist = quickAdd.toPlaylist](double v) {
+                            if (v > 0) {
+                                deckQuickAdd(deck, toPlaylist);
+                            }
+                        });
+                m_deckQuickAddControls.push_back(std::move(pControl));
+            }
+        }
     }
 
     // Sort controls
@@ -747,6 +783,27 @@ void LibraryControl::slotAddToPlaylist(double v) {
     WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
     if (pTrackTableView) {
         pTrackTableView->quickAddSelectionToPlaylist();
+    }
+}
+
+void LibraryControl::deckQuickAdd(int deck, bool toPlaylist) {
+    if (!m_pLibraryWidget) {
+        return;
+    }
+    WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
+    if (!pTrackTableView) {
+        return;
+    }
+    const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(
+            PlayerManager::groupForDeck(deck - 1));
+    if (!pTrack || !pTrack->getId().isValid()) {
+        m_pLibrary->announceText(tr("Deck %1, no track loaded").arg(deck));
+        return;
+    }
+    if (toPlaylist) {
+        pTrackTableView->quickAddTracksToPlaylist({pTrack->getId()});
+    } else {
+        pTrackTableView->quickAddTracksToCrate({pTrack->getId()});
     }
 }
 

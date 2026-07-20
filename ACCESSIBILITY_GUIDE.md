@@ -100,8 +100,11 @@ Frequent events can be signalled with short percussive sounds instead
 of — or as well as — speech. A sound plays instantly and does not tie
 up the speech channel, which matters when you are acting fast. The
 events covered are play, stop, end of track, headphone cue on/off,
-jumping back to the start of the track, loop on/off, and audio
-clipping; everything else is always spoken.
+tapping the cue button (cue preview — a single very short high tick,
+so rapid cue taps while beatmatching read as a rhythm instead of "Cue
+Cue Cue"), jumping back to the start of the track, loop on/off, and
+audio clipping; everything else is always spoken. The cue tap follows
+the same "Headphone cue feedback" combo as the headphone cue.
 
 Set them under Preferences, Accessibility. The core four (play, stop,
 end of track, headphone cue) live in the Playback Announcements group,
@@ -162,6 +165,22 @@ the sound alone is just the alert.
   Press again to return to normal stereo cueing.
 - The headphone mix knob still works in split mode: turning it toward
   main blends the master output into both ears.
+- Fixing a wrong BPM analysis: fast genres (drum and bass, footwork,
+  hard techno) are often analysed at half their real tempo. Control
+  plus Alt plus D doubles deck 1's BPM grid, Control plus Alt plus H
+  halves it; add Shift for deck 2. Each press confirms itself ("Deck 1
+  B P M doubled") — then Alt plus 5 or 6 reads the exact new number.
+- Quantize toggle: Control plus Alt plus Q for deck 1, add Shift for
+  deck 2. Quantize snaps cues, loops, and play presses to the beat
+  grid; it's on by default and remembered per deck across restarts, so
+  if it ever ends up off this is the way back on. Both states are
+  spoken ("Deck 1 quantize on").
+- Filing the playing track: Control plus Alt plus P opens the playlist
+  picker for the track loaded in deck 1, Control plus Alt plus C the
+  crate picker; add Shift for deck 2. It's the same spoken menu as the
+  library's Alt plus Shift plus P/C, but for what's on the deck — so
+  when a track is going down well you can file it mid-mix without
+  hunting it down in the library. The add is confirmed out loud.
 
 ## What gets announced automatically
 
@@ -206,7 +225,8 @@ Effects (its own "Announce effects" checkbox, on by default):
 Mixer (off by default — turn on "Announce mixer controls"):
 
 - Channel volume faders, trim knobs, EQ knobs, filter knobs
-- Main and headphone volume
+- Main and headphone volume, spoken as plain knob travel ("Headphone
+  volume three quarters"); the halfway point is unity gain
 - Crossfader position
 - Headphone mix (how much cue vs. main you hear), for example
   "Headphone mix cue three quarters" or "Headphone mix main a half"
@@ -223,13 +243,32 @@ If you prefer running commentary while a control moves, enable
 "Announce controls while they move"; otherwise only the resting value
 is spoken.
 
+The name and the value are split around the movement: the moment a
+control starts moving it names itself ("Deck 1 volume"), and the value
+("three quarters") follows once it stops. Keep adjusting the same
+control and you hear only new values — "a half", "5 eighths" — with no
+chatter while it travels. After anything else is announced, or about
+eight seconds of quiet, the next touch names the control again. A
+control that lands back on the readout it already announced stays
+silent entirely — no name, no value — so a worn, jittery pot can't
+chant at you, and nudging a knob that's already where you want it says
+nothing new. ("Announce controls while they move" overrides all of
+this with running values as before.)
+
 Library:
 
 - The focused pane: search bar, sidebar, or track list
 - Sidebar items as you arrow through them, with your position ("3 of
   12") and, for folders, whether they are expanded and how many items
   are inside
-- Search feedback while typing
+- Search feedback while typing, including how many tracks matched
+  ("Searching: techno. 42 tracks") — the search box understands
+  filters like `bpm:170-180`, `key:am`, `genre:jungle`, and
+  `year:>2020`, so this doubles as a spoken way to slice the library
+- Loading into a playing deck, when "Loading a track, when deck is
+  playing" is set to Reject (the default), speaks why nothing
+  happened: "Deck 1 is playing, load blocked. Stop the deck first."
+  instead of silently ignoring the keypress
 - Confirmation when you add a track to or remove it from a playlist
   or crate
 - With a track selected, Alt plus Shift plus C (crate) or Alt plus
@@ -319,6 +358,15 @@ mapped to buttons on a DJ controller:
 - `[BeatClick],enabled` and `[BeatClick],volume` — metronome
 - `[Tts],duckStrength` — music ducking level
 - `[Earcon],volume` — earcon (sound cue) level
+- `[ChannelN],quick_add_to_playlist` / `quick_add_to_crate` — the
+  filing pickers for the track loaded in a deck
+- `[Tts],shift` — set to 1 while a controller's shift button is held;
+  "Shift" is spoken on the press (mappings drive this)
+- `[Tts],pad_mode` — spoken pad-layer feedback for controllers with
+  pad mode buttons; a mapping writes 1 hot cues, 2 beat loop, 3 beat
+  jump, 4 sampler, 5 keyboard, 6 pad effects 1, 7 pad effects 2,
+  8 key shift, 9 loop roll. Writing the value already set stays
+  silent.
 
 ### Numark Scratch (built in)
 
@@ -338,10 +386,13 @@ layer on the Shift button (hold Shift, then press):
 Each action confirms itself out loud. Without Shift, all these buttons
 keep their normal functions, and Effect Unit 2's three FX buttons
 (Reverb, V.Echo, Phaser) are untouched — Shift still toggles those
-effects individually, same as upstream. (The single pad-mode selector
-button was deliberately left alone: it cycles blind through Hotcue,
-Roll, and Sampler with no way to tell which state you're in without
-looking, so it isn't a reliable target for a blind DJ.)
+effects individually, same as upstream.
+
+Two spoken confirmations cover the layer itself: pressing Shift says
+"Shift", and the pad-mode selector button announces where the pads
+landed ("Pads, hot cues", "Pads, loop roll", "Pads, sampler") each
+time it cycles — so the blind-cycling mode button is now usable: press
+it until you hear the layer you want.
 
 ### Pioneer DDJ-400 (built in, opt-in)
 
@@ -367,6 +418,13 @@ deck 2). Shift plus pads 1 to 6 deliberately do nothing, so a stray
 press can't clear stored hotcues. The other pad modes (Beat Loop, Beat
 Jump, Sampler) are unaffected. Untick the setting to get normal hot
 cues back.
+
+Independent of that setting, the mapping speaks the layer buttons
+themselves: pressing Shift says "Shift", and each pad mode button
+announces the layer it selected — "Pads, hot cues", "Pads, beat
+loop", "Pads, beat jump", "Pads, sampler", and the shifted modes
+("Pads, keyboard", "Pads, pad effects 1", "Pads, pad effects 2",
+"Pads, key shift"). Pressing the mode you're already in stays silent.
 
 ## Timecode vinyl (DVS)
 

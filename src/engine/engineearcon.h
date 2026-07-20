@@ -34,6 +34,7 @@ class EngineEarcon {
         LoopOn,
         LoopOff,
         Clipping,
+        CuePreview,
     };
     enum class Pan {
         Left = 0,

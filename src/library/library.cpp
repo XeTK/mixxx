@@ -486,6 +486,10 @@ void Library::announceText(const QString& text) {
     emit quickPickerItemHighlighted(text, -1, 0);
 }
 
+void Library::announceSearchResultCount(int count) {
+    emit searchResultCountChanged(count);
+}
+
 void Library::bindLibraryWidget(
         WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) {
     m_pLibraryWidget = pLibraryWidget;
