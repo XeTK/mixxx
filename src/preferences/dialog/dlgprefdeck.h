@@ -46,6 +46,14 @@ const ConfigKey kConfigKeyLoadWhenDeckPlaying = ConfigKey("[Controls]", "LoadWhe
 const ConfigKey kConfigKeyAllowTrackLoadToPlayingDeck =
         ConfigKey("[Controls]", "AllowTrackLoadToPlayingDeck");
 constexpr LoadWhenDeckPlaying kDefaultLoadWhenDeckPlaying = LoadWhenDeckPlaying::Reject;
+// Smart cue (like Denon players): loading a track into a stopped deck moves
+// the headphone cue there automatically. A general deck-loading behavior, not
+// accessibility-specific, so it lives here rather than in
+// AccessibilitySettings — AnnouncementManager reads these same constants to
+// decide whether to move the cue, and speaks the result via its existing cue
+// announcements.
+const ConfigKey kConfigKeySmartCue = ConfigKey("[Controls]", "SmartCue");
+constexpr bool kDefaultSmartCue = true;
 } // namespace
 
 class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
@@ -78,6 +86,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
     void slotDisablePreRollCheckbox(bool);
     void slotPreRollLimitBeatsSpinBox(int);
     void slotDisableTouchScratchCheckbox(bool);
+    void slotSmartCueCheckbox(bool);
     void slotRateRampingModeLinearButton(bool);
     void slotRateRampSensitivitySlider(int);
 
@@ -131,6 +140,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg {
     bool m_bDisablePreRoll;
     int m_iPreRollLimitBeats;
     bool m_bDisableTouchScratch;
+    bool m_bSmartCue;
 
     int m_iRateRangePercent;
     bool m_bRateDownIncreasesSpeed;

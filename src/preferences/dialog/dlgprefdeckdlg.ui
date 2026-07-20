@@ -282,6 +282,26 @@ You can always drag-and-drop tracks on screen to clone a deck.</string>
         </property>
        </widget>
       </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="labelSmartCue">
+        <property name="text">
+         <string>Headphone cue on load</string>
+        </property>
+        <property name="buddy">
+         <cstring>checkBoxSmartCue</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1" colspan="2">
+       <widget class="QCheckBox" name="checkBoxSmartCue">
+        <property name="toolTip">
+         <string>Loading a track into a deck that is not playing moves the headphone cue (PFL) to that deck automatically, like the smart cue on Denon players. A playing deck never has its cue taken away.</string>
+        </property>
+        <property name="text">
+         <string>Smart cue: headphone cue follows loaded track</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

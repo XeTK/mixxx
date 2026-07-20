@@ -79,7 +79,6 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceLoad(m_settings.getAnnounceTrackLoadDefault()),
           m_bAnnouncePlay(m_settings.getAnnouncePlayDefault()),
           m_bAnnounceCue(m_settings.getAnnounceCueDefault()),
-          m_bSmartCue(m_settings.getSmartCueDefault()),
           m_bAnnounceStop(m_settings.getAnnounceStopDefault()),
           m_bAnnounceEndOfTrack(m_settings.getAnnounceEndOfTrackDefault()),
           m_bAnnounceLibraryFocus(m_settings.getAnnounceLibraryFocusDefault()),
@@ -249,10 +248,6 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bAnnounceCue = checked; });
-    connect(checkBoxSmartCue,
-            &QCheckBox::toggled,
-            this,
-            [this](bool checked) { m_bSmartCue = checked; });
     connect(checkBoxAnnounceStop,
             &QCheckBox::toggled,
             this,
@@ -497,7 +492,6 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoad();
     m_bAnnouncePlay = m_settings.getAnnouncePlay();
     m_bAnnounceCue = m_settings.getAnnounceCue();
-    m_bSmartCue = m_settings.getSmartCue();
     m_bAnnounceStop = m_settings.getAnnounceStop();
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrack();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocus();
@@ -523,7 +517,6 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceLoad->setChecked(m_bAnnounceLoad);
     checkBoxAnnouncePlay->setChecked(m_bAnnouncePlay);
     checkBoxAnnounceCue->setChecked(m_bAnnounceCue);
-    checkBoxSmartCue->setChecked(m_bSmartCue);
     checkBoxAnnounceStop->setChecked(m_bAnnounceStop);
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);
@@ -561,7 +554,6 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceTrackLoad(m_bAnnounceLoad);
     m_settings.setAnnouncePlay(m_bAnnouncePlay);
     m_settings.setAnnounceCue(m_bAnnounceCue);
-    m_settings.setSmartCue(m_bSmartCue);
     m_settings.setAnnounceStop(m_bAnnounceStop);
     m_settings.setAnnounceEndOfTrack(m_bAnnounceEndOfTrack);
     m_settings.setAnnounceLibraryFocus(m_bAnnounceLibraryFocus);
@@ -646,7 +638,6 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceLoad = m_settings.getAnnounceTrackLoadDefault();
     m_bAnnouncePlay = m_settings.getAnnouncePlayDefault();
     m_bAnnounceCue = m_settings.getAnnounceCueDefault();
-    m_bSmartCue = m_settings.getSmartCueDefault();
     m_bAnnounceStop = m_settings.getAnnounceStopDefault();
     m_bAnnounceEndOfTrack = m_settings.getAnnounceEndOfTrackDefault();
     m_bAnnounceLibraryFocus = m_settings.getAnnounceLibraryFocusDefault();
@@ -672,7 +663,6 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceLoad->setChecked(m_bAnnounceLoad);
     checkBoxAnnouncePlay->setChecked(m_bAnnouncePlay);
     checkBoxAnnounceCue->setChecked(m_bAnnounceCue);
-    checkBoxSmartCue->setChecked(m_bSmartCue);
     checkBoxAnnounceStop->setChecked(m_bAnnounceStop);
     checkBoxAnnounceEndOfTrack->setChecked(m_bAnnounceEndOfTrack);
     checkBoxAnnounceLibraryFocus->setChecked(m_bAnnounceLibraryFocus);

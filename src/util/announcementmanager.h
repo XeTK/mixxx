@@ -168,6 +168,10 @@ class AnnouncementManager : public QObject {
     EngineEarcon* m_pEarcon{nullptr};
     std::unique_ptr<ControlProxy> m_pSampleRate;
     AccessibilitySettings m_settings;
+    // Raw config, for settings that are not accessibility-specific (e.g.
+    // smart cue, stored under [Controls] and owned by DlgPrefDeck) but that
+    // this class still needs to read.
+    UserSettingsPointer m_pConfig;
     QString m_currentTtsVoiceId;
     int m_currentTtsRate{0};
     int m_currentTtsRoute{-1};

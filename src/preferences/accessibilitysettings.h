@@ -165,16 +165,8 @@ class AccessibilitySettings {
             "AnnouncePlaylist",
             true);
 
-    // Smart cue (like Denon players): loading a track into a deck that is
-    // not playing moves the headphone cue (PFL) to that deck exclusively,
-    // so the freshly loaded track is what you preview next — no need to
-    // find the cue buttons after every load. Loads into a playing deck
-    // never steal the cue.
-    DEFINE_PREFERENCE_HELPERS(SmartCue,
-            bool,
-            "[Accessibility]",
-            "SmartCue",
-            true);
+    // Smart cue lives in DlgPrefDeck / [Controls] (see dlgprefdeck.h) — it
+    // is a general deck-loading behavior, not accessibility-specific.
 
     // How fader/knob positions are spoken: 0 = fractions ("three quarters"),
     // 1 = percentages ("75 percent").

@@ -14,6 +14,10 @@
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
+// For kConfigKeySmartCue/kDefaultSmartCue: smart cue is a general
+// deck-loading behavior configured in Deck preferences, not an
+// accessibility-specific setting, so it isn't in AccessibilitySettings.
+#include "preferences/dialog/dlgprefdeck.h"
 #include "proto/keys.pb.h"
 #include "track/beats.h"
 #include "track/keyutils.h"
@@ -335,6 +339,7 @@ AnnouncementManager::AnnouncementManager(
           m_pTtsSink(pTtsSink),
           m_pEarcon(pEarcon),
           m_settings(pConfig),
+          m_pConfig(pConfig),
           m_pPlayerManager(pPlayerManager) {
     if (m_pTts && m_pTtsSink) {
         m_pTts->setSink(m_pTtsSink);
@@ -1538,7 +1543,7 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
     // playing: a live deck never has its cue stolen mid-mix. The pfl
     // changes themselves are announced by the existing cue observers.
     if (!pTrack || deckIndex < 0 || !m_pPlayerManager ||
-            !m_settings.getSmartCue()) {
+            !m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue)) {
         return;
     }
     const QString group = PlayerManager::groupForDeck(deckIndex);

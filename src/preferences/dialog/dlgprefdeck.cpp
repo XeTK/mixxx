@@ -253,6 +253,13 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             this,
             &DlgPrefDeck::slotDisableTouchScratchCheckbox);
 
+    m_bSmartCue = m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue);
+    checkBoxSmartCue->setChecked(m_bSmartCue);
+    connect(checkBoxSmartCue,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefDeck::slotSmartCueCheckbox);
+
     m_bRateDownIncreasesSpeed = m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("RateDir")), kDefaultRateDirectionInverted);
     setRateDirectionForAllDecks(m_bRateDownIncreasesSpeed);
@@ -482,6 +489,8 @@ void DlgPrefDeck::slotUpdate() {
     checkBoxDisableTouchScratch->setChecked(m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")), false));
 
+    checkBoxSmartCue->setChecked(m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue));
+
     spinBoxPreRollLimitBeats->setValue(m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("PreRollLimitBeats")), 4));
 
@@ -574,6 +583,7 @@ void DlgPrefDeck::slotResetToDefaults() {
     checkBoxDisablePreRoll->setChecked(true);
     spinBoxPreRollLimitBeats->setValue(4);
     checkBoxDisableTouchScratch->setChecked(false);
+    checkBoxSmartCue->setChecked(kDefaultSmartCue);
 
     // Mixxx cue mode
     ComboBoxCueMode->setCurrentIndex(0);
@@ -676,6 +686,10 @@ void DlgPrefDeck::slotPreRollLimitBeatsSpinBox(int value) {
 
 void DlgPrefDeck::slotDisableTouchScratchCheckbox(bool checked) {
     m_bDisableTouchScratch = checked;
+}
+
+void DlgPrefDeck::slotSmartCueCheckbox(bool checked) {
+    m_bSmartCue = checked;
 }
 
 void DlgPrefDeck::slotSetTrackTimeDisplay(QAbstractButton* b) {
@@ -786,6 +800,8 @@ void DlgPrefDeck::slotApply() {
     m_pConfig->setValue(ConfigKey(kControlsGroup, QStringLiteral("DisableTouchScratch")),
             m_bDisableTouchScratch);
     m_pDisableTouchScratch->set(m_bDisableTouchScratch ? 1.0 : 0.0);
+
+    m_pConfig->setValue(kConfigKeySmartCue, m_bSmartCue);
 
     // Set rate range
     // Set the config value before setting the CO values in setRateRangeForAllDecks()

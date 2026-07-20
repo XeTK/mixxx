@@ -2753,7 +2753,7 @@ TEST_F(AnnouncementManagerTest, SmartCue_PlayingDeckKeepsItsCue) {
 
 TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
     config()->setValue(
-            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("SmartCue")),
+            ConfigKey(QStringLiteral("[Controls]"), QStringLiteral("SmartCue")),
             false);
     auto pPfl1 = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));

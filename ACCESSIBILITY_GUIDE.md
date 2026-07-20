@@ -187,8 +187,10 @@ the sound alone is just the alert.
   The switch is spoken through the normal cue announcements ("Deck 2
   headphone cue on. Deck 1 headphone cue off"). A playing deck never
   has its cue taken away, and loading into a playing deck (when
-  allowed) doesn't touch the cue at all. Turn it off with the "Smart
-  cue" checkbox in Preferences, Accessibility.
+  allowed) doesn't touch the cue at all. This is a general deck-loading
+  behavior, not accessibility-specific, so it's not tucked away on the
+  Accessibility page — turn it off with the "Smart cue" checkbox in
+  Preferences, Decks, next to "Loading a track, when deck is playing".
 
 ## What gets announced automatically
 
@@ -331,7 +333,10 @@ All settings live under Options, Preferences, Accessibility. In order:
     effects" — most with their own feedback-style combo
     (speech/sounds/both) for play, stop, end of track, headphone cue,
     back-to-start, and loop on/off
-12. Smart cue: headphone cue follows the loaded track (on by default)
+
+Smart cue (headphone cue follows the loaded track, on by default) is a
+general deck-loading behavior rather than an accessibility setting, so
+it lives in Preferences, Decks instead — see "Performance tools" above.
 
 ## Using a screen reader alongside Mixxx
 
