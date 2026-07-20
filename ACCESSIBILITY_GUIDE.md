@@ -444,9 +444,12 @@ Two more settings live next to it on the same page:
   scratch playback; the platter still nudges the pitch for
   beatmatching, and Shift plus jog still seeks.
 - "Jog wheel sensitivity" — scales how strongly the jog nudges the
-  pitch (and how fast scratching responds while scratching is
-  enabled). 1.0 is the stock feel; lower is gentler, higher more
-  aggressive.
+  pitch, how fast Shift plus jog seeks through the track, and how
+  fast scratching responds while scratching is enabled. 1.0 is the
+  stock feel; lower is gentler, higher more aggressive. (Shift plus
+  jog is the mapping's fast seek — deliberately quick, about 150
+  times a normal nudge, for skipping through a track; if it feels
+  like the track "shoots along", lower this setting.)
 
 Independent of that setting, the mapping speaks the layer buttons
 themselves: pressing Shift says "Shift", and each pad mode button

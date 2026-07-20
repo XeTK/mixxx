@@ -36,7 +36,7 @@
                 default="1.0"
                 label="Jog wheel sensitivity">
                 <description>
-                    Scales how strongly the jog wheel nudges the pitch (and how fast scratching responds while jog scratching is enabled). 1.0 is the stock feel; lower is gentler, higher is more aggressive.
+                    Scales how strongly the jog wheel nudges the pitch, how fast Shift plus jog seeks through the track, and how fast scratching responds while jog scratching is enabled. 1.0 is the stock feel; lower is gentler, higher is more aggressive.
                 </description>
             </option>
         </group>

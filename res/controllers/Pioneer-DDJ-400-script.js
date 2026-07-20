@@ -490,7 +490,11 @@ PioneerDDJ400.jogTurn = function(channel, _control, value, _status, group) {
 
 
 PioneerDDJ400.jogSearch = function(_channel, _control, value, _status, group) {
-    const newVal = (value - 64) * PioneerDDJ400.fastSeekScale;
+    // Shift+jog fast seek (stock mapping behavior, x150). Scaled by the jog
+    // sensitivity setting so turning sensitivity down tames this too - at
+    // stock feel it covers a lot of track very quickly, which is startling
+    // without visual feedback.
+    const newVal = (value - 64) * PioneerDDJ400.fastSeekScale * PioneerDDJ400.jogSensitivity;
     engine.setValue(group, "jog", newVal);
 };
 
