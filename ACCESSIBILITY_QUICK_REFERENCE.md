@@ -46,7 +46,26 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
 
 - `Shift+Left` / `Shift+Right` — Load the highlighted library track
   to deck 1 / deck 2, with an announcement of deck, artist, title,
-  BPM, and key.
+  BPM, and key. If the deck is playing and loading is set to Reject,
+  Mixxx says why nothing happened ("Deck 1 is playing, load
+  blocked") instead of staying silent. With Smart cue on (the
+  default, Preferences > Decks), loading into a stopped deck also
+  moves the headphone cue there automatically.
+
+## Fixing a wrong BPM analysis
+
+Fast tracks (drum and bass, footwork) are often analysed at half
+their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
+
+- `Ctrl+Alt+H` — Halve the deck's BPM grid ("Deck 1 B P M halved").
+- `Ctrl+Alt+D` — Double it ("Deck 1 B P M doubled"). Check the
+  result with `Alt+5` / `Alt+6`.
+
+## Quantize
+
+- `Ctrl+Alt+Q` — Quantize on/off for deck 1 (add `Shift` for
+  deck 2). Spoken both ways; the state is remembered per deck across
+  restarts.
 
 ## Adding a track to a crate or playlist
 
@@ -56,6 +75,14 @@ With a track selected in the library:
   arrow through it to hear each one (with its position, e.g. "House,
   2 of 5"), `Enter` to add, `Escape` to cancel.
 - `Alt+Shift+P` — Add to playlist. Same as above, for playlists.
+
+For the track loaded in a deck (no library selection needed — file
+what's playing mid-mix):
+
+- `Ctrl+Alt+C` — Add deck 1's loaded track to a crate (add `Shift`
+  for deck 2).
+- `Ctrl+Alt+P` — Add deck 1's loaded track to a playlist (add
+  `Shift` for deck 2).
 
 If you have none yet, it speaks a reminder instead of opening an empty
 menu: `Ctrl+Shift+N` makes a new crate, `Ctrl+N` a new playlist.
@@ -85,6 +112,11 @@ Without Shift everything behaves as normal. Effect Unit 2's FX buttons
 (Reverb/V.Echo/Phaser) keep their usual Shift-to-toggle-that-effect
 behavior — only Unit 1's three are repurposed.
 
+Pressing Shift itself says "Shift", and the pad-mode selector button
+announces where the pads landed each time it cycles — "Pads, hot
+cues", "Pads, loop roll", "Pads, sampler" — so press it until you
+hear the layer you want.
+
 ## Pioneer DDJ-400 accessibility pads (opt-in)
 
 Turn on "Use the Hot Cue pads as accessibility pads" under
@@ -99,12 +131,23 @@ speak deck 1, right pads deck 2:
 - Pad 6 — Track name
 - Pad 7 — Repeat last announcement
 - Pad 8 — Beat click metronome on/off
+- `Shift+Pad 1` — Halve this deck's BPM grid
+- `Shift+Pad 2` — Double this deck's BPM grid
 - `Shift+Pad 7` — Per-deck split cue on/off
 - `Shift+Pad 8` — Speech on/off
 
 Hot cues are unavailable from the pads while this is on (Shift+pads
-1-6 do nothing, so nothing can be cleared by accident). Untick the
+3-6 do nothing, so nothing can be cleared by accident). Untick the
 setting to get normal hot cues back; other pad modes are unaffected.
+
+Independent of that setting: pressing Shift says "Shift", and each
+pad mode button announces its layer ("Pads, hot cues", "Pads, beat
+loop", "Pads, beat jump", "Pads, sampler", plus the shifted modes).
+Two more settings on the same preferences page: "Disable jog wheel
+scratching" (platter touch does nothing; rotation still nudges
+pitch) and "Jog wheel sensitivity" (scales the nudge, the Shift+jog
+fast seek, and the scratch response — lower it if Shift+jog feels
+like the track shoots along).
 
 ## Where the rest lives
 

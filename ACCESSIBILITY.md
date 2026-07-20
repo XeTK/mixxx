@@ -101,23 +101,40 @@ Key source files:
 - Loop size changes
 - Pitch-fader position after it stops moving
 - Trim knobs and effect-unit mix/super knobs
+- BPM grid halve/double confirmations (`beats_set_halve`/`_double`,
+  bound to `Ctrl+Alt+H`/`Ctrl+Alt+D`, `+Shift` for deck 2 — for
+  fixing a half-tempo analysis by ear)
 - Recording started / stopped
 - Optionally, continuous controls can announce *while* they move
   (throttled) instead of only at rest
 - Volume faders, EQ knobs, the crossfader, and the headphone mix
   (cue vs. main) knob (opt-in — off by default because these move
   constantly during a mix); spoken as fractions or, if preferred,
-  percentages (`MixerReadoutStyle` setting)
+  percentages (`MixerReadoutStyle` setting). These readouts split the
+  name and value around the movement: a control names itself the
+  moment it starts moving ("Deck 1 volume"), the value follows once
+  it rests ("three quarters"), continued adjustment speaks values
+  only, and a control landing back on its last-spoken readout stays
+  silent entirely (so a worn, jittery pot can't chant at you)
+- Controller layer feedback via mapping-driven controls: `[Tts],shift`
+  speaks "Shift" on press, `[Tts],pad_mode` speaks which pad layer a
+  mode button selected (fixed vocabulary; same-value writes silent)
 - Audio clipping on the main output (on by default; throttled)
 - Sidebar item names while navigating with arrow keys
 - Library pane focus changes (search bar / sidebar / track list)
-- Search feedback ("Searching: …" / "Search cleared")
+- Search feedback with the match count ("Searching: techno. 42
+  tracks" / "Search cleared")
+- Why a track load was refused ("Deck 1 is playing, load blocked")
+  when "Loading a track, when deck is playing" is set to Reject
 - On-demand track re-announce per deck (`tts_track`), for re-hearing
   a loaded track's name mid-set
 - Quick add-to-crate / add-to-playlist (`Alt+Shift+C` / `Alt+Shift+P`):
   a small menu of your crate or playlist names pops up next to the
   selected track, each name spoken (with its position) as you arrow
-  through it, `Enter` to add
+  through it, `Enter` to add. The same pickers exist per deck for the
+  loaded track (`[ChannelN],quick_add_to_crate`/`_playlist`, bound to
+  `Ctrl+Alt+C`/`Ctrl+Alt+P`, `+Shift` for deck 2), so what's playing
+  can be filed without finding it in the library again
 - The New Playlist / New Crate dialogs (`Ctrl+N` / `Ctrl+Shift+N`):
   Mixxx speaks that the dialog opened and that its text box already has
   a name filled in and selected, ready to type over; after you press
@@ -136,14 +153,16 @@ Key source files:
 Each category can be toggled independently in Preferences >
 Accessibility.
 
-Play, stop, end of track, headphone cue, back-to-start, and loop on/off
-can alternatively (or additionally) be signalled with short percussive
+Play, stop, end of track, headphone cue, the transport cue tap (cue
+preview — a single short tick so rapid taps while beatmatching read
+as a rhythm, not "Cue Cue Cue"), back-to-start, and loop on/off can
+alternatively (or additionally) be signalled with short percussive
 **earcons** instead of speech, chosen independently per event (with an
-"All transport feedback" preset covering the first four). Earcons are
-deck-panned (deck 1 left, deck 2 right; clipping is centered),
-synthesized in `src/engine/engineearcon.cpp` and mixed into the
-headphone bus like the beat click. Level is the `[Earcon],volume`
-control.
+"All transport feedback" preset covering the first four; the cue tap
+follows the headphone-cue combo). Earcons are deck-panned (deck 1
+left, deck 2 right; clipping is centered), synthesized in
+`src/engine/engineearcon.cpp` and mixed into the headphone bus like
+the beat click. Level is the `[Earcon],volume` control.
 
 ## Other accessibility changes
 
@@ -158,6 +177,20 @@ control.
 - `[Master],disable_touch_scratch` control and a "disable jog wheel and
   waveform touch scratching" checkbox under Preferences > Decks, backing
   the `Alt+J` jog wheel touch lock described above.
+- **Smart cue** (`[Controls],SmartCue`, checkbox under Preferences >
+  Decks next to "Loading a track, when deck is playing"; on by
+  default): loading a track into a deck that is not playing moves the
+  headphone cue (PFL) to that deck exclusively, like the smart cue on
+  Denon players. A playing deck never has its cue taken away. The
+  switch is spoken through the normal cue announcements. Lives in Deck
+  preferences because it's a general deck-loading behavior, not an
+  accessibility-specific one.
+- Quantize got its first keyboard binding (`Ctrl+Alt+Q`, `+Shift` for
+  deck 2) in all shipped layouts.
+- DDJ-400 mapping settings: "Disable jog wheel scratching" (platter
+  touch is a no-op; rotation still nudges pitch, Shift+jog still
+  seeks) and "Jog wheel sensitivity" (0.1–5.0, scales the nudge, the
+  Shift+jog fast seek, and the scratch response).
 - `Alt+Shift+A` TTS toggle added to all shipped keyboard layouts.
 - Vinyl control (DVS) transport arbitration
   (`[ChannelN],vinylcontrol_transport_active`): while the timecode

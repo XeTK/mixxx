@@ -87,6 +87,35 @@ Both files are in the same folder as this one.
   pads") turns the Hot Cue pads into spoken deck info, repeat, beat
   click, split cue, and speech toggles — see the guide for the pad
   layout.
+- Mixer readouts name themselves the moment a control moves ("Deck 1
+  volume"), speak just the value once it stops ("three quarters"),
+  and stay quiet when nothing actually changed — a worn, jittery
+  knob can no longer repeat the same value at you.
+- Smart cue (Preferences > Decks, on by default): loading a track
+  into a stopped deck moves the headphone cue there automatically,
+  like Denon players — the thing you just loaded is what you preview
+  next. A playing deck never loses its cue.
+- Rapid cue taps can be a short tick instead of "Cue Cue Cue" — set
+  "Headphone cue feedback" to Sounds.
+- Loading into a playing deck (when set to Reject) says why nothing
+  happened instead of silently ignoring the keypress, and library
+  searches speak how many tracks matched ("Searching: techno. 42
+  tracks").
+- File the playing track mid-mix: `Ctrl+Alt+P` / `Ctrl+Alt+C` open
+  the spoken playlist/crate picker for the track loaded in deck 1
+  (add `Shift` for deck 2).
+- Fix a wrong BPM analysis by ear: `Ctrl+Alt+H` halves and
+  `Ctrl+Alt+D` doubles a deck's BPM grid (add `Shift` for deck 2),
+  spoken both ways — also on the DDJ-400 accessibility pads as
+  Shift+Pad 1 / Shift+Pad 2. Quantize gets its first keyboard toggle
+  (`Ctrl+Alt+Q`).
+- Controllers speak their layers: pressing Shift says "Shift", and
+  pad mode buttons announce where the pads landed ("Pads, hot cues",
+  "Pads, sampler") on both the Numark Scratch and DDJ-400.
+- New DDJ-400 mapping settings: "Disable jog wheel scratching" (a
+  stray platter touch can't stop the track; rotation still nudges
+  pitch) and "Jog wheel sensitivity" (tames the nudge, the Shift+jog
+  fast seek, and scratching).
 - Accessible names for the preferences dialogs, library search box,
   sidebar, and track table, for use with JAWS/NVDA/VoiceOver.
 
@@ -116,6 +145,9 @@ the list for a future build:
 - The rest of the playlist/crate accessibility pass — if you find an
   action that's still mouse-only, that's expected for now and exactly
   the kind of thing worth noting in your feedback
+- An analyzer "expected tempo range" preference so fast tracks get
+  the right BPM at analysis time — for now, fix a half-tempo track
+  with `Ctrl+Alt+D` (or Shift+Pad 2 on the DDJ-400)
 - More screen-reader labels on the custom-painted deck widgets (play/cue
   buttons, knobs, faders) — the preferences dialogs and library already
   have them

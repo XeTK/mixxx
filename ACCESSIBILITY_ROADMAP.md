@@ -193,6 +193,39 @@ one-page shortcut cheat sheet.
 - 226 tests pass in the affected suites (7 new). Needs hardware
   validation with a timecode deck — checklist in the handoff brief.
 
+### Tester bug batch + second wave (2026-07-20) — see [handoff/09-bug-batch-2026-07-20.md](handoff/09-bug-batch-2026-07-20.md)
+
+Worked through the full 13-item tester bug list:
+
+- Master/headphone volume spoken as plain knob travel (the center-split
+  "minus a half" wording read as negative volume); half = unity.
+- Knob/fader readouts rebuilt around movement: name on touch ("Deck 1
+  volume" the moment it moves), value alone at rest, values-only while
+  the same control keeps moving, and total silence when the readout
+  didn't change — the worn-pot fix. Pitch fader names itself "Deck 1
+  pitch".
+- Cue preview earcon: rapid cue taps can be a short tick instead of
+  "Cue Cue Cue" (follows the headphone-cue feedback combo).
+- Rejected loads into a playing deck say why; searches speak their
+  match count; both close silent-failure gaps.
+- Per-deck quick add to crate/playlist for the loaded track
+  (`Ctrl+Alt+C`/`P`, `+Shift` deck 2) — file what's playing mid-mix.
+- BPM halve/double bindings with spoken confirmation
+  (`Ctrl+Alt+H`/`D`, also DDJ-400 Shift+Pads 1/2) as the fast fix for
+  half-tempo misanalysis of fast genres; first-ever quantize keyboard
+  binding (`Ctrl+Alt+Q`).
+- Controller layer feedback: `[Tts],shift` and `[Tts],pad_mode`
+  controls speak "Shift" and the selected pad layer; wired on the
+  Numark Scratch (makes the blind-cycling mode button usable) and the
+  DDJ-400 (all 8 mode buttons — MIDI numbers derived from the FLX4
+  chart, needs hardware confirmation).
+- Smart cue: loading into a stopped deck moves the headphone cue there
+  automatically (Denon-style). Lives in Preferences > Decks
+  (`[Controls],SmartCue`) since it's a general deck-loading behavior.
+- DDJ-400 mapping settings: "Disable jog wheel scratching" and "Jog
+  wheel sensitivity" (also scales the Shift+jog fast seek).
+- 214 accessibility tests green; full suite at the known baseline.
+
 ### Local build environment (this machine)
 
 - App-local DLL deployment (81 DLLs next to mixxx.exe) so the exe runs
