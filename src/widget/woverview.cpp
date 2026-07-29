@@ -105,6 +105,16 @@ WOverview::WOverview(
     m_pMinuteMarkersControl->connectValueChanged(this, &WOverview::slotMinuteMarkersChanged);
     slotMinuteMarkersChanged(static_cast<bool>(m_pMinuteMarkersControl->get()));
 
+    // A track being fetched from a remote source before it can load here.
+    // AllowMissingOrInvalid: sampler/preview overviews have no such control.
+    m_pDownloadProgressControl = make_parented<ControlProxy>(
+            m_group,
+            QStringLiteral("download_progress"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    m_pDownloadProgressControl->connectValueChanged(
+            this, &WOverview::slotDownloadProgressChanged);
+
     // Update immediately when the normalize option or the visual gain have been
     // changed in the preferences.
     WaveformWidgetFactory* pWidgetFactory = WaveformWidgetFactory::instance();
@@ -469,6 +479,14 @@ void WOverview::slotMinuteMarkersChanged(bool /*unused*/) {
     update();
 }
 
+void WOverview::slotDownloadProgressChanged(double progress) {
+    if (m_downloadProgress == progress) {
+        return;
+    }
+    m_downloadProgress = progress;
+    update();
+}
+
 void WOverview::slotScalingChanged() {
     update();
 }
@@ -701,6 +719,20 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
         painter.drawPixmap(rect(), m_backgroundPixmap);
     }
 
+    // A download runs before the deck has a track at all, so this is drawn
+    // outside the track branch below - the empty overview is exactly where
+    // the user is waiting for something to appear.
+    if (drawDownloadProgress(&painter)) {
+        if (m_bPassthroughEnabled) {
+            drawPassthroughOverlay(&painter);
+            m_pPassthroughLabel->show();
+            unsetCursor();
+        } else {
+            m_pPassthroughLabel->hide();
+        }
+        return;
+    }
+
     if (m_pCurrentTrack) {
         // Refer to util/ScopePainter.h to understand the semantics of
         // ScopePainter.
@@ -897,6 +929,32 @@ void WOverview::drawEndOfTrackFrame(QPainter* pPainter) {
         pPainter->setBrush(QColor(0, 0, 0, 0));
         pPainter->drawRect(rect().adjusted(0, 0, -1, -1));
     }
+}
+
+bool WOverview::drawDownloadProgress(QPainter* pPainter) {
+    if (m_downloadProgress < 0.0) {
+        return false;
+    }
+    const double progress = math_clamp(m_downloadProgress, 0.0, 1.0);
+
+    PainterScope painterScope(pPainter);
+    const double penWidth = 3 * m_scaleFactor;
+    pPainter->setPen(QPen(m_playPosColor, penWidth));
+
+    // Fill from the left as the file arrives, the opposite direction to the
+    // analysis indicator, which drains as the waveform is filled in.
+    if (m_orientation == Qt::Horizontal) {
+        const double y = m_stereo ? height() / 2 : height() - penWidth / 2;
+        pPainter->drawLine(QLineF(0, y, width() * progress, y));
+    } else {
+        const double x = m_stereo ? width() / 2 : width() - penWidth / 2;
+        pPainter->drawLine(QLineF(x, 0, x, height() * progress));
+    }
+
+    //: Text on waveform overview while a track is downloaded from a remote
+    //: source (e.g. a YouTube search result) before it can be played
+    paintText(tr("Downloading… %1%").arg(std::lround(progress * 100)), pPainter);
+    return true;
 }
 
 void WOverview::drawAnalyzerProgress(QPainter* pPainter) {

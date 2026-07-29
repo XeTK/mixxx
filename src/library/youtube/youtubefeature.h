@@ -51,6 +51,11 @@ class YouTubeFeature : public LibraryFeature {
 
   private:
     QString cacheDir() const;
+    /// Publishes fetch progress on the target deck's download_progress control,
+    /// which its waveform overview renders. No-op without a target deck.
+    void setDownloadProgress(double progress);
+    /// Clears the deck indicator and forgets the pending load.
+    void clearPendingLoad();
 
     parented_ptr<TreeItemModel> m_pSidebarModel;
     YouTubeSearchModel* m_pSearchModel;
