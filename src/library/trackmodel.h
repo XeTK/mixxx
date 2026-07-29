@@ -118,6 +118,24 @@ class TrackModel {
         return QString();
     }
 
+    /// Hook for models whose rows are not playable yet, e.g. remote search
+    /// results that must be fetched before a deck can load them. getTrack()
+    /// necessarily returns nothing for such a row, which would make the
+    /// ordinary load paths do nothing at all.
+    ///
+    /// Return true to take over loading `index` into `group` (an empty group
+    /// means a generic load); the caller then does nothing further and the
+    /// model is responsible for completing the load asynchronously. The
+    /// default does nothing, so ordinary models are unaffected.
+    virtual bool requestDeferredLoad(const QModelIndex& index,
+            const QString& group,
+            bool play) {
+        Q_UNUSED(index);
+        Q_UNUSED(group);
+        Q_UNUSED(play);
+        return false;
+    }
+
     /// Get the URL of the track at the given QModelIndex.
     ///
     /// This function should be used in favor of getTrackId() to allow
