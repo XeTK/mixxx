@@ -99,9 +99,9 @@ const QString YouTubeSearchModel::currentSearch() const {
 void YouTubeSearchModel::slotSearchSucceeded(const QList<YouTubeTrack>& results) {
     setResults(results);
     if (results.isEmpty()) {
-        emit statusChanged(tr("No Creative Commons results found."));
+        emit statusChanged(tr("No results found."));
     } else {
-        emit statusChanged(tr("%n Creative Commons result(s)", "", results.size()));
+        emit statusChanged(tr("%n result(s)", "", results.size()));
     }
 }
 
