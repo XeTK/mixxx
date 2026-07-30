@@ -4152,6 +4152,42 @@ TEST_F(AnnouncementManagerTest, SmartCue_PlayingDeckKeepsItsCue) {
     EXPECT_EQ(0.0, pPfl2->get());
 }
 
+// Regression: smart cue used to write pfl=0 to every deck, and writing the
+// value a control already holds still fires its observer - so loading a track
+// announced "deck 3 headphone cue off" for decks the user does not have.
+TEST_F(AnnouncementManagerTest, SmartCue_DoesNotTouchDecksAlreadyOff) {
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    auto pPfl3 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel3]"), QStringLiteral("pfl")));
+    auto pPfl4 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel4]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 4;
+    makeManager();
+
+    // Count writes to the decks that are already off and must stay untouched.
+    int deck3Writes = 0;
+    int deck4Writes = 0;
+    QObject::connect(pPfl3.get(),
+            &ControlObject::valueChanged,
+            [&deck3Writes](double) { ++deck3Writes; });
+    QObject::connect(pPfl4.get(),
+            &ControlObject::valueChanged,
+            [&deck4Writes](double) { ++deck4Writes; });
+
+    pPfl1->set(1.0);
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    EXPECT_EQ(1.0, pPfl2->get()) << "cue must follow the loaded track";
+    EXPECT_EQ(0.0, pPfl1->get()) << "cue must leave the old deck";
+    EXPECT_EQ(0, deck3Writes) << "deck 3 was already off; writing it again "
+                                 "announces a deck the user may not have";
+    EXPECT_EQ(0, deck4Writes) << "deck 4 was already off";
+}
+
 TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Controls]"), QStringLiteral("SmartCue")),

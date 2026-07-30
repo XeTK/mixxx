@@ -26,12 +26,20 @@
 #include "track/beats.h"
 #include "track/keyutils.h"
 #include "track/track.h"
+#include "util/cmdlineargs.h"
+#include "util/logger.h"
 #include "util/parented_ptr.h"
 #include "util/ttsengine.h"
 #include "util/ttslog.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 
 namespace {
+// Everything spoken (and everything deliberately not spoken) is logged here so
+// a tester's mixxx.log answers "what did it say, and why did it say that".
+// Debug level still reaches the log file by default; force it to the console
+// with --logLevel debug.
+mixxx::Logger kLogger("Announcements");
+
 constexpr int kSelectionDebounceMs = 400;
 constexpr int kSearchDebounceMs = 600;
 constexpr int kControlDebounceMs = 400;
@@ -616,12 +624,17 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 valueText);
     });
 
-    // Main and headphone volume knobs, debounced. Both are ControlAudioTaperPot
-    // with neutral parameter 0.5 (center of the knob = unity), so read the
-    // knob position via getParameter(), not the dB-tapered gain value. Spoken
-    // as plain knob travel ("a half", "three quarters") — a center-split
-    // readout ("minus a quarter") made testers think the volume itself had
-    // gone negative.
+    // Main and headphone volume knobs, debounced.
+    // NOTE: the keys below are wrapped in QString(...) deliberately. Mixxx
+    // builds with QT_USE_QSTRINGBUILDER, so `a + b` yields a lazy
+    // QStringBuilder holding references to its operands, not a QString. A
+    // lambda init-capture deduces that expression type and the references
+    // dangle once the enclosing statement ends, producing a garbage key. Both
+    // are ControlAudioTaperPot with neutral parameter 0.5 (center of the knob =
+    // unity), so read the knob position via getParameter(), not the dB-tapered
+    // gain value. Spoken as plain knob travel ("a half", "three quarters") — a
+    // center-split readout ("minus a quarter") made testers think the volume
+    // itself had gone negative.
     const struct {
         const char* control;
         QString name;
@@ -1185,6 +1198,10 @@ void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& sp
         mode = m_settings.getFeedbackModeClipping();
         break;
     }
+    kLogger.debug() << "cue: earconId=" << earconId << "deck=" << deckIndex
+                    << "mode=" << mode
+                    << (mode == 0 ? "(speech)" : mode == 1 ? "(sound)"
+                                                           : "(both)");
     if (mode != 1) {
         speak(speechText);
     }
@@ -2104,11 +2121,19 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
         if (readGroupControl(group, QStringLiteral("play")) <= 0.0) {
             const int numDecks = m_pPlayerManager->numberOfDecks();
             for (int i = 0; i < numDecks; ++i) {
-                ControlProxy(PlayerManager::groupForDeck(i),
+                ControlProxy pfl(PlayerManager::groupForDeck(i),
                         QStringLiteral("pfl"),
                         nullptr,
-                        ControlFlag::AllowMissingOrInvalid)
-                        .set(i == deckIndex ? 1.0 : 0.0);
+                        ControlFlag::AllowMissingOrInvalid);
+                const double target = (i == deckIndex) ? 1.0 : 0.0;
+                // Only write a genuine change. Mixxx keeps four decks even
+                // when the skin shows two, and writing the value a control
+                // already holds still fires its observer - which announced
+                // "deck 3 headphone cue off" for decks the user does not
+                // have.
+                if (pfl.get() != target) {
+                    pfl.set(target);
+                }
             }
         }
     }
@@ -2739,6 +2764,7 @@ void AnnouncementManager::announceControlDebounced(
         m_lastControlSpokenMs = now;
     } else if (!m_settings.getAnnounceWhileMoving() &&
             valueText != m_lastValueByKey.value(key)) {
+        kLogger.debug() << "control (name on touch): key=" << key;
         speak(name);
         // speak() clears the control context; restore it so the resting
         // value is spoken without repeating the name.
@@ -2814,6 +2840,8 @@ void AnnouncementManager::slotAnnouncePendingControl() {
                 if (sameControl) {
                     m_lastControlSpokenMs = now;
                 }
+                kLogger.debug() << "control (suppressed, unchanged readout): key=" << key
+                                << "value=" << value;
                 continue;
             }
             const QString fullText = name + QStringLiteral(" ") + value;
