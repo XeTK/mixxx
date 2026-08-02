@@ -54,6 +54,8 @@ jobs:
         run: mkdir build
 
       - name: "Configure"
+        # HID is off because the runner's libhidapi-dev (0.13.1) is older
+        # than the 0.14.0 Mixxx requires.
         working-directory: build
         run: >-
           cmake
@@ -69,7 +71,7 @@ jobs:
           -DBATTERY=ON
           -DBROADCAST=ON
           -DDOWNLOAD_MANUAL=ON
-          -DHID=ON
+          -DHID=OFF
           -DKEYFINDER=ON
           -DLILV=ON
           -DOPUS=ON
