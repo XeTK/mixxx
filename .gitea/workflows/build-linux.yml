@@ -36,8 +36,12 @@ jobs:
       - name: "Set up build environment"
         run: tools/debian_buildenv.sh setup
 
-      - name: "Set up ccache cache"
-        uses: actions/cache@v4
+      - name: "Restore ccache"
+        # actions/cache's own post-hook (which saves the cache) never runs on
+        # this runner - its save/restore state doesn't propagate from the
+        # main to the post phase, so it always misses. Explicit restore/save
+        # steps don't depend on that mechanism.
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache
           key: linux-ccache-${{ github.ref_name }}-${{ github.run_number }}
@@ -48,7 +52,7 @@ jobs:
       - name: "Configure ccache"
         run: |
           ccache --zero-stats
-          ccache --max-size=2G
+          ccache --max-size=5G
 
       - name: "Create build directory"
         run: mkdir build
@@ -82,14 +86,21 @@ jobs:
 
       - name: "Build"
         working-directory: build
-        env:
-          CCACHE_NOCOMPRESS: true
         run: cmake --build . --config RelWithDebInfo -- -j"$(nproc)"
 
       - name: "Print ccache stats"
         run: |
           ccache --show-stats
           ccache --cleanup
+
+      - name: "Save ccache"
+        # Runs unconditionally (even if Test/Package fail below) so a red
+        # build still speeds up the next push.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-ccache-${{ github.ref_name }}-${{ github.run_number }}
 
       - name: "Test"
         working-directory: build
