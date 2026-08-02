@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+
+name: Build Linux
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-linux:
+    name: Ubuntu Qt6 DEB
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          # This is necessary for making `git describe` work.
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Set up build environment"
+        run: tools/debian_buildenv.sh setup
+
+      - name: "Set up ccache cache"
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-ccache-${{ github.ref_name }}-${{ github.run_number }}
+          restore-keys: |
+            linux-ccache-${{ github.ref_name }}
+            linux-ccache-
+
+      - name: "Configure ccache"
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
+      - name: "Create build directory"
+        run: mkdir build
+
+      - name: "Configure"
+        working-directory: build
+        run: >-
+          cmake
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DQT6=ON
+          -DQML=ON
+          -DBULK=ON
+          -DFFMPEG=ON
+          -DLOCALECOMPARE=ON
+          -DMAD=ON
+          -DMODPLUG=ON
+          -DWAVPACK=ON
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=ON
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          -DINSTALL_USER_UDEV_RULES=OFF
+          ..
+
+      - name: "Build"
+        working-directory: build
+        env:
+          CCACHE_NOCOMPRESS: true
+        run: cmake --build . --config RelWithDebInfo -- -j"$(nproc)"
+
+      - name: "Print ccache stats"
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: "Test"
+        working-directory: build
+        env:
+          GTEST_COLOR: 1
+          CTEST_PARALLEL_LEVEL: 1
+          CTEST_OUTPUT_ON_FAILURE: 1
+        run: ctest --timeout 45
+
+      - name: "Package"
+        working-directory: build
+        run: cpack -G DEB -V
+
+      - name: "Upload build artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-linux-deb
+          path: build/*.deb
