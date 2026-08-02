@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+#
+# NOTE: untested - no macOS runner is registered on this Gitea instance yet
+# (only linux-lxc-runner exists). This won't run until a self-hosted runner
+# with the "macos" label is registered. Adapted from the macOS 15 arm64 job
+# in .github/workflows/build.yml, dropping codesign/notarize/deploy steps
+# that need Apple/Azure secrets this fork doesn't have.
+
+name: Build macOS
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-macos:
+    name: macOS Qt6 DMG
+    runs-on: macos
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          # This is necessary for making `git describe` work.
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Install build tools"
+        run: brew install cmake ninja ccache
+
+      - name: "Get build environment name"
+        run: tools/macos_release_buildenv.sh name
+
+      - name: "Set up build environment"
+        # Downloads Mixxx's prebuilt vcpkg dependency bundle (matching this
+        # Mac's arch) and exports MIXXX_VCPKG_ROOT / CMAKE_GENERATOR /
+        # VCPKG_TARGET_TRIPLET via GITHUB_ENV for later steps.
+        run: tools/macos_release_buildenv.sh setup
+
+      - name: "Restore ccache"
+        # See the equivalent step in build-linux.yml for why this uses the
+        # explicit restore/save actions instead of the combined action.
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+          restore-keys: |
+            macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
+            macos-ccache-${{ runner.arch }}-
+
+      - name: "Configure ccache"
+        run: |
+          ccache --zero-stats
+          ccache --max-size=5G
+
+      - name: "Create build directory"
+        run: mkdir build
+
+      - name: "Configure"
+        working-directory: build
+        run: >-
+          cmake
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DVCPKG_TARGET_TRIPLET="${{ env.VCPKG_TARGET_TRIPLET }}"
+          -DQT6=ON
+          -DQML=ON
+          -DBULK=ON
+          -DCOREAUDIO=ON
+          -DHSS1394=ON
+          -DMACOS_BUNDLE=ON
+          -DMODPLUG=ON
+          -DWAVPACK=ON
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=ON
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          ..
+
+      - name: "Build"
+        working-directory: build
+        run: cmake --build . --config RelWithDebInfo -- -j"$(sysctl -n hw.ncpu)"
+
+      - name: "Print ccache stats"
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: "Save ccache"
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+
+      - name: "Test"
+        working-directory: build
+        env:
+          GTEST_COLOR: 1
+          CTEST_PARALLEL_LEVEL: 1
+          CTEST_OUTPUT_ON_FAILURE: 1
+        # DirectoryDAOTest.relocateDirectory is a known-broken test on macOS
+        # (see .github/workflows/build.yml). --repeat until-pass tolerates
+        # other occasional transient failures.
+        run: ctest --timeout 45 --exclude-regex DirectoryDAOTest.relocateDirectory --repeat until-pass:3
+
+      - name: "Package"
+        working-directory: build
+        # Retry loop works around a race condition on macOS causing
+        # 'Resource busy' errors with 'hdiutil'.
+        run: |
+          for i in 1 2 3 4 5; do
+            cpack -G DragNDrop -V && break
+            sleep 5
+          done
+
+      - name: "Upload build artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-macos-dmg
+          path: build/*.dmg
