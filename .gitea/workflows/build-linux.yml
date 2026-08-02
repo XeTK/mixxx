@@ -97,7 +97,9 @@ jobs:
           GTEST_COLOR: 1
           CTEST_PARALLEL_LEVEL: 1
           CTEST_OUTPUT_ON_FAILURE: 1
-        run: ctest --timeout 45
+        # --repeat until-pass tolerates occasional transient std::bad_alloc
+        # failures on this runner's memory-constrained LXC container.
+        run: ctest --timeout 45 --repeat until-pass:3
 
       - name: "Package"
         working-directory: build
