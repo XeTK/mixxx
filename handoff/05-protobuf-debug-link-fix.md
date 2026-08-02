@@ -1,9 +1,37 @@
 # Task 05 — Fix the debug-protobuf link (release build correctness)
 
-**Status: a fix was started in a separate session (spawned task
-"Fix debug protobuf link in RelWithDebInfo build"). Check whether it
-landed before redoing anything — if its branch/commits exist, review
-and merge them instead.**
+**Status: RESOLVED (verified 2026-07-16). No source change was ever
+needed — the cause was a stale CMake cache directory, and the fix is a
+clean reconfigure. This brief is kept as the diagnosis, in case the
+symptom reappears after a dependency swap. Nothing to implement.**
+
+## Root cause and fix
+
+`build/CMakeFiles/<cmake-version>/` caches compiler-detection results.
+When that directory is stale from an earlier configure, the vcpkg
+toolchain's `if(NOT DEFINED CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO)`
+guard short-circuits on an *incremental* reconfigure, so its
+config-mapping fixup never runs. protobuf and qtkeychain advertise
+`IMPORTED_CONFIGURATIONS` of `DEBUG;RELEASE` with no exact
+RelWithDebInfo match, so CMake falls back to the first available
+configuration — DEBUG. That is why `qt6keychaind.dll` came along too:
+it was never protobuf-specific.
+
+Fix: delete `build/CMakeFiles/<version>/` (or the whole `build/`) and
+reconfigure clean. Verify with
+`grep -c libprotobuf-lited build/build.ninja` → must be 0. Confirmed by
+`dumpbin /dependents` picking up release `libprotobuf-lite.dll` and
+`qt6keychain.dll`, and by all seven
+`AnnouncementManagerTest.FormatForLoad*` tests passing with no shim on
+PATH.
+
+A failed first configure in a fresh worktree (e.g. one missing
+`-DCMAKE_TOOLCHAIN_FILE=<buildenv>/scripts/buildsystems/vcpkg.cmake`)
+poisons that same cache and reproduces the bug — so always configure a
+new worktree correctly the first time, or `rm -rf build` after a failed
+attempt.
+
+## Original diagnosis (kept for reference)
 
 ## Symptom
 
@@ -16,13 +44,14 @@ anything touching track-key protobufs (`Track::setKeyText`,
 via Windows Event Log (faulting module libprotobuf-lited.dll) — it
 crashed the app on startup when the library loaded key-analyzed tracks.
 
-## Current workaround (must be removed once fixed)
+## Former workaround (no longer required)
 
 A copy of the RELEASE `libprotobuf-lite.dll` renamed to
-`libprotobuf-lited.dll` sits next to `build\mixxx.exe` (also in a shim
-dir used for test runs). Same-named DLL satisfies the import and the
-release ABI matches the release-compiled callers, so everything works —
-but it's a hack, and shipping to another machine requires bundling it.
+`libprotobuf-lited.dll` was placed next to `build\mixxx.exe` (and in a
+shim dir used for test runs). The same-named DLL satisfied the import
+and the release ABI matched the release-compiled callers. Obsolete
+since the reconfigure fix; leftover copies in `build/` are inert and
+can be deleted.
 
 ## Where to look
 
@@ -39,7 +68,7 @@ but it's a hack, and shipping to another machine requires bundling it.
   (or the vcpkg-recommended equivalent) before the affected find_packages,
   then a clean reconfigure.
 
-## Acceptance
+## Acceptance (met 2026-07-16, apart from deleting the inert leftovers)
 
 - `dumpbin /dependents` on both exes shows no `*d.dll` vcpkg libraries.
 - `mixxx-test.exe --gtest_filter=AnnouncementManagerTest.FormatForLoad*`

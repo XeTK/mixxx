@@ -1,7 +1,7 @@
 # Mixxx Accessibility Fork — Progress & Roadmap
 
 Status document for the accessibility fork, which makes Mixxx usable by a
-fully blind DJ (primary end user runs JAWS). Last updated 2026-07-04.
+fully blind DJ (primary end user runs JAWS). Last updated 2026-08-02.
 
 See [ACCESSIBILITY.md](ACCESSIBILITY.md) for how the features work and how
 to use them, [ACCESSIBILITY_GUIDE.md](ACCESSIBILITY_GUIDE.md) for the full
@@ -230,10 +230,16 @@ Worked through the full 13-item tester bug list:
 
 - App-local DLL deployment (81 DLLs next to mixxx.exe) so the exe runs
   by double-click with no PATH setup.
-- Interim workaround for the debug-protobuf link bug: the release
-  protobuf DLL is provided under the debug import name. A proper CMake
-  fix is being worked on in a separate session; until it lands,
-  anything protobuf-touching would crash without the shim.
+- Debug-protobuf link bug resolved (2026-07-16): the RelWithDebInfo
+  build no longer links debug `libprotobuf-lited.dll`, so the renamed-
+  DLL shim is gone and binaries can be handed to another machine. It
+  was never a CMakeLists bug — a stale
+  `build/CMakeFiles/<cmake-version>/` cache makes the vcpkg toolchain
+  skip its config-mapping fixup on an incremental reconfigure, and
+  imports without an exact RelWithDebInfo configuration fall back to
+  DEBUG. Configure a fresh build dir clean; check with
+  `grep -c libprotobuf-lited build/build.ninja` → 0. Full diagnosis in
+  [handoff/05-protobuf-debug-link-fix.md](handoff/05-protobuf-debug-link-fix.md).
 
 ## In progress
 
@@ -434,11 +440,6 @@ announced.
 
 ### Known issues / parked
 
-- **Debug-protobuf link bug** — the build links debug
-  `libprotobuf-lited.dll` into a release build; crashes anything
-  touching track key data without the shim. Proper CMake fix in
-  progress in a separate session; two FormatForLoad unit tests fail
-  without the shim.
 - **JAWS audio routing during performance** — JAWS speaks through the
   Windows default device, which may be the main (audience) output.
   Plan: document pinning JAWS to a specific sound card, and keep

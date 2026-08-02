@@ -38,12 +38,10 @@ needs the VS environment:
 
 ## Running tests
 
-The test exe needs DLLs on PATH — release vcpkg bin, debug vcpkg bin,
-and the protobuf shim (see gotchas):
+The test exe needs the vcpkg DLLs on PATH — release bin and debug bin:
 
     set VCPKG=C:\Users\XeTK\Documents\Code\mixxx\buildenv\mixxx-deps-2.6-x64-windows-aa78b5a\installed\x64-windows
-    set SHIM=<scratch dir containing release libprotobuf-lite.dll renamed to libprotobuf-lited.dll>
-    set PATH=%SHIM%;%VCPKG%\bin;%VCPKG%\debug\bin;%PATH%
+    set PATH=%VCPKG%\bin;%VCPKG%\debug\bin;%PATH%
     build\mixxx-test.exe --gtest_filter=AnnouncementManager*:EngineTts*:EngineBeatClick*
 
 Invoke the exe by full or explicit relative path (bare exe names from
@@ -83,13 +81,26 @@ already).
   `dlgprefaccessibility.cpp` (constructor init, connect, slotUpdate,
   slotApply, slotResetToDefaults — five places).
 
-## Known open issue: debug protobuf link
+## Resolved: the debug protobuf link (keep the build dir honest)
 
-The build links debug `libprotobuf-lited.dll` into the release build.
-Anything touching track-key protobufs crashes without the shim (see
-tests section). A fix was started in a separate session; brief 05 has
-the full diagnosis if it needs redoing. Until fixed, binaries cannot be
-shipped to other machines without bundling the renamed release DLL.
+This used to be an open blocker — the RelWithDebInfo build linked debug
+`libprotobuf-lited.dll`, and anything touching track-key protobufs
+crashed without a renamed-release-DLL shim. It was never a CMakeLists
+bug: a stale `build/CMakeFiles/<cmake-version>/` compiler-detection
+cache makes the vcpkg toolchain skip its config-mapping fixup on an
+incremental reconfigure, so imports with no exact RelWithDebInfo
+configuration fall back to DEBUG. Brief 05 has the full diagnosis.
+
+What this means in practice:
+
+- After a fresh vcpkg env swap, or any failed first configure, delete
+  `build/` (or at least `build/CMakeFiles/<version>/`) and reconfigure
+  clean rather than reconfiguring on top.
+- Verify with `grep -c libprotobuf-lited build/build.ninja` — must be 0.
+- No shim is needed on PATH, and binaries no longer need the renamed
+  DLL bundled. Old shim copies may still be sitting in `build/`
+  (`libprotobuf-lited.dll`, `qt6keychaind.dll`); they are inert and can
+  be deleted.
 
 ## Definition of done for every task
 
