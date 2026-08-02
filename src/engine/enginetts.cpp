@@ -59,6 +59,14 @@ EngineTts::EngineTts(const QString& group)
 
 EngineTts::~EngineTts() = default;
 
+bool EngineTts::isUserEnabled() const {
+    return m_pEnabled->toBool();
+}
+
+bool EngineTts::isSpeaking() const {
+    return m_pSpeaking->toBool();
+}
+
 void EngineTts::updateDuckingParameters(double sampleRate) {
     if (sampleRate <= 0) {
         sampleRate = 44100;

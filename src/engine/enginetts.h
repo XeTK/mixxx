@@ -42,15 +42,11 @@ class EngineTts {
     /// True when the user has TTS turned on. Used by announcements to decide
     /// whether to synthesize audio. Distinct from isSpeaking(), which reflects
     /// whether the FIFO currently has data.
-    bool isUserEnabled() const {
-        return m_pEnabled->toBool();
-    }
+    bool isUserEnabled() const;
 
     /// True when the engine is actively mixing synthesized speech (FIFO non-empty).
     /// Written every audio callback by process(); read-only for everything else.
-    bool isSpeaking() const {
-        return m_pSpeaking->toBool();
-    }
+    bool isSpeaking() const;
 
     /// Select which output bus speech is mixed into and ducks. Accepts the
     /// EngineTts::Route value as an int (matching the persisted TtsRoute
