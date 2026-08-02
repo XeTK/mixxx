@@ -217,10 +217,10 @@ void DlgPrefVinyl::slotUpdate() {
         }
 
         // set lead-in time
-        int leadIn = config->getValue(
+        int leadInTime = config->getValue(
                 ConfigKey(group, "vinylcontrol_lead_in_time"),
                 getDefaultLeadIn(m_vcTypeBoxes[i]->currentText()));
-        m_vcLeadInBoxes[i]->setValue(leadIn);
+        m_vcLeadInBoxes[i]->setValue(leadInTime);
 
         m_signalWidgets[i]->setVinylActive(m_pVCManager->vinylInputConnected(i));
     }

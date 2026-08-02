@@ -30,7 +30,7 @@ constexpr int VINYL_STATUS_ERROR = 3;
 
 #define MIXXX_VINYL_DEFAULT_XWAX_NAME MIXXX_VINYL_SERATOCV02VINYLSIDEA_XWAX_NAME
 
-// Default recommended leadin times for various vinyl types.
+// Default recommended lead-in times for various vinyl types.
 #define MIXXX_VINYL_SERATOCV02VINYLSIDEA_LEADIN 28
 #define MIXXX_VINYL_SERATOCV02VINYLSIDEB_LEADIN 28
 #define MIXXX_VINYL_SERATOCD_LEADIN 0
