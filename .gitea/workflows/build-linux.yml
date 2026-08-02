@@ -26,6 +26,13 @@ jobs:
       - name: "Ensure that all tags are fetched"
         run: git fetch origin --force --tags
 
+      - name: "Install sudo"
+        # The runner's container image runs as root and has no sudo binary,
+        # but debian_buildenv.sh shells out to `sudo apt-get ...`.
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends sudo
+
       - name: "Set up build environment"
         run: tools/debian_buildenv.sh setup
 
