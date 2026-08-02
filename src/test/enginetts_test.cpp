@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "control/controlobject.h"
+#include "control/controlproxy.h"
 #include "test/mixxxtest.h"
 #include "util/types.h"
 
