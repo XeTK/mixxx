@@ -78,7 +78,10 @@ def run_clang_format_on_lines(rootdir, file_to_format, stylepath=None):
 
     if proc.stderr:
         logger.error(proc.stderr)
-    with open(filename, mode="w") as fp:
+    # newline="" keeps whatever line endings clang-format produced. Without it
+    # Python's text mode translates every "\n" to os.linesep, which rewrites
+    # every line of every formatted file to CRLF on Windows.
+    with open(filename, mode="w", newline="") as fp:
         fp.write(proc.stdout)
 
 
