@@ -574,7 +574,14 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         pGain->connectValueChanged(this,
                 [this,
                         name = gain.name,
-                        key = QStringLiteral("[Master]") + QLatin1String(gain.control),
+                        // The explicit QString(...) forces eager evaluation.
+                        // With QT_USE_QSTRINGBUILDER, operator+ here returns a
+                        // QStringBuilder that stores a reference to its
+                        // operands; without the cast, `key`'s auto-deduced
+                        // type would keep that dangling reference alive past
+                        // this statement, corrupting memory whenever the
+                        // lambda is later invoked.
+                        key = QString(QStringLiteral("[Master]") + QLatin1String(gain.control)),
                         pGainRaw = static_cast<ControlProxy*>(pGain)](double) {
                     if (!m_settings.getAnnounceMixer()) {
                         return;
@@ -608,7 +615,13 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             pKnob->connectValueChanged(this,
                     [this,
                             name = knob.text.arg(unit),
-                            key = unitGroup + QLatin1String(knob.control)](double value) {
+                            // See the comment on the equivalent capture above
+                            // (near "[Master]" + gain.control): without the
+                            // QString(...) cast, QT_USE_QSTRINGBUILDER makes
+                            // this a dangling reference to unitGroup once the
+                            // loop iteration ends.
+                            key = QString(unitGroup + QLatin1String(knob.control))](
+                            double value) {
                         if (!m_settings.getAnnounceMixer()) {
                             return;
                         }
@@ -1329,7 +1342,11 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                         deckIndex,
                         bandName = band.name,
                         conciseName = band.conciseName,
-                        key = eqGroup + QLatin1String(band.control)](double value) {
+                        // See the comment on the equivalent capture in the
+                        // "[Master]" gain lambda above: without the
+                        // QString(...) cast, QT_USE_QSTRINGBUILDER makes this
+                        // a dangling reference to eqGroup.
+                        key = QString(eqGroup + QLatin1String(band.control))](double value) {
                     if (!m_settings.getAnnounceMixer()) {
                         return;
                     }
