@@ -86,7 +86,11 @@ jobs:
 
       - name: "Build"
         working-directory: build
-        run: cmake --build . --config RelWithDebInfo -- -j"$(nproc)"
+        # Half of nproc, not nproc: this LXC container has more CPUs than RAM
+        # to match, and full parallelism during compilation leaves little
+        # headroom afterwards, which lines up with a cluster of test failures
+        # (std::bad_alloc) right after Build in earlier runs.
+        run: cmake --build . --config RelWithDebInfo -- -j"$(( $(nproc) / 2 > 0 ? $(nproc) / 2 : 1 ))"
 
       - name: "Print ccache stats"
         run: |
