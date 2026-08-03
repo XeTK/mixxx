@@ -66,14 +66,14 @@ jobs:
         env:
           BUILDENV_RELEASE: TRUE
 
-      - name: "Create build directory and configure"
-        # Deliberately one step, not "mkdir build" + a separate
-        # working-directory: build step: on this runner, splitting them
-        # across a step boundary makes the second step's cmake invocation
-        # fail claiming the (just-verified-to-exist) source directory
-        # doesn't exist, consistently and within about a second - looks
-        # like a working-directory propagation bug specific to this
-        # host-mode Windows runner. See KNOWN_ISSUES.md.
+      - name: "Configure"
+        # Uses -S/-B instead of "mkdir build" + cd/working-directory: on
+        # this runner, operating on a directory just created in the same
+        # step (even via cd within one process, not just across a step
+        # boundary) makes cmake fail claiming the parent doesn't exist,
+        # consistently and within about a second. -S/-B never changes the
+        # process's own working directory, which sidesteps it entirely.
+        # See KNOWN_ISSUES.md.
         #
         # MEDIAFOUNDATION is off because this runner is Windows 11 N, which
         # ships without the Media Foundation platform DLLs (an EU
@@ -81,7 +81,7 @@ jobs:
         # the real fix (installing the Media Feature Pack), which is
         # currently blocked by an unresolved DISM access-denied error.
         run: >-
-          mkdir build; cd build; cmake
+          cmake -S . -B build
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}"
           -DVCPKG_TARGET_TRIPLET="${{ env.VCPKG_TARGET_TRIPLET }}"
@@ -103,20 +103,17 @@ jobs:
           -DOPUS=ON
           -DQTKEYCHAIN=ON
           -DVINYLCONTROL=ON
-          ..
         env:
           CC: cl
           CXX: cl
 
       - name: "Build"
-        working-directory: build
-        run: cmake --build . --config RelWithDebInfo
+        run: cmake --build build --config RelWithDebInfo
         env:
           CC: cl
           CXX: cl
 
       - name: "Test"
-        working-directory: build
         env:
           GTEST_COLOR: 1
           # Windows tests fail randomly if run in parallel.
@@ -127,7 +124,7 @@ jobs:
         # occasional transient failures; --stop-on-failure still stops the
         # whole suite once a test exhausts its retries.
         run: >-
-          ctest --timeout 45
+          ctest --test-dir build --timeout 45
           --exclude-regex "^AutoDJProcessorTest.*$"
           --repeat until-pass:3
           --stop-on-failure
@@ -139,8 +136,7 @@ jobs:
           wix extension add --global WixToolset.UI.wixext/6.0.2
 
       - name: "Package"
-        working-directory: build
-        run: cpack -G WIX -V
+        run: cpack --config build/CPackConfig.cmake -G WIX -V -B build
 
       - name: "Upload build artifact"
         uses: actions/upload-artifact@v4
