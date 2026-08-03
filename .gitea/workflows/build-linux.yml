@@ -109,8 +109,10 @@ jobs:
           CTEST_PARALLEL_LEVEL: 1
           CTEST_OUTPUT_ON_FAILURE: 1
         # --repeat until-pass tolerates occasional transient std::bad_alloc
-        # failures on this runner's memory-constrained LXC container.
-        run: ctest --timeout 45 --repeat until-pass:3
+        # failures on this runner's memory-constrained LXC container;
+        # --stop-on-failure still stops the whole suite as soon as a test
+        # exhausts its retries, instead of grinding through ~1400 more tests.
+        run: ctest --timeout 45 --repeat until-pass:3 --stop-on-failure
 
       - name: "Package"
         working-directory: build

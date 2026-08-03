@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+#
+# Adapted from the "Windows 2022 x64" job in .github/workflows/build.yml,
+# dropping codesign/deploy steps that need Azure secrets this fork doesn't
+# have. Untested against the newly-registered "windows" runner - requires
+# Visual Studio Build Tools (C++ workload) and the .NET SDK already present
+# on that machine; neither can be installed by this workflow.
+
+name: Build Windows
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Windows x64 Installer
+    runs-on: windows
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          # This is necessary for making `git describe` work.
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Set up cmake"
+        uses: jwlawson/actions-setup-cmake@v2.2
+        with:
+          # Needed for Wix Toolset >= v4 support, see:
+          # https://cmake.org/cmake/help/latest/cpack_gen/wix.html#variable:CPACK_WIX_VERSION
+          cmake-version: "3.30.x"
+
+      - name: "Set up MSVC Developer Command Prompt"
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: "Set up build environment"
+        shell: cmd
+        # With the cmd shell the ERRORLEVEL is checked.
+        run: tools/windows_buildenv.bat setup
+        env:
+          BUILDENV_RELEASE: TRUE
+
+      - name: "Create build directory"
+        run: mkdir build
+
+      - name: "Configure"
+        working-directory: build
+        run: >-
+          cmake
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}"
+          -DVCPKG_TARGET_TRIPLET="${{ env.VCPKG_TARGET_TRIPLET }}"
+          -DBULK=ON
+          -DHSS1394=ON
+          -DLOCALECOMPARE=ON
+          -DMAD=ON
+          -DMEDIAFOUNDATION=ON
+          -DMODPLUG=ON
+          -DQT6=ON
+          -DQML=ON
+          -DWAVPACK=ON
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=ON
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          ..
+        env:
+          CC: cl
+          CXX: cl
+
+      - name: "Build"
+        working-directory: build
+        run: cmake --build . --config RelWithDebInfo
+        env:
+          CC: cl
+          CXX: cl
+
+      - name: "Test"
+        working-directory: build
+        env:
+          GTEST_COLOR: 1
+          # Windows tests fail randomly if run in parallel.
+          CTEST_PARALLEL_LEVEL: 1
+          CTEST_OUTPUT_ON_FAILURE: 1
+        # AutoDJProcessorTest is a known-broken suite on Windows (see
+        # .github/workflows/build.yml). --repeat until-pass tolerates other
+        # occasional transient failures; --stop-on-failure still stops the
+        # whole suite once a test exhausts its retries.
+        run: >-
+          ctest --timeout 45
+          --exclude-regex "^AutoDJProcessorTest.*$"
+          --repeat until-pass:3
+          --stop-on-failure
+
+      - name: "Install WiX Toolset"
+        shell: pwsh
+        run: |
+          dotnet.exe tool install --global wix --version 6.0.2
+          wix extension add --global WixToolset.UI.wixext/6.0.2
+
+      - name: "Package"
+        working-directory: build
+        run: cpack -G WIX -V
+
+      - name: "Upload build artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-windows-msi
+          path: build/*.msi

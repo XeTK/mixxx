@@ -112,8 +112,13 @@ jobs:
           CTEST_OUTPUT_ON_FAILURE: 1
         # DirectoryDAOTest.relocateDirectory is a known-broken test on macOS
         # (see .github/workflows/build.yml). --repeat until-pass tolerates
-        # other occasional transient failures.
-        run: ctest --timeout 45 --exclude-regex DirectoryDAOTest.relocateDirectory --repeat until-pass:3
+        # other occasional transient failures; --stop-on-failure still stops
+        # the whole suite once a test exhausts its retries.
+        run: >-
+          ctest --timeout 45
+          --exclude-regex DirectoryDAOTest.relocateDirectory
+          --repeat until-pass:3
+          --stop-on-failure
 
       - name: "Package"
         working-directory: build
