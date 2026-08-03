@@ -33,11 +33,20 @@ jobs:
         run: git fetch origin --force --tags
 
       - name: "Set up cmake"
-        uses: jwlawson/actions-setup-cmake@v2.2
-        with:
-          # Needed for Wix Toolset >= v4 support, see:
-          # https://cmake.org/cmake/help/latest/cpack_gen/wix.html#variable:CPACK_WIX_VERSION
-          cmake-version: "3.30.x"
+        # jwlawson/actions-setup-cmake calls the GitHub API to look up
+        # releases, and picks up the GITHUB_TOKEN Gitea injects for its own
+        # API - which github.com rejects ("Bad credentials"). Download the
+        # release archive directly instead (same approach build.yml already
+        # uses for the Windows ARM64 runner). 3.30+ is needed for Wix
+        # Toolset >= v4 support, see:
+        # https://cmake.org/cmake/help/latest/cpack_gen/wix.html#variable:CPACK_WIX_VERSION
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Kitware/CMake/releases/download/v3.30.1/cmake-3.30.1-windows-x86_64.zip -OutFile cmake-x64.zip
+          Expand-Archive cmake-x64.zip -DestinationPath $env:USERPROFILE\cmake
+          $cmakePath = "$env:USERPROFILE\cmake\cmake-3.30.1-windows-x86_64\bin"
+          $cmakePath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:Path += ";$cmakePath"
+          cmake --version
 
       - name: "Set up MSVC Developer Command Prompt"
         uses: ilammy/msvc-dev-cmd@v1
