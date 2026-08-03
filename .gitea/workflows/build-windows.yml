@@ -66,18 +66,22 @@ jobs:
         env:
           BUILDENV_RELEASE: TRUE
 
-      - name: "Create build directory"
-        run: mkdir build
-
-      - name: "Configure"
+      - name: "Create build directory and configure"
+        # Deliberately one step, not "mkdir build" + a separate
+        # working-directory: build step: on this runner, splitting them
+        # across a step boundary makes the second step's cmake invocation
+        # fail claiming the (just-verified-to-exist) source directory
+        # doesn't exist, consistently and within about a second - looks
+        # like a working-directory propagation bug specific to this
+        # host-mode Windows runner. See KNOWN_ISSUES.md.
+        #
         # MEDIAFOUNDATION is off because this runner is Windows 11 N, which
         # ships without the Media Foundation platform DLLs (an EU
         # regulatory requirement for N editions) - see KNOWN_ISSUES.md for
         # the real fix (installing the Media Feature Pack), which is
         # currently blocked by an unresolved DISM access-denied error.
-        working-directory: build
         run: >-
-          cmake
+          mkdir build; cd build; cmake
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}"
           -DVCPKG_TARGET_TRIPLET="${{ env.VCPKG_TARGET_TRIPLET }}"
