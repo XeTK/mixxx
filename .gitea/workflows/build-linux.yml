@@ -90,7 +90,10 @@ jobs:
         # to match, and full parallelism during compilation leaves little
         # headroom afterwards, which lines up with a cluster of test failures
         # (std::bad_alloc) right after Build in earlier runs.
-        run: cmake --build . --config RelWithDebInfo -- -j"$(( $(nproc) / 2 > 0 ? $(nproc) / 2 : 1 ))"
+        run: |
+          JOBS=$(( $(nproc) / 2 ))
+          [ "$JOBS" -lt 1 ] && JOBS=1
+          cmake --build . --config RelWithDebInfo -- -j"$JOBS"
 
       - name: "Print ccache stats"
         run: |
