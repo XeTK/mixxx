@@ -80,28 +80,44 @@ Siri-quality/Enhanced voices specifically, a separate download path from
 the classic voices), or make the test explicitly call `setVoice()` with a
 known-good voice ID instead of relying on the system default.
 
-## Windows: `mixxx-test.exe` fails to launch (`STATUS_DLL_NOT_FOUND`, 0xc0000135)
+## Windows: `mixxx-test.exe` fails to launch (`STATUS_DLL_NOT_FOUND`, 0xc0000135) - root-caused, worked around
 
-Confirmed via direct reproduction on `windows-runner` (outside CI, via SSH).
-The build itself succeeds cleanly (`cmake --build` exits 0). Running the
-test binary directly, or via `ctest`, fails at process launch with
-`0xc0000135`.
+Root cause found: `windows-runner` is running **Windows 11 Pro N for
+Workstations**. N editions ship without Windows Media Foundation (removed
+to comply with EU antitrust requirements around bundled media
+technologies), so `MFPlat.DLL` and `MFReadWrite.dll` - both required
+because our cmake config passes `-DMEDIAFOUNDATION=ON` - don't exist on
+this machine at all.
 
-Ruled out so far: all of `mixxx-test.exe`'s *direct* dependencies (per
-`dumpbin /dependents`) are present in the build directory (confirmed by
-manually copying the full vcpkg triplet `bin/` folder over); the transitive
-Qt6Core/Qt6Gui DLLs they depend on are present too; the MSVC runtime
-redistributables (`vcruntime140.dll`, `msvcp140.dll`,
-`vcruntime140_1.dll`) are present in `System32`. So it's some other,
-unidentified transitive dependency or a subtler DLL search-path issue
-(architecture mismatch on a specific copied file, a Qt plugin needing a
-DLL not in the direct-dependency list, etc.) - not yet root-caused.
+`dumpbin /dependents` (and even a recursive closure over every dependency,
+direct and transitive) didn't show this, because it only lists imports
+present in the PE header, not which of them actually *resolve* on this
+specific machine. What found it: `Dependencies.exe`
+(https://github.com/lucasg/Dependencies), a maintained, loader-simulating
+successor to the old Sysinternals-style Dependency Walker, run as
+`Dependencies.exe -modules mixxx-test.exe` - its output explicitly flags
+`[NOT_FOUND]` entries.
 
-**To actually fix:** get a real dependency-walker style tool (e.g.
-`ProcMon` from Sysinternals, or `dumpbin` cross-referenced recursively
-rather than just one level deep) running on `windows-runner` to see exactly
-which DLL load attempt fails, since `dumpbin /dependents` alone only shows
-one level and wasn't enough to find it here.
+**Workaround in place:** `-DMEDIAFOUNDATION=OFF` in build-windows.yml.
+Media Foundation is one of several optional Windows-native audio/video
+decoding backends (alongside FFmpeg, MAD, WavPack, etc.), not a hard
+requirement, so this just means slightly fewer natively-supported formats
+on builds from this specific runner - not a broken build.
+
+**To actually fix properly:** install the Media Feature Pack
+(`Add-WindowsCapability -Online -Name Media.MediaFeaturePack~~~~0.0.1.0`,
+or `dism /online /Add-Capability /CapabilityName:Media.MediaFeaturePack~~~~0.0.1.0`).
+Both currently fail with `HRESULT=80070005` (E_ACCESSDENIED) during CBS's
+finalize phase, even from a confirmed-elevated Administrator session with
+TrustedInstaller running. No Group Policy block found in the usual
+`HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate` location.
+Starting `wuauserv` (Windows Update service, found stopped) didn't help
+either. Next things to try: confirm this machine has real outbound HTTPS
+access to Windows Update's CDN (DISM's online capability source needs
+this, and this network has had firewall/profile issues before - see the
+`NetworkCategory: Public` fix earlier in this session), or supply local
+Windows 11 N install media as an explicit DISM `/Source:` instead of
+relying on the online source.
 
 ## Windows: checked-out repo files vanish mid-job, `CMake Error: ... does not exist` (fixed)
 

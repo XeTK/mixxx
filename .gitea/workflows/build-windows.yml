@@ -66,6 +66,11 @@ jobs:
         run: mkdir build
 
       - name: "Configure"
+        # MEDIAFOUNDATION is off because this runner is Windows 11 N, which
+        # ships without the Media Foundation platform DLLs (an EU
+        # regulatory requirement for N editions) - see KNOWN_ISSUES.md for
+        # the real fix (installing the Media Feature Pack), which is
+        # currently blocked by an unresolved DISM access-denied error.
         working-directory: build
         run: >-
           cmake
@@ -76,7 +81,7 @@ jobs:
           -DHSS1394=ON
           -DLOCALECOMPARE=ON
           -DMAD=ON
-          -DMEDIAFOUNDATION=ON
+          -DMEDIAFOUNDATION=OFF
           -DMODPLUG=ON
           -DQT6=ON
           -DQML=ON
