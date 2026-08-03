@@ -102,3 +102,32 @@ DLL not in the direct-dependency list, etc.) - not yet root-caused.
 rather than just one level deep) running on `windows-runner` to see exactly
 which DLL load attempt fails, since `dumpbin /dependents` alone only shows
 one level and wasn't enough to find it here.
+
+## Windows: checked-out repo files vanish mid-job, `CMake Error: ... does not exist` (fixed)
+
+Seen once, in an actual CI run: `Check out repository` succeeds (5696
+files updated, confirmed in the log), then ~4 minutes later (during the
+"Set up cmake" step's `Invoke-WebRequest`, which took an unusually long
+~4 min for a ~30MB download) the `Configure` step failed because the
+working directory - the same one checkout just populated - was empty
+except for the `build/` folder `mkdir build` had just created. Ruled out
+a second overlapping Gitea Actions run on the same runner (checked the
+task history; nothing else was running).
+
+Cause: the runner's workspace lives under
+`C:\Windows\System32\config\systemprofile\.cache\act\<hash>\hostexecutor` -
+a path with `.cache` literally in the name, and large C++ builds can push
+this machine into low-disk-space territory, which is exactly the trigger
+condition for Windows' automatic cleanup tasks.
+
+**Fixed** by disabling the two scheduled tasks that perform this kind of
+automatic cleanup on `windows-runner`:
+```powershell
+Disable-ScheduledTask -TaskName SilentCleanup -TaskPath "\Microsoft\Windows\DiskCleanup\"
+Disable-ScheduledTask -TaskName StorageSense -TaskPath "\Microsoft\Windows\DiskFootprint\"
+```
+Reasonable for a dedicated build machine, not a general daily-use PC.
+Since disk space pressure is what triggers this in the first place, still
+worth keeping an eye on free space on this box over time (see the other
+Windows entries above - the manual repro's vcpkg buildenv + build
+directory alone was several GB).
