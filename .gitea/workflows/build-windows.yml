@@ -41,6 +41,10 @@ jobs:
         # Toolset >= v4 support, see:
         # https://cmake.org/cmake/help/latest/cpack_gen/wix.html#variable:CPACK_WIX_VERSION
         run: |
+          # Invoke-WebRequest's default progress-bar rendering is extremely
+          # slow when stdout isn't an interactive console (e.g. captured by
+          # a CI runner) - this download takes ~4x longer without this.
+          $ProgressPreference = 'SilentlyContinue'
           Invoke-WebRequest -Uri https://github.com/Kitware/CMake/releases/download/v3.30.1/cmake-3.30.1-windows-x86_64.zip -OutFile cmake-x64.zip
           # -Force: this is a persistent host-mode runner, not an ephemeral
           # container, so a previous run may have already extracted this.
