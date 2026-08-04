@@ -61,9 +61,16 @@ log "Checking for updates from $GITEA_URL/$GITEA_OWNER/$GITEA_REPO ..."
 
 # Fetch the latest release.
 API_URL="$GITEA_URL/api/v1/repos/$GITEA_OWNER/$GITEA_REPO/releases/latest"
-RESPONSE="$(curl -fsSL -H "Authorization: token $GITEA_TOKEN" "$API_URL" 2>/dev/null)" || {
-    die "Failed to query Gitea API (network/auth error)" 2
-}
+HTTP_CODE="$(curl -sSL -o /tmp/mixxx-updater-response.json -w '%{http_code}' -H "Authorization: token $GITEA_TOKEN" "$API_URL" 2>/dev/null || echo 000)"
+if [ "$HTTP_CODE" = "404" ]; then
+    # No releases published yet - nothing to update.
+    log "No releases published yet; nothing to update."
+    exit 0
+fi
+if [ "$HTTP_CODE" != "200" ]; then
+    die "Failed to query Gitea API (HTTP $HTTP_CODE, network/auth error)" 2
+fi
+RESPONSE="$(cat /tmp/mixxx-updater-response.json)"
 
 LATEST_TAG="$(printf '%s' "$RESPONSE" | grep -oE '"tag_name":"[^"]*"' | head -n1 | sed 's/.*:"//;s/"//')"
 if [ -z "$LATEST_TAG" ]; then
