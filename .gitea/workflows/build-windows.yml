@@ -30,9 +30,11 @@ jobs:
           fetch-depth: 0
 
       - name: "Ensure that all tags are fetched"
+        shell: pwsh
         run: git fetch origin --force --tags
 
       - name: "Set up cmake"
+        shell: pwsh
         # jwlawson/actions-setup-cmake calls the GitHub API to look up
         # releases, and picks up the GITHUB_TOKEN Gitea injects for its own
         # API - which github.com rejects ("Bad credentials"). Download the
@@ -67,12 +69,17 @@ jobs:
           BUILDENV_RELEASE: TRUE
 
       - name: "Configure"
-        # Uses -S/-B instead of "mkdir build" + cd/working-directory: on
-        # this runner, operating on a directory just created in the same
-        # step (even via cd within one process, not just across a step
-        # boundary) makes cmake fail claiming the parent doesn't exist,
-        # consistently and within about a second. -S/-B never changes the
-        # process's own working directory, which sidesteps it entirely.
+        # shell: pwsh, not the default Windows PowerShell 5.1: cmake
+        # consistently fails claiming its own cwd ("." / the source dir)
+        # doesn't exist, even with no mkdir/cd involved at all. Windows
+        # PowerShell 5.1 exists as both a 32-bit (SysWOW64) and 64-bit
+        # (System32) binary; if the 32-bit one gets picked, any path
+        # under System32 - including this runner's whole workspace,
+        # C:\Windows\System32\config\systemprofile\... - is silently
+        # WOW64-redirected to SysWOW64 and looks like it doesn't exist.
+        # "Set up build environment" (shell: cmd) and "Install WiX
+        # Toolset" (already shell: pwsh) don't hit this. pwsh (PowerShell
+        # 7+) doesn't have a 32/64-bit inbox ambiguity to fall into.
         # See KNOWN_ISSUES.md.
         #
         # MEDIAFOUNDATION is off because this runner is Windows 11 N, which
@@ -80,6 +87,7 @@ jobs:
         # regulatory requirement for N editions) - see KNOWN_ISSUES.md for
         # the real fix (installing the Media Feature Pack), which is
         # currently blocked by an unresolved DISM access-denied error.
+        shell: pwsh
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -108,12 +116,14 @@ jobs:
           CXX: cl
 
       - name: "Build"
+        shell: pwsh
         run: cmake --build build --config RelWithDebInfo
         env:
           CC: cl
           CXX: cl
 
       - name: "Test"
+        shell: pwsh
         env:
           GTEST_COLOR: 1
           # Windows tests fail randomly if run in parallel.
@@ -136,6 +146,7 @@ jobs:
           wix extension add --global WixToolset.UI.wixext/6.0.2
 
       - name: "Package"
+        shell: pwsh
         run: cpack --config build/CPackConfig.cmake -G WIX -V -B build
 
       - name: "Upload build artifact"
