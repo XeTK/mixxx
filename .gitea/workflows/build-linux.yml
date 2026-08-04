@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build-linux:
     name: Ubuntu Qt6 DEB
-    runs-on: ubuntu-latest
+    runs-on: linux-x86
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
@@ -130,3 +130,108 @@ jobs:
         with:
           name: mixxx-linux-deb
           path: build/*.deb
+
+      - name: "Publish release"
+        # Create (or update) a Gitea release for this build and attach the
+        # .deb. The Pi's updater polls the releases API for new versions.
+        # Uses the GITHUB_TOKEN Gitea injects for the runner.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
+          # Version the release with git describe (e.g. accessibility-beta-2026-07-07-75-g4e5adcb893)
+          # so each build gets a unique, sortable tag.
+          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          # Create the release if it doesn't exist; ignore "already exists".
+          curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            "${API}/releases" || true
+          # Upload the .deb as a release asset (idempotent-ish; overwrite if present).
+          for deb in build/*.deb; do
+            [ -f "$deb" ] || continue
+            curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+              -F "attachment=@${deb}" \
+              "${API}/releases/latest/assets" || echo "WARN: asset upload failed for ${deb}"
+          done
+
+  build-linux-arm64:
+    name: Debian arm64 DEB
+    # Runs on the dedicated arm64 runner (LXC container on the Proxmox host,
+    # registered with the "linux-arm" label). Produces the .deb the Pi installs.
+    runs-on: linux-arm
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Set up build environment"
+        run: tools/debian_buildenv.sh setup
+
+      - name: "Create build directory"
+        run: mkdir build
+
+      - name: "Configure"
+        working-directory: build
+        run: >-
+          cmake
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DQT6=ON
+          -DQML=ON
+          -DBULK=ON
+          -DFFMPEG=ON
+          -DLOCALECOMPARE=ON
+          -DMAD=ON
+          -DMODPLUG=ON
+          -DWAVPACK=ON
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=OFF
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          -DINSTALL_USER_UDEV_RULES=OFF
+          ..
+
+      - name: "Build"
+        working-directory: build
+        run: |
+          JOBS=$(( $(nproc) / 2 ))
+          [ "$JOBS" -lt 1 ] && JOBS=1
+          cmake --build . --config RelWithDebInfo -- -j"$JOBS"
+
+      - name: "Package"
+        working-directory: build
+        run: cpack -G DEB -V
+
+      - name: "Upload build artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-linux-deb-arm64
+          path: build/*.deb
+
+      - name: "Publish release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
+          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            "${API}/releases" || true
+          for deb in build/*.deb; do
+            [ -f "$deb" ] || continue
+            curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+              -F "attachment=@${deb}" \
+              "${API}/releases/latest/assets" || echo "WARN: asset upload failed for ${deb}"
+          done
