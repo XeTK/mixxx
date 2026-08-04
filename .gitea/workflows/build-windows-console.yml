@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+#
+# DEV-ONLY: verify whether a console-allocating launcher (withconsole.exe)
+# can give wix.exe a real console in the runner's context, which is the
+# suspected fix for the persistent WIX0001 "pipe is being closed" failure.
+# withconsole.exe is pre-built on the runner at C:\gitea-runner\withconsole.exe.
+
+name: Test Windows Console (dev)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-windows-console-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-console:
+    name: Windows console check
+    runs-on: windows
+    steps:
+      - name: "Check for console"
+        shell: pwsh
+        run: |
+          Write-Host "PID: $PID"
+          Write-Host "Has console window: $([bool]([System.Console]::WindowHeight -gt 0 -and $null -ne (Get-Process -Id $PID).MainWindowHandle))"
+          # Direct check via P/Invoke
+          Add-Type -TypeDefinition @"
+          using System;
+          using System.Runtime.InteropServices;
+          public class C {
+            [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+          }
+"@
+          $hwnd = [C]::GetConsoleWindow()
+          Write-Host "GetConsoleWindow: $hwnd"
+
+      - name: "Run withconsole.exe wrapper"
+        shell: pwsh
+        run: |
+          # Run a child that reports whether it has a console, both bare and
+          # wrapped in withconsole.exe.
+          $probe = @'
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class P {
+  [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+}
+"@
+Write-Host ("child GetConsoleWindow: " + [P]::GetConsoleWindow())
+'@
+          $probe | Out-File -FilePath C:\gitea-runner\probe.ps1 -Encoding utf8
+          Write-Host "=== bare pwsh child ==="
+          & pwsh -NoProfile -File C:\gitea-runner\probe.ps1
+          Write-Host "=== wrapped in withconsole.exe ==="
+          & C:\gitea-runner\withconsole.exe pwsh -NoProfile -File C:\gitea-runner\probe.ps1
