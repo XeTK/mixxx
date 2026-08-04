@@ -188,23 +188,28 @@ jobs:
 
       - name: "Package"
         shell: pwsh
-        run: cpack --config build/CPackConfig.cmake -G WIX -V -B build
-
-      - name: "Show wix.log on failure"
-        if: failure()
-        shell: pwsh
-        run: Get-Content build/_CPack_Packages/win64/WIX/wix.log -ErrorAction SilentlyContinue
-
-      - name: "Diagnose missing WiX file on failure"
-        if: failure()
-        shell: pwsh
+        # Retries a transient WiX failure: CPack copies the QML applocal
+        # tree, then WiX (moments later) reads files.wxs and re-opens each
+        # file by path - and occasionally can't find one that verifiably
+        # exists (confirmed: same file present both in CPack's own
+        # "Installing:" log line and in a post-failure directory listing).
+        # Same shape as the SYSTEM-profile process-chain issues in
+        # KNOWN_ISSUES.md, but this one still reproduces off that path too,
+        # so it's likely AV/indexer scan-lock timing rather than the
+        # profile-specific bug. A short retry is cheaper than root-causing
+        # further right now.
         run: |
-          $appLocalDir = Get-ChildItem build/_CPack_Packages/win64/WIX -Directory | Where-Object { $_.Name -like "mixxx-*" } | Select-Object -First 1
-          if ($appLocalDir) {
-            Write-Host "=== $($appLocalDir.FullName)\applocal\Qt6\qml\QtQuick\Controls\FluentWinUI3\dark\images (actual contents) ==="
-            Get-ChildItem "$($appLocalDir.FullName)\applocal\Qt6\qml\QtQuick\Controls\FluentWinUI3\dark\images" -ErrorAction SilentlyContinue | Select-Object Name
-            Write-Host "=== same dir in the Qt install used to build (buildenv) ==="
-            Get-ChildItem -Path buildenv -Recurse -Filter "pageindicatordelegate*" -ErrorAction SilentlyContinue | Select-Object FullName
+          $maxAttempts = 3
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+            cpack --config build/CPackConfig.cmake -G WIX -V -B build
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "Package attempt $i/$maxAttempts failed (exit $LASTEXITCODE)."
+            if ($i -eq $maxAttempts) {
+              Get-Content build/_CPack_Packages/win64/WIX/wix.log -ErrorAction SilentlyContinue
+              exit $LASTEXITCODE
+            }
+            Remove-Item -Recurse -Force build/_CPack_Packages -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 10
           }
 
       - name: "Upload build artifact"

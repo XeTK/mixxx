@@ -176,3 +176,31 @@ fixed path outside the profile, `C:\gitea-runner\cmake`, instead of
 not independently re-verified for a regular user account the way the
 workspace-vanishing bug above was - but the same "don't use paths under
 `config\systemprofile`" rule applies regardless of the exact mechanism.)
+
+## Windows: `WIX0103 Cannot find the file ...@2x.png` in Package - worked around (retry)
+
+Seen after Configure/Build/Test all started passing (once the
+`config\systemprofile` issues above were fixed): `cpack -G WIX` fails with
+`error WIX0103: Cannot find the file '...\applocal\Qt6\qml\QtQuick\
+Controls\FluentWinUI3\dark\images\pageindicatordelegate-indicator-
+delegate-current-hovered@2x.png'`.
+
+Confirmed this isn't a genuinely-missing Qt asset: the same run's own
+CPack verbose log shows that exact file being installed successfully
+moments earlier, and a post-failure `Get-ChildItem` of that directory
+shows it present on disk. So `files.wxs` (built from CPack's own scan of
+the install tree) is correct, and WiX's later attempt to open one of the
+files it lists intermittently fails anyway - the same "file that verifiably
+exists can't be opened by the next process in line" shape as the
+`config\systemprofile` bugs above, except this reproduces under
+`C:\gitea-runner\work\...` too, off that specific path. Most likely
+Defender or Windows Search briefly locking newly-written files during a
+scan, not fully explained.
+
+**Workaround in place**: the "Package" step in build-windows.yml retries
+`cpack` up to 3 times (clearing `build/_CPack_Packages` and waiting 10s
+between attempts) instead of failing on the first hit.
+
+**To actually fix properly**: find what's actually locking the file
+(Process Monitor / Resource Monitor's "by handle" search running during a
+live repro would show it) rather than retrying around it.
