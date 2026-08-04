@@ -134,16 +134,16 @@ jobs:
         env:
           GTEST_COLOR: 1
           CTEST_OUTPUT_ON_FAILURE: 1
-          # Building only mixxx-test (not the full app) doesn't copy the Qt
-          # platform plugins into the build tree, so mixxx-test.exe can't find
-          # qwindows.dll. Point Qt at the vcpkg buildenv's plugin dir, which
-          # the "Set up build environment" step exported as MIXXX_VCPKG_ROOT.
-          QT_PLUGIN_PATH: "${{ env.MIXXX_VCPKG_ROOT }}/installed/${{ env.VCPKG_TARGET_TRIPLET }}/plugins"
-        # Repeat the TTS suite N times (default 5) to shake out the
-        # intermittent "no non-silent buffer" failure. Each ctest invocation
-        # runs the two TtsEngineIntegrationTest cases once; the loop lets us
-        # see whether the flakiness is a coin-flip or correlated across runs.
+        # Building only mixxx-test (not the full app) doesn't copy the Qt
+        # platform plugins into the build tree, so mixxx-test.exe can't find
+        # qwindows.dll. Point Qt at the vcpkg buildenv's plugin dir at runtime
+        # (MIXXX_VCPKG_ROOT is exported by the buildenv setup step, so it must
+        # be read inside the script, not via ${{ env }} which is resolved at
+        # workflow-parse time before that step runs).
         run: |
+          $pluginPath = Join-Path $env:MIXXX_VCPKG_ROOT (Join-Path "installed" (Join-Path $env:VCPKG_TARGET_TRIPLET "plugins"))
+          Write-Host "QT_PLUGIN_PATH=$pluginPath"
+          $env:QT_PLUGIN_PATH = $pluginPath
           $iterations = [int]${{ github.event.inputs.iterations }}
           if ($iterations -lt 1) { $iterations = 1 }
           $failures = 0
