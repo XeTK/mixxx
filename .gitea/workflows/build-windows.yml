@@ -107,6 +107,7 @@ jobs:
           -DOPUS=ON
           -DQTKEYCHAIN=ON
           -DVINYLCONTROL=ON
+          -DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_TIMEOUT=60
         env:
           CC: cl
           CXX: cl
