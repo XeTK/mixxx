@@ -152,3 +152,27 @@ then restarting the `gitea-runner` service to pick it up. Confirmed via a
 minimal manual repro (a trivial `CMakeLists.txt` + `cmake -G Ninja`) that
 this path was the actual trigger, independent of the mixxx project, MSVC
 Developer Command Prompt setup, or account context.
+
+This wasn't the whole story, though: moving the job *workspace* off that
+path surfaced a second, related failure at the compiler-detection
+`try_compile` link step - `LINK ... The system cannot find the path
+specified`, with the compile succeeding but the link failing. Isolated by
+progressively shrinking the repro (running as a SYSTEM scheduled task, to
+match the `gitea-runner` service's account) down to: `cmake -E vs_link_exe
+...` referencing an executable under
+`C:\Windows\System32\config\systemprofile\cmake\...` fails when invoked as
+a ninja build step, but the *identical* command succeeds when run directly
+from `cmd.exe` (not spawned by ninja), and a build step invoking a tool
+outside that profile path (e.g. `link.exe` from Program Files) works fine
+either way. So the profile path is unsafe for *anything* a deep,
+tool-spawned process chain touches, not just the job workspace - and the
+"Set up cmake" step was still extracting its downloaded CMake to
+`$env:USERPROFILE\cmake`, which for the `LocalSystem` service account is
+that same profile path.
+
+**Fixed** by changing "Set up cmake" in build-windows.yml to extract to a
+fixed path outside the profile, `C:\gitea-runner\cmake`, instead of
+`$env:USERPROFILE\cmake`. (Confirmed only under the SYSTEM account so far,
+not independently re-verified for a regular user account the way the
+workspace-vanishing bug above was - but the same "don't use paths under
+`config\systemprofile`" rule applies regardless of the exact mechanism.)
