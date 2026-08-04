@@ -69,24 +69,13 @@ jobs:
           BUILDENV_RELEASE: TRUE
 
       - name: "Configure"
-        # shell: pwsh, not the default Windows PowerShell 5.1: cmake
-        # consistently fails claiming its own cwd ("." / the source dir)
-        # doesn't exist, even with no mkdir/cd involved at all. Windows
-        # PowerShell 5.1 exists as both a 32-bit (SysWOW64) and 64-bit
-        # (System32) binary; if the 32-bit one gets picked, any path
-        # under System32 - including this runner's whole workspace,
-        # C:\Windows\System32\config\systemprofile\... - is silently
-        # WOW64-redirected to SysWOW64 and looks like it doesn't exist.
-        # "Set up build environment" (shell: cmd) and "Install WiX
-        # Toolset" (already shell: pwsh) don't hit this. pwsh (PowerShell
-        # 7+) doesn't have a 32/64-bit inbox ambiguity to fall into.
-        # See KNOWN_ISSUES.md.
+        # shell: pwsh - see KNOWN_ISSUES.md for why (Windows PowerShell 5.1
+        # isn't installed on this runner at all, so the default shell
+        # failed outright; pwsh 7 was installed machine-wide instead).
         #
-        # MEDIAFOUNDATION is off because this runner is Windows 11 N, which
-        # ships without the Media Foundation platform DLLs (an EU
-        # regulatory requirement for N editions) - see KNOWN_ISSUES.md for
-        # the real fix (installing the Media Feature Pack), which is
-        # currently blocked by an unresolved DISM access-denied error.
+        # MEDIAFOUNDATION is back on: the Media Feature Pack (missing on
+        # this runner's Windows 11 N install) is now present - see
+        # KNOWN_ISSUES.md.
         shell: pwsh
         run: >-
           cmake -S . -B build
@@ -97,7 +86,7 @@ jobs:
           -DHSS1394=ON
           -DLOCALECOMPARE=ON
           -DMAD=ON
-          -DMEDIAFOUNDATION=OFF
+          -DMEDIAFOUNDATION=ON
           -DMODPLUG=ON
           -DQT6=ON
           -DQML=ON

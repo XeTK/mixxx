@@ -80,13 +80,13 @@ Siri-quality/Enhanced voices specifically, a separate download path from
 the classic voices), or make the test explicitly call `setVoice()` with a
 known-good voice ID instead of relying on the system default.
 
-## Windows: `mixxx-test.exe` fails to launch (`STATUS_DLL_NOT_FOUND`, 0xc0000135) - root-caused, worked around
+## Windows: `mixxx-test.exe` fails to launch (`STATUS_DLL_NOT_FOUND`, 0xc0000135) - fixed
 
 Root cause found: `windows-runner` is running **Windows 11 Pro N for
 Workstations**. N editions ship without Windows Media Foundation (removed
 to comply with EU antitrust requirements around bundled media
 technologies), so `MFPlat.DLL` and `MFReadWrite.dll` - both required
-because our cmake config passes `-DMEDIAFOUNDATION=ON` - don't exist on
+because our cmake config passes `-DMEDIAFOUNDATION=ON` - didn't exist on
 this machine at all.
 
 `dumpbin /dependents` (and even a recursive closure over every dependency,
@@ -98,52 +98,57 @@ successor to the old Sysinternals-style Dependency Walker, run as
 `Dependencies.exe -modules mixxx-test.exe` - its output explicitly flags
 `[NOT_FOUND]` entries.
 
-**Workaround in place:** `-DMEDIAFOUNDATION=OFF` in build-windows.yml.
-Media Foundation is one of several optional Windows-native audio/video
-decoding backends (alongside FFmpeg, MAD, WavPack, etc.), not a hard
-requirement, so this just means slightly fewer natively-supported formats
-on builds from this specific runner - not a broken build.
+**Fixed**: the Media Feature Pack
+(`Add-WindowsCapability -Online -Name Media.MediaFeaturePack~~~~0.0.1.0`)
+initially failed with `HRESULT=80070005` (E_ACCESSDENIED) during CBS's
+finalize phase even from a confirmed-elevated Administrator session, with
+no Group Policy block and outbound Windows Update connectivity confirmed
+working. It's unclear whether a retry, a Windows Update service cycle, or
+something else in between resolved it, but `MFPlat.DLL`/`MFReadWrite.dll`
+are now present on disk and `-DMEDIAFOUNDATION=ON` is back on in
+build-windows.yml.
 
-**To actually fix properly:** install the Media Feature Pack
-(`Add-WindowsCapability -Online -Name Media.MediaFeaturePack~~~~0.0.1.0`,
-or `dism /online /Add-Capability /CapabilityName:Media.MediaFeaturePack~~~~0.0.1.0`).
-Both currently fail with `HRESULT=80070005` (E_ACCESSDENIED) during CBS's
-finalize phase, even from a confirmed-elevated Administrator session with
-TrustedInstaller running. No Group Policy block found in the usual
-`HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate` location.
-Starting `wuauserv` (Windows Update service, found stopped) didn't help
-either. Next things to try: confirm this machine has real outbound HTTPS
-access to Windows Update's CDN (DISM's online capability source needs
-this, and this network has had firewall/profile issues before - see the
-`NetworkCategory: Public` fix earlier in this session), or supply local
-Windows 11 N install media as an explicit DISM `/Source:` instead of
-relying on the online source.
+## Windows: `CMake Error: ... does not exist` for a directory that was just created - fixed
 
-## Windows: checked-out repo files vanish mid-job, `CMake Error: ... does not exist` (fixed)
+Seen repeatedly in CI: partway through `Configure` (or, in one case, right
+after `Check out repository`), a path CMake/Ninja had just written to
+moments earlier - and never deleted - was reported missing. Most
+concretely: `CMakeDetermineCompilerABI`'s `try_compile` writes a scratch
+dir under `build/CMakeFiles/CMakeScratch/TryCompile-<id>/build.ninja`, then
+immediately invokes `ninja -t recompact` against it, which fails with
+`ninja: fatal: chdir to '...' - No such file or directory`.
 
-Seen once, in an actual CI run: `Check out repository` succeeds (5696
-files updated, confirmed in the log), then ~4 minutes later (during the
-"Set up cmake" step's `Invoke-WebRequest`, which took an unusually long
-~4 min for a ~30MB download) the `Configure` step failed because the
-working directory - the same one checkout just populated - was empty
-except for the `build/` folder `mkdir build` had just created. Ruled out
-a second overlapping Gitea Actions run on the same runner (checked the
-task history; nothing else was running).
+Several plausible-looking causes were investigated and ruled out along the
+way (none of them fixed it): Windows Storage Sense / `SilentCleanup`
+scheduled tasks running under disk pressure, Windows Defender real-time
+scanning, a cross-step working-directory propagation bug in Gitea Actions,
+and (initially, before the real cause was confirmed) Windows PowerShell
+5.1's 32-bit/64-bit WOW64 path redirection - though switching all steps to
+`shell: pwsh` was kept regardless, since Windows PowerShell 5.1 turned out
+not to be installed on this runner at all (`Cannot find: pwsh in PATH` was
+a red herring from a *different*, later attempt to test the WOW64 theory -
+pwsh itself was missing, so that attempt never even ran).
 
-Cause: the runner's workspace lives under
-`C:\Windows\System32\config\systemprofile\.cache\act\<hash>\hostexecutor` -
-a path with `.cache` literally in the name, and large C++ builds can push
-this machine into low-disk-space territory, which is exactly the trigger
-condition for Windows' automatic cleanup tasks.
+**Actual root cause**: the `gitea-runner` Windows service runs as
+`LocalSystem` (via `nssm`), and `act_runner`'s `host.workdir_parent` config
+was left unset, which defaults every job's workspace to
+`$HOME/.cache/act/` - and `$HOME` for `LocalSystem` resolves to
+`C:\Windows\System32\config\systemprofile`. Something about that specific
+path (confirmed account-independent - a regular user account hits the same
+failure writing to that same path, but not to `C:\Windows\Temp` or a
+normal user directory) causes newly-created files/directories to
+intermittently vanish before the next process can access them. The exact
+mechanism (filter driver, ACL-driven virtualization, something else)
+wasn't identified, but the fix doesn't require knowing it: don't put a
+build workspace under the SYSTEM profile.
 
-**Fixed** by disabling the two scheduled tasks that perform this kind of
-automatic cleanup on `windows-runner`:
-```powershell
-Disable-ScheduledTask -TaskName SilentCleanup -TaskPath "\Microsoft\Windows\DiskCleanup\"
-Disable-ScheduledTask -TaskName StorageSense -TaskPath "\Microsoft\Windows\DiskFootprint\"
+**Fixed** by setting an explicit workspace directory in
+`C:\gitea-runner\config.yaml`:
+```yaml
+host:
+  workdir_parent: C:\gitea-runner\work
 ```
-Reasonable for a dedicated build machine, not a general daily-use PC.
-Since disk space pressure is what triggers this in the first place, still
-worth keeping an eye on free space on this box over time (see the other
-Windows entries above - the manual repro's vcpkg buildenv + build
-directory alone was several GB).
+then restarting the `gitea-runner` service to pick it up. Confirmed via a
+minimal manual repro (a trivial `CMakeLists.txt` + `cmake -G Ninja`) that
+this path was the actual trigger, independent of the mixxx project, MSVC
+Developer Command Prompt setup, or account context.
