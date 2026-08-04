@@ -22,20 +22,16 @@ jobs:
       - name: "Check for console"
         shell: pwsh
         run: |
-          Add-Type -TypeDefinition @"
-          using System;
-          using System.Runtime.InteropServices;
-          public class C {
-            [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
-          }
-"@
+          $src = 'using System; using System.Runtime.InteropServices; public class C { [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); }'
+          Add-Type -TypeDefinition $src
           $hwnd = [C]::GetConsoleWindow()
           Write-Host "step GetConsoleWindow: $hwnd"
 
       - name: "Run withconsole.exe wrapper"
         shell: pwsh
         run: |
+          $src = 'using System; using System.Runtime.InteropServices; public class P { [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); }'
           Write-Host "=== bare pwsh child ==="
-          & pwsh -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class P { [DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow(); }'; Write-Host ('bare child console: ' + [P]::GetConsoleWindow())"
+          & pwsh -NoProfile -Command "Add-Type -TypeDefinition '$src'; Write-Host ('bare child console: ' + [P]::GetConsoleWindow())"
           Write-Host "=== wrapped in withconsole.exe ==="
-          & C:\gitea-runner\withconsole.exe pwsh -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class P { [DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow(); }'; Write-Host ('wrapped child console: ' + [P]::GetConsoleWindow())"
+          & C:\gitea-runner\withconsole.exe pwsh -NoProfile -Command "Add-Type -TypeDefinition '$src'; Write-Host ('wrapped child console: ' + [P]::GetConsoleWindow())"
