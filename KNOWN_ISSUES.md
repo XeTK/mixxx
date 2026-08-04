@@ -219,36 +219,59 @@ The Package step's retry loop (3 attempts, clearing
 net for genuine transient issues, but didn't actually fix this one on its
 own - the long-path fix did.
 
-## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - worked around (drop `-V`)
+## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - fixed (runner architecture)
 
 Surfaced immediately after the `WIX0103`/`MAX_PATH` issue above was fixed,
 same "Package" step. Full stack trace (from `wix.log`) bottoms out in
 `WixToolset.Core.Native.WixNativeExe.Run()`, called from
-`Cabinet.Compress` while building the installer's cabinet. Ruled out
-before finding the real cause: the SYSTEM-profile process-chain bug
-(moved `wix`'s own install from `$env:USERPROFILE\.dotnet\tools` to
-`C:\gitea-runner\wix-tools` - no change), and Defender quarantine
-(`Get-MpThreatDetection` showed nothing, and the path was already
-excluded; `wixnative.exe` also runs fine standalone).
+`Cabinet.Compress` while building the installer's cabinet.
 
 **Root cause**: an upstream WiX bug
 ([wixtoolset/wix#701](https://github.com/wixtoolset/wix/pull/701),
 fixing [wixtoolset/issues#9267](https://github.com/wixtoolset/issues/9267)):
-when `wix.exe`'s own stdout is a non-interactive pipe (true here - CPack's
-`-V` captures it, and this runner's `gitea-runner` service has no console
-session to begin with, being Session-0/non-interactive), `wix.exe` calls
-`SetConsoleCP`/`SetConsoleOutputCP`, which fail with no console attached;
-the failure path in `ConsoleInitialize` then wrongly closes the *separate*
-stdin/stdout pipe `wix.exe` uses to talk to its own `wixnative.exe` helper
-process, so `wixnative.exe` exits and `wix.exe`'s next write throws `The
-pipe is being closed`. Confirmed via the PR's own description, which
-matches this exact symptom and stack trace. Not yet in any release - even
-the latest `v7.0.0` (2026-04-06) predates the fix (merged 2026-06-09), and
-no newer NuGet package exists as of this writing.
+when `wix.exe` has no console attached at all, its `SetConsoleCP`/
+`SetConsoleOutputCP` calls fail, and the failure path in `ConsoleInitialize`
+wrongly closes the *separate* stdin/stdout pipe `wix.exe` uses to talk to
+its own `wixnative.exe` helper process, so `wixnative.exe` exits and
+`wix.exe`'s next write throws `The pipe is being closed`. Confirmed via the
+PR's own description, which matches this exact symptom and stack trace.
 
-**Fixed** by dropping `-V` from the `cpack -G WIX` invocation in
-build-windows.yml, so CPack doesn't force `wix.exe`'s stdout into a
-captured pipe in the first place.
+Two things ruled out before finding the real cause: dropping CPack's `-V`
+flag (CPack captures `wix.exe`'s output via a pipe regardless of `-V`, so
+this changed nothing), and `AllocConsole()` called from the Package step
+itself (failed with `ERROR_ACCESS_DENIED` - Windows won't grant a console
+to this process no matter what it asks for from the inside).
 
-**To actually fix properly**: switch to a WiX release once one ships with
-wixtoolset/wix#701, and verbose Package output can come back safely.
+The real reason no console is available: `gitea-runner` ran as an `nssm`-
+wrapped Windows Service, and **Windows Services always run in Session 0**,
+which has no window station or desktop - by OS design, not
+misconfiguration, and not fixable from inside a CI step (this is also why
+"Allow service to interact with desktop" has had no effect since Vista).
+Building WiX from source with the fix cherry-picked was also attempted and
+abandoned: the fix commit already requires the .NET 10 SDK (installed:
+`winget install Microsoft.DotNet.SDK.10`), but the full toolset build
+additionally needs a native/Burn-related MSBuild SDK resolver
+(`Microsoft.Build.Traversal`) not available through VS Build Tools' bundled
+MSBuild, and getting that working was a bigger yak-shave than fixing the
+actual environment.
+
+**Fixed** by replacing the `nssm` service with a Scheduled Task bound to
+this machine's already-active interactive logon (`query user` confirmed
+session 1, user `User`, physically logged in), which *does* get a real
+console/window station:
+```powershell
+nssm.exe stop gitea-runner; nssm.exe remove gitea-runner confirm
+
+$action = New-ScheduledTaskAction -Execute "C:\gitea-runner\gitea-runner.exe" -Argument "daemon --config C:\gitea-runner\config.yaml" -WorkingDirectory "C:\gitea-runner"
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User "desktop-d46hml8\user"
+$principal = New-ScheduledTaskPrincipal -UserId "desktop-d46hml8\user" -LogonType Interactive -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "GiteaRunner" -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
+Start-ScheduledTask -TaskName "GiteaRunner"
+```
+Confirmed the new process runs in session 1 (`Get-Process gitea-runner |
+Select SessionId` → `1`, not `0`). **Trade-off**: the runner now depends on
+that interactive session staying logged in - if the machine reboots or
+that session is logged off, the "At log on" trigger restarts it
+automatically on next logon, but it won't run headlessly in between the
+way the old service did.

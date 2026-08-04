@@ -188,26 +188,17 @@ jobs:
 
       - name: "Package"
         shell: pwsh
-        # wix.exe crashes with "error WIX0001: System.IO.IOException: The
-        # pipe is being closed" - a known upstream bug (wixtoolset/wix#701,
-        # fixed on main but not yet in any release including 7.0.0) where
-        # SetConsoleCP fails when the process has no console attached at
-        # all, and the failure path wrongly closes the separate pipe
-        # wix.exe uses to talk to its own wixnative.exe helper. This whole
-        # process chain (gitea-runner service -> pwsh -> cpack -> wix.exe)
-        # has no console (a non-interactive Windows service), regardless of
-        # cpack's -V flag - dropping -V alone didn't help. AllocConsole
-        # gives this process (and its children, which inherit console
-        # handles) a real console object so wix.exe's SetConsoleCP calls
-        # succeed. See KNOWN_ISSUES.md. The retry loop below is kept as a
-        # cheap safety net for unrelated transient failures.
+        # -V (verbose): safe now that windows-runner runs gitea-runner as a
+        # Scheduled Task bound to the logged-in interactive session rather
+        # than a Session-0 Windows service - see KNOWN_ISSUES.md for why
+        # that mattered (wix.exe needs a real console, which Session-0
+        # services can never get, triggering an upstream WiX bug,
+        # wixtoolset/wix#701). The retry loop below is kept as a cheap
+        # safety net for unrelated transient failures.
         run: |
-          Add-Type -Name Kernel32 -Namespace Win32 -MemberDefinition '[DllImport("kernel32.dll", SetLastError = true)] public static extern bool AllocConsole();'
-          [Win32.Kernel32]::AllocConsole() | Out-Null
-
           $maxAttempts = 3
           for ($i = 1; $i -le $maxAttempts; $i++) {
-            cpack --config build/CPackConfig.cmake -G WIX -B build
+            cpack --config build/CPackConfig.cmake -G WIX -V -B build
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "Package attempt $i/$maxAttempts failed (exit $LASTEXITCODE)."
             if ($i -eq $maxAttempts) {
