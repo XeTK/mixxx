@@ -138,7 +138,7 @@ jobs:
           # platform plugins into the build tree, so mixxx-test.exe can't find
           # qwindows.dll. Point Qt at the vcpkg buildenv's plugin dir, which
           # the "Set up build environment" step exported as MIXXX_VCPKG_ROOT.
-          QT_PLUGIN_PATH: "${{ env.MIXXX_VCPKG_ROOT }}\installed\${{ env.VCPKG_TARGET_TRIPLET }}\plugins"
+          QT_PLUGIN_PATH: "${{ env.MIXXX_VCPKG_ROOT }}/installed/${{ env.VCPKG_TARGET_TRIPLET }}/plugins"
         # Repeat the TTS suite N times (default 5) to shake out the
         # intermittent "no non-silent buffer" failure. Each ctest invocation
         # runs the two TtsEngineIntegrationTest cases once; the loop lets us
