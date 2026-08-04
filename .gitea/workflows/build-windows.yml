@@ -188,20 +188,20 @@ jobs:
 
       - name: "Package"
         shell: pwsh
-        # Retries a transient WiX failure: CPack copies the QML applocal
-        # tree, then WiX (moments later) reads files.wxs and re-opens each
-        # file by path - and occasionally can't find one that verifiably
-        # exists (confirmed: same file present both in CPack's own
-        # "Installing:" log line and in a post-failure directory listing).
-        # Same shape as the SYSTEM-profile process-chain issues in
-        # KNOWN_ISSUES.md, but this one still reproduces off that path too,
-        # so it's likely AV/indexer scan-lock timing rather than the
-        # profile-specific bug. A short retry is cheaper than root-causing
-        # further right now.
+        # No -V (verbose): wix.exe itself crashes with "error WIX0001:
+        # System.IO.IOException: The pipe is being closed" when its stdout
+        # is a non-interactive pipe (which -V's captured verbose output
+        # forces) - a known upstream bug (wixtoolset/wix#701, fixed on
+        # main but not yet in any release including 7.0.0) where
+        # SetConsoleCP fails on a process with no console attached and the
+        # failure path wrongly closes the pipe wix.exe uses to talk to its
+        # own wixnative.exe helper. See KNOWN_ISSUES.md. The retry loop
+        # below is kept as a cheap safety net for unrelated transient
+        # failures.
         run: |
           $maxAttempts = 3
           for ($i = 1; $i -le $maxAttempts; $i++) {
-            cpack --config build/CPackConfig.cmake -G WIX -V -B build
+            cpack --config build/CPackConfig.cmake -G WIX -B build
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "Package attempt $i/$maxAttempts failed (exit $LASTEXITCODE)."
             if ($i -eq $maxAttempts) {

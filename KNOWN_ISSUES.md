@@ -218,3 +218,37 @@ The Package step's retry loop (3 attempts, clearing
 `build/_CPack_Packages` between them) is left in place as a cheap safety
 net for genuine transient issues, but didn't actually fix this one on its
 own - the long-path fix did.
+
+## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - worked around (drop `-V`)
+
+Surfaced immediately after the `WIX0103`/`MAX_PATH` issue above was fixed,
+same "Package" step. Full stack trace (from `wix.log`) bottoms out in
+`WixToolset.Core.Native.WixNativeExe.Run()`, called from
+`Cabinet.Compress` while building the installer's cabinet. Ruled out
+before finding the real cause: the SYSTEM-profile process-chain bug
+(moved `wix`'s own install from `$env:USERPROFILE\.dotnet\tools` to
+`C:\gitea-runner\wix-tools` - no change), and Defender quarantine
+(`Get-MpThreatDetection` showed nothing, and the path was already
+excluded; `wixnative.exe` also runs fine standalone).
+
+**Root cause**: an upstream WiX bug
+([wixtoolset/wix#701](https://github.com/wixtoolset/wix/pull/701),
+fixing [wixtoolset/issues#9267](https://github.com/wixtoolset/issues/9267)):
+when `wix.exe`'s own stdout is a non-interactive pipe (true here - CPack's
+`-V` captures it, and this runner's `gitea-runner` service has no console
+session to begin with, being Session-0/non-interactive), `wix.exe` calls
+`SetConsoleCP`/`SetConsoleOutputCP`, which fail with no console attached;
+the failure path in `ConsoleInitialize` then wrongly closes the *separate*
+stdin/stdout pipe `wix.exe` uses to talk to its own `wixnative.exe` helper
+process, so `wixnative.exe` exits and `wix.exe`'s next write throws `The
+pipe is being closed`. Confirmed via the PR's own description, which
+matches this exact symptom and stack trace. Not yet in any release - even
+the latest `v7.0.0` (2026-04-06) predates the fix (merged 2026-06-09), and
+no newer NuGet package exists as of this writing.
+
+**Fixed** by dropping `-V` from the `cpack -G WIX` invocation in
+build-windows.yml, so CPack doesn't force `wix.exe`'s stdout into a
+captured pipe in the first place.
+
+**To actually fix properly**: switch to a WiX release once one ships with
+wixtoolset/wix#701, and verbose Package output can come back safely.
