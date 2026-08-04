@@ -32,21 +32,7 @@ jobs:
           $dir = "C:\gitea-runner\wixtest1"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Set-Content -Path "$dir\hello.txt" -Value "hello world" -Encoding ascii
-          $wxs = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Test1" Manufacturer="Test" Version="1.0.0" UpgradeCode="11111111-1111-1111-1111-111111111111">
-    <MajorUpgrade/>
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="INSTALLFOLDER" Name="Test1">
-        <Component Id="C1">
-          <File Source="$dir\hello.txt"/>
-        </Component>
-      </Directory>
-    </Directory>
-  </Package>
-</Wix>
-"@
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test1" Manufacturer="Test" Version="1.0.0" UpgradeCode="11111111-1111-1111-1111-111111111111"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test1"><Component Id="C1"><File Source="' + $dir + '\hello.txt"/></Component></Directory></Directory></Package></Wix>'
           Set-Content -Path "$dir\test1.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test1 ==="
           & wix build "$dir\test1.wxs" -o "$dir\test1.msi" 2>&1
@@ -62,25 +48,10 @@ jobs:
         run: |
           $dir = "C:\gitea-runner\wixtest2"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          # Create a file at a very deep path to stress MAX_PATH / cabinet.
           $deep = "$dir\a\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z\deep\sub\sub2\sub3\sub4\sub5\sub6\sub7\sub8\sub9\sub10"
           New-Item -ItemType Directory -Force -Path $deep | Out-Null
           Set-Content -Path "$deep\deepfile.txt" -Value "deep content" -Encoding ascii
-          $wxs = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Test2" Manufacturer="Test" Version="1.0.0" UpgradeCode="22222222-2222-2222-2222-222222222222">
-    <MajorUpgrade/>
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="INSTALLFOLDER" Name="Test2">
-        <Component Id="C1">
-          <File Source="$deep\deepfile.txt"/>
-        </Component>
-      </Directory>
-    </Directory>
-  </Package>
-</Wix>
-"@
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test2" Manufacturer="Test" Version="1.0.0" UpgradeCode="22222222-2222-2222-2222-222222222222"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test2"><Component Id="C1"><File Source="' + $deep + '\deepfile.txt"/></Component></Directory></Directory></Package></Wix>'
           Set-Content -Path "$dir\test2.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test2 (deep path) ==="
           & wix build "$dir\test2.wxs" -o "$dir\test2.msi" 2>&1
@@ -96,25 +67,12 @@ jobs:
         run: |
           $dir = "C:\gitea-runner\wixtest3"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          # Generate ~2000 small files to stress cabinet compression.
           $comp = ""
           for ($i = 0; $i -lt 2000; $i++) {
             Set-Content -Path "$dir\file$i.txt" -Value ("content " + $i) -Encoding ascii
-            $comp += "<Component Id=`"C$i`"><File Source=`"$dir\file$i.txt`"/></Component>`n"
+            $comp += '<Component Id="C' + $i + '"><File Source="' + $dir + '\file' + $i + '.txt"/></Component>'
           }
-          $wxs = @"
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Test3" Manufacturer="Test" Version="1.0.0" UpgradeCode="33333333-3333-3333-3333-333333333333">
-    <MajorUpgrade/>
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="INSTALLFOLDER" Name="Test3">
-        $comp
-      </Directory>
-    </Directory>
-  </Package>
-</Wix>
-"@
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test3" Manufacturer="Test" Version="1.0.0" UpgradeCode="33333333-3333-3333-3333-333333333333"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test3">' + $comp + '</Directory></Directory></Package></Wix>'
           Set-Content -Path "$dir\test3.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test3 (2000 files) ==="
           & wix build "$dir\test3.wxs" -o "$dir\test3.msi" 2>&1
