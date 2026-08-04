@@ -177,7 +177,7 @@ not independently re-verified for a regular user account the way the
 workspace-vanishing bug above was - but the same "don't use paths under
 `config\systemprofile`" rule applies regardless of the exact mechanism.)
 
-## Windows: `WIX0103 Cannot find the file ...@2x.png` in Package - worked around (retry)
+## Windows: `WIX0103 Cannot find the file ...@2x.png` in Package - fixed
 
 Seen after Configure/Build/Test all started passing (once the
 `config\systemprofile` issues above were fixed): `cpack -G WIX` fails with
@@ -185,22 +185,36 @@ Seen after Configure/Build/Test all started passing (once the
 Controls\FluentWinUI3\dark\images\pageindicatordelegate-indicator-
 delegate-current-hovered@2x.png'`.
 
-Confirmed this isn't a genuinely-missing Qt asset: the same run's own
-CPack verbose log shows that exact file being installed successfully
-moments earlier, and a post-failure `Get-ChildItem` of that directory
-shows it present on disk. So `files.wxs` (built from CPack's own scan of
-the install tree) is correct, and WiX's later attempt to open one of the
-files it lists intermittently fails anyway - the same "file that verifiably
-exists can't be opened by the next process in line" shape as the
-`config\systemprofile` bugs above, except this reproduces under
-`C:\gitea-runner\work\...` too, off that specific path. Most likely
-Defender or Windows Search briefly locking newly-written files during a
-scan, not fully explained.
+Not a genuinely-missing Qt asset (the same run's CPack verbose log shows
+that exact file being installed successfully moments earlier, and a
+post-failure directory listing shows it present on disk) - and not a race
+either: a 3x retry with a 10s gap failed identically all three times, same
+file, same `files.wxs` line number every time. That ruled out timing and
+pointed at something deterministic about the path itself.
 
-**Workaround in place**: the "Package" step in build-windows.yml retries
-`cpack` up to 3 times (clearing `build/_CPack_Packages` and waiting 10s
-between attempts) instead of failing on the first hit.
+**Root cause**: the full path is exactly 260 characters -
+`C:\gitea-runner\work\<40-char-hash>\hostexecutor\build\_CPack_Packages\
+win64\WIX\mixxx-accessibility-beta-<date>-<n>-g<sha>-amd64\applocal\Qt6\
+qml\QtQuick\Controls\FluentWinUI3\dark\images\
+pageindicatordelegate-indicator-delegate-current-hovered@2x.png` - right at
+Windows' classic `MAX_PATH` limit, and this runner had
+`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled` set to
+`0` (the Windows default). The long CPack staging directory name (embeds
+the full `git describe` string) plus the already-deep `Qt6/qml/.../images`
+nesting pushed just this one file over the edge; shorter-named files in
+the same tree were unaffected, which is why it looked file-specific rather
+than path-length-related at first.
 
-**To actually fix properly**: find what's actually locking the file
-(Process Monitor / Resource Monitor's "by handle" search running during a
-live repro would show it) rather than retrying around it.
+**Fixed** by enabling long path support machine-wide:
+```powershell
+Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord
+```
+then restarting the `gitea-runner` service so the next job's process picks
+up the new registry value (Win32 file APIs cache the flag at process
+start). WiX 6 is a modern .NET tool, which honors `LongPathsEnabled`
+without needing an app-specific manifest opt-in.
+
+The Package step's retry loop (3 attempts, clearing
+`build/_CPack_Packages` between them) is left in place as a cheap safety
+net for genuine transient issues, but didn't actually fix this one on its
+own - the long-path fix did.
