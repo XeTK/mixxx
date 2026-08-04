@@ -195,6 +195,18 @@ jobs:
         shell: pwsh
         run: Get-Content build/_CPack_Packages/win64/WIX/wix.log -ErrorAction SilentlyContinue
 
+      - name: "Diagnose missing WiX file on failure"
+        if: failure()
+        shell: pwsh
+        run: |
+          $appLocalDir = Get-ChildItem build/_CPack_Packages/win64/WIX -Directory | Where-Object { $_.Name -like "mixxx-*" } | Select-Object -First 1
+          if ($appLocalDir) {
+            Write-Host "=== $($appLocalDir.FullName)\applocal\Qt6\qml\QtQuick\Controls\FluentWinUI3\dark\images (actual contents) ==="
+            Get-ChildItem "$($appLocalDir.FullName)\applocal\Qt6\qml\QtQuick\Controls\FluentWinUI3\dark\images" -ErrorAction SilentlyContinue | Select-Object Name
+            Write-Host "=== same dir in the Qt install used to build (buildenv) ==="
+            Get-ChildItem -Path buildenv -Recurse -Filter "pageindicatordelegate*" -ErrorAction SilentlyContinue | Select-Object FullName
+          }
+
       - name: "Upload build artifact"
         uses: actions/upload-artifact@v4
         with:
