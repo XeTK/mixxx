@@ -176,15 +176,15 @@ jobs:
           --repeat until-pass:3
           --stop-on-failure
 
-      - name: "Install WiX Toolset"
+      - name: "Check for WiX Toolset"
+        # windows-runner is a persistent host-mode runner (not an ephemeral
+        # container), and `dotnet tool install --global wix` +
+        # `wix extension add` were already run once by hand and are on the
+        # machine PATH - reinstalling every run just wastes ~10-20s. Fail
+        # loudly if that ever stops being true instead of silently
+        # reinstalling, so a runner rebuild doesn't go unnoticed.
         shell: pwsh
-        run: |
-          dotnet.exe tool install --global wix --version 6.0.2
-          # dotnet tool install broadcasts a PATH update to the system, but
-          # that doesn't reach this already-running pwsh process - add the
-          # global tools dir explicitly so `wix` resolves in the next line.
-          $env:Path += ";$env:USERPROFILE\.dotnet\tools"
-          wix extension add --global WixToolset.UI.wixext/6.0.2
+        run: wix --version
 
       - name: "Package"
         shell: pwsh
