@@ -88,8 +88,10 @@ if [ -n "$INSTALLED_TAG" ] && [ "$INSTALLED_TAG" = "$LATEST_TAG" ]; then
     exit 0
 fi
 
-# Find the arm64 .deb asset.
-DEB_URL="$(printf '%s' "$RESPONSE" | grep -oE '"browser_download_url":"[^"]*arm64[^"]*\.deb"' | head -n1 | sed 's/.*:"//;s/"//')"
+# Find the arm64 .deb asset. The CPack-generated filename uses the arch
+# triple "aarch64" (e.g. mixxx-...-aarch64.deb), so match both "arm64" and
+# "aarch64".
+DEB_URL="$(printf '%s' "$RESPONSE" | grep -oE '"browser_download_url":"[^"]*(arm64|aarch64)[^"]*\.deb"' | head -n1 | sed 's/.*:"//;s/"//')"
 if [ -z "$DEB_URL" ]; then
     notify "Mixxx update available" "Release $LATEST_TAG is available but no arm64 .deb was found on it." "critical"
     die "No arm64 .deb asset found on release $LATEST_TAG" 3
