@@ -98,6 +98,18 @@ jobs:
             sccache-windows-${{ github.ref_name }}
             sccache-windows-
 
+      - name: "Clean build directory"
+        # windows-runner is a persistent host-mode runner, so the build dir
+        # at C:\gitea-runner\build survives between runs. Wipe it so a stale
+        # tree from a previous commit/branch can't leak into this run.
+        # sccache (separate, in C:\gitea-runner\sccache-dir) still makes the
+        # rebuild fast, so cleaning costs little.
+        shell: pwsh
+        run: |
+          if (Test-Path C:\gitea-runner\build) {
+            Remove-Item -Recurse -Force C:\gitea-runner\build
+          }
+
       - name: "Configure"
         # shell: pwsh - see KNOWN_ISSUES.md for why (Windows PowerShell 5.1
         # isn't installed on this runner at all, so the default shell
@@ -106,9 +118,18 @@ jobs:
         # MEDIAFOUNDATION is back on: the Media Feature Pack (missing on
         # this runner's Windows 11 N install) is now present - see
         # KNOWN_ISSUES.md.
+        #
+        # Build in C:\gitea-runner\build, NOT the relative "build" under the
+        # job workspace. The workspace path (C:\gitea-runner\work\<hash>\
+        # hostexecutor) is so deep that CPack's WIX staging dir pushes the
+        # deepest Qt file past MAX_PATH (260 chars) - wixnative.exe does NOT
+        # honor LongPathsEnabled, so it fails to read such files and exits,
+        # closing the pipe and surfacing as WIX0001 "The pipe is being
+        # closed". A short build dir keeps every staged path under the limit.
+        # See KNOWN_ISSUES.md.
         shell: pwsh
         run: >-
-          cmake -S . -B build
+          cmake -S . -B C:\gitea-runner\build
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}"
           -DVCPKG_TARGET_TRIPLET="${{ env.VCPKG_TARGET_TRIPLET }}"
@@ -140,7 +161,7 @@ jobs:
 
       - name: "Build"
         shell: pwsh
-        run: cmake --build build --config RelWithDebInfo
+        run: cmake --build C:\gitea-runner\build --config RelWithDebInfo
         env:
           CC: cl
           CXX: cl
@@ -171,7 +192,7 @@ jobs:
         # occasional transient failures; --stop-on-failure still stops the
         # whole suite once a test exhausts its retries.
         run: >-
-          ctest --test-dir build --timeout 45
+          ctest --test-dir C:\gitea-runner\build --timeout 45
           --exclude-regex "^AutoDJProcessorTest.*$"
           --repeat until-pass:3
           --stop-on-failure
@@ -198,14 +219,14 @@ jobs:
         run: |
           $maxAttempts = 3
           for ($i = 1; $i -le $maxAttempts; $i++) {
-            cpack --config build/CPackConfig.cmake -G WIX -V -B build
+            cpack --config C:\gitea-runner\build\CPackConfig.cmake -G WIX -V -B C:\gitea-runner\build
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "Package attempt $i/$maxAttempts failed (exit $LASTEXITCODE)."
             if ($i -eq $maxAttempts) {
-              Get-Content build/_CPack_Packages/win64/WIX/wix.log -ErrorAction SilentlyContinue
+              Get-Content C:\gitea-runner\build\_CPack_Packages\win64\WIX\wix.log -ErrorAction SilentlyContinue
               exit $LASTEXITCODE
             }
-            Remove-Item -Recurse -Force build/_CPack_Packages -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force C:\gitea-runner\build\_CPack_Packages -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 10
           }
 
@@ -213,4 +234,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mixxx-windows-msi
-          path: build/*.msi
+          path: C:\gitea-runner\build/*.msi
