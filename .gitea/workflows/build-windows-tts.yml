@@ -129,6 +129,22 @@ jobs:
           CXX: cl
           SCCACHE_DIR: C:\gitea-runner\sccache-dir
 
+      - name: "Copy Qt platform plugins into build tree"
+        shell: pwsh
+        # Building only mixxx-test (not the full app) skips the install step
+        # that normally copies qoffscreen.dll / qwindows.dll into
+        # <build>/platforms, so mixxx-test.exe can't find a Qt platform
+        # plugin at runtime. Copy them from the vcpkg buildenv (exported as
+        # MIXXX_VCPKG_ROOT by the buildenv setup step) into the build tree,
+        # mirroring what the full build's install does.
+        run: |
+          $src = Join-Path $env:MIXXX_VCPKG_ROOT (Join-Path "installed" (Join-Path $env:VCPKG_TARGET_TRIPLET "plugins"))
+          $dst = "C:\gitea-runner\build\platforms"
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Copy-Item -Path (Join-Path $src "platforms\*.dll") -Destination $dst -Force
+          Write-Host "Copied platform plugins to $dst:"
+          Get-ChildItem $dst | Select-Object -ExpandProperty Name
+
       - name: "Save sccache cache"
         if: always()
         uses: actions/cache/save@v4
@@ -141,16 +157,7 @@ jobs:
         env:
           GTEST_COLOR: 1
           CTEST_OUTPUT_ON_FAILURE: 1
-        # Building only mixxx-test (not the full app) doesn't copy the Qt
-        # platform plugins into the build tree, so mixxx-test.exe can't find
-        # qwindows.dll. Point Qt at the vcpkg buildenv's plugin dir at runtime
-        # (MIXXX_VCPKG_ROOT is exported by the buildenv setup step, so it must
-        # be read inside the script, not via ${{ env }} which is resolved at
-        # workflow-parse time before that step runs).
         run: |
-          $pluginPath = Join-Path $env:MIXXX_VCPKG_ROOT (Join-Path "installed" (Join-Path $env:VCPKG_TARGET_TRIPLET "plugins"))
-          Write-Host "QT_PLUGIN_PATH=$pluginPath"
-          $env:QT_PLUGIN_PATH = $pluginPath
           $iterations = [int]${{ github.event.inputs.iterations }}
           if ($iterations -lt 1) { $iterations = 1 }
           $failures = 0
