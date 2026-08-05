@@ -1,10 +1,13 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow
 #
 # DEV-ONLY: isolate the persistent WIX0001 "pipe is being closed" failure by
-# running wix.exe directly in the CI context with a minimal .wxs, avoiding the
-# full ~30 min pipeline. This tells us whether wix.exe fundamentally can't run
-# in the runner's context (environmental) or whether something specific to the
-# mixxx packaging (deep paths, many files) triggers it.
+# running wix.exe directly in the CI context with minimal .wxs files, avoiding
+# the full ~30 min pipeline. The pipe error happens specifically in cabinet
+# compression (WixNativeExe -> Cabinet.Compress), so these tests focus on
+# reaching and stressing that path.
+#
+# All three .wxs templates below were validated over SSH on the runner
+# (wix build exit 0, .msi produced) before being committed.
 #
 # wix.exe is pre-installed at C:\gitea-runner\wix-tools\wix.exe (on PATH as `wix`).
 
@@ -28,11 +31,12 @@ jobs:
 
       - name: "Test 1: minimal single-file package"
         shell: pwsh
+        continue-on-error: true
         run: |
           $dir = "C:\gitea-runner\wixtest1"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Set-Content -Path "$dir\hello.txt" -Value "hello world" -Encoding ascii
-          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test1" Manufacturer="Test" Version="1.0.0" UpgradeCode="11111111-1111-1111-1111-111111111111"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test1"><Component Id="C1"><File Source="' + $dir + '\hello.txt"/></Component></Directory></Directory></Package></Wix>'
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test1" Manufacturer="Test" Version="1.0.0" UpgradeCode="11111111-1111-1111-1111-111111111111"><MajorUpgrade AllowDowngrades="yes"/><StandardDirectory Id="ProgramFilesFolder"><Directory Id="INSTALLFOLDER" Name="Test1"><Component Id="C1"><File Source="' + $dir + '\hello.txt"/></Component></Directory></StandardDirectory></Package></Wix>'
           Set-Content -Path "$dir\test1.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test1 ==="
           & wix build "$dir\test1.wxs" -o "$dir\test1.msi" 2>&1
@@ -45,13 +49,14 @@ jobs:
 
       - name: "Test 2: deep/long-path package"
         shell: pwsh
+        continue-on-error: true
         run: |
           $dir = "C:\gitea-runner\wixtest2"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           $deep = "$dir\a\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z\deep\sub\sub2\sub3\sub4\sub5\sub6\sub7\sub8\sub9\sub10"
           New-Item -ItemType Directory -Force -Path $deep | Out-Null
           Set-Content -Path "$deep\deepfile.txt" -Value "deep content" -Encoding ascii
-          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test2" Manufacturer="Test" Version="1.0.0" UpgradeCode="22222222-2222-2222-2222-222222222222"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test2"><Component Id="C1"><File Source="' + $deep + '\deepfile.txt"/></Component></Directory></Directory></Package></Wix>'
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test2" Manufacturer="Test" Version="1.0.0" UpgradeCode="22222222-2222-2222-2222-222222222222"><MajorUpgrade AllowDowngrades="yes"/><StandardDirectory Id="ProgramFilesFolder"><Directory Id="INSTALLFOLDER" Name="Test2"><Component Id="C1"><File Source="' + $deep + '\deepfile.txt"/></Component></Directory></StandardDirectory></Package></Wix>'
           Set-Content -Path "$dir\test2.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test2 (deep path) ==="
           & wix build "$dir\test2.wxs" -o "$dir\test2.msi" 2>&1
@@ -64,6 +69,7 @@ jobs:
 
       - name: "Test 3: many-files package (cabinet stress)"
         shell: pwsh
+        continue-on-error: true
         run: |
           $dir = "C:\gitea-runner\wixtest3"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -72,7 +78,7 @@ jobs:
             Set-Content -Path "$dir\file$i.txt" -Value ("content " + $i) -Encoding ascii
             $comp += '<Component Id="C' + $i + '"><File Source="' + $dir + '\file' + $i + '.txt"/></Component>'
           }
-          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test3" Manufacturer="Test" Version="1.0.0" UpgradeCode="33333333-3333-3333-3333-333333333333"><MajorUpgrade/><Directory Id="TARGETDIR" Name="SourceDir"><Directory Id="INSTALLFOLDER" Name="Test3">' + $comp + '</Directory></Directory></Package></Wix>'
+          $wxs = '<?xml version="1.0" encoding="UTF-8"?><Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Package Name="Test3" Manufacturer="Test" Version="1.0.0" UpgradeCode="33333333-3333-3333-3333-333333333333"><MajorUpgrade AllowDowngrades="yes"/><StandardDirectory Id="ProgramFilesFolder"><Directory Id="INSTALLFOLDER" Name="Test3">' + $comp + '</Directory></StandardDirectory></Package></Wix>'
           Set-Content -Path "$dir\test3.wxs" -Value $wxs -Encoding utf8
           Write-Host "=== Running wix build test3 (2000 files) ==="
           & wix build "$dir\test3.wxs" -o "$dir\test3.msi" 2>&1
