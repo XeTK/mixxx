@@ -161,6 +161,10 @@ jobs:
     # Runs on the dedicated arm64 runner (LXC container on the Proxmox host,
     # registered with the "linux-arm" label). Produces the .deb the Pi installs.
     runs-on: linux-arm
+    # The emulated arm64 build is ~5-10x slower than native. Override the
+    # runner's default 3h job timeout so the first (no-ccache) build can
+    # finish; later runs hit ccache and are much faster.
+    timeout-minutes: 360
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
@@ -179,6 +183,25 @@ jobs:
 
       - name: "Set up build environment"
         run: tools/debian_buildenv.sh setup
+
+      - name: "Restore ccache"
+        # Same explicit restore/save approach as the x86 job - the runner's
+        # actions/cache post-hook doesn't propagate state, so we restore and
+        # save explicitly. This is critical on the emulated arm64 runner:
+        # without it every push recompiles the whole tree from scratch under
+        # qemu, which blows past the job timeout.
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-arm-ccache-${{ github.ref_name }}-${{ github.run_number }}
+          restore-keys: |
+            linux-arm-ccache-${{ github.ref_name }}
+            linux-arm-ccache-
+
+      - name: "Configure ccache"
+        run: |
+          ccache --zero-stats
+          ccache --max-size=5G
 
       - name: "Create build directory"
         run: mkdir build
@@ -209,11 +232,28 @@ jobs:
           ..
 
       - name: "Build"
+        # The emulated arm64 build is ~5-10x slower than native, so give it a
+        # generous timeout. The first run compiles everything from scratch;
+        # subsequent runs hit ccache and are much faster.
+        timeout-minutes: 360
         working-directory: build
         run: |
           JOBS=$(( $(nproc) / 2 ))
           [ "$JOBS" -lt 1 ] && JOBS=1
           cmake --build . --config RelWithDebInfo -- -j"$JOBS"
+
+      - name: "Print ccache stats"
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: "Save ccache"
+        # Runs unconditionally so a red build still speeds up the next push.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-arm-ccache-${{ github.ref_name }}-${{ github.run_number }}
 
       - name: "Package"
         working-directory: build
