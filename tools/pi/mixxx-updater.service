@@ -1,0 +1,10 @@
+[Unit]
+Description=Mixxx auto-updater (checks Gitea for new releases)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=%i
+EnvironmentFile=/home/%i/.config/mixxx-updater/updater.env
+ExecStart=/home/%i/.config/mixxx-updater/mixxx-updater.sh

@@ -3646,23 +3646,18 @@ if(QT_EXTRA_COMPONENTS)
   endforeach()
 endif()
 
-# Qt TextToSpeech is optional; not available on 32-bit Windows or distro builds
-# that omit the module. Falls back to a silent no-op engine when absent.
-# QtTtsEngine uses QTextToSpeech::synthesize(), which requires Qt >= 6.6.
-if(QT6)
-  find_package(Qt6 OPTIONAL_COMPONENTS TextToSpeech)
-  if(
-    Qt6TextToSpeech_FOUND
-    AND Qt6TextToSpeech_VERSION VERSION_GREATER_EQUAL 6.6
-  )
-    target_link_libraries(mixxx-lib PUBLIC Qt6::TextToSpeech)
-    target_compile_definitions(mixxx-lib PUBLIC MIXXX_USE_QT_TTS)
-  elseif(Qt6TextToSpeech_FOUND)
-    message(
-      STATUS
-      "Qt6 TextToSpeech ${Qt6TextToSpeech_VERSION} found but 6.6+ "
-      "is required for PCM synthesis; accessibility TTS disabled"
-    )
+# Linux TTS via eSpeak NG (native, thread-safe). Falls back to a silent
+# no-op engine when the library is absent. eSpeak renders speech to mono 16-bit
+# PCM via a synthesis callback, which we feed into the EngineTts sink.
+if(NOT Q_OS_WIN AND NOT Q_OS_MACOS)
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(ESPEAK_NG QUIET espeak-ng)
+    if(ESPEAK_NG_FOUND)
+      target_include_directories(mixxx-lib PUBLIC ${ESPEAK_NG_INCLUDE_DIRS})
+      target_link_libraries(mixxx-lib PUBLIC ${ESPEAK_NG_LIBRARIES})
+      target_compile_definitions(mixxx-lib PUBLIC MIXXX_USE_ESPEAK)
+    endif()
   endif()
 endif()
 

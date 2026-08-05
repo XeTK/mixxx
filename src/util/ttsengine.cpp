@@ -407,111 +407,244 @@ static QList<T> enumerateTokens(IEnumSpObjectTokens* pEnum) {
 // Objective-C++); this avoids depending on the Qt6 TextToSpeech module, which
 // Mixxx's macOS dependency bundle doesn't ship.
 
-#elif defined(MIXXX_USE_QT_TTS)
+#elif defined(MIXXX_USE_ESPEAK)
 
-#include <QAudioFormat>
-#include <QByteArray>
-#include <QTextToSpeech>
-#include <QVoice>
+// Native Linux backend using eSpeak NG. eSpeak renders speech to mono 16-bit
+// PCM via a synthesis callback (espeak_SetSynthCallback) rather than playing it
+// on a device, which is exactly the buffer we need to feed the EngineTts sink.
+// It is self-contained (no daemon) and thread-safe, unlike Qt's flite plugin
+// which crashes when synthesizing on a worker thread.
+//
+// A dedicated worker thread (mirroring SapiTtsEngine) serializes synthesis and
+// pushes PCM into the sink in chunks, supporting barge-in via a generation
+// counter.
+#include <espeak-ng/speak_lib.h>
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstring>
+#include <mutex>
+#include <thread>
+#include <vector>
+
 #include <QtGlobal>
 
-#include <cmath>
-
-// Cross-platform engine using Qt's synthesize() API (Qt >= 6.6), which renders
-// speech to PCM rather than playing it. The resulting audio is resampled to the
-// engine rate, converted to interleaved stereo float, and fed to the sink.
-class QtTtsEngine final : public TtsEngine {
+class EspeakTtsEngine final : public TtsEngine {
   public:
-    void say(const QString& text) override {
-        if (!m_pSink) {
-            return;
+    EspeakTtsEngine() {
+        // AUDIO_OUTPUT_SYNCHRONOUS makes espeak_Synth() return only after the
+        // whole utterance has been rendered into the callback buffer, and
+        // returns the sample rate from espeak_Initialize().
+        m_espeakRate = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
+        if (m_espeakRate <= 0) {
+            m_espeakRate = 22050; // eSpeak default fallback
         }
-        m_pSink->requestFlush();
-        m_engine.synthesize(text,
-                &m_engine,
-                [this](const QAudioFormat& format, const QByteArray& bytes) {
-                    feed(format, bytes);
-                });
+        espeak_SetSynthCallback(&EspeakTtsEngine::synthCallback);
+        m_worker = std::thread([this] { workerLoop(); });
+    }
+
+    ~EspeakTtsEngine() override {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_quit = true;
+        }
+        m_cv.notify_all();
+        if (m_worker.joinable()) {
+            m_worker.join();
+        }
+        espeak_Terminate();
+    }
+
+    void say(const QString& text) override {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_pendingText = text;
+            m_hasPending = true;
+        }
+        // Newer utterance supersedes any render in progress and any audio
+        // already queued in the sink.
+        m_generation.fetch_add(1, std::memory_order_release);
+        if (m_pSink) {
+            m_pSink->requestFlush();
+        }
+        m_cv.notify_all();
     }
 
     void setVoice(const QString& voiceId) override {
-        if (voiceId.isEmpty()) {
-            return;
-        }
-        for (const QVoice& v : m_engine.availableVoices()) {
-            if (v.name() == voiceId) {
-                m_engine.setVoice(v);
-                return;
-            }
-        }
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_desiredVoiceId = voiceId;
+        m_voiceDirty = true;
     }
 
     void setRate(int rate) override {
-        m_engine.setRate(rate / 10.0);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_desiredRate = rate;
+        m_rateDirty = true;
     }
 
   private:
-    // Extracts frame i's first channel as a normalized [-1, 1] float. The
-    // synthesize() PCM format is backend specific: e.g. Linux's flite-based
-    // backend emits Int16, while macOS's AVSpeechSynthesizer-based backend
-    // emits Float. Both must be handled or speech is silently dropped.
-    static CSAMPLE sampleAt(const QAudioFormat& format, const char* data, int frame) {
-        const int channels = format.channelCount();
-        switch (format.sampleFormat()) {
-        case QAudioFormat::UInt8: {
-            const auto* pcm = reinterpret_cast<const uint8_t*>(data);
-            return (static_cast<CSAMPLE>(pcm[frame * channels]) - 128.0f) / 128.0f;
+    // eSpeak synthesis callback: appends mono 16-bit PCM to the current
+    // utterance buffer. Called on eSpeak's internal synthesis thread; the
+    // instance is passed via user_data to espeak_Synth(). The buffer is
+    // protected by m_pcmMutex so the worker thread can safely read it after
+    // espeak_Synchronize() returns.
+    static int synthCallback(short* wav, int numsamples, espeak_EVENT* events) {
+        Q_UNUSED(events);
+        auto* self = static_cast<EspeakTtsEngine*>(events->user_data);
+        if (self && wav && numsamples > 0) {
+            std::lock_guard<std::mutex> lock(self->m_pcmMutex);
+            self->m_pcm.insert(self->m_pcm.end(), wav, wav + numsamples);
         }
-        case QAudioFormat::Int16: {
-            const auto* pcm = reinterpret_cast<const int16_t*>(data);
-            return static_cast<CSAMPLE>(pcm[frame * channels]) / 32768.0f;
-        }
-        case QAudioFormat::Int32: {
-            const auto* pcm = reinterpret_cast<const int32_t*>(data);
-            return static_cast<CSAMPLE>(pcm[frame * channels]) / 2147483648.0f;
-        }
-        case QAudioFormat::Float: {
-            const auto* pcm = reinterpret_cast<const float*>(data);
-            return pcm[frame * channels];
-        }
-        default:
-            return 0.0f;
+        return 0; // continue synthesis
+    }
+
+    void workerLoop() {
+        while (true) {
+            QString text;
+            QString voiceId;
+            int rate = 0;
+            bool applyVoice = false;
+            bool applyRate = false;
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                m_cv.wait(lock, [this] { return m_hasPending || m_quit; });
+                if (m_quit) {
+                    break;
+                }
+                text = m_pendingText;
+                m_hasPending = false;
+                applyVoice = m_voiceDirty;
+                voiceId = m_desiredVoiceId;
+                m_voiceDirty = false;
+                applyRate = m_rateDirty;
+                rate = m_desiredRate;
+                m_rateDirty = false;
+            }
+
+            if (applyVoice && !voiceId.isEmpty()) {
+                espeak_SetVoiceByName(voiceId.toUtf8().constData());
+            }
+            if (applyRate) {
+                // eSpeak rate is words-per-minute; map Mixxx [-10,10] to a
+                // reasonable WPM range around the default 175.
+                espeak_SetParameter(espeakRATE, 175 + rate * 15, 0);
+            }
+
+            const long generation = m_generation.load(std::memory_order_acquire);
+            {
+                std::lock_guard<std::mutex> lock(m_pcmMutex);
+                m_pcm.clear();
+            }
+            const QByteArray utf8 = text.toUtf8();
+            espeak_Synth(utf8.constData(),
+                    static_cast<size_t>(utf8.size()) + 1,
+                    0,
+                    POS_CHARACTER,
+                    0,
+                    espeakCHARS_UTF8,
+                    nullptr,
+                    this);
+            espeak_Synchronize();
+
+            std::vector<short> pcm;
+            {
+                std::lock_guard<std::mutex> lock(m_pcmMutex);
+                pcm.swap(m_pcm);
+            }
+
+            // Abort if a newer utterance arrived while we were rendering.
+            if (generation != m_generation.load(std::memory_order_acquire)) {
+                continue;
+            }
+            renderToSink(pcm, generation);
         }
     }
 
-    void feed(const QAudioFormat& format, const QByteArray& bytes) {
-        const int channels = format.channelCount();
-        const int bytesPerSample = format.bytesPerSample();
-        if (!m_pSink || bytes.isEmpty() || channels <= 0 || bytesPerSample <= 0 ||
-                format.sampleFormat() == QAudioFormat::Unknown) {
+    // Convert mono int16 PCM to interleaved stereo float and push it into the
+    // sink, waiting for room and aborting if superseded by a newer utterance.
+    //
+    // eSpeak renders at its own sample rate (typically 22050 Hz), which differs
+    // from the engine rate (44100/48000). We resample to the engine rate before
+    // writing, otherwise the speech plays at the wrong speed/pitch (distorted).
+    void renderToSink(const std::vector<short>& pcm, long generation) {
+        if (!m_pSink || pcm.empty()) {
             return;
         }
-        const int inFrames = static_cast<int>(bytes.size() / bytesPerSample) / channels;
-        const double ratio = static_cast<double>(format.sampleRate()) / m_sampleRate;
 
-        // Nearest-neighbour resample to the engine rate. Speech is forgiving and
-        // this avoids pulling in a resampler dependency on the synth side.
-        const int outFrames = static_cast<int>(inFrames / ratio);
-        std::vector<CSAMPLE> stereo(static_cast<size_t>(outFrames) * 2);
-        for (int i = 0; i < outFrames; ++i) {
-            const int srcFrame = static_cast<int>(i * ratio);
-            const CSAMPLE f = sampleAt(format, bytes.constData(), srcFrame);
-            stereo[i * 2] = f;
-            stereo[i * 2 + 1] = f;
-        }
-        int toWrite = outFrames * 2;
-        int offset = 0;
-        while (toWrite > 0) {
-            const int written = m_pSink->writeSamples(stereo.data() + offset, toWrite);
-            if (written == 0) {
-                break; // sink full; drop the rest rather than block the GUI thread
+        // Wait (briefly) for the sink to drain the previous utterance so the
+        // barge-in flush has taken effect before we write.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+        while (!m_pSink->isEmpty() && std::chrono::steady_clock::now() < deadline) {
+            if (generation != m_generation.load(std::memory_order_acquire)) {
+                return;
             }
-            offset += written;
-            toWrite -= written;
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+
+        const double ratio = static_cast<double>(m_sampleRate) / m_espeakRate;
+        constexpr int kChunkFrames = 1024;
+        // outFrames can exceed kChunkFrames when resampling up (ratio > 1), so
+        // size the buffer for the worst case (kChunkFrames * ratio) rather than
+        // a fixed kChunkFrames*2, which overflowed the stack and corrupted the
+        // worker thread's locals.
+        const int maxOutFrames = static_cast<int>(kChunkFrames * ratio) + 1;
+        std::vector<CSAMPLE> stereo(static_cast<size_t>(maxOutFrames) * 2);
+        size_t pos = 0;
+        const size_t total = pcm.size();
+        while (pos < total) {
+            if (generation != m_generation.load(std::memory_order_acquire)) {
+                return; // superseded
+            }
+            // Nearest-neighbour resample a chunk of source frames to the engine
+            // rate. Speech is forgiving and this avoids a resampler dependency.
+            const int srcFrames = static_cast<int>(
+                    std::min<size_t>(kChunkFrames, total - pos));
+            const int outFrames = static_cast<int>(srcFrames * ratio);
+            for (int i = 0; i < outFrames; ++i) {
+                const int srcFrame = static_cast<int>(i / ratio);
+                const CSAMPLE s = static_cast<CSAMPLE>(pcm[pos + srcFrame]) / 32768.0f;
+                stereo[i * 2] = s;
+                stereo[i * 2 + 1] = s;
+            }
+            int toWrite = outFrames * 2;
+            int offset = 0;
+            while (toWrite > 0) {
+                if (generation != m_generation.load(std::memory_order_acquire)) {
+                    return;
+                }
+                const int written = m_pSink->writeSamples(stereo.data() + offset, toWrite);
+                if (written == 0) {
+                    // Sink full; let the audio thread drain it.
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                    continue;
+                }
+                offset += written;
+                toWrite -= written;
+            }
+            pos += srcFrames;
         }
     }
 
-    QTextToSpeech m_engine;
+    // eSpeak is not re-entrant across threads; the callback runs on eSpeak's
+    // internal thread while the worker calls espeak_Synth(). The instance is
+    // passed to the callback via user_data, and the PCM buffer is protected by
+    // m_pcmMutex so the worker can safely read it after espeak_Synchronize().
+    std::vector<short> m_pcm;
+    std::mutex m_pcmMutex;
+
+    std::thread m_worker;
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    QString m_pendingText;
+    QString m_desiredVoiceId;
+    int m_desiredRate{0};
+    int m_espeakRate{22050};
+    bool m_hasPending{false};
+    bool m_voiceDirty{false};
+    bool m_rateDirty{false};
+    bool m_quit{false};
+    std::atomic<long> m_generation{0};
 };
 
 #else
@@ -529,15 +662,15 @@ std::unique_ptr<TtsEngine> TtsEngine::create() {
     return std::make_unique<SapiTtsEngine>();
 #elif defined(Q_OS_MACOS)
     return createMacTtsEngine();
-#elif defined(MIXXX_USE_QT_TTS)
-    return std::make_unique<QtTtsEngine>();
+#elif defined(MIXXX_USE_ESPEAK)
+    return std::make_unique<EspeakTtsEngine>();
 #else
     return std::make_unique<NullTtsEngine>();
 #endif
 }
 
 bool TtsEngine::isAvailable() {
-#if defined(Q_OS_WIN) || defined(Q_OS_MACOS) || defined(MIXXX_USE_QT_TTS)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS) || defined(MIXXX_USE_ESPEAK)
     return true;
 #else
     return false;
@@ -549,11 +682,19 @@ QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
     return enumerateTokens<Voice>(createVoiceEnumerator());
 #elif defined(Q_OS_MACOS)
     return enumerateMacTtsVoices();
-#elif defined(MIXXX_USE_QT_TTS)
-    QTextToSpeech engine;
+#elif defined(MIXXX_USE_ESPEAK)
+    // espeak_ListVoices() requires espeak_Initialize() to have been called
+    // first, otherwise it returns an empty list.
+    espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
     QList<TtsEngine::Voice> result;
-    for (const QVoice& v : engine.availableVoices()) {
-        result << Voice{v.name(), v.name()};
+    const espeak_VOICE** voices = espeak_ListVoices(nullptr);
+    if (voices) {
+        for (int i = 0; voices[i] != nullptr; ++i) {
+            const char* name = voices[i]->name;
+            if (name && *name) {
+                result << Voice{QString::fromUtf8(name), QString::fromUtf8(name)};
+            }
+        }
     }
     return result;
 #else

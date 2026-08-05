@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build-linux:
     name: Ubuntu Qt6 DEB
-    runs-on: ubuntu-latest
+    runs-on: linux-x86
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v4
@@ -44,9 +44,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache
-          key: linux-ccache-${{ github.ref_name }}-${{ github.run_number }}
+          key: linux-ccache-${{ github.ref_name }}
           restore-keys: |
-            linux-ccache-${{ github.ref_name }}
             linux-ccache-
 
       - name: "Configure ccache"
@@ -107,7 +106,11 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ccache
-          key: linux-ccache-${{ github.ref_name }}-${{ github.run_number }}
+          # Stable key (branch only, no run_number) so each run overwrites the
+          # same entry and the next run's restore gets an exact hit instead of
+          # falling back. Avoids accumulating a new cache per run and makes
+          # rebuilds near-instant.
+          key: linux-ccache-${{ github.ref_name }}
 
       - name: "Test"
         working-directory: build
@@ -130,3 +133,186 @@ jobs:
         with:
           name: mixxx-linux-deb
           path: build/*.deb
+
+      - name: "Publish release"
+        # Create (or update) a Gitea release for this build and attach the
+        # .deb. The Pi's updater polls the releases API for new versions.
+        # Uses the GITHUB_TOKEN Gitea injects for the runner.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
+          # Version the release with git describe (e.g. accessibility-beta-2026-07-07-75-g4e5adcb893)
+          # so each build gets a unique, sortable tag.
+          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          # Create the release if it doesn't exist; ignore "already exists". Capture
+          # the release ID from the response so we can upload assets to it.
+          # Gitea's /releases/latest/assets endpoint 404s, so we must target the
+          # release by ID (upload_url) instead.
+          CREATE_RESP="$(curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            "${API}/releases" 2>/dev/null || true)"
+          # If creation failed (e.g. release already exists), look it up by tag.
+          if [ -z "$CREATE_RESP" ] || ! echo "$CREATE_RESP" | grep -q '"id"'; then
+            CREATE_RESP="$(curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" \
+              "${API}/releases/tags/${TAG}" 2>/dev/null || true)"
+          fi
+          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2)"
+          if [ -z "$RELEASE_ID" ]; then
+            echo "WARN: could not determine release ID for ${TAG}"
+            exit 0
+          fi
+          # Upload the .deb as a release asset (idempotent-ish; overwrite if present).
+          for deb in build/*.deb; do
+            [ -f "$deb" ] || continue
+            curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+              -F "attachment=@${deb}" \
+              "${API}/releases/${RELEASE_ID}/assets" || echo "WARN: asset upload failed for ${deb}"
+          done
+
+  build-linux-arm64:
+    name: Debian arm64 DEB
+    # Runs on the dedicated arm64 runner (LXC container on the Proxmox host,
+    # registered with the "linux-arm" label). Produces the .deb the Pi installs.
+    runs-on: linux-arm
+    # The emulated arm64 build is ~5-10x slower than native. Override the
+    # runner's default 3h job timeout so the first (no-ccache) build can
+    # finish; later runs hit ccache and are much faster.
+    timeout-minutes: 360
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Ensure that all tags are fetched"
+        run: git fetch origin --force --tags
+
+      - name: "Install sudo"
+        # The runner's container image runs as root and has no sudo binary,
+        # but debian_buildenv.sh shells out to `sudo apt-get ...`.
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends sudo
+
+      - name: "Set up build environment"
+        run: tools/debian_buildenv.sh setup
+
+      - name: "Restore ccache"
+        # Same explicit restore/save approach as the x86 job - the runner's
+        # actions/cache post-hook doesn't propagate state, so we restore and
+        # save explicitly. This is critical on the emulated arm64 runner:
+        # without it every push recompiles the whole tree from scratch under
+        # qemu, which blows past the job timeout.
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: linux-arm-ccache-${{ github.ref_name }}
+          restore-keys: |
+            linux-arm-ccache-
+
+      - name: "Configure ccache"
+        run: |
+          ccache --zero-stats
+          # Generous cap: a Mixxx tree is large and the emulated arm64 build
+          # is slow, so we want as much of it cached between runs as possible.
+          ccache --max-size=20G
+
+      - name: "Create build directory"
+        run: mkdir build
+
+      - name: "Configure"
+        working-directory: build
+        run: >-
+          cmake
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DQT6=ON
+          -DQML=ON
+          -DBULK=ON
+          -DFFMPEG=ON
+          -DLOCALECOMPARE=ON
+          -DMAD=ON
+          -DMODPLUG=ON
+          -DWAVPACK=ON
+          -DBATTERY=ON
+          -DBROADCAST=ON
+          -DDOWNLOAD_MANUAL=ON
+          -DHID=OFF
+          -DKEYFINDER=ON
+          -DLILV=ON
+          -DOPUS=ON
+          -DQTKEYCHAIN=ON
+          -DVINYLCONTROL=ON
+          -DINSTALL_USER_UDEV_RULES=OFF
+          ..
+
+      - name: "Build"
+        # The emulated arm64 build is ~5-10x slower than native, so give it a
+        # generous timeout. The first run compiles everything from scratch;
+        # subsequent runs hit ccache and are much faster.
+        timeout-minutes: 360
+        working-directory: build
+        run: |
+          JOBS=$(( $(nproc) / 2 ))
+          [ "$JOBS" -lt 1 ] && JOBS=1
+          cmake --build . --config RelWithDebInfo -- -j"$JOBS"
+
+      - name: "Print ccache stats"
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: "Save ccache"
+        # Runs unconditionally so a red build still speeds up the next push.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          # Stable key (branch only, no run_number) so each run overwrites the
+          # same entry and the next run's restore gets an exact hit instead of
+          # falling back. Avoids accumulating a new cache per run and makes
+          # rebuilds near-instant.
+          key: linux-arm-ccache-${{ github.ref_name }}
+
+      - name: "Package"
+        working-directory: build
+        run: cpack -G DEB -V
+
+      - name: "Upload build artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixxx-linux-deb-arm64
+          path: build/*.deb
+
+      - name: "Publish release"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
+          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          # Create the release if it doesn't exist; ignore "already exists". Capture
+          # the release ID so we can upload assets to it (Gitea's
+          # /releases/latest/assets endpoint 404s, so target by ID instead).
+          CREATE_RESP="$(curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            "${API}/releases" 2>/dev/null || true)"
+          # If creation failed (e.g. release already exists), look it up by tag.
+          if [ -z "$CREATE_RESP" ] || ! echo "$CREATE_RESP" | grep -q '"id"'; then
+            CREATE_RESP="$(curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" \
+              "${API}/releases/tags/${TAG}" 2>/dev/null || true)"
+          fi
+          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2)"
+          if [ -z "$RELEASE_ID" ]; then
+            echo "WARN: could not determine release ID for ${TAG}"
+            exit 0
+          fi
+          for deb in build/*.deb; do
+            [ -f "$deb" ] || continue
+            curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+              -F "attachment=@${deb}" \
+              "${API}/releases/${RELEASE_ID}/assets" || echo "WARN: asset upload failed for ${deb}"
+          done

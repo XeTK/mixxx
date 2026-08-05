@@ -99,6 +99,7 @@ case "$1" in
             libchromaprint-dev \
             libdistro-info-perl \
             libebur128-dev \
+            libespeak-ng-dev \
             libfaad-dev \
             libfftw3-dev \
             libflac-dev \
@@ -138,6 +139,8 @@ case "$1" in
             qt6-declarative-private-dev \
             qt6-base-private-dev \
             qt6-qpa-plugins \
+            qt6-speech-dev \
+            qt6-speech-flite-plugin \
             qml6-module-qt5compat-graphicaleffects \
             qml6-module-qtqml-workerscript \
             qml6-module-qtquick-controls \

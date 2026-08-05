@@ -9,9 +9,9 @@
 name: Build Windows
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
+  # Push/pull_request temporarily disabled while the Linux arm64 build is
+  # being brought up, to avoid wasting the Windows runner on every push.
+  # Re-enable once the Linux pipeline is stable.
   workflow_dispatch:
 
 concurrency:
