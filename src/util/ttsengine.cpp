@@ -436,9 +436,9 @@ class EspeakTtsEngine final : public TtsEngine {
         // AUDIO_OUTPUT_SYNCHRONOUS makes espeak_Synth() return only after the
         // whole utterance has been rendered into the callback buffer, and
         // returns the sample rate from espeak_Initialize().
-        m_sampleRate = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
-        if (m_sampleRate <= 0) {
-            m_sampleRate = 22050; // eSpeak default fallback
+        m_espeakRate = espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
+        if (m_espeakRate <= 0) {
+            m_espeakRate = 22050; // eSpeak default fallback
         }
         espeak_SetSynthCallback(&EspeakTtsEngine::synthCallback);
         m_worker = std::thread([this] { workerLoop(); });
@@ -485,11 +485,16 @@ class EspeakTtsEngine final : public TtsEngine {
 
   private:
     // eSpeak synthesis callback: appends mono 16-bit PCM to the current
-    // utterance buffer. Called on the eSpeak internal thread.
+    // utterance buffer. Called on eSpeak's internal synthesis thread; the
+    // instance is passed via user_data to espeak_Synth(). The buffer is
+    // protected by m_pcmMutex so the worker thread can safely read it after
+    // espeak_Synchronize() returns.
     static int synthCallback(short* wav, int numsamples, espeak_EVENT* events) {
         Q_UNUSED(events);
-        if (wav && numsamples > 0) {
-            s_pcm->insert(s_pcm->end(), wav, wav + numsamples);
+        auto* self = static_cast<EspeakTtsEngine*>(events->user_data);
+        if (self && wav && numsamples > 0) {
+            std::lock_guard<std::mutex> lock(self->m_pcmMutex);
+            self->m_pcm.insert(self->m_pcm.end(), wav, wav + numsamples);
         }
         return 0; // continue synthesis
     }
@@ -527,8 +532,10 @@ class EspeakTtsEngine final : public TtsEngine {
             }
 
             const long generation = m_generation.load(std::memory_order_acquire);
-            std::vector<short> pcm;
-            s_pcm = &pcm;
+            {
+                std::lock_guard<std::mutex> lock(m_pcmMutex);
+                m_pcm.clear();
+            }
             const QByteArray utf8 = text.toUtf8();
             espeak_Synth(utf8.constData(),
                     static_cast<size_t>(utf8.size()) + 1,
@@ -537,9 +544,14 @@ class EspeakTtsEngine final : public TtsEngine {
                     0,
                     espeakCHARS_UTF8,
                     nullptr,
-                    nullptr);
+                    this);
             espeak_Synchronize();
-            s_pcm = nullptr;
+
+            std::vector<short> pcm;
+            {
+                std::lock_guard<std::mutex> lock(m_pcmMutex);
+                pcm.swap(m_pcm);
+            }
 
             // Abort if a newer utterance arrived while we were rendering.
             if (generation != m_generation.load(std::memory_order_acquire)) {
@@ -551,6 +563,10 @@ class EspeakTtsEngine final : public TtsEngine {
 
     // Convert mono int16 PCM to interleaved stereo float and push it into the
     // sink, waiting for room and aborting if superseded by a newer utterance.
+    //
+    // eSpeak renders at its own sample rate (typically 22050 Hz), which differs
+    // from the engine rate (44100/48000). We resample to the engine rate before
+    // writing, otherwise the speech plays at the wrong speed/pitch (distorted).
     void renderToSink(const std::vector<short>& pcm, long generation) {
         if (!m_pSink || pcm.empty()) {
             return;
@@ -566,28 +582,38 @@ class EspeakTtsEngine final : public TtsEngine {
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
 
+        const double ratio = static_cast<double>(m_sampleRate) / m_espeakRate;
         constexpr int kChunkFrames = 1024;
-        CSAMPLE stereo[kChunkFrames * 2];
+        // outFrames can exceed kChunkFrames when resampling up (ratio > 1), so
+        // size the buffer for the worst case (kChunkFrames * ratio) rather than
+        // a fixed kChunkFrames*2, which overflowed the stack and corrupted the
+        // worker thread's locals.
+        const int maxOutFrames = static_cast<int>(kChunkFrames * ratio) + 1;
+        std::vector<CSAMPLE> stereo(static_cast<size_t>(maxOutFrames) * 2);
         size_t pos = 0;
         const size_t total = pcm.size();
         while (pos < total) {
             if (generation != m_generation.load(std::memory_order_acquire)) {
                 return; // superseded
             }
-            const int frames = static_cast<int>(
+            // Nearest-neighbour resample a chunk of source frames to the engine
+            // rate. Speech is forgiving and this avoids a resampler dependency.
+            const int srcFrames = static_cast<int>(
                     std::min<size_t>(kChunkFrames, total - pos));
-            for (int i = 0; i < frames; ++i) {
-                const CSAMPLE s = static_cast<CSAMPLE>(pcm[pos + i]) / 32768.0f;
+            const int outFrames = static_cast<int>(srcFrames * ratio);
+            for (int i = 0; i < outFrames; ++i) {
+                const int srcFrame = static_cast<int>(i / ratio);
+                const CSAMPLE s = static_cast<CSAMPLE>(pcm[pos + srcFrame]) / 32768.0f;
                 stereo[i * 2] = s;
                 stereo[i * 2 + 1] = s;
             }
-            int toWrite = frames * 2;
+            int toWrite = outFrames * 2;
             int offset = 0;
             while (toWrite > 0) {
                 if (generation != m_generation.load(std::memory_order_acquire)) {
                     return;
                 }
-                const int written = m_pSink->writeSamples(stereo + offset, toWrite);
+                const int written = m_pSink->writeSamples(stereo.data() + offset, toWrite);
                 if (written == 0) {
                     // Sink full; let the audio thread drain it.
                     std::this_thread::sleep_for(std::chrono::milliseconds(2));
@@ -596,15 +622,16 @@ class EspeakTtsEngine final : public TtsEngine {
                 offset += written;
                 toWrite -= written;
             }
-            pos += frames;
+            pos += srcFrames;
         }
     }
 
     // eSpeak is not re-entrant across threads; the callback runs on eSpeak's
-    // internal thread while the worker calls espeak_Synth(). We hand the worker's
-    // buffer to the callback via this pointer. Synthesis is serialized by the
-    // single worker thread, so this is safe.
-    static std::vector<short>* s_pcm;
+    // internal thread while the worker calls espeak_Synth(). The instance is
+    // passed to the callback via user_data, and the PCM buffer is protected by
+    // m_pcmMutex so the worker can safely read it after espeak_Synchronize().
+    std::vector<short> m_pcm;
+    std::mutex m_pcmMutex;
 
     std::thread m_worker;
     std::mutex m_mutex;
@@ -612,14 +639,13 @@ class EspeakTtsEngine final : public TtsEngine {
     QString m_pendingText;
     QString m_desiredVoiceId;
     int m_desiredRate{0};
+    int m_espeakRate{22050};
     bool m_hasPending{false};
     bool m_voiceDirty{false};
     bool m_rateDirty{false};
     bool m_quit{false};
     std::atomic<long> m_generation{0};
 };
-
-std::vector<short>* EspeakTtsEngine::s_pcm = nullptr;
 
 #else
 
@@ -657,6 +683,9 @@ QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
 #elif defined(Q_OS_MACOS)
     return enumerateMacTtsVoices();
 #elif defined(MIXXX_USE_ESPEAK)
+    // espeak_ListVoices() requires espeak_Initialize() to have been called
+    // first, otherwise it returns an empty list.
+    espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, nullptr, 0);
     QList<TtsEngine::Voice> result;
     const espeak_VOICE** voices = espeak_ListVoices(nullptr);
     if (voices) {
