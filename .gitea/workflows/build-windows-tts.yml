@@ -138,7 +138,7 @@ jobs:
         # MIXXX_VCPKG_ROOT by the buildenv setup step) into the build tree,
         # mirroring what the full build's install does.
         run: |
-          $src = Join-Path $env:MIXXX_VCPKG_ROOT (Join-Path "installed" (Join-Path $env:VCPKG_TARGET_TRIPLET "plugins"))
+          $src = Join-Path $env:MIXXX_VCPKG_ROOT (Join-Path "installed" (Join-Path $env:VCPKG_TARGET_TRIPLET "Qt6\plugins"))
           $dst = "C:\gitea-runner\build\platforms"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Copy-Item -Path (Join-Path $src "platforms\*.dll") -Destination $dst -Force
