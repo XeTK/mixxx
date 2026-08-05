@@ -3,9 +3,9 @@
 name: Build Linux
 
 on:
-  # Temporarily disabled on push/PR while debugging Windows CI in
-  # isolation - trigger manually if needed. Re-add push/pull_request once
-  # Windows is stable.
+  push:
+    branches: ["**"]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
