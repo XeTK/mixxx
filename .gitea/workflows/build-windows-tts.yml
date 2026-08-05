@@ -142,7 +142,7 @@ jobs:
           $dst = "C:\gitea-runner\build\platforms"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Copy-Item -Path (Join-Path $src "platforms\*.dll") -Destination $dst -Force
-          Write-Host "Copied platform plugins to $dst:"
+          Write-Host "Copied platform plugins to $dst"
           Get-ChildItem $dst | Select-Object -ExpandProperty Name
 
       - name: "Save sccache cache"
