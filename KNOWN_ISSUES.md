@@ -219,7 +219,65 @@ The Package step's retry loop (3 attempts, clearing
 net for genuine transient issues, but didn't actually fix this one on its
 own - the long-path fix did.
 
-## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - fixed (runner architecture)
+## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - fixed (MAX_PATH in wixnative.exe)
+
+Surfaced after the `WIX0103`/`MAX_PATH` issue above was fixed, same "Package"
+step. Full stack trace (from `wix.log`) bottoms out in
+`WixToolset.Core.Native.WixNativeExe.Run()`, called from
+`Cabinet.Compress` while building the installer's cabinet.
+
+An earlier investigation blamed an upstream WiX bug
+([wixtoolset/wix#701](https://github.com/wixtoolset/wix/pull/701)) and a
+Session-0 Windows service having no console. Both of those were red herrings:
+
+- The runner was moved from an `nssm` service to a Scheduled Task bound to the
+  interactive session (session 1), and a dedicated console-check workflow
+  confirmed the runner's step and child processes DO have a real console
+  (`GetConsoleWindow` returns a valid handle). Yet `WIX0001` still failed on
+  every run, all 3 retries.
+- A dedicated WiX direct-test workflow (minimal `.wxs`, single file / deep
+  path / 2000-file cabinet) showed `wix.exe` runs fine in CI and produces real
+  MSIs - including the 2000-file cabinet compression.
+
+**Actual root cause**: `wixnative.exe` (WiX's native helper, spawned by
+`wix.exe` for cabinet compression) does **NOT** honor the `LongPathsEnabled`
+registry setting - it lacks the `longPathAware` manifest, so it still enforces
+MAX_PATH (260 chars). The CI job workspace lives at
+`C:\gitea-runner\work\<40-char-hash>\hostexecutor\build`, and CPack's WIX
+staging dir adds
+`_CPack_Packages\win64\WIX\mixxx-accessibility-beta-<date>-<n>-g<sha>-amd64\
+applocal\Qt6\qml\QtQuick\Controls\FluentWinUI3\dark\images\...` on top,
+pushing the deepest Qt file (e.g.
+`pageindicatordelegate-indicator-delegate-current-hovered@2x.png`) to ~286
+chars. `wixnative.exe` fails to read that file, exits, and `wix.exe`'s next
+write throws `The pipe is being closed` - which is why it looked like a pipe/
+console bug rather than a path-length one.
+
+Reproduced deterministically over SSH with a single deep file (286 chars) →
+`WIX0001`; the identical file at a short path (227 chars) → success. The
+earlier `WIX0103` was the same MAX_PATH root cause surfacing as a file-not-
+found during the install phase; this is it surfacing as a pipe error during
+cabinet compression.
+
+**Fixed** by building in a short directory, `C:\gitea-runner\build`, instead
+of the deep relative `build` under the job workspace. With the short build
+dir, the deepest staged file is ~227 chars - safely under MAX_PATH. The
+workflow now cleans `C:\gitea-runner\build` at the start of each run (the
+runner is persistent, not ephemeral) and points Configure/Build/Test/Package
+at it. sccache (in `C:\gitea-runner\sccache-dir`) still makes the rebuild
+fast, so the clean costs little.
+
+**Trade-off**: this depends on the runner having a writable `C:\gitea-runner`
+and on no other component writing to `C:\gitea-runner\build` between runs.
+The Package step's retry loop (3 attempts, clearing
+`C:\gitea-runner\build\_CPack_Packages` between them) is kept as a cheap
+safety net for genuine transient issues.
+
+## Windows: `WIX0001 System.IO.IOException: The pipe is being closed` in Package - fixed (runner architecture, superseded)
+
+> NOTE: This section documents the earlier, incorrect diagnosis (Session-0
+> service / no console). It is superseded by the MAX_PATH-in-wixnative.exe
+> root cause above. Kept for history.
 
 Surfaced immediately after the `WIX0103`/`MAX_PATH` issue above was fixed,
 same "Package" step. Full stack trace (from `wix.log`) bottoms out in
