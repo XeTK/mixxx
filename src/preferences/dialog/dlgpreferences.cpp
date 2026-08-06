@@ -549,6 +549,22 @@ void DlgPreferences::expandTreeItem(QTreeWidgetItem* pItem) {
     contentsTreeWidget->expandItem(pItem);
 }
 
+void DlgPreferences::switchToPageByTitle(const QString& pageTitle) {
+    for (PreferencesPage page : std::as_const(m_allPages)) {
+        if (page.pTreeItem && page.pTreeItem->text(0) == pageTitle) {
+            switchToPage(pageTitle, page.pDlg);
+            contentsTreeWidget->setCurrentItem(page.pTreeItem);
+            show();
+            raise();
+            activateWindow();
+            return;
+        }
+    }
+    // Fall back to the sound hardware page if the requested page is not
+    // available (e.g. a feature compiled out).
+    showSoundHardwarePage();
+}
+
 void DlgPreferences::switchToPage(const QString& pageTitle, DlgPreferencePage* pWidget) {
 #ifdef __APPLE__
     // According to Apple's Human Interface Guidelines, settings dialogs have to

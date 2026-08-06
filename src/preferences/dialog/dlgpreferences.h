@@ -61,6 +61,10 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
     void removePageWidget(DlgPreferencePage* pWidget);
     void expandTreeItem(QTreeWidgetItem* pItem);
     void switchToPage(const QString& pageTitle, DlgPreferencePage* pPage);
+    /// Open the preferences dialog on the page whose sidebar title matches
+    /// `pageTitle` (the same translated string used when the page was added).
+    /// Used by the accessibility menu (issue #3) to jump to a specific page.
+    void switchToPageByTitle(const QString& pageTitle);
 
   public slots:
     void changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPrevious);
