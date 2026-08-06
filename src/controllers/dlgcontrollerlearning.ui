@@ -98,6 +98,9 @@
         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="3,0">
          <item>
           <widget class="QComboBox" name="comboBoxChosenControl">
+           <property name="accessibleName">
+            <string>Control to learn</string>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
