@@ -45,6 +45,9 @@ class CmdlineArgs final {
     bool getControllerAbortOnWarning() const {
         return m_controllerAbortOnWarning;
     }
+    bool getControllerNavigationWithoutFocus() const {
+        return m_controllerNavigationWithoutFocus;
+    }
     bool getDeveloper() const { return m_developer; }
 #ifdef MIXXX_USE_QML
     bool isQml() const {
@@ -96,6 +99,14 @@ class CmdlineArgs final {
 
     bool parse(const QStringList& arguments, ParseMode mode);
 
+    // Test-only entry point: lets tests parse a QStringList without requiring
+    // the no-QCoreApplication precondition of parse(int, char**).
+    friend bool parseCmdlineArgsForTest(const QStringList& arguments, CmdlineArgs* out);
+
+    // Test-only entry point: lets tests parse a QStringList without requiring
+    // the no-QCoreApplication precondition of parse(int, char**).
+    friend bool parseCmdlineArgsForTest(const QStringList& arguments, CmdlineArgs* out);
+
     QList<QString> m_musicFiles;    // List of files to load into players at startup
     bool m_startInFullscreen;       // Start in fullscreen mode
     bool m_startAutoDJ;
@@ -103,6 +114,7 @@ class CmdlineArgs final {
     bool m_controllerDebug;
     bool m_controllerPreviewScreens;
     bool m_controllerAbortOnWarning; // Controller Engine will be stricter
+    bool m_controllerNavigationWithoutFocus; // Allow controller-driven library navigation even when the Mixxx window lacks keyboard focus
     bool m_developer; // Developer Mode
 #ifdef MIXXX_USE_QML
     bool m_qml;

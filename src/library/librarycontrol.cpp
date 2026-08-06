@@ -993,7 +993,8 @@ void LibraryControl::slotMoveTrack(double v) {
 }
 
 void LibraryControl::emitKeyEvent(QKeyEvent&& event) {
-    if (!QApplication::focusWindow()) {
+    if (!QApplication::focusWindow() &&
+            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
         qInfo() << "No Mixxx window, popup or menu has focus."
                 << "Don't send key events.";
         return;
@@ -1010,12 +1011,28 @@ void LibraryControl::emitKeyEvent(QKeyEvent&& event) {
         for (auto i = 0; i < event.count(); ++i) {
             QApplication::sendEvent(focusWidget, &event);
         }
+        return;
+    }
+
+    // When the Mixxx window lacks keyboard focus there is no focused widget to
+    // deliver the synthesized key event to. If controller navigation without
+    // focus is enabled, deliver the event to the active track table view
+    // instead so controller-driven navigation still works.
+    if (CmdlineArgs::Instance().getControllerNavigationWithoutFocus() &&
+            m_pLibraryWidget) {
+        auto* pTrackTableview = m_pLibraryWidget->getCurrentTrackTableView();
+        if (pTrackTableview) {
+            for (auto i = 0; i < event.count(); ++i) {
+                QApplication::sendEvent(pTrackTableview, &event);
+            }
+        }
     }
 }
 
 FocusWidget LibraryControl::getFocusedWidget() {
     auto* focusWindow = QApplication::focusWindow();
-    if (!focusWindow) {
+    if (!focusWindow &&
+            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
         return FocusWidget::None;
     }
 
@@ -1070,7 +1087,8 @@ FocusWidget LibraryControl::getFocusedWidget() {
 }
 
 void LibraryControl::setLibraryFocus(FocusWidget newFocusWidget) {
-    if (!QApplication::focusWindow()) {
+    if (!QApplication::focusWindow() &&
+            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
         qInfo() << "No Mixxx window, popup or menu has focus."
                 << "Don't attempt to focus a specific widget.";
         return;
