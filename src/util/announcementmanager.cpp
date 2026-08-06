@@ -1,6 +1,8 @@
 #include "util/announcementmanager.h"
 
 #include <QDateTime>
+#include <QFile>
+#include <QTextStream>
 #include <algorithm>
 #include <cmath>
 
@@ -22,6 +24,7 @@
 #include "track/beats.h"
 #include "track/keyutils.h"
 #include "track/track.h"
+#include "util/cmdlineargs.h"
 #include "util/parented_ptr.h"
 #include "util/ttsengine.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
@@ -814,6 +817,18 @@ void AnnouncementManager::speak(const QString& text) {
     // unrelated utterance the next control move must name the control again.
     // slotAnnouncePendingControl() restores the context after its own speak().
     m_lastControlKey.clear();
+
+    // Test hook (--tts-log): append every spoken string to a file so automated
+    // accessibility tests can assert on what was spoken. Log before the
+    // TTS-disabled early return so the hook captures all utterances.
+    const QString ttsLogPath = CmdlineArgs::Instance().getTtsLogPath();
+    if (!ttsLogPath.isEmpty()) {
+        QFile logFile(ttsLogPath);
+        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream out(&logFile);
+            out << text << "\n";
+        }
+    }
 
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {

@@ -48,6 +48,9 @@ class CmdlineArgs final {
     bool getControllerNavigationWithoutFocus() const {
         return m_controllerNavigationWithoutFocus;
     }
+    const QString& getTtsLogPath() const {
+        return m_ttsLogPath;
+    }
     bool getDeveloper() const { return m_developer; }
 #ifdef MIXXX_USE_QML
     bool isQml() const {
@@ -115,6 +118,7 @@ class CmdlineArgs final {
     bool m_controllerPreviewScreens;
     bool m_controllerAbortOnWarning; // Controller Engine will be stricter
     bool m_controllerNavigationWithoutFocus; // Allow controller-driven library navigation even when the Mixxx window lacks keyboard focus
+    QString m_ttsLogPath; // Path to append every spoken TTS string (--tts-log)
     bool m_developer; // Developer Mode
 #ifdef MIXXX_USE_QML
     bool m_qml;

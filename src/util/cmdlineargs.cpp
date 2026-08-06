@@ -391,6 +391,14 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
                             : QString());
     parser.addOption(controllerNavigationWithoutFocus);
 
+    const QCommandLineOption ttsLog(QStringLiteral("tts-log"),
+            forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
+                                      "Append every spoken TTS string to the given file. "
+                                      "For automated accessibility testing.")
+                            : QString(),
+            QStringLiteral("path"));
+    parser.addOption(ttsLog);
+
     if (forUserFeedback) {
         // We know form the first path, that there will be likely an error message, check again.
         // This is not the case if the user uses a Qt internal option that is unknown
@@ -465,6 +473,9 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     m_controllerDebug = parser.isSet(controllerDebug) || parser.isSet(controllerDebugDeprecated);
     m_controllerPreviewScreens = parser.isSet(controllerPreviewScreens);
     m_controllerNavigationWithoutFocus = parser.isSet(controllerNavigationWithoutFocus);
+    if (parser.isSet(ttsLog)) {
+        m_ttsLogPath = parser.value(ttsLog);
+    }
     m_controllerAbortOnWarning = parser.isSet(controllerAbortOnWarning);
     m_developer = parser.isSet(developer);
 #ifdef MIXXX_USE_QML
