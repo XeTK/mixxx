@@ -221,7 +221,13 @@ PioneerDDJ400.browseMenuActive = function() {
 
 PioneerDDJ400.browseRotate = function(_channel, _control, value) {
     if (PioneerDDJ400.browseMenuActive()) {
-        engine.setValue("[AccessMenu]", "navigate", value);
+        // The browse knob is a relative encoder: 0x41 = up, 0x3F = down,
+        // 0x40 = center (no-op). Convert to a signed +/-1 delta so the
+        // [AccessMenu] navigate encoder scrolls in the correct direction.
+        const delta = value - 0x40;
+        if (delta !== 0) {
+            engine.setValue("[AccessMenu]", "navigate", delta);
+        }
     } else {
         engine.setValue("[Library]", "MoveVertical", value);
     }
