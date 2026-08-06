@@ -61,7 +61,8 @@ bool ControllerMappingTableModel::setHeaderData(int section,
 QVariant ControllerMappingTableModel::headerData(int section,
                                                  Qt::Orientation orientation,
                                                  int role) const {
-    if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
+    if ((role == Qt::DisplayRole || role == Qt::AccessibleTextRole) &&
+            orientation == Qt::Horizontal) {
         QVariant headerValue = m_headerInfo.value(section).value(role);
         if (!headerValue.isValid()) {
             // Try EditRole if DisplayRole wasn't present

@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QOpenGLContext>
+#include <QRegularExpression>
 #include <QUrl>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -53,6 +54,7 @@
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
 #include "track/track.h"
+#include "util/accessmenucontroller.h"
 #include "util/debug.h"
 #include "util/desktophelper.h"
 #include "util/sandbox.h"
@@ -93,6 +95,81 @@ inline bool supportsGlobalMenu() {
 const ConfigKey kHideMenuBarConfigKey = ConfigKey("[Config]", "hide_menubar");
 const ConfigKey kMenuBarHintConfigKey = ConfigKey("[Config]", "show_menubar_hint");
 } // namespace
+
+// Accessibility: build the text spoken by Library::announceText() for the
+// boot-time dialogs. These are pure, translatable helpers so the spoken strings
+// can be unit tested without instantiating MixxxMainWindow/CoreServices. The
+// dialog methods pass the result to announceText(); the dialog behavior is
+// unchanged.
+QString MixxxMainWindow::menuBarHideSpeech(
+        const QString& hideBtnLabel, const QString& showBtnLabel) {
+    return tr("Allow Mixxx to hide the menu bar? The menu bar can be toggled "
+              "with a single press of the Alt key. Press %1 to agree, or %2 to "
+              "disable that and always show the menu bar.")
+            .arg(hideBtnLabel, showBtnLabel);
+}
+
+QString MixxxMainWindow::soundDeviceBusySpeech(const QString& deviceName) {
+    return tr("Mixxx was unable to open all the configured sound devices. "
+              "%1 is used by another application or not plugged in. "
+              "Press Retry to try again, Reconfigure to change the sound "
+              "hardware settings, get Help from the Mixxx wiki, or Exit to "
+              "quit Mixxx.")
+            .arg(deviceName);
+}
+
+QString MixxxMainWindow::soundDeviceErrorSpeech(const QString& errorMessage) {
+    return tr("Mixxx was unable to open all the configured sound devices. "
+              "%1 Press Retry to try again, Reconfigure to change the sound "
+              "hardware settings, get Help from the Mixxx wiki, or Exit to "
+              "quit Mixxx.")
+            .arg(errorMessage);
+}
+
+QString MixxxMainWindow::noOutputSpeech() {
+    return tr("Mixxx was configured without any output sound devices. "
+              "Audio processing will be disabled without a configured output "
+              "device. Press Continue to continue without any outputs, "
+              "Reconfigure to change the sound hardware settings, or Exit to "
+              "quit Mixxx.");
+}
+
+QString MixxxMainWindow::noVinylControlInputSpeech() {
+    return tr("There is no input device selected for this vinyl control. "
+              "Please select an input device in the sound hardware preferences "
+              "first.");
+}
+
+QString MixxxMainWindow::noPassthroughInputSpeech() {
+    return tr("There is no input device selected for this passthrough control. "
+              "Please select an input device in the sound hardware preferences "
+              "first.");
+}
+
+QString MixxxMainWindow::noMicrophoneInputSpeech() {
+    return tr("There is no input device selected for this microphone. "
+              "Do you want to select an input device?");
+}
+
+QString MixxxMainWindow::noAuxiliaryInputSpeech() {
+    return tr("There is no input device selected for this auxiliary. "
+              "Do you want to select an input device?");
+}
+
+QString MixxxMainWindow::libraryScanSummarySpeech(const QString& htmlSummary) {
+    // Strip the HTML formatting so the spoken summary is clean text.
+    return tr("Library scan finished. %1")
+            .arg(QString(htmlSummary).remove(QRegularExpression("<[^>]*>")));
+}
+
+QString MixxxMainWindow::directRenderingSpeech() {
+    return tr("Direct rendering is not enabled on your machine. This means "
+              "that the waveform displays will be very slow and may tax your "
+              "CPU heavily. Either update your configuration to enable direct "
+              "rendering, or disable the waveform displays in the Mixxx "
+              "preferences by selecting Empty as the waveform display in the "
+              "Interface section.");
+}
 
 MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServices)
         : m_pCoreServices(pCoreServices),
@@ -186,8 +263,16 @@ void MixxxMainWindow::initializeQOpenGL() {
             pWidget->setGeometry(QRect(0, 0, 3, 3));
             SharedGLContext::setWidget(pWidget);
             // When the widget's QOpenGLWindow has been initialized, we continue
-            // with the actual initialization
-            connect(pWidget, &WInitialGLWidget::onInitialized, this, &MixxxMainWindow::initialize);
+            // with the actual initialization. Use a queued connection so
+            // initialize() runs inside the event loop rather than reentrantly
+            // inside pWidget->show(). Calling processEvents() (via
+            // initializationProgressUpdate) while still inside the Cocoa show()
+            // deadlocks on macOS (issue #27).
+            connect(pWidget,
+                    &WInitialGLWidget::onInitialized,
+                    this,
+                    &MixxxMainWindow::initialize,
+                    Qt::QueuedConnection);
             pWidget->show();
             return;
         }
@@ -356,6 +441,22 @@ void MixxxMainWindow::initialize() {
     // Connect signals to the menubar. Should be done before emit skinLoaded.
     connectMenuBar();
 
+    // Accessibility (issue #3): instantiate the spoken [AccessMenu] popup menu
+    // controller. Its speak callback routes through Library::announceText() so
+    // the highlighted item is spoken by the TTS system.
+    m_pAccessMenuController = std::make_unique<AccessMenuController>(
+            [this](const QString& text) {
+                if (m_pCoreServices->getLibrary()) {
+                    m_pCoreServices->getLibrary()->announceText(text);
+                }
+            },
+            this);
+    connect(m_pAccessMenuController.get(),
+            &AccessMenuController::actionTriggered,
+            this,
+            &MixxxMainWindow::slotAccessMenuAction,
+            Qt::UniqueConnection);
+
     QWidget* oldWidget = m_pCentralWidget;
 
     tryParseAndSetDefaultStyleSheet();
@@ -377,6 +478,16 @@ void MixxxMainWindow::initialize() {
     // Sound hardware setup
     // Try to open configured devices. If that fails, display dialogs
     // that allow to either retry, reconfigure devices or exit.
+    //
+    // Accessibility note (chicken-and-egg): on this branch TTS is mixed into
+    // Mixxx's own engine output, so speech is only audible once a sound device
+    // is configured and the engine is running. At this point in boot no device
+    // is open yet, so the failure dialogs below are spoken as a best-effort
+    // only (see soundDeviceBusyDlg()/soundDeviceErrorMsgDlg()/noOutputDlg()).
+    // A fresh install with working default audio already auto-configures the
+    // system default output via SoundManagerConfig::loadDefaults(), so this
+    // loop is normally skipped and "Mixxx ready" is spoken once the engine is
+    // up.
     bool retryClicked;
     do {
         retryClicked = false;
@@ -616,6 +727,11 @@ void MixxxMainWindow::alwaysHideMenuBarDlg() {
             "<br>") // line break for some extra margin to the checkbox
                            .arg(hideBtnLabel, showBtnLabel);
 
+    // Accessibility: this dialog appears after the engine is up, so the spoken
+    // announcement is audible. The QMessageBox is kept intact for screen readers.
+    m_pCoreServices->getLibrary()->announceText(
+            menuBarHideSpeech(hideBtnLabel, showBtnLabel));
+
     QMessageBox msg;
     msg.setIcon(QMessageBox::Question);
     msg.setWindowTitle(title);
@@ -687,6 +803,14 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceErrorDlg(
 }
 
 QDialog::DialogCode MixxxMainWindow::soundDeviceBusyDlg(bool* retryClicked) {
+    // Accessibility: best-effort spoken fallback. TTS is mixed into the engine
+    // output, which is not running yet at this point in boot, so this may be
+    // inaudible on first run (see the chicken-and-egg note in initialize()).
+    // Speak it anyway in case a device is already configured and the engine
+    // can render it.
+    m_pCoreServices->getLibrary()->announceText(
+            soundDeviceBusySpeech(
+                    m_pCoreServices->getSoundManager()->getErrorDeviceName()));
     QString title(tr("Sound Device Busy"));
     QString text(
             "<html> <p>" %
@@ -714,6 +838,12 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceBusyDlg(bool* retryClicked) {
 
 QDialog::DialogCode MixxxMainWindow::soundDeviceErrorMsgDlg(
         SoundDeviceStatus status, bool* retryClicked) {
+    // Accessibility: best-effort spoken fallback (see the chicken-and-egg note
+    // in initialize()).
+    m_pCoreServices->getLibrary()->announceText(
+            soundDeviceErrorSpeech(
+                    m_pCoreServices->getSoundManager()
+                            ->getLastErrorMessage(status)));
     QString title(tr("Sound Device Error"));
     QString text("<html> <p>" %
                     tr("Mixxx was unable to open all the configured sound "
@@ -740,6 +870,9 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceErrorMsgDlg(
 }
 
 QDialog::DialogCode MixxxMainWindow::noOutputDlg(bool* continueClicked) {
+    // Accessibility: best-effort spoken fallback (see the chicken-and-egg note
+    // in initialize()).
+    m_pCoreServices->getLibrary()->announceText(noOutputSpeech());
     QMessageBox msgBox;
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setWindowTitle(tr("No Output Devices"));
@@ -1162,6 +1295,9 @@ void MixxxMainWindow::slotNoVinylControlInputConfigured() {
         m_noVinylInputDialog->setWindowModality(Qt::ApplicationModal);
         m_noVinylInputDialog->setDefaultButton(QMessageBox::Cancel);
     }
+    // Accessibility: the engine is up here, so this is audible. Keep the dialog
+    // for screen readers.
+    m_pCoreServices->getLibrary()->announceText(noVinylControlInputSpeech());
     m_noVinylInputDialog->exec();
     if (m_noVinylInputDialog->clickedButton() ==
             m_noVinylInputDialog->button(QMessageBox::Ok)) {
@@ -1189,6 +1325,8 @@ void MixxxMainWindow::slotNoDeckPassthroughInputConfigured() {
         m_noPassthroughInputDialog->setWindowModality(Qt::ApplicationModal);
         m_noPassthroughInputDialog->setDefaultButton(QMessageBox::Cancel);
     }
+    // Accessibility: the engine is up here, so this is audible.
+    m_pCoreServices->getLibrary()->announceText(noPassthroughInputSpeech());
     m_noPassthroughInputDialog->exec();
     if (m_noPassthroughInputDialog->clickedButton() ==
             m_noPassthroughInputDialog->button(QMessageBox::Ok)) {
@@ -1216,6 +1354,8 @@ void MixxxMainWindow::slotNoMicrophoneInputConfigured() {
         m_noMicInputDialog->setWindowModality(Qt::ApplicationModal);
         m_noMicInputDialog->setDefaultButton(QMessageBox::Cancel);
     }
+    // Accessibility: the engine is up here, so this is audible.
+    m_pCoreServices->getLibrary()->announceText(noMicrophoneInputSpeech());
     m_noMicInputDialog->exec();
     if (m_noMicInputDialog->clickedButton() ==
             m_noMicInputDialog->button(QMessageBox::Ok)) {
@@ -1243,6 +1383,8 @@ void MixxxMainWindow::slotNoAuxiliaryInputConfigured() {
         m_noAuxInputDialog->setWindowModality(Qt::ApplicationModal);
         m_noAuxInputDialog->setDefaultButton(QMessageBox::Cancel);
     }
+    // Accessibility: the engine is up here, so this is audible.
+    m_pCoreServices->getLibrary()->announceText(noAuxiliaryInputSpeech());
     m_noAuxInputDialog->exec();
     if (m_noAuxInputDialog->clickedButton() ==
             m_noAuxInputDialog->button(QMessageBox::Ok)) {
@@ -1308,6 +1450,9 @@ void MixxxMainWindow::slotLibraryScanSummaryDlg(const LibraryScanResultSummary& 
     pMsg->setTextFormat(Qt::RichText); // required to get bold text with <b> tags
     pMsg->setWindowTitle(tr("Library scan finished"));
     pMsg->setText(summary);
+    // Accessibility: the engine is up here, so this is audible. Strip the HTML
+    // formatting so the spoken summary is clean text.
+    m_pCoreServices->getLibrary()->announceText(libraryScanSummarySpeech(summary));
     pMsg->show();
 }
 
@@ -1340,6 +1485,114 @@ void MixxxMainWindow::slotToggleTts(bool enabled) {
     if (m_pTtsEnabledControl) {
         m_pTtsEnabledControl->set(enabled ? 1.0 : 0.0);
     }
+}
+
+void MixxxMainWindow::slotAccessMenuAction(const QString& actionId) {
+    // Preference pages. Map the actionId to the real (translated) page title
+    // used by DlgPreferences, then open the dialog on that page.
+    if (actionId == QStringLiteral("pref_sound_hardware")) {
+        m_pPrefDlg->showSoundHardwarePage();
+        m_pPrefDlg->show();
+        m_pPrefDlg->raise();
+        m_pPrefDlg->activateWindow();
+        return;
+    }
+    if (actionId == QStringLiteral("pref_midi_controllers")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Controllers"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_accessibility")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Accessibility"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_interface")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Interface"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_decks")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Decks"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_effects")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Effects"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_library")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Library"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_recording")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Recording"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_broadcasting")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Live Broadcasting"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_mixer")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Mixer"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_waveform")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Waveforms"));
+        return;
+    }
+    if (actionId == QStringLiteral("pref_vinyl_control")) {
+        m_pPrefDlg->switchToPageByTitle(tr("Vinyl Control"));
+        return;
+    }
+
+    // Toggles and actions: reuse the same handlers connectMenuBar() wires from
+    // the WMainMenuBar signals, by re-emitting the corresponding signal on the
+    // menu bar.
+    if (actionId == QStringLiteral("toggleTts")) {
+        emit m_pMenuBar->toggleTts(!m_pTtsEnabledControl->toBool());
+        return;
+    }
+    if (actionId == QStringLiteral("toggleRecording")) {
+        if (m_pCoreServices->getRecordingManager()) {
+            emit m_pMenuBar->toggleRecording(
+                    !m_pCoreServices->getRecordingManager()->isRecordingActive());
+        }
+        return;
+    }
+#ifdef __BROADCAST__
+    if (actionId == QStringLiteral("toggleBroadcasting")) {
+        if (m_pCoreServices->getBroadcastManager()) {
+            emit m_pMenuBar->toggleBroadcasting(
+                    !m_pCoreServices->getBroadcastManager()->isEnabled());
+        }
+        return;
+    }
+#endif
+    if (actionId == QStringLiteral("toggleFullScreen")) {
+        emit m_pMenuBar->toggleFullScreen(!isFullScreen());
+        return;
+    }
+    if (actionId == QStringLiteral("toggleKeyboardShortcuts")) {
+        bool enabled = m_pCoreServices->getSettings()->getValueString(
+                               ConfigKey("[Keyboard]", "Enabled")) == "1";
+        emit m_pMenuBar->toggleKeyboardShortcuts(!enabled);
+        return;
+    }
+    if (actionId == QStringLiteral("reloadSkin")) {
+        emit m_pMenuBar->reloadSkin();
+        return;
+    }
+    if (actionId == QStringLiteral("rescanLibrary")) {
+        emit m_pMenuBar->rescanLibrary();
+        return;
+    }
+    if (actionId == QStringLiteral("showAbout")) {
+        emit m_pMenuBar->showAbout();
+        return;
+    }
+    if (actionId == QStringLiteral("quit")) {
+        close();
+        return;
+    }
+
+    qWarning() << "Unknown access menu action:" << actionId;
 }
 
 void MixxxMainWindow::rebootMixxxView() {
@@ -1550,6 +1803,8 @@ void MixxxMainWindow::checkDirectRendering() {
 
     if (!factory->isOpenGlAvailable() && !factory->isOpenGlesAvailable() &&
         pConfig->getValueString(ConfigKey("[Direct Rendering]", "Warned")) != QString("yes")) {
+        // Accessibility: the engine is up here, so this is audible.
+        m_pCoreServices->getLibrary()->announceText(directRenderingSpeech());
         QMessageBox::warning(nullptr,
                 tr("OpenGL Direct Rendering"),
                 tr("Direct rendering is not enabled on your machine.<br><br>"
@@ -1623,5 +1878,12 @@ void MixxxMainWindow::initializationProgressUpdate(int progress, const QString& 
     if (m_pLaunchImage) {
         m_pLaunchImage->progress(progress, serviceName);
     }
-    qApp->processEvents();
+    // Process pending events so the launch image repaints during startup.
+    // Guard against reentrancy: during startup initialize() may be invoked
+    // from inside a window show (via the OpenGL onInitialized signal), and
+    // calling processEvents() reentrantly before the event loop is running
+    // deadlocks on macOS (issue #27).
+    if (!QCoreApplication::startingUp()) {
+        qApp->processEvents();
+    }
 }

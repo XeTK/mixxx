@@ -53,6 +53,7 @@ CmdlineArgs::CmdlineArgs()
           m_rescanLibrary(false),
           m_controllerDebug(false),
           m_controllerAbortOnWarning(false),
+          m_controllerNavigationWithoutFocus(false),
           m_developer(false),
 #ifdef MIXXX_USE_QML
           m_qml(false),
@@ -382,6 +383,14 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
                             : QString());
     parser.addOption(controllerPreviewScreens);
 
+    const QCommandLineOption controllerNavigationWithoutFocus(
+            QStringLiteral("controller-navigation-without-focus"),
+            forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
+                                      "Allow controller-driven library navigation even when the "
+                                      "Mixxx window does not have keyboard focus.")
+                            : QString());
+    parser.addOption(controllerNavigationWithoutFocus);
+
     if (forUserFeedback) {
         // We know form the first path, that there will be likely an error message, check again.
         // This is not the case if the user uses a Qt internal option that is unknown
@@ -455,6 +464,7 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     m_useLegacySpinny = parser.isSet(enableLegacySpinny);
     m_controllerDebug = parser.isSet(controllerDebug) || parser.isSet(controllerDebugDeprecated);
     m_controllerPreviewScreens = parser.isSet(controllerPreviewScreens);
+    m_controllerNavigationWithoutFocus = parser.isSet(controllerNavigationWithoutFocus);
     m_controllerAbortOnWarning = parser.isSet(controllerAbortOnWarning);
     m_developer = parser.isSet(developer);
 #ifdef MIXXX_USE_QML
@@ -522,4 +532,8 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     }
 
     return true;
+}
+
+bool parseCmdlineArgsForTest(const QStringList& arguments, CmdlineArgs* out) {
+    return out->parse(arguments, CmdlineArgs::ParseMode::Initial);
 }

@@ -25,7 +25,13 @@ DlgPrefSoundItem::DlgPrefSoundItem(
           m_isInput(isInput),
           m_emitSettingChanged(true) {
     setupUi(this);
-    typeLabel->setText(AudioPath::getTrStringFromType(type, index));
+    const QString typeString = AudioPath::getTrStringFromType(type, index);
+    typeLabel->setText(typeString);
+    // The type label text is only set at runtime, so build accessible names for
+    // the combo boxes here so screen readers can announce what each represents.
+    const AccessibleNames names = accessibleNamesFor(type, index, isInput);
+    deviceComboBox->setAccessibleName(names.device);
+    channelComboBox->setAccessibleName(names.channel);
 
     deviceComboBox->addItem(SoundManagerConfig::kEmptyComboBox,
             QVariant::fromValue(SoundDeviceId()));
@@ -43,6 +49,14 @@ DlgPrefSoundItem::DlgPrefSoundItem(
 
 DlgPrefSoundItem::~DlgPrefSoundItem() {
 
+}
+
+DlgPrefSoundItem::AccessibleNames DlgPrefSoundItem::accessibleNamesFor(
+        AudioPathType type, unsigned int index, bool isInput) {
+    const QString typeString = AudioPath::getTrStringFromType(type, index);
+    const QString deviceKind = isInput ? tr("input") : tr("output");
+    return {tr("%1 %2 device").arg(typeString, deviceKind),
+            tr("%1 %2 channel").arg(typeString, deviceKind)};
 }
 
 /// Slot called when the parent preferences pane updates its list of sound

@@ -117,6 +117,9 @@
        <property name="toolTip">
         <string>Refresh mapping list</string>
        </property>
+       <property name="accessibleName">
+        <string>Refresh mapping list</string>
+       </property>
        <property name="checkable">
         <bool>false</bool>
        </property>
@@ -995,10 +998,17 @@
        <item>
         <layout class="QHBoxLayout" name="layoutInputSearch">
          <item>
-          <widget class="QLineEdit" name="inputControlSearch"/>
+          <widget class="QLineEdit" name="inputControlSearch">
+           <property name="accessibleName">
+            <string>Search Input Mappings</string>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QPushButton" name="inputControlSearchBtn">
+           <property name="accessibleName">
+            <string>Search Input Mappings</string>
+           </property>
            <property name="text">
             <string>Search</string>
            </property>
@@ -1008,6 +1018,9 @@
        </item>
        <item>
         <widget class="QTableView" name="midiInputMappingTableView">
+         <property name="accessibleName">
+          <string>Input Mappings</string>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -1039,6 +1052,9 @@
          <layout class="QHBoxLayout" name="horizontalLayoutInputManagement">
           <item>
            <widget class="QPushButton" name="btnAddInputMapping">
+            <property name="accessibleName">
+             <string>Add Input Mapping</string>
+            </property>
             <property name="text">
              <string>Add</string>
             </property>
@@ -1046,6 +1062,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnRemoveInputMappings">
+            <property name="accessibleName">
+             <string>Remove Input Mapping</string>
+            </property>
             <property name="text">
              <string>Remove</string>
             </property>
@@ -1066,6 +1085,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnClearAllInputMappings">
+            <property name="accessibleName">
+             <string>Clear All Input Mappings</string>
+            </property>
             <property name="text">
              <string>Clear All</string>
             </property>
@@ -1090,10 +1112,17 @@
        <item>
         <layout class="QHBoxLayout" name="layoutOutputSearch">
          <item>
-          <widget class="QLineEdit" name="outputControlSearch"/>
+          <widget class="QLineEdit" name="outputControlSearch">
+           <property name="accessibleName">
+            <string>Search Output Mappings</string>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QPushButton" name="outputControlSearchBtn">
+           <property name="accessibleName">
+            <string>Search Output Mappings</string>
+           </property>
            <property name="text">
             <string>Search</string>
            </property>
@@ -1103,6 +1132,9 @@
        </item>
        <item>
         <widget class="QTableView" name="midiOutputMappingTableView">
+         <property name="accessibleName">
+          <string>Output Mappings</string>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -1131,6 +1163,9 @@
          <layout class="QHBoxLayout" name="horizontalLayoutOutputManagement">
           <item>
            <widget class="QPushButton" name="btnAddOutputMapping">
+            <property name="accessibleName">
+             <string>Add Output Mapping</string>
+            </property>
             <property name="text">
              <string>Add</string>
             </property>
@@ -1138,6 +1173,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnRemoveOutputMappings">
+            <property name="accessibleName">
+             <string>Remove Output Mapping</string>
+            </property>
             <property name="text">
              <string>Remove</string>
             </property>
@@ -1158,6 +1196,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="btnClearAllOutputMappings">
+            <property name="accessibleName">
+             <string>Clear All Output Mappings</string>
+            </property>
             <property name="text">
              <string>Clear All</string>
             </property>

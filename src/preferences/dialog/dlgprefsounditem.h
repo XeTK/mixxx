@@ -20,6 +20,16 @@ class DlgPrefSoundItem : public QWidget, public Ui::DlgPrefSoundItem {
             bool isInput, unsigned int index = 0);
     virtual ~DlgPrefSoundItem();
 
+    /// The accessible names built for the device and channel combo boxes for a
+    /// given AudioPathType, index and input/output qualifier. Kept as a pure
+    /// static helper so the construction logic can be unit tested.
+    struct AccessibleNames {
+        QString device;
+        QString channel;
+    };
+    static AccessibleNames accessibleNamesFor(
+            AudioPathType type, unsigned int index, bool isInput);
+
     AudioPathType type() const { return m_type; };
     unsigned int index() const { return m_index; };
     bool isInput() {

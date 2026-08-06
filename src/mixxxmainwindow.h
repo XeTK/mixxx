@@ -9,6 +9,7 @@
 #include "track/track_decl.h"
 #include "util/parented_ptr.h"
 
+class AccessMenuController;
 class ControlObject;
 class ControlProxy;
 class DlgDeveloperTools;
@@ -43,6 +44,23 @@ class MixxxMainWindow : public QMainWindow {
   public:
     MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServices);
     ~MixxxMainWindow() override;
+
+    // Accessibility: these static helpers build the text that is spoken by
+    // Library::announceText() for the boot-time dialogs. They are factored out
+    // so the spoken strings can be unit tested without instantiating the full
+    // MixxxMainWindow/CoreServices machinery. The dialog methods call them and
+    // pass the result to announceText(); the dialog behavior is unchanged.
+    static QString menuBarHideSpeech(
+            const QString& hideBtnLabel, const QString& showBtnLabel);
+    static QString soundDeviceBusySpeech(const QString& deviceName);
+    static QString soundDeviceErrorSpeech(const QString& errorMessage);
+    static QString noOutputSpeech();
+    static QString noVinylControlInputSpeech();
+    static QString noPassthroughInputSpeech();
+    static QString noMicrophoneInputSpeech();
+    static QString noAuxiliaryInputSpeech();
+    static QString libraryScanSummarySpeech(const QString& htmlSummary);
+    static QString directRenderingSpeech();
 
 #ifdef MIXXX_USE_QOPENGL
     void initializeQOpenGL();
@@ -95,6 +113,9 @@ class MixxxMainWindow : public QMainWindow {
     /// Bridge the Options > Enable Text-to-Speech menu item to the engine's
     /// [Tts],enabled control (which is created after the menu bar).
     void slotToggleTts(bool enabled);
+    /// Fire the real action for an actionId emitted by AccessMenuController
+    /// (issue #3).
+    void slotAccessMenuAction(const QString& actionId);
 
   signals:
     void skinLoaded();
@@ -166,6 +187,9 @@ class MixxxMainWindow : public QMainWindow {
     // Proxy to the engine's [Tts],enabled control for the Options menu toggle.
     // Created in connectMenuBar() once the engine exists.
     std::unique_ptr<ControlProxy> m_pTtsEnabledControl;
+
+    // Drives the spoken [AccessMenu] popup menu for the non-skin UI (issue #3).
+    std::unique_ptr<AccessMenuController> m_pAccessMenuController;
 
     mixxx::preferences::ScreenSaver m_inhibitScreensaver;
 

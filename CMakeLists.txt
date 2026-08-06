@@ -1585,6 +1585,7 @@ add_library(
   src/track/tracknumbers.cpp
   src/track/trackrecord.cpp
   src/track/trackref.cpp
+  src/util/accessmenucontroller.cpp
   src/util/announcementmanager.cpp
   src/util/autofilereloader.cpp
   src/util/battery/battery.cpp
@@ -2711,7 +2712,12 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
+    src/test/accessmenucontroller_test.cpp
     src/test/announcementmanager_test.cpp
+    src/test/bootdialog_speech_test.cpp
+    src/test/cmdlineargs_test.cpp
+    src/test/controllermappingtablemodel_test.cpp
+    src/test/dlgprefsounditem_test.cpp
     src/test/ttsengine_integration_test.cpp
     src/test/enginebeatclick_test.cpp
     src/test/engineearcon_test.cpp
@@ -2871,6 +2877,14 @@ if(BUILD_TESTING)
   target_link_libraries(
     mixxx-test
     PRIVATE mixxx-lib mixxx-gitinfostore GTest::gtest GTest::gmock
+  )
+  # The test target links mixxx-lib privately, so it does not inherit the
+  # generated UI headers (ui_*.h) from mixxx-lib's AUTOUIC. Add the autogen
+  # include dir so tests that include preference widgets (e.g.
+  # dlgprefsounditem_test.cpp) can find them.
+  target_include_directories(
+    mixxx-test
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/mixxx-lib_autogen/include"
   )
 
   if(BUILD_BENCH)

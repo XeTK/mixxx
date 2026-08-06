@@ -253,6 +253,12 @@ void DlgPrefControllers::setupControllerWidgets() {
         m_pControllersRootItem->addChild(pControllerTreeItem);
         m_controllerTreeItems.append(pControllerTreeItem);
 
+        // Expose the controller name to screen readers so a blind user can
+        // navigate the list of attached controllers.
+        pControllerTreeItem->setData(0, Qt::AccessibleTextRole, pController->getName());
+        pControllerTreeItem->setData(0, Qt::AccessibleDescriptionRole,
+                tr("Controller"));
+
         // If controller is open make controller label bold
         QFont temp = pControllerTreeItem->font(0);
         temp.setBold(pController->isOpen());

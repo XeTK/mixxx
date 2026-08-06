@@ -86,6 +86,9 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="accessibleName">
+         <string>Enable MIDI Through Port</string>
+        </property>
         <property name="text">
          <string>Enable MIDI Through Port</string>
         </property>
@@ -146,6 +149,9 @@
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="accessibleName">
+         <string>Open User Mapping Folder</string>
         </property>
         <property name="text">
          <string>Open User Mapping Folder</string>

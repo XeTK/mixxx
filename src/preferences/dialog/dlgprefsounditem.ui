@@ -28,10 +28,18 @@
     </widget>
    </item>
    <item>
-    <widget class="QComboBox" name="deviceComboBox"/>
+    <widget class="QComboBox" name="deviceComboBox">
+     <property name="accessibleName">
+      <string notr="true">device</string>
+     </property>
+    </widget>
    </item>
    <item>
-    <widget class="QComboBox" name="channelComboBox"/>
+    <widget class="QComboBox" name="channelComboBox">
+     <property name="accessibleName">
+      <string notr="true">channel</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
