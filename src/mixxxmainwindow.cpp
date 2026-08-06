@@ -263,8 +263,16 @@ void MixxxMainWindow::initializeQOpenGL() {
             pWidget->setGeometry(QRect(0, 0, 3, 3));
             SharedGLContext::setWidget(pWidget);
             // When the widget's QOpenGLWindow has been initialized, we continue
-            // with the actual initialization
-            connect(pWidget, &WInitialGLWidget::onInitialized, this, &MixxxMainWindow::initialize);
+            // with the actual initialization. Use a queued connection so
+            // initialize() runs inside the event loop rather than reentrantly
+            // inside pWidget->show(). Calling processEvents() (via
+            // initializationProgressUpdate) while still inside the Cocoa show()
+            // deadlocks on macOS (issue #27).
+            connect(pWidget,
+                    &WInitialGLWidget::onInitialized,
+                    this,
+                    &MixxxMainWindow::initialize,
+                    Qt::QueuedConnection);
             pWidget->show();
             return;
         }
@@ -1870,5 +1878,12 @@ void MixxxMainWindow::initializationProgressUpdate(int progress, const QString& 
     if (m_pLaunchImage) {
         m_pLaunchImage->progress(progress, serviceName);
     }
-    qApp->processEvents();
+    // Process pending events so the launch image repaints during startup.
+    // Guard against reentrancy: during startup initialize() may be invoked
+    // from inside a window show (via the OpenGL onInitialized signal), and
+    // calling processEvents() reentrantly before the event loop is running
+    // deadlocks on macOS (issue #27).
+    if (!QCoreApplication::startingUp()) {
+        qApp->processEvents();
+    }
 }
