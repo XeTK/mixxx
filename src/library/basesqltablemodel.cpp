@@ -234,7 +234,12 @@ void BaseSqlTableModel::select() {
     // Remove all the rows from the table after(!) the query has been
     // executed successfully. See issue #6782.
     // TODO(rryan) we could edit the table in place instead of clearing it?
-    clearRows();
+    // Use a full model reset (rather than remove-all + insert-all) so the Qt
+    // accessibility bridge invalidates its cached table cells. The remove +
+    // insert pattern leaves stale cached cell elements whose row/column
+    // indices no longer match the model, which crashes the macOS accessibility
+    // bridge (qcocoaaccessibilityelement.mm assertion).
+    beginResetModel();
 
     // The size of the result set is not known in advance for a
     // forward-only query, so we cannot reserve memory for rows
@@ -341,11 +346,11 @@ void BaseSqlTableModel::select() {
         DEBUG_ASSERT(trackPosToRows.size() == rowInfos.size());
     }
 
-    // We're done! Issue the update signals and replace the main maps.
-    replaceRows(
-            std::move(rowInfos),
-            std::move(trackIdToRows),
-            std::move(trackPosToRows));
+    // We're done! Replace the main maps and end the model reset.
+    m_rowInfo = std::move(rowInfos);
+    m_trackIdToRows = std::move(trackIdToRows);
+    m_trackPosToRow = std::move(trackPosToRows);
+    endResetModel();
     // Both rowInfo and trackIdToRows (might) have been moved and
     // must not be used afterwards!
 
@@ -894,11 +899,13 @@ void BaseSqlTableModel::removeTrackRows(const QSet<TrackId>& trackIdsToRemove) {
         trackIdToRows[rowInfo.trackId].push_back(i);
     }
 
-    clearRows();
-    replaceRows(
-            std::move(rowInfos),
-            std::move(trackIdToRows),
-            std::move(trackPosToRows));
+    // Use a full model reset so the Qt accessibility bridge invalidates its
+    // cached table cells (see select()).
+    beginResetModel();
+    m_rowInfo = std::move(rowInfos);
+    m_trackIdToRows = std::move(trackIdToRows);
+    m_trackPosToRow = std::move(trackPosToRows);
+    endResetModel();
 }
 
 QList<TrackRef> BaseSqlTableModel::getTrackRefs(
