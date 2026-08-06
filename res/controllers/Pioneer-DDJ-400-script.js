@@ -203,6 +203,91 @@ PioneerDDJ400.init = function() {
 };
 
 //
+// Accessibility menu (browse) controls
+//
+
+// Threshold (seconds) for the hold-to-open gesture on the BROWSE button.
+PioneerDDJ400.browseHoldThreshold = 0.4;
+
+// True while the BROWSE button is held down and the hold timer is pending.
+PioneerDDJ400.browseHeld = false;
+
+// True when the hold gesture has fired (menu opened) so release is ignored.
+PioneerDDJ400.browseHoldFired = false;
+
+PioneerDDJ400.browseMenuActive = function() {
+    return engine.getValue("[AccessMenu]", "active") === 1;
+};
+
+PioneerDDJ400.browseRotate = function(_channel, _control, value) {
+    if (PioneerDDJ400.browseMenuActive()) {
+        engine.setValue("[AccessMenu]", "navigate", value);
+    } else {
+        engine.setValue("[Library]", "MoveVertical", value);
+    }
+};
+
+PioneerDDJ400.browsePress = function(_channel, _control, value) {
+    if (value === 0) {
+        // Release: if the hold timer is still pending, this was a short press.
+        if (PioneerDDJ400.browseHeld && !PioneerDDJ400.browseHoldFired) {
+            PioneerDDJ400.browseHeld = false;
+            engine.stopTimer(PioneerDDJ400.timers.browseHold);
+            PioneerDDJ400.timers.browseHold = undefined;
+            if (PioneerDDJ400.browseMenuActive()) {
+                engine.setValue("[AccessMenu]", "activate", 1);
+            } else {
+                engine.setValue("[Library]", "MoveFocusForward", 1);
+            }
+        }
+        PioneerDDJ400.browseHoldFired = false;
+        return;
+    }
+
+    // Press-down: start the hold-to-open timer.
+    PioneerDDJ400.browseHeld = true;
+    PioneerDDJ400.browseHoldFired = false;
+    PioneerDDJ400.timers.browseHold = engine.beginTimer(
+        Math.round(PioneerDDJ400.browseHoldThreshold * 1000),
+        () => {
+            PioneerDDJ400.browseHeld = false;
+            PioneerDDJ400.browseHoldFired = true;
+            engine.setValue("[AccessMenu]", "open", 1);
+        }
+    );
+};
+
+PioneerDDJ400.browseShiftPress = function(_channel, _control, value) {
+    if (value === 0) { return; }
+
+    if (PioneerDDJ400.browseMenuActive()) {
+        engine.setValue("[AccessMenu]", "back", 1);
+    } else {
+        engine.setValue("[Library]", "MoveFocusBackward", 1);
+    }
+};
+
+PioneerDDJ400.loadDeck1 = function(_channel, _control, value) {
+    if (value === 0) { return; }
+
+    if (PioneerDDJ400.browseMenuActive()) {
+        engine.setValue("[AccessMenu]", "confirm", 1);
+    } else {
+        engine.setValue("[Channel1]", "LoadSelectedTrack", 1);
+    }
+};
+
+PioneerDDJ400.loadDeck2 = function(_channel, _control, value) {
+    if (value === 0) { return; }
+
+    if (PioneerDDJ400.browseMenuActive()) {
+        engine.setValue("[AccessMenu]", "confirm", 1);
+    } else {
+        engine.setValue("[Channel2]", "LoadSelectedTrack", 1);
+    }
+};
+
+//
 // Channel level lights
 //
 
