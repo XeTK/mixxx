@@ -11,6 +11,16 @@
 #   press browse|browse+shift|load1|load2 [hold=SECONDS]
 #   shift down|up
 #   sleep SECONDS
+#
+# Full deck control set (see README.md for the complete list):
+#   play 1|2            cue 1|2            sync 1|2
+#   loop_in 1|2         loop_out 1|2       reloop 1|2
+#   pfl 1|2
+#   tempo 1|2 VALUE     trim 1|2 VALUE     eq 1|2 hi|mid|low VALUE
+#   channel 1|2 VALUE
+#   filter 1|2 VALUE    crossfader VALUE   headmix VALUE   headgain VALUE
+#   beatleft            beatright          beatfx
+#   pad 1|2 N           padmode 1|2 hotcue|beatloop
 
 # 1. Hold BROWSE for 0.8s to open the spoken menu (hold-to-open gesture).
 press browse hold=0.8

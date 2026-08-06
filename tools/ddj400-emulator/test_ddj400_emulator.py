@@ -129,6 +129,118 @@ class ParseSequenceTest(unittest.TestCase):
             ddj400_emulator.parse_sequence("rotate up\nbogus\n")
         self.assertIn("line 2", str(ctx.exception))
 
+    # -- new deck transport / CC / effects / pad tokens ---------------------
+
+    def test_parses_deck_transport_tokens(self):
+        text = (
+            "play 1\n"
+            "play 2\n"
+            "cue 1\n"
+            "sync 2\n"
+            "loop_in 1\n"
+            "loop_out 2\n"
+            "reloop 1\n"
+            "pfl 2\n"
+        )
+        events = ddj400_emulator.parse_sequence(text)
+        self.assertEqual(
+            events,
+            [
+                ("play", 1),
+                ("play", 2),
+                ("cue", 1),
+                ("sync", 2),
+                ("loop_in", 1),
+                ("loop_out", 2),
+                ("reloop", 1),
+                ("pfl", 2),
+            ],
+        )
+
+    def test_parses_cc_tokens(self):
+        text = (
+            "tempo 1 64\n"
+            "trim 2 32\n"
+            "eq 1 hi 96\n"
+            "eq 2 mid 0\n"
+            "eq 1 low 127\n"
+            "channel 2 100\n"
+            "filter 1 50\n"
+            "crossfader 64\n"
+            "headmix 30\n"
+            "headgain 90\n"
+        )
+        events = ddj400_emulator.parse_sequence(text)
+        self.assertEqual(
+            events,
+            [
+                ("tempo", (1, 64)),
+                ("trim", (2, 32)),
+                ("eq", (1, "hi", 96)),
+                ("eq", (2, "mid", 0)),
+                ("eq", (1, "low", 127)),
+                ("channel", (2, 100)),
+                ("filter", (1, 50)),
+                ("crossfader", 64),
+                ("headmix", 30),
+                ("headgain", 90),
+            ],
+        )
+
+    def test_parses_effects_and_pad_tokens(self):
+        text = (
+            "beatleft\n"
+            "beatright\n"
+            "beatfx\n"
+            "pad 1 1\n"
+            "pad 2 8\n"
+            "padmode 1 hotcue\n"
+            "padmode 2 beatloop\n"
+        )
+        events = ddj400_emulator.parse_sequence(text)
+        self.assertEqual(
+            events,
+            [
+                ("beatleft", None),
+                ("beatright", None),
+                ("beatfx", None),
+                ("pad", (1, 1)),
+                ("pad", (2, 8)),
+                ("padmode", (1, "hotcue")),
+                ("padmode", (2, "beatloop")),
+            ],
+        )
+
+    def test_deck_transport_bad_deck_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("play 3\n")
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("cue\n")
+
+    def test_cc_bad_value_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("tempo 1 128\n")
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("tempo 1 -1\n")
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("tempo 1 abc\n")
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("crossfader 200\n")
+
+    def test_eq_bad_band_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("eq 1 bass 64\n")
+
+    def test_pad_bad_number_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("pad 1 0\n")
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("pad 1 9\n")
+
+    def test_padmode_bad_mode_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("padmode 1 sampler\n")
+
 
 class EmulatorMidiTest(unittest.TestCase):
     """Tests that the emulator sends the correct MIDI messages via a dry-run
@@ -203,6 +315,169 @@ class EmulatorMidiTest(unittest.TestCase):
         # timing is required).
         down_t, up_t = self.backend.messages[0][3], self.backend.messages[1][3]
         self.assertGreaterEqual(up_t - down_t, 0.8 - 0.1)
+
+    # -- new deck transport -------------------------------------------------
+
+    def test_play_deck1(self):
+        self.emu.play(1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x90, 0x0B, 0x7F), (0x90, 0x0B, 0x00)],
+        )
+
+    def test_play_deck2(self):
+        self.emu.play(2)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x91, 0x0B, 0x7F), (0x91, 0x0B, 0x00)],
+        )
+
+    def test_cue_deck1(self):
+        self.emu.cue(1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x90, 0x0C, 0x7F), (0x90, 0x0C, 0x00)],
+        )
+
+    def test_sync_deck2(self):
+        self.emu.sync(2)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x91, 0x58, 0x7F), (0x91, 0x58, 0x00)],
+        )
+
+    def test_loop_in_deck1(self):
+        self.emu.loop_in(1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x90, 0x10, 0x7F), (0x90, 0x10, 0x00)],
+        )
+
+    def test_loop_out_deck2(self):
+        self.emu.loop_out(2)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x91, 0x11, 0x7F), (0x91, 0x11, 0x00)],
+        )
+
+    def test_reloop_deck1(self):
+        self.emu.reloop(1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x90, 0x4D, 0x7F), (0x90, 0x4D, 0x00)],
+        )
+
+    def test_pfl_deck2(self):
+        self.emu.pfl(2)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x91, 0x54, 0x7F), (0x91, 0x54, 0x00)],
+        )
+
+    # -- new CC knobs / faders ----------------------------------------------
+
+    def test_tempo_deck1(self):
+        self.emu.tempo(1, 64)
+        self.assertEqual(self.backend.sent(), [(0xB0, 0x00, 64)])
+
+    def test_tempo_deck2(self):
+        self.emu.tempo(2, 32)
+        self.assertEqual(self.backend.sent(), [(0xB1, 0x00, 32)])
+
+    def test_trim_deck1(self):
+        self.emu.trim(1, 96)
+        self.assertEqual(self.backend.sent(), [(0xB0, 0x04, 96)])
+
+    def test_eq_hi_deck1(self):
+        self.emu.eq(1, "hi", 80)
+        self.assertEqual(self.backend.sent(), [(0xB0, 0x07, 80)])
+
+    def test_eq_mid_deck2(self):
+        self.emu.eq(2, "mid", 20)
+        self.assertEqual(self.backend.sent(), [(0xB1, 0x0B, 20)])
+
+    def test_eq_low_deck1(self):
+        self.emu.eq(1, "low", 127)
+        self.assertEqual(self.backend.sent(), [(0xB0, 0x0F, 127)])
+
+    def test_channel_fader_deck2(self):
+        self.emu.channel_fader(2, 100)
+        self.assertEqual(self.backend.sent(), [(0xB1, 0x13, 100)])
+
+    # -- filter / mixer -----------------------------------------------------
+
+    def test_filter_ch1(self):
+        self.emu.filter(1, 50)
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x17, 50)])
+
+    def test_filter_ch2(self):
+        self.emu.filter(2, 60)
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x18, 60)])
+
+    def test_crossfader(self):
+        self.emu.crossfader(64)
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x1F, 64)])
+
+    def test_head_mix(self):
+        self.emu.head_mix(30)
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x0C, 30)])
+
+    def test_head_gain(self):
+        self.emu.head_gain(90)
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x0D, 90)])
+
+    # -- effects ------------------------------------------------------------
+
+    def test_beat_left(self):
+        self.emu.beat_left()
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x94, 0x4A, 0x7F), (0x94, 0x4A, 0x00)],
+        )
+
+    def test_beat_right(self):
+        self.emu.beat_right()
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x94, 0x4B, 0x7F), (0x94, 0x4B, 0x00)],
+        )
+
+    def test_beat_fx_onoff(self):
+        self.emu.beat_fx_onoff()
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x94, 0x47, 0x7F), (0x94, 0x47, 0x00)],
+        )
+
+    # -- pads ---------------------------------------------------------------
+
+    def test_pad_deck1_pad1(self):
+        self.emu.pad(1, 1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x97, 0x00, 0x7F), (0x97, 0x00, 0x00)],
+        )
+
+    def test_pad_deck2_pad8(self):
+        self.emu.pad(2, 8)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x99, 0x07, 0x7F), (0x99, 0x07, 0x00)],
+        )
+
+    def test_pad_mode_hotcue_deck1(self):
+        self.emu.pad_mode(1, "hotcue")
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x90, 0x1B, 0x7F), (0x90, 0x1B, 0x00)],
+        )
+
+    def test_pad_mode_beatloop_deck2(self):
+        self.emu.pad_mode(2, "beatloop")
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x91, 0x6D, 0x7F), (0x91, 0x6D, 0x00)],
+        )
 
 
 if __name__ == "__main__":

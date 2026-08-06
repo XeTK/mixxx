@@ -33,10 +33,31 @@ The MIDI numbers sent are verified against
 | BROWSE knob rotate | CC `0xB6` / `0x40` | `0x41` = up, `0x3F` = down (relative) |
 | BROWSE press | Note `0x96` / `0x41` | `0x7F` down, `0x00` up |
 | BROWSE + SHIFT press | Note `0x96` / `0x42` | `0x7F` down, `0x00` up |
-| LOAD Deck1 | Note `0x96` / `0x46` | `0x7F` down, `0x00` up |
-| LOAD Deck2 | Note `0x96` / `0x47` | `0x7F` down, `0x00` up |
-| SHIFT Deck1 | Note `0x90` / `0x3F` | `0x7F` down, `0x00` up |
-| SHIFT Deck2 | Note `0x91` / `0x3F` | `0x7F` down, `0x00` up |
+| LOAD Deck1 / Deck2 | Note `0x96` / `0x46` / `0x47` | `0x7F` down, `0x00` up |
+| SHIFT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x3F` | `0x7F` down, `0x00` up |
+| PLAY / PAUSE Deck1 / Deck2 | Note `0x90` / `0x91` / `0x0B` | `0x7F` down, `0x00` up |
+| CUE Deck1 / Deck2 | Note `0x90` / `0x91` / `0x0C` | `0x7F` down, `0x00` up |
+| BEAT SYNC Deck1 / Deck2 | Note `0x90` / `0x91` / `0x58` | `0x7F` down, `0x00` up |
+| LOOP IN / 4 BEAT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x10` | `0x7F` down, `0x00` up |
+| LOOP OUT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x11` | `0x7F` down, `0x00` up |
+| RELOOP / EXIT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x4D` | `0x7F` down, `0x00` up |
+| CUE channel (PFL) Deck1 / Deck2 | Note `0x90` / `0x91` / `0x54` | `0x7F` down, `0x00` up |
+| TEMPO fader Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x00` | absolute 0-127 (`0x40` = center) |
+| TRIM knob Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x04` | absolute 0-127 (`0x40` = center) |
+| EQ HI Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x07` | absolute 0-127 |
+| EQ MID Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x0B` | absolute 0-127 |
+| EQ LOW Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x0F` | absolute 0-127 |
+| CHANNEL fader Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x13` | absolute 0-127 |
+| FILTER CH1 / CH2 | CC `0xB6` / `0x17` / `0x18` | absolute 0-127 |
+| CROSSFADER | CC `0xB6` / `0x1F` | absolute 0-127 (`0x40` = center) |
+| HEADPHONES MIXING | CC `0xB6` / `0x0C` | absolute 0-127 |
+| HEADPHONES LEVEL | CC `0xB6` / `0x0D` | absolute 0-127 |
+| BEAT LEFT | Note `0x94` / `0x4A` | `0x7F` down, `0x00` up |
+| BEAT RIGHT | Note `0x94` / `0x4B` | `0x7F` down, `0x00` up |
+| BEAT FX ON/OFF | Note `0x94` / `0x47` | `0x7F` down, `0x00` up |
+| HOT CUE PAD 1-8 Deck1 / Deck2 | Note `0x97` / `0x99` / `0x00`-`0x07` | `0x7F` down, `0x00` up |
+| HOT CUE MODE Deck1 / Deck2 | Note `0x90` / `0x91` / `0x1B` | `0x7F` down, `0x00` up |
+| BEAT LOOP MODE Deck1 / Deck2 | Note `0x90` / `0x91` / `0x6D` | `0x7F` down, `0x00` up |
 
 ## Connecting to Mixxx
 
@@ -99,9 +120,19 @@ Assign it the Pioneer DDJ-400 mapping (or the accessibility fork's mapping).
 | `Up` / `Down` | BROWSE rotate (up / down) |
 | `Enter` | BROWSE press (short click) |
 | `Shift`+`Enter` | BROWSE + SHIFT press (back) |
-| `L` | LOAD Deck1 |
-| `R` | LOAD Deck2 |
+| `L` / `R` | LOAD Deck1 / Deck2 |
 | `S` | SHIFT (hold while held) |
+| `P` / `O` | PLAY / PAUSE Deck1 / Deck2 |
+| `C` / `V` | CUE Deck1 / Deck2 |
+| `Y` / `U` | BEAT SYNC Deck1 / Deck2 |
+| `I` / `K` | LOOP IN / 4 BEAT Deck1 / Deck2 |
+| `J` / `N` | LOOP OUT Deck1 / Deck2 |
+| `B` / `M` | RELOOP / EXIT Deck1 / Deck2 |
+| `F` / `G` | CUE channel (PFL) Deck1 / Deck2 |
+| `[` / `]` | TEMPO Deck1 down / up |
+| `{` / `}` | TEMPO Deck2 down / up |
+| `-` / `=` | EQ Deck1 down / up |
+| `_` / `+` | EQ Deck2 down / up |
 | `H` | show help |
 | `Q` / `Ctrl+C` | quit |
 
@@ -130,7 +161,21 @@ python3 tools/ddj400-emulator/ddj400_emulator.py --script example_sequence.txt
 
 The sequence file format is documented at the top of `example_sequence.txt`.
 It supports explicit hold durations, so the hold-to-open gesture can be
-replayed deterministically for regression tests.
+replayed deterministically for regression tests. Beyond the browse/load/shift
+commands, the full deck control set is available:
+
+```
+play 1|2            cue 1|2            sync 1|2
+loop_in 1|2         loop_out 1|2       reloop 1|2
+pfl 1|2
+tempo 1|2 VALUE     trim 1|2 VALUE     eq 1|2 hi|mid|low VALUE
+channel 1|2 VALUE
+filter 1|2 VALUE    crossfader VALUE   headmix VALUE   headgain VALUE
+beatleft            beatright          beatfx
+pad 1|2 N           padmode 1|2 hotcue|beatloop
+```
+
+`VALUE` is an absolute 0-127 CC value. `N` is a hot-cue pad number 1-8.
 
 ### Dry-run (no MIDI device)
 
