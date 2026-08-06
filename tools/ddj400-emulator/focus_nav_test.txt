@@ -1,0 +1,28 @@
+# Focus-independent library navigation test.
+#
+# Verifies that browse rotate/press drive the library even when the Mixxx
+# window does not have keyboard focus (--controller-navigation-without-focus).
+#
+# Commands:
+#   rotate up|down
+#   press browse|browse+shift|load1|load2 [hold=SECONDS]
+#   shift down|up
+#   sleep SECONDS
+
+# Scroll down a few items in the track list.
+rotate down
+sleep 0.3
+rotate down
+sleep 0.3
+rotate down
+sleep 0.3
+
+# Scroll back up one item.
+rotate up
+sleep 0.3
+
+# Move focus between sidebar and track list.
+press browse
+sleep 0.3
+press browse
+sleep 0.3

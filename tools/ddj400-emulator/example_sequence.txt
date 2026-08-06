@@ -1,0 +1,42 @@
+# Example DDJ-400 emulator scripted sequence.
+#
+# Demonstrates the end-to-end accessibility flow:
+#   hold BROWSE to open the spoken menu -> scroll -> activate an item.
+#
+# Format: one command per line. Blank lines and lines starting with '#' are
+# ignored. Durations are in seconds.
+#
+# Commands:
+#   rotate up|down
+#   press browse|browse+shift|load1|load2 [hold=SECONDS]
+#   shift down|up
+#   sleep SECONDS
+
+# 1. Hold BROWSE for 0.8s to open the spoken menu (hold-to-open gesture).
+press browse hold=0.8
+
+# 2. Pause so Mixxx has time to announce the menu.
+sleep 0.5
+
+# 3. Scroll down a couple of items.
+rotate down
+sleep 0.2
+rotate down
+sleep 0.2
+
+# 4. Scroll back up one item.
+rotate up
+sleep 0.2
+
+# 5. Activate (click) the focused item.
+press browse
+
+# 6. Pause so the selection is announced.
+sleep 0.5
+
+# 7. Demonstrate the BROWSE + SHIFT "back" gesture.
+press browse+shift
+
+# 8. Demonstrate loading a track to Deck 1 and Deck 2.
+press load1
+press load2

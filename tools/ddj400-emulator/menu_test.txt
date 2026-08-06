@@ -1,0 +1,34 @@
+# Test the hold-to-open spoken menu.
+#
+# 1. Hold BROWSE for 0.8s to open the menu.
+# 2. Scroll down a couple of items.
+# 3. Activate (short press) to descend / fire.
+# 4. Back gesture (browse+shift).
+#
+# Commands:
+#   rotate up|down
+#   press browse|browse+shift|load1|load2 [hold=SECONDS]
+#   shift down|up
+#   sleep SECONDS
+
+# Hold BROWSE to open the menu.
+press browse hold=0.8
+sleep 0.5
+
+# Scroll down a couple of items.
+rotate down
+sleep 0.3
+rotate down
+sleep 0.3
+
+# Scroll back up one.
+rotate up
+sleep 0.3
+
+# Short press to activate the highlighted item.
+press browse
+sleep 0.5
+
+# Back gesture (browse + shift).
+press browse+shift
+sleep 0.5
