@@ -54,8 +54,9 @@ one-page shortcut cheat sheet.
   seeding saved cues doesn't fire a burst)
 - Recording started / stopped
 - Pitch fader position after it stops moving (debounced)
-- Volume faders, EQ knobs, crossfader (debounced; opt-in, off by
-  default because they move constantly mid-mix)
+- Volume faders, EQ knobs, crossfader (debounced; on by default so a
+  blind DJ hears them — readouts are debounced and "announce while
+  moving" is a separate opt-in, so this is not chatty mid-mix)
 - Library: sidebar item names during arrow-key navigation, pane focus
   changes (search bar / sidebar / track list), and search feedback
 - "Speech on" confirmation when re-enabling TTS

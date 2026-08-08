@@ -102,12 +102,15 @@ class AccessibilitySettings {
             true);
 
     // Spoken readout of volume faders, EQ knobs, and the crossfader while
-    // they move. Off by default: during a live mix these move constantly.
+    // they move. On by default for the accessibility build: a blind DJ needs
+    // to hear these controls. Readouts are debounced (spoken at rest) and
+    // "announce while moving" is a separate opt-in, so this is not chatty
+    // mid-mix.
     DEFINE_PREFERENCE_HELPERS(AnnounceMixer,
             bool,
             "[Accessibility]",
             "AnnounceMixer",
-            false);
+            true);
 
     // Per-event feedback for the earcon-capable transport events:
     // 0 = speech, 1 = sounds, 2 = sounds and speech. Only consulted when the
