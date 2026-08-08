@@ -160,7 +160,8 @@ one-page shortcut cheat sheet.
   development-build resource lookup (empty resource path, no skin,
   "crash on load" when launching mixxx.exe without --resourcePath).
 - All spoken strings are translatable (`tr()`); musical key names are
-  the remaining exception.
+  now translatable too (wrapped in `tr()` in `keyForSpeech()`), so the
+  spoken key respects the app locale.
 - Qt TextToSpeech gated to Qt >= 6.6 in CMake; the preferences page
   shows a warning when the build has no speech backend.
 - Merged upstream 2.6 (July 1 state), conflict-free.
