@@ -12,6 +12,7 @@
 #include "control/controlproxy.h"
 #include "engine/enginetts.h"
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
 #include "test/mixxxtest.h"
@@ -646,6 +647,79 @@ TEST_F(AnnouncementManagerTest, AnnounceSearch_ClearedSearchText) {
     m_pManager->slotAnnounceSearch();
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Search cleared", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Track-list sort announcements (slotAnnounceSort)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_ColumnAndOrder) {
+    // The [Library] sort controls must exist before the manager attaches its
+    // observers in init().
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Title));
+    pSortOrder->set(0.0); // ascending
+    m_pManager->slotAnnounceSort(); // drive debounce synchronously
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sorting by title ascending", pSpy->lastText);
+
+    pSortOrder->set(1.0); // descending
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sorting by title descending", pSpy->lastText);
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Bpm));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_QSTRING_EQ("Sorting by BPM ascending", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_DisabledViaSettings) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceSort")),
+            false);
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Title));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_UnknownColumnSilent) {
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    // Invalid / internal columns have no spoken name and must stay silent.
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Invalid));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_ColumnNameMapping) {
+    // Spot-check the static name mapping used to build the announcement.
+    EXPECT_QSTRING_EQ("title",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::Title));
+    EXPECT_QSTRING_EQ("BPM",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::Bpm));
+    EXPECT_QSTRING_EQ("album artist",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::AlbumArtist));
+    EXPECT_TRUE(AnnouncementManager::sortColumnName(
+            TrackModel::SortColumnId::Invalid)
+            .isEmpty());
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceSearch_UpdatesPendingTextBeforeAnnounce) {

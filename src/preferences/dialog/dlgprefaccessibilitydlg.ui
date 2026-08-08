@@ -810,6 +810,16 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceSort">
+        <property name="toolTip">
+         <string>Speak the sort column and direction when the track list is re-sorted (e.g. via the sort column toggle).</string>
+        </property>
+        <property name="text">
+         <string>Announce track list sorting</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

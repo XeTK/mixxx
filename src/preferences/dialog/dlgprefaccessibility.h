@@ -75,6 +75,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceEndOfTrack;
     bool m_bAnnounceLibraryFocus;
     bool m_bAnnounceSearch;
+    bool m_bAnnounceSort;
     bool m_bAnnouncePlaylist;
     bool m_bAnnounceSync;
     bool m_bAnnounceTempo;

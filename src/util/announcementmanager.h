@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "preferences/accessibilitysettings.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
@@ -64,6 +65,9 @@ class AnnouncementManager : public QObject {
     void slotSearchTextChanged(const QString& text);
     void slotSearchResultCount(int count);
     void slotAnnounceSearch();
+    // Speaks the current track-list sort column/order after the debounce
+    // timer fires. Public so tests can drive it synchronously.
+    void slotAnnounceSort();
 
     // Speaks the pending debounced control announcement (tempo/mixer moves).
     // Public so tests can fire the debounce without waiting for the timer.
@@ -186,9 +190,16 @@ class AnnouncementManager : public QObject {
     // Deduplication for sidebar announcements.
     QString m_lastAnnouncedSidebarItem;
 
+    // Spoken name for a track-table sort column, or empty for columns that
+    // are never sorted by (e.g. the internal id). Public for tests.
+    static QString sortColumnName(TrackModel::SortColumnId column);
+
     // Debounced search announcement.
     QTimer m_searchDebounce;
     QString m_pendingSearch;
+
+    // Debounced track-list sort column/order announcement.
+    QTimer m_sortDebounce;
 
     // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
     QHash<QString, bool> m_deckHasTrack;
