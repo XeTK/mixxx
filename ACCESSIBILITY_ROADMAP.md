@@ -120,6 +120,12 @@ one-page shortcut cheat sheet.
   the "…and Traditional" variants append the full name too. Traditional,
   Custom, and ID3v2 notations are unaffected — they already spoke the
   full name.
+- **DDJ-400 auto-configures its decks** (2026-08-08, issue #33): the
+  mapping now sets `[App],num_decks` to 2 on init (alongside the
+  existing `num_samplers` = 16), so a blind user no longer has to
+  manually configure deck count in Preferences > Decks. Like the
+  sampler logic, it only raises the count — it never lowers a user's
+  intentional higher deck count.
 
 ### Bugs fixed and cleanups along the way
 
