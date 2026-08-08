@@ -959,6 +959,12 @@ void CoreServices::finalize() {
     ControllerScriptEngineBase::registerTrackCollectionManager(nullptr);
 #endif
 
+    // The AnnouncementManager holds a raw pointer to the EngineTts sink (and a
+    // ControlProxy observing its [Tts],enabled control). It must be destroyed
+    // before the engine is torn down below, otherwise a control change firing
+    // that proxy during shutdown calls speak() on a destroyed sink (issue #30).
+    m_pAnnouncementManager.reset();
+
     // Stop all pending library operations
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "stopping pending Library tasks";
     m_pTrackCollectionManager->stopLibraryScan();

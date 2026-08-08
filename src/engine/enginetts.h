@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QObject>
 #include <QString>
 #include <atomic>
 #include <memory>
@@ -24,7 +25,8 @@ class ControlProxy;
 ///
 /// Samples are interleaved stereo at the engine sample rate, matching the
 /// engine output buffers.
-class EngineTts {
+class EngineTts : public QObject {
+    Q_OBJECT
   public:
     enum class Route {
         Headphones = 0, // DJ-only cue mix (default)
@@ -32,7 +34,7 @@ class EngineTts {
     };
 
     explicit EngineTts(const QString& group);
-    ~EngineTts();
+    ~EngineTts() override;
 
     /// Audio-callback side. pMain and pHead are the final interleaved-stereo
     /// main and headphone buffers (pHead may be null if no headphone output is
@@ -75,6 +77,12 @@ class EngineTts {
     void requestFlush() {
         m_flushRequested.store(true, std::memory_order_release);
     }
+
+  signals:
+    // Emitted from the destructor before any member is destroyed, so owners of
+    // a raw EngineTts* (the AnnouncementManager) can drop their pointer and
+    // stop calling into a torn-down sink. See ~EngineTts().
+    void sinkDestroyed();
 
   private:
     void updateDuckingParameters(double sampleRate);
