@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 
+#include "preferences/usersettings.h"
+
 class ControlObject;
 class ControlPushButton;
 class ControlEncoder;
@@ -20,7 +22,7 @@ class ControlEncoder;
 ///
 /// The speak callback is injected (rather than a hard dependency on Library)
 /// so unit tests can install a spy and the controller stays decoupled from
-/// the library. In production CoreServices passes a lambda that calls
+/// the library. In production MixxxMainWindow passes a lambda that calls
 /// `Library::announceText`.
 class AccessMenuController : public QObject {
     Q_OBJECT
@@ -30,6 +32,67 @@ class AccessMenuController : public QObject {
         Submenu, // descends into a child menu
         Toggle,  // stay-open action (menu stays open after firing)
         Action,  // leaf action that closes the menu after firing
+        Value,   // enters value-edit mode when activated (issue #32)
+    };
+
+    // How a Value item's current value is stepped and spoken.
+    enum class ValueFormat {
+        Boolean, // "on"/"off"
+        Percent, // 0..1 -> "N percent"
+        Integer, // raw integer
+    };
+
+    // A value-editable setting: either a control object (group + item) or a
+    // config key (configGroup + configItem), plus how to step/format it. The
+    // controller stays decoupled from the preferences dialog by operating on
+    // these directly, so the same model can drive any numeric/boolean setting
+    // that has a control or a config key.
+    struct ValueItem {
+        ValueItem() = default;
+        // Control-backed value.
+        ValueItem(const QString& label,
+                const QString& group,
+                const QString& item,
+                double min,
+                double max,
+                double step,
+                ValueFormat format)
+                : label(label),
+                  group(group),
+                  item(item),
+                  min(min),
+                  max(max),
+                  step(step),
+                  format(format) {
+        }
+        // Config-backed value (no control object; e.g. TTS rate).
+        ValueItem(const QString& label,
+                const QString& configGroup,
+                const QString& configItem,
+                double min,
+                double max,
+                double step,
+                ValueFormat format,
+                bool configBacked)
+                : label(label),
+                  configGroup(configGroup),
+                  configItem(configItem),
+                  min(min),
+                  max(max),
+                  step(step),
+                  format(format),
+                  configBacked(configBacked) {
+        }
+        QString label;
+        QString group;
+        QString item;
+        QString configGroup;
+        QString configItem;
+        double min{0.0};
+        double max{1.0};
+        double step{1.0};
+        ValueFormat format{ValueFormat::Boolean};
+        bool configBacked{false};
     };
 
     // A single menu item. `actionId` is a stable identifier emitted via
@@ -43,16 +106,27 @@ class AccessMenuController : public QObject {
                 : type(type),
                   label(label),
                   actionId(actionId),
+                  value(),
                   children(std::move(children)) {
+        }
+        Item(ItemType type, const ValueItem& value)
+                : type(type),
+                  label(value.label),
+                  value(value) {
         }
         ItemType type;
         QString label;
         QString actionId;
+        ValueItem value;
         std::vector<Item> children;
     };
 
     // `speak` is called for every spoken utterance. May be empty (silent).
+    // `pConfig` is optional; when provided, config-backed ValueItems (e.g.
+    // TTS rate) can be read and written. Without it those items are read-only
+    // at their default.
     AccessMenuController(std::function<void(const QString&)> speak,
+            UserSettingsPointer pConfig = nullptr,
             QObject* parent = nullptr);
     ~AccessMenuController() override;
 
@@ -91,10 +165,30 @@ class AccessMenuController : public QObject {
     void activateCurrentItem();
     void goBack();
 
+    // Value-edit mode (issue #32). Enter when a Value item is activated;
+    // navigate steps the value, confirm/activate commits and exits,
+    // back cancels.
+    void enterValueEdit(const Item* item);
+    void exitValueEdit();
+    void stepValue(double delta);
+    void commitValue();
+    // Reads the live control value, clamped to [min, max]; writes a new value
+    // back through the same control. These operate on an explicit ValueItem so
+    // they work both while editing and when just announcing the current value
+    // of a highlighted Value item.
+    double readItemValue(const ValueItem& value) const;
+    void writeItemValue(const ValueItem& value, double v) const;
+    QString formatItemValue(const ValueItem& value, double v) const;
+    // Convenience wrappers bound to the item currently being edited.
+    double readValue() const;
+    void writeValue(double value);
+
     const std::vector<Item>* currentMenu() const;
     const Item* currentItem() const;
+    const Item* currentEditingItem() const;
 
     std::function<void(const QString&)> m_speak;
+    UserSettingsPointer m_pConfig;
 
     std::unique_ptr<ControlPushButton> m_pOpen;
     std::unique_ptr<ControlPushButton> m_pClose;
@@ -110,4 +204,12 @@ class AccessMenuController : public QObject {
     std::vector<MenuState> m_stack;
     bool m_open{false};
     QTimer m_timeout;
+
+    // Value-edit state.
+    bool m_editing{false};
+    // Index within m_stack.back().menu of the Value item being edited. Only
+    // valid while m_editing.
+    int m_editingIndex{-1};
+    // Value captured on entering edit mode, restored on cancel.
+    double m_editStartValue{0.0};
 };

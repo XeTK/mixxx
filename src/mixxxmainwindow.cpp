@@ -450,6 +450,7 @@ void MixxxMainWindow::initialize() {
                     m_pCoreServices->getLibrary()->announceText(text);
                 }
             },
+            m_pCoreServices->getSettings(),
             this);
     connect(m_pAccessMenuController.get(),
             &AccessMenuController::actionTriggered,
