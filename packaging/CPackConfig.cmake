@@ -11,6 +11,24 @@ if(NOT GIT_DESCRIBE)
 else()
   set(PACKAGE_VERSION "${GIT_DESCRIBE}")
 endif()
+# Cap the package file name length. The git describe string (embedded in
+# PACKAGE_VERSION) can grow very long on branches with many merge commits
+# (--first-parent accumulates a -N-g<sha> segment per merge). CPack embeds
+# this name in the WIX staging directory, and wixnative.exe does not honor
+# LongPathsEnabled, so an over-long name pushes the deepest Qt file path
+# past MAX_PATH (260) and the installer build fails (see KNOWN_ISSUES.md).
+# Truncate the version used in the file name while keeping the leading tag
+# and the trailing short sha, so the name stays informative but bounded.
+set(CPACK_PACKAGE_FILE_NAME_MAX_LEN 60)
+string(LENGTH "${PACKAGE_VERSION}" _pkg_ver_len)
+if(_pkg_ver_len GREATER CPACK_PACKAGE_FILE_NAME_MAX_LEN)
+  # Keep the first 40 chars (the version tag prefix) and the last 16 chars
+  # (the short commit sha), joined by a marker.
+  string(SUBSTRING "${PACKAGE_VERSION}" 0 40 _pkg_ver_head)
+  math(EXPR _pkg_ver_tail_start "${_pkg_ver_len} - 16")
+  string(SUBSTRING "${PACKAGE_VERSION}" ${_pkg_ver_tail_start} 16 _pkg_ver_tail)
+  set(PACKAGE_VERSION "${_pkg_ver_head}...${_pkg_ver_tail}")
+endif()
 set(
   CPACK_PACKAGE_FILE_NAME
   "mixxx-${PACKAGE_VERSION}-${CPACK_SYSTEM_PROCESSOR}"
