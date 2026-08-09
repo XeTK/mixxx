@@ -56,9 +56,20 @@ jobs:
             macos-ccache-${{ runner.arch }}-
 
       - name: "Configure ccache"
+        env:
+          # Disable hashing the per-run working dir and relax sloppiness so
+          # cache entries survive across runs (matches the Linux jobs).
+          CCACHE_HASHDIR: false
+          CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
           ccache --max-size=40G
+          # On macOS the ccache config file may be root-owned and unwritable;
+          # the env vars above already take effect for this job, but try to
+          # persist them anyway so other invocations see them too.
+          ccache --set-config=hash_dir=false 2>/dev/null || true
+          ccache --set-config=sloppiness=file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros 2>/dev/null || true
+          ccache --show-config | grep -E "hash_dir|sloppiness" || true
 
       - name: "Create build directory"
         run: mkdir build

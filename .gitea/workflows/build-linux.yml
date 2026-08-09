@@ -50,9 +50,24 @@ jobs:
             linux-ccache-
 
       - name: "Configure ccache"
+        env:
+          # Gitea's linux-x86 runner runs each job in a unique per-run working
+          # directory, and the build's -fmacro-prefix-map bakes that path into
+          # __FILE__ for the compiler. With ccache's default hash_dir=true the
+          # path becomes part of the cache key, so every run misses -> ~0% hit
+          # rate. Disable hashing the working dir and relax the sloppiness so
+          # cache entries survive across runs on the same branch.
+          CCACHE_HASHDIR: false
+          CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
           ccache --max-size=40G
+          # Persist the settings for any process that reads the config file.
+          ccache --set-config=hash_dir=false
+          ccache --set-config=sloppiness=file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
+          # The build dir path, if the runner now uses a stable one, is in the
+          # cache key via file_macro; hash_dir=false removes the working-dir.
+          ccache --show-config | grep -E "hash_dir|sloppiness" 
 
       - name: "Create build directory"
         run: mkdir build
@@ -216,11 +231,19 @@ jobs:
             linux-arm-ccache-
 
       - name: "Configure ccache"
+        env:
+          CCACHE_HASHDIR: false
+          CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
           # Generous cap: a Mixxx tree is large and the emulated arm64 build
           # is slow, so we want as much of it cached between runs as possible.
           ccache --max-size=40G
+          # Persist for any process reading the config file, and to survive
+          # the per-run working dir in the ccache key (see the x86 job).
+          ccache --set-config=hash_dir=false
+          ccache --set-config=sloppiness=file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
+          ccache --show-config | grep -E "hash_dir|sloppiness" 
 
       - name: "Create build directory"
         run: mkdir build
