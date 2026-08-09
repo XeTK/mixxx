@@ -58,7 +58,7 @@ jobs:
       - name: "Configure ccache"
         run: |
           ccache --zero-stats
-          ccache --max-size=5G
+          ccache --max-size=40G
 
       - name: "Create build directory"
         run: mkdir build

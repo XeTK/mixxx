@@ -51,7 +51,7 @@ jobs:
       - name: "Configure ccache"
         run: |
           ccache --zero-stats
-          ccache --max-size=5G
+          ccache --max-size=40G
 
       - name: "Create build directory"
         run: mkdir build
@@ -218,7 +218,7 @@ jobs:
           ccache --zero-stats
           # Generous cap: a Mixxx tree is large and the emulated arm64 build
           # is slow, so we want as much of it cached between runs as possible.
-          ccache --max-size=20G
+          ccache --max-size=40G
 
       - name: "Create build directory"
         run: mkdir build
