@@ -57,7 +57,10 @@ jobs:
           # path becomes part of the cache key, so every run misses -> ~0% hit
           # rate. Disable hashing the working dir and relax the sloppiness so
           # cache entries survive across runs on the same branch.
-          CCACHE_HASHDIR: false
+          # The canonical way to disable hashing the working dir. The setting
+          # is "hash_dir" (ccache config); the env var is the legacy
+          # CCACHE_NOHASHDIR=true (there is no CCACHE_HASHDIR env var).
+          CCACHE_NOHASHDIR: true
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
@@ -232,7 +235,10 @@ jobs:
 
       - name: "Configure ccache"
         env:
-          CCACHE_HASHDIR: false
+          # The canonical way to disable hashing the working dir. The setting
+          # is "hash_dir" (ccache config); the env var is the legacy
+          # CCACHE_NOHASHDIR=true (there is no CCACHE_HASHDIR env var).
+          CCACHE_NOHASHDIR: true
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats

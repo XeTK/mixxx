@@ -59,7 +59,10 @@ jobs:
         env:
           # Disable hashing the per-run working dir and relax sloppiness so
           # cache entries survive across runs (matches the Linux jobs).
-          CCACHE_HASHDIR: false
+          # The canonical way to disable hashing the working dir. The setting
+          # is "hash_dir" (ccache config); the env var is the legacy
+          # CCACHE_NOHASHDIR=true (there is no CCACHE_HASHDIR env var).
+          CCACHE_NOHASHDIR: true
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
