@@ -46,6 +46,7 @@ jobs:
           path: ~/.cache/ccache
           key: linux-ccache-${{ github.ref_name }}
           restore-keys: |
+            linux-ccache-${{ github.base_ref }}
             linux-ccache-
 
       - name: "Configure ccache"
@@ -211,6 +212,7 @@ jobs:
           path: ~/.cache/ccache
           key: linux-arm-ccache-${{ github.ref_name }}
           restore-keys: |
+            linux-arm-ccache-${{ github.base_ref }}
             linux-arm-ccache-
 
       - name: "Configure ccache"
