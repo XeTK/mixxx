@@ -64,7 +64,10 @@ jobs:
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
-          ccache --max-size=40G
+          # 20G cap: the runner disk is 63G and OS + actcache + act use ~30G,
+          # so a 40G cap lets ccache grow past the disk and the cache save hits
+          # "no space left on device". 20G holds a full Mixxx build (~13G).
+          ccache --max-size=20G
           # Persist the settings for any process that reads the config file.
           ccache --set-config=hash_dir=false
           ccache --set-config=sloppiness=file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
@@ -244,7 +247,7 @@ jobs:
           ccache --zero-stats
           # Generous cap: a Mixxx tree is large and the emulated arm64 build
           # is slow, so we want as much of it cached between runs as possible.
-          ccache --max-size=40G
+          ccache --max-size=20G
           # Persist for any process reading the config file, and to survive
           # the per-run working dir in the ccache key (see the x86 job).
           ccache --set-config=hash_dir=false
