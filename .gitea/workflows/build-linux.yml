@@ -44,6 +44,7 @@ jobs:
         # though save/restore works. Relocating the tree to one fixed path makes
         # -I paths byte-identical across runs, so unchanged code gets ~100% hits.
         run: |
+          apt-get install -y --no-install-recommends rsync
           STABLE=/opt/mixxx-ci/src
           mkdir -p "$STABLE"
           # --delete so the stable tree always matches this run's HEAD.
