@@ -36,6 +36,20 @@ jobs:
       - name: "Set up build environment"
         run: tools/debian_buildenv.sh setup
 
+      - name: "Sync source to stable path"
+        # Gitea's linux-x86 runner gives each job a fresh per-run working dir
+        # (/root/.cache/act/<task-hash>/hostexecutor). CMake bakes that absolute
+        # path into the -I include flags, which ccache hashes (via #line markers
+        # in the preprocessed output), so every run misses -> ~0% hit rate even
+        # though save/restore works. Relocating the tree to one fixed path makes
+        # -I paths byte-identical across runs, so unchanged code gets ~100% hits.
+        run: |
+          STABLE=/opt/mixxx-ci/src
+          mkdir -p "$STABLE"
+          # --delete so the stable tree always matches this run's HEAD.
+          rsync -a --delete --exclude=.git --exclude=build "$GITHUB_WORKSPACE"/ "$STABLE"/
+          echo "STABLE_SRC=$STABLE" >> "$GITHUB_ENV"
+
       - name: "Restore ccache"
         # actions/cache's own post-hook (which saves the cache) never runs on
         # this runner - its save/restore state doesn't propagate from the
@@ -81,8 +95,12 @@ jobs:
       - name: "Configure"
         # HID is off because the runner's libhidapi-dev (0.13.1) is older
         # than the 0.14.0 Mixxx requires.
-        working-directory: build
+        # Build from the stable path so -I include paths are identical across
+        # runs -> ccache hits instead of misses (see "Sync source to stable path").
         run: >-
+          cd "${STABLE_SRC}"
+          mkdir -p build
+          cd build
           cmake
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DQT6=ON
@@ -106,12 +124,12 @@ jobs:
           ..
 
       - name: "Build"
-        working-directory: build
         # Half of nproc, not nproc: this LXC container has more CPUs than RAM
         # to match, and full parallelism during compilation leaves little
         # headroom afterwards, which lines up with a cluster of test failures
         # (std::bad_alloc) right after Build in earlier runs.
         run: |
+          cd "${STABLE_SRC}/build"
           JOBS=$(( $(nproc) / 2 ))
           [ "$JOBS" -lt 1 ] && JOBS=1
           cmake --build . --config RelWithDebInfo -- -j"$JOBS"
@@ -135,7 +153,6 @@ jobs:
           key: linux-ccache-${{ github.ref_name }}
 
       - name: "Test"
-        working-directory: build
         env:
           GTEST_COLOR: 1
           CTEST_PARALLEL_LEVEL: 1
@@ -144,17 +161,20 @@ jobs:
         # failures on this runner's memory-constrained LXC container;
         # --stop-on-failure still stops the whole suite as soon as a test
         # exhausts its retries, instead of grinding through ~1400 more tests.
-        run: ctest --timeout 45 --repeat until-pass:3 --stop-on-failure
+        run: |
+          cd "${STABLE_SRC}/build"
+          ctest --timeout 45 --repeat until-pass:3 --stop-on-failure
 
       - name: "Package"
-        working-directory: build
-        run: cpack -G DEB -V
+        run: |
+          cd "${STABLE_SRC}/build"
+          cpack -G DEB -V
 
       - name: "Upload build artifact"
         uses: actions/upload-artifact@v4
         with:
           name: mixxx-linux-deb
-          path: build/*.deb
+          path: ${{ env.STABLE_SRC }}/build/*.deb
 
       - name: "Publish release"
         # Create (or update) a Gitea release for this build and attach the
