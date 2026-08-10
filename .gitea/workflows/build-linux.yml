@@ -189,6 +189,16 @@ jobs:
           # Version the release with git describe (e.g. accessibility-beta-2026-07-07-75-g4e5adcb893)
           # so each build gets a unique, sortable tag.
           TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          # Cap the tag length. git describe chains the previous tag + a
+          # -N-g<sha> segment per merge, so the name grows unboundedly and
+          # eventually exceeds Windows' 260-char MAX_PATH when git materializes
+          # refs/tags/<name>.lock during `git fetch --tags` on the Windows
+          # runner ("Filename too long"). Keep the leading tag and the trailing
+          # short sha so the name stays unique/informative but bounded.
+          TAG_MAX=60
+          if [ "${#TAG}" -gt "$TAG_MAX" ]; then
+            TAG="${TAG:0:40}...${TAG: -10}"
+          fi
           # Create the release if it doesn't exist; ignore "already exists". Capture
           # the release ID from the response so we can upload assets to it.
           # Gitea's /releases/latest/assets endpoint 404s, so we must target the
@@ -367,6 +377,12 @@ jobs:
           set -euo pipefail
           API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
           TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
+          # Cap the tag length (see the x86 job): exceeds Windows MAX_PATH on
+          # `git fetch --tags` otherwise.
+          TAG_MAX=60
+          if [ "${#TAG}" -gt "$TAG_MAX" ]; then
+            TAG="${TAG:0:40}...${TAG: -10}"
+          fi
           # Create the release if it doesn't exist; ignore "already exists". Capture
           # the release ID so we can upload assets to it (Gitea's
           # /releases/latest/assets endpoint 404s, so target by ID instead).
