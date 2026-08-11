@@ -9,8 +9,12 @@
 name: Build Windows
 
 on:
+  # Only auto-build on push for the integration branches. Feature branches
+  # build via their pull_request instead of also firing on push - previously
+  # both fired for every commit, doubling the queue (and ccache seeds from
+  # these two branches so PR builds still get warm cache hits).
   push:
-    branches: ["**"]
+    branches: ["main", "accessibility-improvements-2026-06-25"]
   pull_request:
   workflow_dispatch:
 
