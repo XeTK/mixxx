@@ -18,6 +18,14 @@ permissions:
   contents: read #  to fetch code (actions/checkout)
   checks: write #  to create new checks (coverallsapp/github-action)
 
+# Cancel stale runs for the same branch/PR when new commits land, instead of
+# letting them pile up in the queue behind each other. `push` and
+# `pull_request` events use different `github.ref` values (refs/heads/<branch>
+# vs refs/pull/<n>/merge), so this naturally scopes per-branch and per-PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   stop-build:
     name: Check if build should be stopped
@@ -29,23 +37,20 @@ jobs:
         id: stop-build
         if: ${{ github.event_name == 'push' }}
         uses: actions/github-script@v9
-        env:
-          ORGANIZATION: mixxxdj
-          REPOSITORY: mixxx
         with:
           script: |
             try {
               const branch = context.ref.replace('refs/heads/', '');
               const { data: pullRequests } = await github.rest.pulls.list({
-                owner: process.env.ORGANIZATION,
-                repo: process.env.REPOSITORY,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 head: `${context.repo.owner}:${branch}`,
                 state: 'open'
               });
-              console.log(`There is ${pullRequests.length} PR open upstream for branch '${context.repo.owner}:${branch}'`);
+              console.log(`There is ${pullRequests.length} PR open for branch '${context.repo.owner}:${branch}'`);
               return pullRequests.length != 0;
             } catch (error) {
-              console.log(`Didn't find a PR for branch '${context.repo.owner}:${branch}' on '${process.env.ORGANIZATION}/${process.env.REPOSITORY}'.`);
+              console.log(`Didn't find a PR for branch '${context.repo.owner}:${branch}' on '${context.repo.owner}/${context.repo.repo}'.`);
               return false;
             }
 
