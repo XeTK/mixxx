@@ -16,6 +16,15 @@ concurrency:
   group: build-linux-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  # The auto-injected GITHUB_TOKEN defaults to read-only on this instance,
+  # which silently breaks the "Publish release" step below (its release
+  # create/lookup calls fail, and the script's own error handling has a
+  # set -e + pipefail gotcha that skips its intended graceful fallback -
+  # see the comment on RELEASE_ID). contents: write is what release
+  # creation and asset upload need.
+  contents: write
+
 jobs:
   build-linux:
     name: Ubuntu Qt6 DEB
@@ -216,7 +225,11 @@ jobs:
             CREATE_RESP="$(curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" \
               "${API}/releases/tags/${TAG}" 2>/dev/null || true)"
           fi
-          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2)"
+          # `|| true` matters here: under `set -e` + `pipefail`, a CREATE_RESP
+          # with no "id" (e.g. the release calls above failed) makes grep
+          # exit 1, which would otherwise kill the script on this line and
+          # skip the graceful "-z "$RELEASE_ID"" fallback below entirely.
+          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2 || true)"
           if [ -z "$RELEASE_ID" ]; then
             echo "WARN: could not determine release ID for ${TAG}"
             exit 0
@@ -399,7 +412,11 @@ jobs:
             CREATE_RESP="$(curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" \
               "${API}/releases/tags/${TAG}" 2>/dev/null || true)"
           fi
-          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2)"
+          # `|| true` matters here: under `set -e` + `pipefail`, a CREATE_RESP
+          # with no "id" (e.g. the release calls above failed) makes grep
+          # exit 1, which would otherwise kill the script on this line and
+          # skip the graceful "-z "$RELEASE_ID"" fallback below entirely.
+          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2 || true)"
           if [ -z "$RELEASE_ID" ]; then
             echo "WARN: could not determine release ID for ${TAG}"
             exit 0
