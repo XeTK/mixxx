@@ -2926,6 +2926,11 @@ if(BUILD_TESTING)
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     TEST_LIST testsuite
     DISCOVERY_MODE PRE_TEST
+    # CMake's default is 5s, which is too tight for this large Qt binary to
+    # start up and enumerate tests, especially on the Windows CI runner right
+    # after a fresh build (cold disk cache, DLL loading). Was intermittently
+    # failing CI with "Process terminated due to timeout" during discovery.
+    DISCOVERY_TIMEOUT 60
   )
 
   if(BUILD_BENCH)
