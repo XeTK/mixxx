@@ -6,6 +6,7 @@
 #include <QStringList>
 #include <QTest>
 
+#include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "test/mixxxtest.h"
 
