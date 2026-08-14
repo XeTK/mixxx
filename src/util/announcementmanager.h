@@ -114,6 +114,10 @@ class AnnouncementManager : public QObject {
             std::function<QString(int unit, int slot)> effectName,
             std::function<QString(const QString& deckGroup)> quickEffectName);
 
+    // Spoken name for a track-table sort column, or empty for columns that
+    // are never sorted by (e.g. the internal id). Public for tests.
+    static QString sortColumnName(TrackModel::SortColumnId column);
+
   private:
     void connectDeck(int deckIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
@@ -189,10 +193,6 @@ class AnnouncementManager : public QObject {
 
     // Deduplication for sidebar announcements.
     QString m_lastAnnouncedSidebarItem;
-
-    // Spoken name for a track-table sort column, or empty for columns that
-    // are never sorted by (e.g. the internal id). Public for tests.
-    static QString sortColumnName(TrackModel::SortColumnId column);
 
     // Debounced search announcement.
     QTimer m_searchDebounce;
