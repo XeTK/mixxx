@@ -903,6 +903,27 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
             << "speak() was not skipped when the engine sink is user-disabled";
 }
 
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) {
+    // Regression test for issue #30: when the EngineTts sink is destroyed while
+    // the AnnouncementManager still holds a raw pointer to it (shutdown), the
+    // manager must drop the pointer and stop speaking instead of dereferencing
+    // freed memory. Destroying the sink emits sinkDestroyed(); a subsequent
+    // speak() must bail without calling into the torn-down sink.
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    // Destroy the engine sink. ~EngineTts() emits sinkDestroyed(), which the
+    // manager is connected to, so it nulls its raw pointer and flags the sink
+    // as gone.
+    m_pEngineTts.reset();
+
+    // A control change (or any other path) firing speak() after the sink is
+    // gone must not dereference the destroyed EngineTts.
+    m_pManager->slotSkinLoaded();
+
+    EXPECT_EQ(0, pSpy->callCount)
+            << "speak() must not synthesize after the engine sink is destroyed";
+}
+
 // ---------------------------------------------------------------------------
 // On-demand deck status ([ChannelN],tts_status) and repeat ([Tts],repeat)
 // ---------------------------------------------------------------------------

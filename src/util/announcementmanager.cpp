@@ -354,6 +354,14 @@ AnnouncementManager::AnnouncementManager(
                 QStringLiteral("samplerate"),
                 this,
                 ControlFlag::AllowMissingOrInvalid);
+        // The engine sink outlives the manager in normal shutdown, but a
+        // ControlProxy observing its [Tts],enabled control can still fire
+        // speak() after the sink is destroyed (see issue #30). Drop the raw
+        // pointer when the sink is torn down so speak() never dereferences it.
+        connect(m_pTtsSink,
+                &EngineTts::sinkDestroyed,
+                this,
+                &AnnouncementManager::onTtsSinkDestroyed);
     }
     init(pLibrary, pPlayerManager);
 }
@@ -813,6 +821,20 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 
 AnnouncementManager::~AnnouncementManager() = default;
 
+void AnnouncementManager::onTtsSinkDestroyed() {
+    // The engine sink (and its [Tts],enabled control) is being destroyed. Drop
+    // the raw pointer so speak() bails instead of dereferencing freed memory,
+    // and clear the TtsEngine's own sink pointer so its say() path can't reach
+    // the destroyed sink either. The ControlProxy observing [Tts],enabled is
+    // parented to this object and will be destroyed with it; until then its
+    // valueChanged lambda must not reach into the sink.
+    m_ttsSinkDestroyed = true;
+    m_pTtsSink = nullptr;
+    if (m_pTts) {
+        m_pTts->setSink(nullptr);
+    }
+}
+
 void AnnouncementManager::speak(const QString& text) {
     // Any announcement invalidates the knob/fader name-once context: after an
     // unrelated utterance the next control move must name the control again.
@@ -833,6 +855,13 @@ void AnnouncementManager::speak(const QString& text) {
 
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
+        return;
+    }
+
+    // The engine sink has been destroyed (shutdown). There is nowhere to render
+    // the speech and the TtsEngine's sink pointer has been cleared, so bail
+    // rather than synthesize into a torn-down sink (issue #30).
+    if (m_ttsSinkDestroyed) {
         return;
     }
 

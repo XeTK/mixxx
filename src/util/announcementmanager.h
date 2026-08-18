@@ -96,6 +96,11 @@ class AnnouncementManager : public QObject {
     void connectGroupControls(const QString& group, int deckIndex = -1);
     void setDeckHasTrack(const QString& group, bool value);
 
+    // Drops the raw engine sink pointer. Called from the sink's destruction
+    // signal (see EngineTts::sinkDestroyed) so speak() never dereferences a
+    // torn-down EngineTts. Also exposed for tests.
+    void onTtsSinkDestroyed();
+
     // Plain methods below — not slots. (moc chokes on std::function
     // parameters when it generates slot invokers.)
   public:
@@ -164,6 +169,10 @@ class AnnouncementManager : public QObject {
     // Engine sink the synthesized speech is rendered into. Null in unit tests,
     // where a spy TtsEngine is injected instead.
     EngineTts* m_pTtsSink{nullptr};
+    // True once the engine sink has been destroyed (see onTtsSinkDestroyed).
+    // speak() bails once this is set: there is nowhere to render the speech and
+    // the TtsEngine's own sink pointer has been cleared.
+    bool m_ttsSinkDestroyed{false};
     // Engine earcon player for transport cues. Null in unit tests.
     EngineEarcon* m_pEarcon{nullptr};
     std::unique_ptr<ControlProxy> m_pSampleRate;

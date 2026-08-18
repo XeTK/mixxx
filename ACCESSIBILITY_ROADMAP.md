@@ -178,6 +178,17 @@ one-page shortcut cheat sheet.
   never worked outside the US layout.
 - 125 unit tests cover the announcement manager, engine speech sink,
   and beat-click metronome.
+- Fixed a hard crash (issue #30): `AnnouncementManager::speak()` could
+  dereference a destroyed `EngineTts` sink during shutdown. The manager
+  held a raw pointer to the engine sink (and a `ControlProxy` observing
+  its `[Tts],enabled` control) that outlived the sink, which is owned by
+  `EngineMixer` and torn down in `CoreServices::finalize()` before the
+  manager. A control change firing that proxy after the engine was gone
+  called `speak()` → `isUserEnabled()` on freed memory. Fixed by (a)
+  destroying the `AnnouncementManager` in `finalize()` before the engine
+  is torn down, and (b) making `EngineTts` a `QObject` that emits
+  `sinkDestroyed()` from its destructor so the manager drops its raw
+  pointer and bails out of `speak()` as a defensive safety net.
 
 ### Digital vinyl (DVS) + controller coexistence (2026-07-14, branch `dvs-cueing-2026-07-14`) — see [handoff/08-dvs-cueing.md](handoff/08-dvs-cueing.md)
 
