@@ -241,6 +241,24 @@ Worked through the full 13-item tester bug list:
   skin-level widgets (deck play/cue buttons, knobs, faders reachable
   by keyboard). Large: these are custom-painted widgets.
 
+Done since (2026-08-08) — issue #32, DDJ-400 value editor (first slice):
+
+- **Value editor for the spoken menu** — the DDJ-400 spoken menu could
+  open preference pages but couldn't change values inside them. Added a
+  value-edit mode to `AccessMenuController` (`src/util/accessmenucontroller.*`):
+  a new `ItemType::Value` item enters edit mode when activated, where the
+  browse knob steps the value (each change spoken), activate/confirm commits,
+  and back cancels (restoring the value captured on entry). Values are a
+  generic "control + min + max + step + format" model, either control-backed
+  (`ControlObject` via `ControlProxy`) or config-backed (`UserSettings` key,
+  e.g. TTS rate). New top-level **Values** submenu with Speech on/off
+  (`[Tts],enabled`), Speech rate (`[Accessibility],TtsRate`), Ducking strength
+  (`[Tts],duckStrength`), and Beat click volume (`[BeatClick],volume`). No
+  DDJ-400 script change needed — it reuses the existing `[AccessMenu]`
+  navigate/activate/back/confirm controls. Unit tests in
+  `src/test/accessmenucontroller_test.cpp` (20 controller tests pass). See
+  spec 01 addendum for the full design and next steps.
+
 ## To do
 
 ### Feedback batch 2 (2026-07-05, mostly complete) — see [handoff/07-feedback-batch-2.md](handoff/07-feedback-batch-2.md)

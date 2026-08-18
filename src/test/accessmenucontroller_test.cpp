@@ -6,6 +6,7 @@
 #include <QStringList>
 #include <QTest>
 
+#include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "test/mixxxtest.h"
 
@@ -29,7 +30,8 @@ class AccessMenuControllerTest : public MixxxTest {
         // The spy must outlive the controller, which holds a copy of the
         // std::function pointing at it.
         m_pController = std::make_unique<AccessMenuController>(
-                [this](const QString& text) { (*m_pSpy)(text); });
+                [this](const QString& text) { (*m_pSpy)(text); },
+                config());
         m_pController->setTimeoutMs(100);
     }
 
@@ -88,13 +90,15 @@ TEST_F(AccessMenuControllerTest, Navigate_ScrollsAndSpeaksEachItem) {
     clearSpy();
 
     navigate(1.0); // Preferences
+    navigate(1.0); // Values
     navigate(1.0); // Recording
     navigate(1.0); // Broadcasting
 
-    ASSERT_GE(m_pSpy->m_texts.size(), 3);
+    ASSERT_GE(m_pSpy->m_texts.size(), 4);
     EXPECT_QSTRING_EQ("Preferences, submenu", m_pSpy->m_texts.at(0));
-    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(1));
-    EXPECT_QSTRING_EQ("Broadcasting", m_pSpy->m_texts.at(2));
+    EXPECT_QSTRING_EQ("Values, submenu", m_pSpy->m_texts.at(1));
+    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(2));
+    EXPECT_QSTRING_EQ("Broadcasting", m_pSpy->m_texts.at(3));
 
     // Negative scroll goes back up.
     clearSpy();
@@ -107,8 +111,8 @@ TEST_F(AccessMenuControllerTest, Navigate_WrapsAround) {
     press(QStringLiteral("open"));
     clearSpy();
 
-    // The root menu has 11 items; 11 ticks wraps back to the first (Back).
-    for (int i = 0; i < 11; ++i) {
+    // The root menu has 12 items; 12 ticks wraps back to the first (Back).
+    for (int i = 0; i < 12; ++i) {
         navigate(1.0);
     }
     ASSERT_GE(m_pSpy->m_texts.size(), 1);
@@ -164,6 +168,7 @@ TEST_F(AccessMenuControllerTest, Confirm_FiresAction) {
     clearSpy();
 
     navigate(1.0); // Preferences
+    navigate(1.0); // Values
     navigate(1.0); // Recording
     press(QStringLiteral("confirm"));
 
@@ -182,6 +187,7 @@ TEST_F(AccessMenuControllerTest, ToggleActions_StayOpen) {
     clearSpy();
 
     navigate(1.0); // Preferences
+    navigate(1.0); // Values
     navigate(1.0); // Recording
     press(QStringLiteral("confirm"));
 
@@ -201,8 +207,8 @@ TEST_F(AccessMenuControllerTest, LeafAction_ClosesMenu) {
     press(QStringLiteral("open"));
     clearSpy();
 
-    // Navigate to Quit (last item, index 10 of 11).
-    for (int i = 0; i < 10; ++i) {
+    // Navigate to Quit (last item, index 11 of 12).
+    for (int i = 0; i < 11; ++i) {
         navigate(1.0);
     }
     press(QStringLiteral("confirm"));
@@ -259,4 +265,192 @@ TEST_F(AccessMenuControllerTest, NavigateWhenClosed_IsIgnored) {
     navigate(1.0);
     EXPECT_EQ(0, m_pSpy->m_texts.size());
     EXPECT_EQ(0.0, active());
+}
+
+// -- Value editor (issue #32) -------------------------------------------
+
+// TTS rate is config-backed ([Accessibility],TtsRate), so these tests drive it
+// through the injected UserSettings rather than a control object.
+class ValueEditorTest : public AccessMenuControllerTest {
+  protected:
+    void setRate(double v) {
+        config()->setValue(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("TtsRate")),
+                v);
+    }
+
+    double getRate() const {
+        return config()->getValue<double>(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("TtsRate")),
+                0.0);
+    }
+
+    // Open the Values submenu and highlight the Value item at `itemIndex`
+    // (0 = Back, 1 = Speech on/off, 2 = Speech rate, 3 = Ducking,
+    // 4 = Beat click).
+    void openValuesItem(int itemIndex) {
+        press(QStringLiteral("open"));
+        clearSpy();
+
+        navigate(1.0); // Preferences
+        navigate(1.0); // Values
+        press(QStringLiteral("activate")); // descend into Values
+        clearSpy();
+
+        for (int i = 0; i < itemIndex; ++i) {
+            navigate(1.0);
+        }
+        clearSpy();
+    }
+};
+
+TEST_F(ValueEditorTest, EnterValueEditMode_SpeaksLabelAndStartValue) {
+    setRate(3.0);
+    openValuesItem(2); // Speech rate
+
+    press(QStringLiteral("activate"));
+
+    // Mode announcement then the current value.
+    ASSERT_GE(m_pSpy->m_texts.size(), 2);
+    EXPECT_QSTRING_EQ("Speech rate. Turn to change, confirm to set, back to cancel",
+            m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("3", m_pSpy->m_texts.at(1));
+}
+
+TEST_F(ValueEditorTest, Navigate_ChangesValueAndSpeaksIt) {
+    setRate(0.0);
+    openValuesItem(2); // Speech rate
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // 1
+    navigate(1.0); // 2
+    navigate(-1.0); // 1
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 3);
+    EXPECT_QSTRING_EQ("1", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("2", m_pSpy->m_texts.at(1));
+    EXPECT_QSTRING_EQ("1", m_pSpy->m_texts.at(2));
+
+    // The controller wrote each step to the config.
+    EXPECT_EQ(1.0, getRate());
+}
+
+TEST_F(ValueEditorTest, Navigate_ClampsAtMinAndMax) {
+    setRate(0.0);
+    openValuesItem(2); // Speech rate, range -10..10 step 1
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    // 20 ticks up would reach 20, but the range clamps at 10.
+    for (int i = 0; i < 20; ++i) {
+        navigate(1.0);
+    }
+    EXPECT_EQ(10.0, getRate());
+    // The last spoken value is the clamped maximum.
+    EXPECT_QSTRING_EQ("10", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+
+    clearSpy();
+    for (int i = 0; i < 25; ++i) {
+        navigate(-1.0);
+    }
+    EXPECT_EQ(-10.0, getRate());
+    EXPECT_QSTRING_EQ("-10", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+TEST_F(ValueEditorTest, Confirm_CommitsAndExitsEditMode) {
+    setRate(0.0);
+    openValuesItem(2);
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // 1
+    navigate(1.0); // 2
+    clearSpy();
+    press(QStringLiteral("confirm"));
+
+    // The value stays at the committed value.
+    EXPECT_EQ(2.0, getRate());
+
+    // Exiting edit mode goes back to speaking the current menu item, which is
+    // the same Value item with its new value.
+    ASSERT_GE(m_pSpy->m_texts.size(), 2);
+    EXPECT_QSTRING_EQ("Set", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("Speech rate, 2", m_pSpy->m_texts.at(1));
+
+    // The browse knob now scrolls the menu again, not the value.
+    auto pDuck = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("duckStrength")));
+    pDuck->set(0.5);
+    clearSpy();
+    navigate(1.0); // next item: Ducking strength
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Ducking strength, 50 percent", m_pSpy->m_texts.at(0));
+}
+
+TEST_F(ValueEditorTest, Back_CancelsEditAndRestoresValue) {
+    setRate(4.0);
+    openValuesItem(2);
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // 5
+    navigate(1.0); // 6
+    clearSpy();
+    press(QStringLiteral("back"));
+
+    // The original value is restored.
+    EXPECT_EQ(4.0, getRate());
+
+    // Back exits edit mode without navigating the menu.
+    ASSERT_GE(m_pSpy->m_texts.size(), 2);
+    EXPECT_QSTRING_EQ("Cancelled", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("Speech rate, 4", m_pSpy->m_texts.at(1));
+}
+
+TEST_F(ValueEditorTest, Boolean_StepsOnOff) {
+    // Speech on/off is item 1 of the Values submenu, backed by [Tts],enabled.
+    // It does not exist by default in a unit test, so create it; the value
+    // editor writes the absolute state, which is what a Toggle button's
+    // ControlObject::set does too.
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("enabled")));
+    pEnabled->set(1.0);
+
+    openValuesItem(1);
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // off
+    EXPECT_EQ(0.0, pEnabled->get());
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("off", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+
+    navigate(1.0); // on
+    EXPECT_EQ(1.0, pEnabled->get());
+    EXPECT_QSTRING_EQ("on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+TEST_F(ValueEditorTest, Percent_FormatsAsPercent) {
+    // Without any Ducking/BeatClick controls present, step against a created
+    // [Tts],duckStrength control (range 0..1 step 0.05 -> percent format).
+    auto pDuck = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("duckStrength")));
+    pDuck->set(0.5);
+
+    openValuesItem(3); // Ducking strength
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // +0.05 -> 0.55
+    EXPECT_EQ(0.55, pDuck->get());
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("55 percent", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+
+    clearSpy();
+    navigate(-1.0); // back to 0.5
+    EXPECT_EQ(0.5, pDuck->get());
+    EXPECT_QSTRING_EQ("50 percent", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 }
