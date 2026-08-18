@@ -185,34 +185,35 @@ QString pitchDeviationText(double rateRatio) {
 // Returns a fully-spelled pronounceable key name for the given ChromaticKey,
 // e.g. A_MINOR → "A Minor", F#_MAJOR → "F Sharp Major".
 // Using a lookup table keyed by the enum integer (INVALID=0, C_MAJOR=1 … B_MINOR=24).
+// Each name is wrapped in tr() so the spoken key respects the app locale.
 QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
     using namespace mixxx::track::io::key;
     static const QString kNames[] = {
             QString(),                       // 0  INVALID
-            QStringLiteral("C Major"),       // 1
-            QStringLiteral("D Flat Major"),  // 2
-            QStringLiteral("D Major"),       // 3
-            QStringLiteral("E Flat Major"),  // 4
-            QStringLiteral("E Major"),       // 5
-            QStringLiteral("F Major"),       // 6
-            QStringLiteral("F Sharp Major"), // 7
-            QStringLiteral("G Major"),       // 8
-            QStringLiteral("A Flat Major"),  // 9
-            QStringLiteral("A Major"),       // 10
-            QStringLiteral("B Flat Major"),  // 11
-            QStringLiteral("B Major"),       // 12
-            QStringLiteral("C Minor"),       // 13
-            QStringLiteral("C Sharp Minor"), // 14
-            QStringLiteral("D Minor"),       // 15
-            QStringLiteral("E Flat Minor"),  // 16
-            QStringLiteral("E Minor"),       // 17
-            QStringLiteral("F Minor"),       // 18
-            QStringLiteral("F Sharp Minor"), // 19
-            QStringLiteral("G Minor"),       // 20
-            QStringLiteral("A Flat Minor"),  // 21
-            QStringLiteral("A Minor"),       // 22
-            QStringLiteral("B Flat Minor"),  // 23
-            QStringLiteral("B Minor"),       // 24
+            AnnouncementManager::tr("C Major"),                  // 1
+            AnnouncementManager::tr("D Flat Major"),             // 2
+            AnnouncementManager::tr("D Major"),                  // 3
+            AnnouncementManager::tr("E Flat Major"),             // 4
+            AnnouncementManager::tr("E Major"),                  // 5
+            AnnouncementManager::tr("F Major"),                  // 6
+            AnnouncementManager::tr("F Sharp Major"),            // 7
+            AnnouncementManager::tr("G Major"),                  // 8
+            AnnouncementManager::tr("A Flat Major"),             // 9
+            AnnouncementManager::tr("A Major"),                  // 10
+            AnnouncementManager::tr("B Flat Major"),             // 11
+            AnnouncementManager::tr("B Major"),                  // 12
+            AnnouncementManager::tr("C Minor"),                  // 13
+            AnnouncementManager::tr("C Sharp Minor"),            // 14
+            AnnouncementManager::tr("D Minor"),                  // 15
+            AnnouncementManager::tr("E Flat Minor"),             // 16
+            AnnouncementManager::tr("E Minor"),                  // 17
+            AnnouncementManager::tr("F Minor"),                  // 18
+            AnnouncementManager::tr("F Sharp Minor"),            // 19
+            AnnouncementManager::tr("G Minor"),                  // 20
+            AnnouncementManager::tr("A Flat Minor"),             // 21
+            AnnouncementManager::tr("A Minor"),                  // 22
+            AnnouncementManager::tr("B Flat Minor"),             // 23
+            AnnouncementManager::tr("B Minor"),                  // 24
     };
     const int idx = static_cast<int>(key);
     if (idx < 0 || idx >= static_cast<int>(std::size(kNames))) {
