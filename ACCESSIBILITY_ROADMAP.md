@@ -230,10 +230,11 @@ Worked through the full 13-item tester bug list:
 
 - App-local DLL deployment (81 DLLs next to mixxx.exe) so the exe runs
   by double-click with no PATH setup.
-- Interim workaround for the debug-protobuf link bug: the release
-  protobuf DLL is provided under the debug import name. A proper CMake
-  fix is being worked on in a separate session; until it lands,
-  anything protobuf-touching would crash without the shim.
+- Debug-protobuf link bug resolved: `CMakeLists.txt` now maps
+  RelWithDebInfo to Release for imported targets, so the release build
+  no longer links debug `libprotobuf-lited.dll`; the renamed-DLL shim
+  is gone and binaries can be handed to another machine. Full diagnosis
+  in [handoff/05-protobuf-debug-link-fix.md](handoff/05-protobuf-debug-link-fix.md).
 
 ## In progress
 
@@ -452,11 +453,6 @@ announced.
 
 ### Known issues / parked
 
-- **Debug-protobuf link bug** — the build links debug
-  `libprotobuf-lited.dll` into a release build; crashes anything
-  touching track key data without the shim. Proper CMake fix in
-  progress in a separate session; two FormatForLoad unit tests fail
-  without the shim.
 - **JAWS audio routing during performance** — JAWS speaks through the
   Windows default device, which may be the main (audience) output.
   Plan: document pinning JAWS to a specific sound card, and keep

@@ -347,6 +347,19 @@ if(NOT CMAKE_CONFIGURATION_TYPES)
   endif()
 endif()
 
+# Map RelWithDebInfo to Release for imported targets (e.g. vcpkg protobuf
+# and qt6keychain) that only ship DEBUG and RELEASE configurations. Without
+# an exact RelWithDebInfo match, CMake falls back to the first available
+# imported configuration, which is DEBUG - linking the debug runtime into a
+# release build (libprotobuf-lited.dll, qt6keychaind.dll) and corrupting
+# memory in anything touching track-key protobufs. The vcpkg toolchain sets
+# this too, but only behind an `if(NOT DEFINED ...)` guard that a stale
+# build/CMakeFiles/<version>/ cache can skip on an incremental reconfigure;
+# setting it here makes the mapping unconditional.
+if(NOT DEFINED CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO)
+  set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO "RelWithDebInfo;Release;None;")
+endif()
+
 include(CMakeDependentOption)
 
 option(QT6 "Build with Qt6" ON)

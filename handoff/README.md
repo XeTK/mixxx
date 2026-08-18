@@ -38,12 +38,10 @@ needs the VS environment:
 
 ## Running tests
 
-The test exe needs DLLs on PATH — release vcpkg bin, debug vcpkg bin,
-and the protobuf shim (see gotchas):
+The test exe needs the vcpkg DLLs on PATH — release bin and debug bin:
 
     set VCPKG=C:\Users\XeTK\Documents\Code\mixxx\buildenv\mixxx-deps-2.6-x64-windows-aa78b5a\installed\x64-windows
-    set SHIM=<scratch dir containing release libprotobuf-lite.dll renamed to libprotobuf-lited.dll>
-    set PATH=%SHIM%;%VCPKG%\bin;%VCPKG%\debug\bin;%PATH%
+    set PATH=%VCPKG%\bin;%VCPKG%\debug\bin;%PATH%
     build\mixxx-test.exe --gtest_filter=AnnouncementManager*:EngineTts*:EngineBeatClick*
 
 Invoke the exe by full or explicit relative path (bare exe names from
@@ -83,13 +81,26 @@ already).
   `dlgprefaccessibility.cpp` (constructor init, connect, slotUpdate,
   slotApply, slotResetToDefaults — five places).
 
-## Known open issue: debug protobuf link
+## Resolved: the debug protobuf link
 
-The build links debug `libprotobuf-lited.dll` into the release build.
-Anything touching track-key protobufs crashes without the shim (see
-tests section). A fix was started in a separate session; brief 05 has
-the full diagnosis if it needs redoing. Until fixed, binaries cannot be
-shipped to other machines without bundling the renamed release DLL.
+This used to be an open blocker — the RelWithDebInfo build linked debug
+`libprotobuf-lited.dll`, and anything touching track-key protobufs
+crashed without a renamed-release-DLL shim. Root cause: protobuf and
+qt6keychain advertise only DEBUG and RELEASE imported configurations,
+so a RelWithDebInfo build fell back to DEBUG. `CMakeLists.txt` now sets
+`CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO "RelWithDebInfo;Release;None;"`
+unconditionally, so the release link is guaranteed regardless of cache
+state. Brief 05 has the full diagnosis.
+
+What this means in practice:
+
+- No shim is needed on PATH, and binaries no longer need the renamed
+  DLL bundled. Old shim copies may still be sitting in `build/`
+  (`libprotobuf-lited.dll`, `qt6keychaind.dll`); they are inert and can
+  be deleted.
+- After a fresh vcpkg env swap, or any failed first configure, a clean
+  reconfigure is still recommended.
+- Verify with `grep -c libprotobuf-lited build/build.ninja` — must be 0.
 
 ## Definition of done for every task
 
