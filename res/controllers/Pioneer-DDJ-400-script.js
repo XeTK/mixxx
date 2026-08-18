@@ -172,6 +172,11 @@ PioneerDDJ400.init = function() {
     engine.softTakeover("[EffectRack1_EffectUnit1_Effect3]", "meta", true);
     engine.softTakeover("[EffectRack1_EffectUnit1]", "mix", true);
 
+    const deckCount = 2;
+    if (engine.getValue("[App]", "num_decks") < deckCount) {
+        engine.setValue("[App]", "num_decks", deckCount);
+    }
+
     const samplerCount = 16;
     if (engine.getValue("[App]", "num_samplers") < samplerCount) {
         engine.setValue("[App]", "num_samplers", samplerCount);
