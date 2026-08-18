@@ -1312,7 +1312,26 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
     EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent) {
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    // Name on touch: the fader names itself the moment it moves; the value
+    // is debounced until it stops.
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText);
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(2, pSpy->callCount)
+            << "mixer announcements are on by default (AnnounceMixer defaults on)";
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            false);
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();
     setupGroup();
@@ -1321,7 +1340,7 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
     EXPECT_EQ(0, pSpy->callCount)
-            << "mixer announcements must be opt-in (AnnounceMixer defaults off)";
+            << "mixer announcements can be turned off (AnnounceMixer=false)";
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerEnabled_Spoken) {
@@ -2314,7 +2333,26 @@ TEST_F(AnnouncementManagerTest, HeadMix_Even_Announced) {
     EXPECT_QSTRING_EQ("even", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
+TEST_F(AnnouncementManagerTest, HeadMix_MixerOnByDefault_Spoken) {
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pHeadMix->set(0.5);
+    QCoreApplication::processEvents();
+    // Name on touch: the knob names itself the moment it moves; the value
+    // is debounced until it stops.
+    EXPECT_QSTRING_EQ("Headphone mix", pSpy->lastText);
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(2, pSpy->callCount)
+            << "mixer announcements are on by default (AnnounceMixer defaults on)";
+    EXPECT_QSTRING_EQ("main a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, HeadMix_MixerDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            false);
     auto pHeadMix = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
     SpyTtsEngine* pSpy = makeManager();
@@ -2322,7 +2360,8 @@ TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
     pHeadMix->set(0.5);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_EQ(0, pSpy->callCount);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "mixer announcements can be turned off (AnnounceMixer=false)";
 }
 
 // ---------------------------------------------------------------------------

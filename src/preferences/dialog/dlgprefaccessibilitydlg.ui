@@ -714,7 +714,7 @@
       <item>
        <widget class="QCheckBox" name="checkBoxAnnounceMixer">
         <property name="toolTip">
-         <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. Off by default because these move constantly during a mix.</string>
+         <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. On by default; readouts are debounced so they are not chatty mid-mix.</string>
         </property>
         <property name="text">
          <string>Announce mixer controls (volume, EQ, crossfader)</string>
