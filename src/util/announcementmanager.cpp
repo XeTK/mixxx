@@ -1,5 +1,6 @@
 #include "util/announcementmanager.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
 #include <QTextStream>
@@ -13,6 +14,7 @@
 #include "engine/enginetts.h"
 #include "library/library.h"
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
@@ -33,6 +35,10 @@ namespace {
 constexpr int kSelectionDebounceMs = 400;
 constexpr int kSearchDebounceMs = 600;
 constexpr int kControlDebounceMs = 400;
+// Sort column/order changes are debounced so a single toggle that updates
+// both controls (a new column resets the order to ascending) collapses into
+// one announcement.
+constexpr int kSortDebounceMs = 400;
 // Minimum gap between spoken updates in announce-while-moving mode.
 constexpr qint64 kMovingThrottleMs = 300;
 // How long a knob/fader keeps its spoken "context": while the same control
@@ -388,6 +394,13 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             &AnnouncementManager::slotAnnouncePendingControl);
 
+    m_sortDebounce.setSingleShot(true);
+    m_sortDebounce.setInterval(kSortDebounceMs);
+    connect(&m_sortDebounce,
+            &QTimer::timeout,
+            this,
+            &AnnouncementManager::slotAnnounceSort);
+
     if (pLibrary) {
         connect(pLibrary,
                 &Library::trackSelected,
@@ -418,6 +431,29 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotSearchResultCount);
     }
+
+    // Track-list sort column/order feedback. [Library],sort_column holds the
+    // active TrackModel::SortColumnId and [Library],sort_order the direction
+    // (0 = ascending, 1 = descending); both are driven by the keyboard
+    // binding sort_column_toggle (and by clicking a column header). A blind
+    // user toggling the sort column needs to hear which column the library is
+    // now sorted by.
+    auto pSortColumn = make_parented<ControlProxy>(
+            QStringLiteral("[Library]"),
+            QStringLiteral("sort_column"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pSortColumn->connectValueChanged(this, [this](double) {
+        m_sortDebounce.start();
+    });
+    auto pSortOrder = make_parented<ControlProxy>(
+            QStringLiteral("[Library]"),
+            QStringLiteral("sort_order"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pSortOrder->connectValueChanged(this, [this](double) {
+        m_sortDebounce.start();
+    });
 
     connect(pPlayerManager,
             &PlayerManagerInterface::numberOfDecksChanged,
@@ -1783,6 +1819,103 @@ void AnnouncementManager::slotAnnounceSearch() {
         text += tr(". %1 tracks").arg(m_pendingSearchCount);
     }
     speak(text);
+}
+
+void AnnouncementManager::slotAnnounceSort() {
+    if (!m_settings.getAnnounceSort()) {
+        return;
+    }
+    ControlProxy sortColumn(QStringLiteral("[Library]"),
+            QStringLiteral("sort_column"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    ControlProxy sortOrder(QStringLiteral("[Library]"),
+            QStringLiteral("sort_order"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    const auto columnId =
+            static_cast<TrackModel::SortColumnId>(static_cast<int>(sortColumn.get()));
+    const QString columnName = sortColumnName(columnId);
+    if (columnName.isEmpty()) {
+        return;
+    }
+    const bool ascending = sortOrder.get() == 0.0;
+    speak(tr("Sorting by %1 %2")
+                    .arg(columnName,
+                            ascending ? tr("ascending") : tr("descending")));
+}
+
+QString AnnouncementManager::sortColumnName(TrackModel::SortColumnId column) {
+    // Spoken column names, mirroring the display titles in columncache.cpp
+    // (BaseTrackTableModel/BaseSqlTableModel translation contexts).
+    switch (column) {
+    case TrackModel::SortColumnId::Artist:
+        return tr("artist");
+    case TrackModel::SortColumnId::Title:
+        return tr("title");
+    case TrackModel::SortColumnId::Album:
+        return tr("album");
+    case TrackModel::SortColumnId::AlbumArtist:
+        return tr("album artist");
+    case TrackModel::SortColumnId::Year:
+        return tr("year");
+    case TrackModel::SortColumnId::Genre:
+        return tr("genre");
+    case TrackModel::SortColumnId::Composer:
+        return tr("composer");
+    case TrackModel::SortColumnId::Grouping:
+        return tr("grouping");
+    case TrackModel::SortColumnId::TrackNumber:
+        return tr("track number");
+    case TrackModel::SortColumnId::FileType:
+        return tr("file type");
+    case TrackModel::SortColumnId::NativeLocation:
+        return tr("location");
+    case TrackModel::SortColumnId::Comment:
+        return tr("comment");
+    case TrackModel::SortColumnId::Duration:
+        return tr("duration");
+    case TrackModel::SortColumnId::BitRate:
+        return tr("bitrate");
+    case TrackModel::SortColumnId::Bpm:
+        return tr("BPM");
+    case TrackModel::SortColumnId::ReplayGain:
+        return tr("replay gain");
+    case TrackModel::SortColumnId::DateTimeAdded:
+        return tr("date added");
+    case TrackModel::SortColumnId::TimesPlayed:
+        return tr("times played");
+    case TrackModel::SortColumnId::Rating:
+        return tr("rating");
+    case TrackModel::SortColumnId::Key:
+        return tr("key");
+    case TrackModel::SortColumnId::Preview:
+        return tr("preview");
+    case TrackModel::SortColumnId::CoverArt:
+        return tr("cover art");
+    case TrackModel::SortColumnId::Position:
+        return tr("position");
+    case TrackModel::SortColumnId::PlaylistId:
+        return tr("playlist");
+    case TrackModel::SortColumnId::Location:
+        return tr("location");
+    case TrackModel::SortColumnId::Filename:
+        return tr("filename");
+    case TrackModel::SortColumnId::FileModifiedTime:
+        return tr("modified time");
+    case TrackModel::SortColumnId::FileCreationTime:
+        return tr("creation time");
+    case TrackModel::SortColumnId::SampleRate:
+        return tr("sample rate");
+    case TrackModel::SortColumnId::Color:
+        return tr("color");
+    case TrackModel::SortColumnId::LastPlayedAt:
+        return tr("last played");
+    case TrackModel::SortColumnId::PlaylistDateTimeAdded:
+        return tr("date added");
+    default:
+        return QString();
+    }
 }
 
 // static

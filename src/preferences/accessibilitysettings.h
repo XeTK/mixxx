@@ -62,6 +62,14 @@ class AccessibilitySettings {
             "AnnounceSearch",
             true);
 
+    // Spoken feedback for the track-list sort column/order when it changes
+    // (via the sort_column_toggle keyboard binding or a column-header click).
+    DEFINE_PREFERENCE_HELPERS(AnnounceSort,
+            bool,
+            "[Accessibility]",
+            "AnnounceSort",
+            true);
+
     DEFINE_PREFERENCE_HELPERS(AnnounceSync,
             bool,
             "[Accessibility]",

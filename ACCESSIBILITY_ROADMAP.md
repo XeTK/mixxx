@@ -59,6 +59,8 @@ one-page shortcut cheat sheet.
   moving" is a separate opt-in, so this is not chatty mid-mix)
 - Library: sidebar item names during arrow-key navigation, pane focus
   changes (search bar / sidebar / track list), and search feedback
+- Track-list sort column/order when it changes (via the sort column
+  toggle or a column-header click), e.g. "Sorting by title ascending"
 - "Speech on" confirmation when re-enabling TTS
 
 ### Keyboard control (all also controller-mappable)
