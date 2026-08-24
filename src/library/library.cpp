@@ -70,7 +70,7 @@ Library::Library(
           m_pDbConnectionPool(std::move(pDbConnectionPool)),
           m_pTrackCollectionManager(pTrackCollectionManager),
           m_pSidebarModel(make_parented<SidebarModel>(this)),
-          m_pLibraryControl(make_parented<LibraryControl>(this)),
+          m_pLibraryControl(make_parented<LibraryControl>(this, pConfig)),
           m_pLibraryWidget(nullptr),
           m_pMixxxLibraryFeature(nullptr),
           m_pPlaylistFeature(nullptr),

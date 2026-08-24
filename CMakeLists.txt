@@ -2725,6 +2725,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
+    src/test/accessibilitysettings_test.cpp
     src/test/accessmenucontroller_test.cpp
     src/test/announcementmanager_test.cpp
     src/test/bootdialog_speech_test.cpp

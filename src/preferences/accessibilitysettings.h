@@ -219,6 +219,21 @@ class AccessibilitySettings {
             "ConciseAnnouncements",
             false);
 
+    // Let controller-driven library navigation (e.g. the DDJ-400 browse
+    // encoder) keep working even when the Mixxx window does not have OS
+    // keyboard focus. This is exactly the situation a screen-reader user is
+    // in whenever they alt-tab to interact with VoiceOver/JAWS/NVDA
+    // directly, so losing controller input at that moment is a significant
+    // accessibility gap. Off by default to match stock behavior; OR'd with
+    // the --controller-navigation-without-focus command-line flag at the
+    // point of use (see LibraryControl), so either one enables it and
+    // toggling this setting takes effect immediately, no restart required.
+    DEFINE_PREFERENCE_HELPERS(ControllerNavigationWithoutFocus,
+            bool,
+            "[Accessibility]",
+            "ControllerNavigationWithoutFocus",
+            false);
+
     // Empty string means "use system default voice".
     DEFINE_PREFERENCE_HELPERS(TtsVoice,
             QString,
