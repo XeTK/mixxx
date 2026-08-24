@@ -67,6 +67,37 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
+## Mixer, EQ, and filter (no controller needed)
+
+Deck 1 keys listed; add `Shift` for deck 2. Each pair steps the control
+down / up; there's no fine ("small step") variant yet:
+
+- `Ctrl+Alt+B` / `Ctrl+Alt+V` — Volume down / up.
+- `Ctrl+Alt+G` / `Ctrl+Alt+T` — Trim (gain) down / up.
+- `Ctrl+Alt+E` / `Ctrl+Alt+F11` — EQ low down / up.
+- `Ctrl+Alt+W` / `Ctrl+Alt+O` — EQ mid down / up.
+- `Ctrl+Alt+F` / `Ctrl+Alt+F10` — EQ high down / up.
+- `Ctrl+Alt+N` / `Ctrl+Alt+S` — Filter (QuickEffect knob) down / up.
+
+The existing `H` / `G` crossfader shortcuts (`Shift+H` / `Shift+G` for
+fine steps) already worked without a controller and aren't new here.
+EQ low already has a kill toggle too: `B` (deck 1) / `N` (deck 2).
+
+## Effects (no controller needed)
+
+Effect Unit 1 keys listed; add `Shift` for Effect Unit 2:
+
+- `Ctrl+Alt+A` — Turn the whole effect unit on/off.
+- `Ctrl+Alt+F9` — Cycle to the next chain preset (swaps in a
+  different bundle of effects).
+- `Ctrl+Alt+L` — Cycle which of the unit's effect slots is focused.
+- `Ctrl+Alt+I` — Enable/disable the effect loaded in slot 1.
+- `Ctrl+Alt+J` / `Ctrl+Alt+X` — Select the next / previous effect in
+  slot 1.
+
+Effect Units 3 and 4, and slots 2-4 within each unit, don't have
+keyboard shortcuts yet — use the mouse or a controller for those.
+
 ## Adding a track to a crate or playlist
 
 With a track selected in the library:

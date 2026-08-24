@@ -181,6 +181,24 @@ the sound alone is just the alert.
   library's Alt plus Shift plus P/C, but for what's on the deck — so
   when a track is going down well you can file it mid-mix without
   hunting it down in the library. The add is confirmed out loud.
+- Mixer, EQ, and filter without a controller: Control plus Alt plus B
+  and V step deck 1's volume down and up, G and T step trim (gain), E
+  and F11 step EQ low, W and O step EQ mid, F and F10 step EQ high, and
+  N and S step the filter (the QuickEffect knob); add Shift for deck 2.
+  These are the same underlying controls a DDJ-400 or any other
+  controller would use — this just gives the same access from the
+  keyboard alone. There's no fine ("small step") variant yet, only the
+  coarse step. The crossfader (H/G, Shift+H/Shift+G for a fine step)
+  and the EQ low kill toggle (B/N) already worked without a controller
+  and aren't new.
+- Effects without a controller: Control plus Alt plus A turns Effect
+  Unit 1 on/off, Control plus Alt plus F9 cycles to the next chain
+  preset (a different bundle of effects), Control plus Alt plus L
+  cycles which of the unit's slots is focused, Control plus Alt plus I
+  enables/disables the effect in slot 1, and Control plus Alt plus J
+  and X select the next and previous effect in slot 1; add Shift for
+  Effect Unit 2. Effect Units 3 and 4, and slots 2-4 within a unit,
+  aren't wired to the keyboard yet.
 - Smart cue (on by default): loading a track into a stopped deck moves
   the headphone cue to that deck automatically — like the smart cue on
   Denon players, the thing you just loaded is what you preview next.
