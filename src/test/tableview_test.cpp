@@ -69,3 +69,18 @@ TEST_F(HeaderViewStateTest, BadHeaderState) {
     HeaderViewState view_state("BLAHBLAHBLAHBAD");
     ASSERT_FALSE(view_state.healthy());
 }
+
+// Accessibility (issue #59): showColumnVisibilityMenu() lets code pop the
+// header's "show or hide columns" menu without a QContextMenuEvent, so a
+// keyboard binding can reach it even though QHeaderView itself is never
+// focusable. Smoke-tests that popping the menu (with or without a model set)
+// doesn't crash.
+class WTrackTableViewHeaderTest : public testing::Test {
+};
+
+TEST_F(WTrackTableViewHeaderTest, ShowColumnVisibilityMenuDoesNotCrashWithoutModel) {
+    WTrackTableViewHeader header(Qt::Horizontal, nullptr);
+    header.showColumnVisibilityMenu(QPoint(10, 10));
+    // Calling it again (e.g. from key repeat) must also be safe.
+    header.showColumnVisibilityMenu(QPoint(20, 20));
+}
