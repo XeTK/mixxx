@@ -43,6 +43,16 @@ YouTubeFeature::YouTubeFeature(Library* pLibrary, UserSettingsPointer pConfig)
             &YouTubeSearchModel::deferredLoadRequested,
             this,
             &YouTubeFeature::slotDeferredLoadRequested);
+    // Searching runs yt-dlp and takes a moment, so say what is happening
+    // rather than leaving silence; the result count follows.
+    connect(m_pSearchModel,
+            &YouTubeSearchModel::statusChanged,
+            this,
+            [this](const QString& message) {
+                if (!message.isEmpty()) {
+                    m_pLibrary->announceText(message);
+                }
+            });
 
     // Native track table of downloaded tracks (files in the cache directory).
     m_pDownloadedModel = new YouTubeTrackModel(this,
@@ -87,6 +97,9 @@ void YouTubeFeature::activate() {
     // Root node: search results, driven by the main search bar.
     emit showTrackModel(m_pSearchModel);
     emit enableCoverArtDisplay(false);
+    m_pLibrary->announceText(
+            tr("YouTube search. Type in the search box to find Creative "
+               "Commons tracks."));
 }
 
 void YouTubeFeature::activateChild(const QModelIndex& index) {
@@ -114,6 +127,7 @@ void YouTubeFeature::slotDeferredLoadRequested(const YouTubeTrack& track,
     // Show the fetch on the deck it is destined for, from 0 so the indicator
     // appears immediately rather than at the first progress line from yt-dlp.
     setDownloadProgress(0.0);
+    m_pLibrary->announceText(tr("Downloading %1").arg(track.title));
     m_pDownloader->setYtDlpPath(ytDlpPath(m_pConfig));
     m_pDownloader->setCacheDir(cacheDir());
     m_pDownloader->download(track);
@@ -184,6 +198,8 @@ void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
 
 void YouTubeFeature::slotDownloadFailed(const QString& videoId, const QString& message) {
     Q_UNUSED(videoId);
-    Q_UNUSED(message);
+    // A failed download is otherwise completely silent: the waveform
+    // indicator just disappears.
+    m_pLibrary->announceText(tr("Download failed: %1").arg(message));
     clearPendingLoad();
 }

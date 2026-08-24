@@ -234,6 +234,35 @@ int YouTubeSearchModel::columnIndexFromSortColumnId(SortColumnId sortColumn) con
     }
 }
 
+QString YouTubeSearchModel::rowAccessibleText(const QModelIndex& index) const {
+    const YouTubeTrack track = resultAt(index.row());
+    if (!track.isValid()) {
+        return QString();
+    }
+    // Spoken, not the column text: the duration reads as words rather than
+    // "3:42", and the channel is named so results are distinguishable by ear.
+    QString spoken = track.title;
+    if (!track.channelTitle.isEmpty()) {
+        spoken += tr(", by %1").arg(track.channelTitle);
+    }
+    if (track.durationSecs > 0) {
+        const int minutes = track.durationSecs / 60;
+        const int seconds = track.durationSecs % 60;
+        if (minutes > 0) {
+            spoken += tr(", %n minute(s)", "", minutes);
+            if (seconds > 0) {
+                spoken += tr(" %n second(s)", "", seconds);
+            }
+        } else {
+            spoken += tr(", %n second(s)", "", seconds);
+        }
+    }
+    if (!getTrackLocation(index).isEmpty()) {
+        spoken += tr(", downloaded");
+    }
+    return spoken;
+}
+
 QString YouTubeSearchModel::modelKey(bool noSearch) const {
     if (noSearch) {
         return QStringLiteral("youtube:search");

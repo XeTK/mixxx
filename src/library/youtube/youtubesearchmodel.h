@@ -62,6 +62,7 @@ class YouTubeSearchModel final : public QStandardItemModel, public virtual Track
     bool isColumnHiddenByDefault(int column) final;
     SortColumnId sortColumnIdFromColumnIndex(int index) const final;
     int columnIndexFromSortColumnId(SortColumnId sortColumn) const final;
+    QString rowAccessibleText(const QModelIndex& index) const final;
     QString modelKey(bool noSearch) const final;
     Capabilities getCapabilities() const final;
     bool updateTrackGenre(Track* pTrack, const QString& genre) const final;
