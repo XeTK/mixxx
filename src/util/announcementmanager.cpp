@@ -1387,6 +1387,24 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                 valueText);
     });
 
+    // Cycling the pitch fader's tempo range (the DDJ-400's Shift+SYNC) is a
+    // discrete button press, not a fader drag, so it is spoken immediately
+    // rather than debounced. This also matters because the same fader
+    // position now means a different BPM delta — without this the next
+    // spoken pitch percentage would be confusing.
+    auto pRateRange = make_parented<ControlProxy>(group,
+            QStringLiteral("rateRange"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pRateRange->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceTempo() || value <= 0.0) {
+            return;
+        }
+        const int percent = static_cast<int>(std::lround(value * 100.0));
+        speak(tr("%1 tempo range plus or minus %2 percent")
+                        .arg(deckName(group, deckIndex), QString::number(percent)));
+    });
+
     // Fixing a half/double-tempo misanalysis (common for 160+ BPM genres —
     // the analyzer has no tempo-range hint) is done with beats_set_halve /
     // beats_set_double; confirm the action. The new BPM is not read here:

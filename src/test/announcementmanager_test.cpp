@@ -2972,6 +2972,42 @@ TEST_F(AnnouncementManagerPerformanceTest, BeatsHalveDouble_Announced) {
 }
 
 // ---------------------------------------------------------------------------
+// Tempo range cycling (the DDJ-400's Shift+SYNC remaps to rateRange). The
+// pitch fader keeps the same physical position across a range change, so the
+// new range is spoken immediately: otherwise the next spoken pitch
+// percentage is ambiguous about which BPM delta it actually means.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_Announced) {
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 8 percent", pSpy->lastText);
+
+    pRateRange->set(0.16);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 16 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_TempoSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTempo")),
+            false);
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
 // Smart cue: loading into a stopped deck moves the headphone cue there.
 // ---------------------------------------------------------------------------
 
