@@ -57,13 +57,13 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
 Fast tracks (drum and bass, footwork) are often analysed at half
 their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
 
-- `Ctrl+Alt+H` — Halve the deck's BPM grid ("Deck 1 B P M halved").
-- `Ctrl+Alt+D` — Double it ("Deck 1 B P M doubled"). Check the
+- `Alt+H` — Halve the deck's BPM grid ("Deck 1 B P M halved").
+- `Alt+D` — Double it ("Deck 1 B P M doubled"). Check the
   result with `Alt+5` / `Alt+6`.
 
 ## Quantize
 
-- `Ctrl+Alt+Q` — Quantize on/off for deck 1 (add `Shift` for
+- `Alt+Q` — Quantize on/off for deck 1 (add `Shift` for
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
@@ -79,10 +79,10 @@ With a track selected in the library:
 For the track loaded in a deck (no library selection needed — file
 what's playing mid-mix):
 
-- `Ctrl+Alt+C` — Add deck 1's loaded track to a crate (add `Shift`
-  for deck 2).
-- `Ctrl+Alt+P` — Add deck 1's loaded track to a playlist (add
-  `Shift` for deck 2).
+- `Alt+C` (deck 1) / `Ctrl+Shift+C` (deck 2) — Add the deck's
+  loaded track to a crate.
+- `Alt+P` (deck 1) / `Ctrl+Shift+P` (deck 2) — Add the deck's
+  loaded track to a playlist.
 
 If you have none yet, it speaks a reminder instead of opening an empty
 menu: `Ctrl+Shift+N` makes a new crate, `Ctrl+N` a new playlist.

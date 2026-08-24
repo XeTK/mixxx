@@ -101,14 +101,14 @@ Both files are in the same folder as this one.
   happened instead of silently ignoring the keypress, and library
   searches speak how many tracks matched ("Searching: techno. 42
   tracks").
-- File the playing track mid-mix: `Ctrl+Alt+P` / `Ctrl+Alt+C` open
-  the spoken playlist/crate picker for the track loaded in deck 1
-  (add `Shift` for deck 2).
-- Fix a wrong BPM analysis by ear: `Ctrl+Alt+H` halves and
-  `Ctrl+Alt+D` doubles a deck's BPM grid (add `Shift` for deck 2),
+- File the playing track mid-mix: `Alt+P` / `Alt+C` open the spoken
+  playlist/crate picker for the track loaded in deck 1
+  (`Ctrl+Shift+P` / `Ctrl+Shift+C` for deck 2).
+- Fix a wrong BPM analysis by ear: `Alt+H` halves and
+  `Alt+D` doubles a deck's BPM grid (add `Shift` for deck 2),
   spoken both ways — also on the DDJ-400 accessibility pads as
   Shift+Pad 1 / Shift+Pad 2. Quantize gets its first keyboard toggle
-  (`Ctrl+Alt+Q`).
+  (`Alt+Q`).
 - Controllers speak their layers: pressing Shift says "Shift", and
   pad mode buttons announce where the pads landed ("Pads, hot cues",
   "Pads, sampler") on both the Numark Scratch and DDJ-400.
@@ -147,7 +147,7 @@ the list for a future build:
   the kind of thing worth noting in your feedback
 - An analyzer "expected tempo range" preference so fast tracks get
   the right BPM at analysis time — for now, fix a half-tempo track
-  with `Ctrl+Alt+D` (or Shift+Pad 2 on the DDJ-400)
+  with `Alt+D` (or Shift+Pad 2 on the DDJ-400)
 - More screen-reader labels on the custom-painted deck widgets (play/cue
   buttons, knobs, faders) — the preferences dialogs and library already
   have them
