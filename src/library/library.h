@@ -33,6 +33,8 @@ class WSearchLineEdit;
 class WLibrarySidebar;
 class WLibrary;
 class QAbstractItemModel;
+class QAction;
+class QMenu;
 
 #ifdef __ENGINEPRIME__
 namespace mixxx {
@@ -123,6 +125,29 @@ class Library: public QObject {
     /// the spoken search announcement can include the count. Called by the
     /// track table right after it applies a search.
     void announceSearchResultCount(int count);
+
+    /// Wires up TTS announcements for a context menu built outside
+    /// WTrackTableView's quick-add picker (e.g. WTrackMenu's submenus or the
+    /// library sidebar's playlist/crate right-click menu), so the fork's
+    /// built-in TTS speaks each item as the user arrows through it with the
+    /// keyboard, matching the quick-add picker's behavior. QMenu::hovered is
+    /// per-menu-instance -- it does not bubble up from a submenu to its
+    /// parent -- so call this once for every QMenu/QMenu-subclass instance
+    /// that owns actions the user can hover, not just the top-level menu.
+    /// The connection to `pMenu` is torn down automatically when `pMenu` is
+    /// destroyed, so this is safe to call on a QMenu that's exec()'d off the
+    /// stack and then dropped.
+    void announceMenuHover(QMenu* pMenu);
+
+    /// Extracted from announceMenuHover() for testability without needing a
+    /// live Library/QMenu/hovered() signal. Returns the text that should be
+    /// spoken for a hovered action, or an empty string if there's nothing
+    /// sensible to say (e.g. a null action, or a QWidgetAction with neither
+    /// data() nor text() set). Prefers data() over text(): dynamically named
+    /// items (e.g. playlist/crate names) store their raw, unescaped name in
+    /// data() because text() may hold a doubled "&&" that escapes it against
+    /// QAction's mnemonic handling.
+    static QString hoverAnnouncementTextForAction(const QAction* pAction);
 
   public slots:
     void slotShowTrackModel(QAbstractItemModel* model);

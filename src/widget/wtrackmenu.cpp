@@ -127,6 +127,12 @@ WTrackMenu::WTrackMenu(
     createMenus();
     createActions();
     setupActions();
+
+    // Speak the top-level item as the user arrows through it with the
+    // keyboard, matching WTrackTableView's quick-add picker. QMenu::hovered
+    // is per-menu-instance, so each submenu created in createMenus() wires
+    // its own connection too.
+    m_pLibrary->announceMenuHover(this);
 }
 
 WTrackMenu::~WTrackMenu() {
@@ -171,16 +177,20 @@ void WTrackMenu::createMenus() {
     if (featureIsEnabled(Feature::LoadTo)) {
         m_pLoadToMenu = make_parented<QMenu>(this);
         m_pLoadToMenu->setTitle(tr("Load to"));
+        m_pLibrary->announceMenuHover(m_pLoadToMenu);
         m_pDeckMenu = make_parented<QMenu>(m_pLoadToMenu);
         m_pDeckMenu->setTitle(tr("Deck"));
+        m_pLibrary->announceMenuHover(m_pDeckMenu);
         m_pSamplerMenu = make_parented<QMenu>(m_pLoadToMenu);
         m_pSamplerMenu->setTitle(tr("Sampler"));
+        m_pLibrary->announceMenuHover(m_pSamplerMenu);
     }
 
     if (featureIsEnabled(Feature::Playlist)) {
         m_pPlaylistMenu = make_parented<QMenu>(this);
         m_pPlaylistMenu->setTitle(tr("Add to Playlist"));
         connect(m_pPlaylistMenu, &QMenu::aboutToShow, this, &WTrackMenu::slotPopulatePlaylistMenu);
+        m_pLibrary->announceMenuHover(m_pPlaylistMenu);
     }
 
     if (featureIsEnabled(Feature::Crate)) {
@@ -188,17 +198,21 @@ void WTrackMenu::createMenus() {
         m_pCrateMenu->setTitle(tr("Crates"));
         m_pCrateMenu->setObjectName("CratesMenu");
         connect(m_pCrateMenu, &QMenu::aboutToShow, this, &WTrackMenu::slotPopulateCrateMenu);
+        m_pLibrary->announceMenuHover(m_pCrateMenu);
     }
 
     if (featureIsEnabled(Feature::Metadata)) {
         m_pMetadataMenu = make_parented<QMenu>(this);
         m_pMetadataMenu->setTitle(tr("Metadata"));
+        m_pLibrary->announceMenuHover(m_pMetadataMenu);
 
         m_pMetadataUpdateExternalCollectionsMenu = make_parented<QMenu>(m_pMetadataMenu);
         m_pMetadataUpdateExternalCollectionsMenu->setTitle(tr("Update external collections"));
+        m_pLibrary->announceMenuHover(m_pMetadataUpdateExternalCollectionsMenu);
 
         m_pCoverMenu = make_parented<WCoverArtMenu>(m_pMetadataMenu);
         m_pCoverMenu->setTitle(tr("Cover Art"));
+        m_pLibrary->announceMenuHover(m_pCoverMenu.get());
         connect(m_pCoverMenu.get(),
                 &WCoverArtMenu::coverInfoSelected,
                 this,
@@ -212,31 +226,37 @@ void WTrackMenu::createMenus() {
     if (featureIsEnabled(Feature::BPM)) {
         m_pBPMMenu = make_parented<QMenu>(this);
         m_pBPMMenu->setTitle(tr("Adjust BPM"));
+        m_pLibrary->announceMenuHover(m_pBPMMenu);
     }
 
     if (featureIsEnabled(Feature::Color)) {
         m_pColorMenu = make_parented<QMenu>(this);
         m_pColorMenu->setTitle(tr("Select Color"));
+        m_pLibrary->announceMenuHover(m_pColorMenu);
     }
 
     m_pHotcueMenu = make_parented<QMenu>(this);
     m_pHotcueMenu->setTitle(tr("Hotcues"));
+    m_pLibrary->announceMenuHover(m_pHotcueMenu);
 
     if (featureIsEnabled(Feature::Reset)) {
         m_pClearMetadataMenu = make_parented<QMenu>(this);
         //: Reset metadata in right click track context menu in library
         m_pClearMetadataMenu->setTitle(tr("Clear"));
+        m_pLibrary->announceMenuHover(m_pClearMetadataMenu);
     }
 
     if (featureIsEnabled(Feature::Analyze)) {
         m_pAnalyzeMenu = make_parented<QMenu>(this);
         m_pAnalyzeMenu->setTitle(tr("Analyze"));
+        m_pLibrary->announceMenuHover(m_pAnalyzeMenu);
     }
 
     if (featureIsEnabled(Feature::SearchRelated)) {
         DEBUG_ASSERT(!m_pSearchRelatedMenu);
         m_pSearchRelatedMenu =
                 make_parented<WSearchRelatedTracksMenu>(this);
+        m_pLibrary->announceMenuHover(m_pSearchRelatedMenu.get());
         connect(m_pSearchRelatedMenu,
                 &QMenu::aboutToShow,
                 this,
@@ -269,6 +289,7 @@ void WTrackMenu::createMenus() {
     if (featureIsEnabled(Feature::FindOnWeb)) {
         DEBUG_ASSERT(!m_pFindOnWebMenu);
         m_pFindOnWebMenu = make_parented<WFindOnWebMenu>(this);
+        m_pLibrary->announceMenuHover(m_pFindOnWebMenu.get());
         connect(m_pFindOnWebMenu,
                 &QMenu::aboutToShow,
                 this,
@@ -279,6 +300,14 @@ void WTrackMenu::createMenus() {
                         mixxx::library::createFindOnWebSubmenus(
                                 m_pFindOnWebMenu,
                                 *pTrack);
+                        // Each web service (Discogs, SoundCloud, Last.fm) is
+                        // its own freshly-created QMenu instance, so it needs
+                        // its own hover announcement connection too.
+                        for (QAction* pServiceAction : m_pFindOnWebMenu->actions()) {
+                            if (QMenu* pServiceMenu = pServiceAction->menu()) {
+                                m_pLibrary->announceMenuHover(pServiceMenu);
+                            }
+                        }
                     }
                     m_pFindOnWebMenu->setEnabled(
                             !m_pFindOnWebMenu->isEmpty());
@@ -292,6 +321,7 @@ void WTrackMenu::createMenus() {
 #if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
         m_pRemoveFromDiskMenu = make_parented<QMenu>(this);
         m_pRemoveFromDiskMenu->setTitle(tr("Delete Track Files"));
+        m_pLibrary->announceMenuHover(m_pRemoveFromDiskMenu);
 #endif
     }
 }
@@ -953,6 +983,7 @@ void WTrackMenu::generateTrackLoadMenu(const QString& group,
     if (enabled && pTrack && pTrack->hasStem()) {
         auto* pStemMenu = new WTrackStemMenu(
                 label, pParentMenu, primaryDeck, group, pTrack->getStemInfo());
+        m_pLibrary->announceMenuHover(pStemMenu);
         connect(pStemMenu,
                 &WTrackStemMenu::selectedStem,
                 this,
@@ -1055,6 +1086,7 @@ void WTrackMenu::updateMenus() {
                     int limit = iNumSamplers > i + 15 ? i + 15 : iNumSamplers;
                     const QString label = samplerTrString(i) + QStringLiteral("- %1").arg(limit);
                     pMenu = make_parented<QMenu>(label, m_pSamplerMenu);
+                    m_pLibrary->announceMenuHover(pMenu);
                     m_pSamplerMenu->addMenu(pMenu);
                 }
                 samplersInMenu++;
@@ -1559,6 +1591,10 @@ void WTrackMenu::slotPopulatePlaylistMenu() {
         auto pAction = make_parented<QAction>(
                 mixxx::escapeTextPropertyWithoutShortcuts(name),
                 m_pPlaylistMenu);
+        // Store the raw, unescaped name for the hover announcement (see
+        // Library::announceMenuHover): text() holds the "&&"-escaped
+        // display string, which would otherwise be spoken literally.
+        pAction->setData(name);
         bool locked = playlistDao.isPlaylistLocked(plId);
         pAction->setEnabled(!locked);
         m_pPlaylistMenu->addAction(pAction);
@@ -1649,6 +1685,12 @@ void WTrackMenu::slotPopulateCrateMenu() {
     while (allCrates.populateNext(&crate)) {
         auto pAction = make_parented<QWidgetAction>(
                 m_pCrateMenu);
+        // QWidgetAction::text() is empty since the crate name is only set on
+        // the checkbox's defaultWidget(), not the action itself. Store it as
+        // data() so the hover announcement (see Library::announceMenuHover)
+        // has something to speak, using the raw name (not the "&&"-escaped
+        // display string the checkbox is given).
+        pAction->setData(crate.getName());
         // Use a custom QCheckBox with fixed hover behavior.
         auto pCheckBox = make_parented<WMenuCheckBox>(
                 mixxx::escapeTextPropertyWithoutShortcuts(crate.getName()),
