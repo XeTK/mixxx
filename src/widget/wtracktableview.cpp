@@ -1447,6 +1447,16 @@ void WTrackTableView::hideOrRemoveSelectedTracks() {
             }
         }
 
+        // Accessibility (issue #53): this QMessageBox was previously
+        // TTS-silent, relying on a screen reader being present. Speak the
+        // same confirmation a screen reader would announce, matching the
+        // playlist/crate delete dialogs.
+        if (m_pLibrary) {
+            m_pLibrary->announceText(
+                    mixxx::trackconfirm::hideOrRemoveAnnouncement(
+                            cap, indices.size()));
+        }
+
         QMessageBox msg;
         msg.setIcon(QMessageBox::Question);
         msg.setWindowTitle(title);

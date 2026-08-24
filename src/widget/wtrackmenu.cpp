@@ -2491,6 +2491,16 @@ void WTrackMenu::slotRemoveFromDisk() {
         return;
     }
 
+    // Accessibility (issue #53): this custom dialog was previously
+    // TTS-silent, relying on a screen reader being present. Speak the same
+    // confirmation a screen reader would announce, matching the
+    // playlist/crate delete dialogs. Cancel is already the default button
+    // below (cancelBtn->setDefault(true)).
+    if (m_pLibrary) {
+        m_pLibrary->announceText(
+                mixxx::trackconfirm::deleteFromDiskAnnouncement(locations.size()));
+    }
+
     {
         QDialog dlgDelConfirm;
 
