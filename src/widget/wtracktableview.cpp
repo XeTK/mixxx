@@ -629,6 +629,25 @@ void WTrackTableView::showTrackMenu(const QPoint pos, const QModelIndex& index) 
     // WTrackmenu emits restoreCurrentViewStateOrIndex() on hide if required
 }
 
+void WTrackTableView::showColumnMenu() {
+    auto* pHeader = qobject_cast<WTrackTableViewHeader*>(horizontalHeader());
+    if (!pHeader) {
+        return;
+    }
+    // Anchor the menu under the column at the current cell (if any), similar
+    // to how the keyboard-triggered track context menu is anchored near the
+    // current selection in slotShowHideTrackMenu().
+    QPoint pos;
+    const auto currIdx = currentIndex();
+    if (currIdx.isValid()) {
+        const int sectionX = pHeader->sectionViewportPosition(currIdx.column());
+        pos = pHeader->mapToGlobal(QPoint(sectionX, pHeader->height()));
+    } else {
+        pos = pHeader->mapToGlobal(QPoint(0, pHeader->height()));
+    }
+    pHeader->showColumnVisibilityMenu(pos);
+}
+
 QString WTrackTableView::columnNameOfIndex(const QModelIndex& index) const {
     if (!index.isValid()) {
         return {};

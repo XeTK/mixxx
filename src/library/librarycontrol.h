@@ -6,6 +6,7 @@
 
 #include "control/controlproxy.h"
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #ifdef __STEM__
 #include "engine/engine.h"
 #endif
@@ -62,6 +63,18 @@ class LibraryControl : public QObject {
     // Give the keyboard focus to one of the library widgets
     void setLibraryFocus(FocusWidget newFocusWidget);
     FocusWidget getFocusedWidget();
+
+    // Accessibility: given the currently active sort column, finds the next
+    // (direction > 0) or previous (direction < 0) sortable, non-internal
+    // column, wrapping around at the ends. Returns SortColumnId::Invalid if
+    // no sortable column is found (e.g. an empty model). Static and
+    // dependent only on the TrackModel interface so it can be unit tested
+    // without a live WTrackTableView. Public for tests.
+    static TrackModel::SortColumnId findNextSortableColumnId(
+            TrackModel* pTrackModel,
+            int columnCount,
+            TrackModel::SortColumnId currentId,
+            int direction);
 
   signals:
     void clearSearchIfClearButtonHasFocus();
@@ -137,6 +150,12 @@ class LibraryControl : public QObject {
 
     void slotSortColumn(double v);
     void slotSortColumnToggle(double v);
+    // Accessibility: keyboard-driven cycling through sortable columns.
+    void slotSortColumnNext(double v);
+    void slotSortColumnPrev(double v);
+    void slotSortColumnCycle(double direction);
+    // Accessibility: keyboard path to the header's column visibility menu.
+    void slotShowColumnMenu(double v);
 
     void slotFontSize(double v);
     void slotIncrementFontSize(double v);
@@ -202,6 +221,12 @@ class LibraryControl : public QObject {
     std::unique_ptr<ControlEncoder> m_pSortColumnToggle;
     std::unique_ptr<ControlPushButton> m_pSortOrder;
     std::unique_ptr<ControlPushButton> m_pSortFocusedColumn;
+    // Accessibility: keyboard-driven cycling through sortable columns.
+    std::unique_ptr<ControlPushButton> m_pSortColumnNext;
+    std::unique_ptr<ControlPushButton> m_pSortColumnPrev;
+
+    // Accessibility: keyboard path to the header's column visibility menu.
+    std::unique_ptr<ControlPushButton> m_pShowColumnMenu;
 
     // Controls to change track color
     std::unique_ptr<ControlPushButton> m_pTrackColorPrev;

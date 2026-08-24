@@ -389,6 +389,13 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pSortColumnToggle = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "sort_column_toggle"), false);
     m_pSortFocusedColumn = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "sort_focused_column"));
+    // Accessibility: keyboard-driven cycling through sortable columns, since
+    // there's no way to click a (also unfocusable) column header without a
+    // mouse. See slotSortColumnCycle().
+    m_pSortColumnNext = std::make_unique<ControlPushButton>(
+            ConfigKey("[Library]", "sort_column_next"));
+    m_pSortColumnPrev = std::make_unique<ControlPushButton>(
+            ConfigKey("[Library]", "sort_column_prev"));
 #ifdef MIXXX_USE_QML
     if (!CmdlineArgs::Instance().isQml())
 #endif
@@ -410,6 +417,14 @@ LibraryControl::LibraryControl(Library* pLibrary)
                                 TrackModel::SortColumnId::CurrentIndex));
                     }
                 });
+        connect(m_pSortColumnNext.get(),
+                &ControlPushButton::valueChanged,
+                this,
+                &LibraryControl::slotSortColumnNext);
+        connect(m_pSortColumnPrev.get(),
+                &ControlPushButton::valueChanged,
+                this,
+                &LibraryControl::slotSortColumnPrev);
 
         // Font sizes
         m_pFontSizeKnob = std::make_unique<ControlObject>(
@@ -529,6 +544,18 @@ LibraryControl::LibraryControl(Library* pLibrary)
                 bool show = static_cast<bool>(value);
                 emit showHideTrackMenu(show);
             });
+
+    // Accessibility: keyboard path to the column visibility menu, which is
+    // otherwise only reachable by right-clicking the (unfocusable) header.
+    // Unlike show_track_menu this is a simple one-shot trigger: the popped
+    // QMenu handles its own keyboard navigation and closes on Escape/Return
+    // like any other menu (see FocusWidget::ContextMenu handling above).
+    m_pShowColumnMenu = std::make_unique<ControlPushButton>(
+            ConfigKey("[Library]", "show_column_menu"));
+    connect(m_pShowColumnMenu.get(),
+            &ControlPushButton::valueChanged,
+            this,
+            &LibraryControl::slotShowColumnMenu);
 
     // Deprecated controls
     m_pSelectNextTrack = std::make_unique<ControlPushButton>(ConfigKey("[Playlist]", "SelectNextTrack"));
@@ -1296,6 +1323,90 @@ void LibraryControl::slotSortColumnToggle(double v) {
     } else {
         m_pSortColumn->set(sortColumnId);
         m_pSortOrder->set(0.0);
+    }
+}
+
+void LibraryControl::slotSortColumnNext(double v) {
+    if (v > 0) {
+        slotSortColumnCycle(1);
+    }
+}
+
+void LibraryControl::slotSortColumnPrev(double v) {
+    if (v > 0) {
+        slotSortColumnCycle(-1);
+    }
+}
+
+// static
+TrackModel::SortColumnId LibraryControl::findNextSortableColumnId(
+        TrackModel* pTrackModel,
+        int columnCount,
+        TrackModel::SortColumnId currentId,
+        int direction) {
+    if (!pTrackModel || columnCount <= 0 || direction == 0) {
+        return TrackModel::SortColumnId::Invalid;
+    }
+
+    int startIndex = pTrackModel->columnIndexFromSortColumnId(currentId);
+    if (startIndex < 0) {
+        // No active sort column (or CurrentIndex/Invalid): start from the
+        // beginning so "next" and "prev" both land on a sensible column.
+        startIndex = 0;
+    }
+
+    const int step = direction > 0 ? 1 : -1;
+    for (int i = 1; i <= columnCount; ++i) {
+        int candidate = (startIndex + step * i) % columnCount;
+        if (candidate < 0) {
+            candidate += columnCount;
+        }
+        if (pTrackModel->isColumnInternal(candidate) ||
+                !pTrackModel->isColumnSortable(candidate)) {
+            continue;
+        }
+        const TrackModel::SortColumnId candidateId =
+                pTrackModel->sortColumnIdFromColumnIndex(candidate);
+        if (candidateId != TrackModel::SortColumnId::Invalid) {
+            return candidateId;
+        }
+    }
+    return TrackModel::SortColumnId::Invalid;
+}
+
+void LibraryControl::slotSortColumnCycle(double direction) {
+    if (!m_pLibraryWidget || direction == 0) {
+        return;
+    }
+
+    WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
+    if (!pTrackTableView || !pTrackTableView->model()) {
+        return;
+    }
+    TrackModel* pTrackModel = dynamic_cast<TrackModel*>(pTrackTableView->model());
+    if (!pTrackModel) {
+        return;
+    }
+
+    const auto currentId = static_cast<TrackModel::SortColumnId>(
+            static_cast<int>(m_pSortColumn->get()));
+    const TrackModel::SortColumnId nextId = findNextSortableColumnId(pTrackModel,
+            pTrackTableView->model()->columnCount(),
+            currentId,
+            direction > 0 ? 1 : -1);
+    if (nextId != TrackModel::SortColumnId::Invalid) {
+        slotSortColumnToggle(static_cast<double>(nextId));
+    }
+}
+
+void LibraryControl::slotShowColumnMenu(double v) {
+    if (v <= 0 || !m_pLibraryWidget) {
+        return;
+    }
+
+    WTrackTableView* pTrackTableView = m_pLibraryWidget->getCurrentTrackTableView();
+    if (pTrackTableView) {
+        pTrackTableView->showColumnMenu();
     }
 }
 

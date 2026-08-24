@@ -46,6 +46,10 @@ class WTrackTableView : public WLibraryTableView {
     void resizeEvent(QResizeEvent* event) override;
     void editSelectedItem();
     void activateSelectedTrack();
+    // Accessibility: opens the header's "show or hide columns" menu near the
+    // column at the keyboard cursor. Normally that menu is only reachable by
+    // right-clicking the (unfocusable) header.
+    void showColumnMenu();
 #ifdef __STEM__
     void loadSelectedTrackToGroup(const QString& group,
             mixxx::StemChannelSelection stemMask,
