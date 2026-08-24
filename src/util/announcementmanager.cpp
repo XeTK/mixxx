@@ -771,6 +771,32 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         }
     }
 
+    // Which effect slot within a unit is "focused" (the DDJ-400's BEAT FX
+    // </> paddles move this via changeFocusedEffectBy()). The CO holds a
+    // 1-based slot index; moving focus does not load/unload an effect, so
+    // the loaded_effect observer above never fires for it.
+    for (int unit = 1; unit <= 4; ++unit) {
+        auto pFocused = make_parented<ControlProxy>(
+                QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                QStringLiteral("focused_effect"),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pFocused->connectValueChanged(this, [this, unit](double value) {
+            if (!m_settings.getAnnounceEffects() || value <= 0.0) {
+                return;
+            }
+            const int slot = static_cast<int>(value);
+            QString name = m_effectNameResolver ? m_effectNameResolver(unit, slot)
+                                                 : QString();
+            if (name.isEmpty()) {
+                name = tr("effect %1").arg(slot);
+            }
+            // Debounced: the focus paddle can be stepped through several
+            // slots per second.
+            announceControlDebounced(tr("Unit %1: %2 focused").arg(QString::number(unit), name));
+        });
+    }
+
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
     // user who missed an announcement can re-hear it instead of guessing.
     // Trigger mode so each keypress fires even though the value doesn't change.

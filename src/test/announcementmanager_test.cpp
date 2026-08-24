@@ -1273,6 +1273,52 @@ TEST_F(AnnouncementManagerPerformanceTest, EffectLoaded_AnnouncedDebounced) {
     EXPECT_QSTRING_EQ("Unit 2 effect 1 cleared", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_Announced) {
+    // focused_effect (the DDJ-400's BEAT FX </> paddles) moves which slot in
+    // the unit is focused; it does not load/unload an effect, so the
+    // loaded_effect observer never fires for it.
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QStringLiteral("Echo"); },
+            [](const QString&) { return QString(); });
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "focused_effect must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 1: Echo focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_NoResolverFallsBackToSlotNumber) {
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit2]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(3.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 2: effect 3 focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_EffectsSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceEffects")),
+            false);
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, EffectUnitRouting_Announced) {
     auto pRouting = std::make_unique<ControlObject>(ConfigKey(
             QStringLiteral("[EffectRack1_EffectUnit1]"),
