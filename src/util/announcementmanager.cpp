@@ -17,6 +17,7 @@
 #include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
+#include "mixer/sampler.h"
 #include "moc_announcementmanager.cpp"
 // For kConfigKeySmartCue/kDefaultSmartCue: smart cue is a general
 // deck-loading behavior configured in Deck preferences, not an
@@ -465,6 +466,17 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         connectDeck(i);
     }
     m_connectedDecks = numDecks;
+
+    connect(pPlayerManager,
+            &PlayerManagerInterface::numberOfSamplersChanged,
+            this,
+            &AnnouncementManager::slotNumberOfSamplersChanged);
+
+    const int numSamplers = pPlayerManager->numberOfSamplers();
+    for (int i = 0; i < numSamplers; ++i) {
+        connectSampler(i);
+    }
+    m_connectedSamplers = numSamplers;
 
     auto pFocusedWidget = make_parented<ControlProxy>(
             QStringLiteral("[Library]"),
@@ -1612,6 +1624,83 @@ void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
     m_connectedDecks = decks;
 }
 
+void AnnouncementManager::connectSamplerControls(const QString& group, int samplerIndex) {
+    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    pPlay->connectValueChanged(this, [this, group, samplerIndex](double value) {
+        const bool nowPlaying = value > 0.0;
+        const bool wasPlaying = m_deckIsPlaying.value(group, false);
+        const bool hasTrack = m_deckHasTrack.value(group, false);
+
+        // Unlike connectGroupControls()'s deck play observer, samplers have
+        // no cue-preview concept to disambiguate here — a sampler pad simply
+        // starts or stops.
+        if (nowPlaying && !wasPlaying && hasTrack && m_settings.getAnnouncePlay()) {
+            speak(tr("%1 playing").arg(samplerName(samplerIndex)));
+        } else if (!nowPlaying && wasPlaying && m_settings.getAnnounceStop()) {
+            speak(tr("%1 stopped").arg(samplerName(samplerIndex)));
+        }
+        m_deckIsPlaying[group] = nowPlaying;
+    });
+
+    // Decks have no equivalent announcement for their eject button (see
+    // connectDeck(): only the resulting newTrackLoaded/trackUnloaded state is
+    // tracked, silently). Samplers get one here because there's no on-screen
+    // deck widget a blind user could otherwise glance at to confirm the pad
+    // is now empty. Gated on hasTrack/!isPlaying so a press that the engine
+    // itself ignores (nothing loaded, or eject is disabled while playing)
+    // doesn't falsely announce an eject that didn't happen.
+    auto pEject = make_parented<ControlProxy>(
+            group, QStringLiteral("eject"), this, ControlFlag::AllowMissingOrInvalid);
+    pEject->connectValueChanged(this, [this, group, samplerIndex](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceTrackLoad()) {
+            return;
+        }
+        const bool hasTrack = m_deckHasTrack.value(group, false);
+        const bool isPlaying = m_deckIsPlaying.value(group, false);
+        if (hasTrack && !isPlaying) {
+            speak(tr("%1 ejected").arg(samplerName(samplerIndex)));
+        }
+    });
+}
+
+void AnnouncementManager::connectSampler(int samplerIndex) {
+    Sampler* pSampler = m_pPlayerManager->getSampler(samplerIndex);
+    if (!pSampler) {
+        return;
+    }
+    const QString group = pSampler->getGroup();
+
+    // Pre-populate for tracks that were already loaded before this manager
+    // was created (e.g. session restore at startup).
+    m_deckHasTrack[group] = (pSampler->getLoadedTrack() != nullptr);
+
+    connect(pSampler,
+            &BaseTrackPlayer::newTrackLoaded,
+            this,
+            [this, samplerIndex](TrackPointer pTrack) {
+                slotNewSamplerTrackLoaded(pTrack, samplerIndex);
+            });
+
+    connect(pSampler, &BaseTrackPlayer::newTrackLoaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = true;
+        noteTrackChanged(group);
+    });
+    connect(pSampler, &BaseTrackPlayer::trackUnloaded, this, [this, group](TrackPointer) {
+        m_deckHasTrack[group] = false;
+        m_deckIsPlaying[group] = false;
+        noteTrackChanged(group);
+    });
+
+    connectSamplerControls(group, samplerIndex);
+}
+
+void AnnouncementManager::slotNumberOfSamplersChanged(int samplers) {
+    for (int i = m_connectedSamplers; i < samplers; ++i) {
+        connectSampler(i);
+    }
+    m_connectedSamplers = samplers;
+}
+
 void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
     // Only announce selection when the user is actively browsing the track list.
     // If focus is on the sidebar, the signal fires for the first track in the
@@ -1656,6 +1745,15 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
                 ControlFlag::AllowMissingOrInvalid)
                 .set(i == deckIndex ? 1.0 : 0.0);
     }
+}
+
+void AnnouncementManager::slotNewSamplerTrackLoaded(TrackPointer pTrack, int samplerIndex) {
+    if (pTrack && m_settings.getAnnounceTrackLoad()) {
+        speak(formatForSamplerLoad(pTrack, samplerIndex));
+    }
+    // No smart-cue handling here: smart cue steals the headphone cue among
+    // decks specifically so the DJ can preview what was just loaded before
+    // bringing it into the mix — that workflow doesn't map onto sampler pads.
 }
 
 // static
@@ -1947,6 +2045,30 @@ QString AnnouncementManager::formatForLoad(TrackPointer pTrack, int deckIndex) {
     return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }
 
+// static
+QString AnnouncementManager::formatForSamplerLoad(TrackPointer pTrack, int samplerIndex) {
+    const QString artist = pTrack->getArtist().trimmed();
+    const QString title = pTrack->getTitle().trimmed();
+    const double bpm = pTrack->getBpm();
+    const QString keyText = keyForSpeechInNotation(pTrack->getKey());
+
+    QStringList parts;
+    parts << tr("%1 loaded").arg(samplerName(samplerIndex));
+    if (!artist.isEmpty()) {
+        parts << artist;
+    }
+    if (!title.isEmpty()) {
+        parts << title;
+    }
+    if (bpm > 0.0) {
+        parts << tr("%1 B P M").arg(static_cast<int>(bpm + 0.5));
+    }
+    if (!keyText.isEmpty()) {
+        parts << tr("Key: %1").arg(keyText);
+    }
+    return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
+}
+
 QString AnnouncementManager::formatDeckStatus(const QString& group, int deckIndex) const {
     const QString deck = deckName(group, deckIndex);
     if (!m_deckHasTrack.value(group, false)) {
@@ -2106,6 +2228,14 @@ QString AnnouncementManager::mixerDeckName(const QString& group, int deckIndex) 
                 : phoneticLetter(QChar(u'A' + deckIndex));
     }
     return deckName(group, deckIndex);
+}
+
+// static
+QString AnnouncementManager::samplerName(int samplerIndex) {
+    if (samplerIndex < 0) {
+        return tr("Sampler");
+    }
+    return tr("Sampler %1").arg(samplerIndex + 1);
 }
 
 bool AnnouncementManager::mixerReadoutAsPercent() const {
