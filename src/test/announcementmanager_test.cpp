@@ -304,6 +304,100 @@ TEST_F(AnnouncementManagerTest, AnnounceSelection_NullTrackIgnored) {
 }
 
 // ---------------------------------------------------------------------------
+// Row selection announcements (Library::trackRowSelected)
+//
+// The track table sends the model's full spoken description of a selected
+// row - not just artist/title - via TrackModel::rowAccessibleText(), routed
+// through the same debounce/gating as ordinary track selection. See
+// BaseTrackTableModel::rowAccessibleText() for what that text contains
+// (rating, color, played state, BPM lock).
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EnabledByDefault) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title, 3 stars"), 2, 10);
+    m_pManager->slotAnnounceSelectedTrack(); // drive debounce synchronously
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title, 3 stars, 3 of 10", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_DisabledViaSettings) {
+    config()->setValue(ConfigKey("[Accessibility]", "AnnounceTrackSelection"), false);
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_SuppressedWhenSidebarFocused) {
+    SpyTtsEngine* pSpy = makeManager();
+    // Focus is FocusWidget::None by default — same suppression as sidebar.
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EmptyTextIgnored) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QString(), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_PositionOmittedForSingleRow) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    // Only one row in the whole table: "1 of 1" would be noise.
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 1);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_TakesPriorityOverPlainTrackSelected) {
+    // Mirrors the real signal order from WTrackTableView::slotGuiTick50ms:
+    // trackSelected(pTrack) fires first, then rowSelected() with the fuller
+    // text. The row text should win.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title, 5 stars"), 0, 3);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title, 5 stars, 1 of 3", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSelection_PlainTrackSelectedClearsPendingRowText) {
+    // A later plain trackSelected() (e.g. multi-selection collapsing to a
+    // single track) must not leave a stale row announcement behind.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Old row text"), 0, 3);
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
 // Playstate announcements (play / stop / end-of-track)
 //
 // These tests drive the CO observers that connectGroupControls() wires up.

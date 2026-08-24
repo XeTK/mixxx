@@ -175,6 +175,18 @@ void WTrackTableView::slotGuiTick50ms(double /*unused*/) {
                     if (pTrack) {
                         emit trackSelected(pTrack);
                     }
+                    // Full spoken description of the row (artist, title,
+                    // rating, color, played state, etc. - not just
+                    // artist/title), with its position. Works whether or
+                    // not the row has a Track behind it (e.g. a search
+                    // result that has not been downloaded yet).
+                    const QString spoken =
+                            pTrackModel->rowAccessibleText(indices.first());
+                    if (!spoken.isEmpty()) {
+                        emit rowSelected(spoken,
+                                indices.first().row(),
+                                model()->rowCount());
+                    }
                 }
             } else {
                 // None or multiple tracks have been selected
