@@ -2903,3 +2903,43 @@ TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
     EXPECT_EQ(1.0, pPfl1->get());
     EXPECT_EQ(0.0, pPfl2->get());
 }
+
+// Reproduces issue #48 (case 1): with Smart Cue, AnnounceTrackLoad, and
+// AnnounceCue all on by default (as they are), loading a track into a
+// stopped deck used to speak the load announcement and then have the Smart
+// Cue pfl set -- fired synchronously within the same slotNewTrackLoaded call
+// -- immediately clobber it with "headphone cue on" before the load
+// announcement had any chance to render. TtsEngine's barge-in generation
+// counter meant only the second utterance was ever actually audible.
+TEST_F(AnnouncementManagerTest, SmartCue_LoadAnnouncementNotLostToCueBargeIn) {
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    SpyTtsEngine* pSpy = makeManager();
+    // Wire up the pfl -> "headphone cue on/off" observer the way a real
+    // connectDeck() would, so the Smart Cue pfl set below actually speaks
+    // through the normal AnnounceCue path instead of just moving a bare CO.
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+    m_pManager->connectGroupControls(QStringLiteral("[Channel2]"), 1);
+
+    // Deck B (index 1) is stopped; loading into it triggers Smart Cue, which
+    // moves pfl from deck A to deck B and (with AnnounceCue on) speaks
+    // "headphone cue on" for deck B.
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    // Both pieces of information must reach the engine -- concatenated into
+    // a single utterance -- instead of the cue announcement silently
+    // overwriting the load announcement.
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Loaded deck, Bravo")))
+            << pSpy->lastText.toStdString();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("headphone cue on")))
+            << pSpy->lastText.toStdString();
+
+    // The underlying cue behavior is unaffected by batching the speech.
+    EXPECT_EQ(0.0, pPfl1->get());
+    EXPECT_EQ(1.0, pPfl2->get());
+}

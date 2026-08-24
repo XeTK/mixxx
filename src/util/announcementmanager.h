@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <functional>
 #include <memory>
@@ -128,6 +129,26 @@ class AnnouncementManager : public QObject {
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
 
+    // Sends text to the TtsEngine (voice/rate/route sync + say()). This is
+    // the tail end of what speak() used to do unconditionally; it is now
+    // also the flush point for a speech batch (see beginSpeechBatch below).
+    void dispatchSpeech(const QString& text);
+
+    // Speech batching (issue #48): some call sites synchronously trigger a
+    // second speak() as a side effect of the first -- e.g. Smart Cue moving
+    // the headphone `pfl` control right after the track-load announcement,
+    // whose valueChanged observer speaks "headphone cue on" before the load
+    // announcement has had any chance to render. TtsEngine's barge-in
+    // generation counter then discards the load announcement, which is
+    // exactly backwards: barge-in should only interrupt *new* user-driven
+    // speech, not a same-event side effect of the utterance already in
+    // flight. Wrapping such a call site in beginSpeechBatch()/endSpeechBatch()
+    // defers dispatch of every speak() call in between until the batch ends,
+    // then joins them into a single utterance so nothing is silently lost.
+    // Nestable; only the outermost endSpeechBatch() actually dispatches.
+    void beginSpeechBatch();
+    void endSpeechBatch();
+
     // Feedback for an earcon-capable transport event, honoring the
     // FeedbackMode setting: speech only, earcon only (deck-panned), or both.
     // The per-event enable check is the caller's responsibility.
@@ -227,6 +248,10 @@ class AnnouncementManager : public QObject {
     std::unique_ptr<ControlObject> m_pShiftControl;
     std::unique_ptr<ControlObject> m_pPadModeControl;
     QString m_lastSpoken;
+
+    // Speech batch state; see beginSpeechBatch()/endSpeechBatch().
+    int m_speechBatchDepth{0};
+    QStringList m_batchedSpeech;
 
     // Debounced announcements for continuously-variable controls.
     QTimer m_controlDebounce;
