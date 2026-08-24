@@ -87,6 +87,23 @@ what's playing mid-mix):
 If you have none yet, it speaks a reminder instead of opening an empty
 menu: `Ctrl+Shift+N` makes a new crate, `Ctrl+N` a new playlist.
 
+## Sorting the track list and choosing visible columns
+
+Previously the only way to sort the track list, or show/hide its columns,
+was clicking the (unfocusable) column header with a mouse. With the track
+list focused:
+
+- `Alt+Shift+S` — Sort by the next column (Artist, Title, Album, ...),
+  wrapping back to the first after the last. Announces the result, e.g.
+  "Sorting by title ascending".
+- `Ctrl+Alt+Shift+S` — Same, but steps to the previous column instead.
+- `Alt+Shift+O` — Reverse the current sort order (ascending/descending)
+  without changing the column. Announces e.g. "Sorting by title
+  descending".
+- `Alt+Shift+V` — Open the "show or hide columns" menu (the same one the
+  header's right-click menu opens). Arrow through it, `Space` to toggle a
+  column, `Escape` to close.
+
 ## Reordering tracks in a playlist
 
 With one or more tracks selected in a playlist:
