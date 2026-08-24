@@ -1748,6 +1748,20 @@ TEST_F(AnnouncementManagerPerformanceTest, BackToStart_Announced) {
     EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, BackToStart_StartStopControl_Announced) {
+    // start_stop (jump to start without playing) is the DDJ-400's Shift+CUE
+    // remap; it must be narrated the same way as start/cue_gotoandstop.
+    SpyTtsEngine* pSpy = makeManager();
+    auto pStartStop = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("start_stop")));
+    setupGroup();
+
+    pStartStop->set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, TempoChange_IncludesNewBpm) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

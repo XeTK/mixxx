@@ -1064,9 +1064,10 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
     });
 
-    // Jumping back to the start (the Start key or cue-goto-and-stop) gives no
+    // Jumping back to the start (the Start key, cue-goto-and-stop, or the
+    // DDJ-400's Shift+CUE, which the fork remaps to start_stop) gives no
     // audible feedback of its own; narrate it.
-    for (const char* backControl : {"start", "cue_gotoandstop"}) {
+    for (const char* backControl : {"start", "cue_gotoandstop", "start_stop"}) {
         auto pBack = make_parented<ControlProxy>(group,
                 QLatin1String(backControl),
                 this,
