@@ -811,7 +811,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
     // matching the mode button that was pressed. Setting the same value
     // again is silent (no CO change), which conveniently deduplicates
     // hardware that fires one mode press for both decks at once (Numark
-    // Scratch).
+    // Scratch relies on exactly this — see PadMode_AnnouncedByVocabulary in
+    // announcementmanager_test.cpp). Because that dedup is load-bearing for
+    // Numark Scratch, this CO deliberately keeps its default bIgnoreNops;
+    // mappings that want a re-press of the same mode to re-announce (e.g.
+    // the DDJ-400's query-current-mode fix, issue #65) bounce the value
+    // through 0 first instead of us changing this construction.
     auto pPadMode = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("pad_mode")));
     connect(pPadMode.get(),
@@ -819,6 +824,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             [this](double value) {
                 QString mode;
+                // Modes with no working pad layer behind them yet (issue
+                // #65): the hardware still switches into these layers and
+                // the mode button still lights up, but the pads themselves
+                // do nothing there. Say so, instead of announcing them the
+                // same way as a mode that actually works.
+                bool implemented = true;
                 switch (static_cast<int>(value)) {
                 case 1:
                     mode = tr("hot cues");
@@ -834,15 +845,19 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     break;
                 case 5:
                     mode = tr("keyboard");
+                    implemented = false;
                     break;
                 case 6:
                     mode = tr("pad effects 1");
+                    implemented = false;
                     break;
                 case 7:
                     mode = tr("pad effects 2");
+                    implemented = false;
                     break;
                 case 8:
                     mode = tr("key shift");
+                    implemented = false;
                     break;
                 case 9:
                     mode = tr("loop roll");
@@ -850,7 +865,11 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 default:
                     return;
                 }
-                speak(tr("Pads, %1").arg(mode));
+                if (implemented) {
+                    speak(tr("Pads, %1").arg(mode));
+                } else {
+                    speak(tr("Pads, %1 (not yet supported)").arg(mode));
+                }
             });
     m_pPadModeControl = std::move(pPadMode);
 }
