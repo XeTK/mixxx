@@ -1363,6 +1363,77 @@ TEST_F(AnnouncementManagerPerformanceTest, LoopOn_AnnouncedWithSize) {
     EXPECT_QSTRING_EQ("[TestChannel1] loop off", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_Halve_AnnouncesNewSize) {
+    // loop_scale (the DDJ-400's CUE/LOOP CALL) halves/doubles the loop
+    // bounds directly without ever touching beatloop_size, so the
+    // beatloop_size observer never fires for it; it must be observed on its
+    // own.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    // bIgnoreNops=false, matching LoopingControl's own loop_scale CO: every
+    // press re-fires even if it sets the same scale factor as last time.
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    pSpy->callCount = 0;
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "loop scale must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_RepeatedPresses_TrackActualSize) {
+    // Repeated CUE/LOOP CALL presses must keep announcing the real resulting
+    // size, not repeat the same stale beatloop_size-derived value.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+
+    pLoopScale->set(0.5); // CUE/LOOP CALL <- pressed again
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 2", pSpy->lastText);
+
+    pLoopScale->set(2.0); // CUE/LOOP CALL -> pressed
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_LoopSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLoop")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, HotcueSetAndCleared_Announced) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

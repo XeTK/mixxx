@@ -1183,6 +1183,9 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                     nullptr,
                     ControlFlag::AllowMissingOrInvalid)
                                          .get();
+            // Seed the loop_scale tracker below so CUE/LOOP CALL halve/double
+            // presses have a sane starting size to scale from.
+            m_deckLoopBeats[group] = beats;
             const QString text = beats > 0.0
                     ? tr("%1 loop %2 beats").arg(deck, QString::number(beats))
                     : tr("%1 loop on").arg(deck);
@@ -1261,9 +1264,39 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (!m_settings.getAnnounceLoop() || value <= 0.0) {
             return;
         }
+        m_deckLoopBeats[group] = value;
         announceControlDebounced(tr("%1 loop size %2")
                         .arg(mixerDeckName(group, deckIndex),
                                 QString::number(value)));
+    });
+
+    // CUE/LOOP CALL <>/> (loop_scale) halves/doubles the active loop's actual
+    // length directly — see LoopingControl::slotLoopScale, which deliberately
+    // clears the active beatloop rather than reconciling beatloop_size after
+    // a scale — so the beatloop_size observer above never fires for this
+    // control and the loop-size change goes unannounced. Scale our own
+    // best-known loop size (seeded above from loop_enabled/beatloop_size) so
+    // repeated presses keep announcing an accurate size.
+    auto pLoopScale = make_parented<ControlProxy>(group,
+            QStringLiteral("loop_scale"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pLoopScale->connectValueChanged(this, [this, group, deckIndex](double scaleFactor) {
+        if (!m_settings.getAnnounceLoop() || scaleFactor <= 0.0) {
+            return;
+        }
+        double beats = m_deckLoopBeats.value(group, 0.0);
+        if (beats <= 0.0) {
+            beats = readGroupControl(group, QStringLiteral("beatloop_size"));
+        }
+        if (beats <= 0.0) {
+            return;
+        }
+        beats *= scaleFactor;
+        m_deckLoopBeats[group] = beats;
+        announceControlDebounced(tr("%1 loop size %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                QString::number(beats)));
     });
 
     // Beat jump: size changes and the actual jumps. Debounced — the size
