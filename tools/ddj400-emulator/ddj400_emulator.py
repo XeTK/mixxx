@@ -118,6 +118,13 @@ BEAT_FX_ONOFF = (0x94, 0x47)        # Note, BEAT FX ON/OFF
 PAD_DECK1 = 0x97
 PAD_DECK2 = 0x99
 #
+# PADS +SHIFT (deck1 status 0x98, deck2 status 0x9A) - same data byte range.
+# In accessibility-pads mode (issue #50) Shift+Pad3/4/5/6 trigger
+# keylock/pitch_down/pitch_up/reset_key; see hotcuePadShift in
+# Pioneer-DDJ-400-script.js.
+PAD_DECK1_SHIFT = 0x98
+PAD_DECK2_SHIFT = 0x9A
+#
 # PAD MODE buttons (deck1 status 0x90, deck2 status 0x91):
 PAD_MODE_HOTCUE_DECK1 = (0x90, 0x1B)    # Note, HOT CUE MODE
 PAD_MODE_HOTCUE_DECK2 = (0x91, 0x1B)
@@ -352,9 +359,17 @@ class DDJ400Emulator:
         self._note_press(BEAT_FX_ONOFF)
 
     # -- pads (momentary notes) ---------------------------------------------
-    def pad(self, deck, pad_num):
-        """Hot-cue pad. pad_num is 1-8; sent as data byte 0-7."""
-        status = PAD_DECK1 if deck == 1 else PAD_DECK2
+    def pad(self, deck, pad_num, shift=False):
+        """Hot-cue pad. pad_num is 1-8; sent as data byte 0-7.
+
+        shift=True sends the +SHIFT variant (accessibility pads 3-6 trigger
+        keylock/pitch_down/pitch_up/reset_key when accessibilityPads is on;
+        see issue #50).
+        """
+        if shift:
+            status = PAD_DECK1_SHIFT if deck == 1 else PAD_DECK2_SHIFT
+        else:
+            status = PAD_DECK1 if deck == 1 else PAD_DECK2
         self._note_press((status, pad_num - 1))
 
     def pad_mode(self, deck, mode):
@@ -665,7 +680,7 @@ def _key_up(emu, held, token, kind, payload):
 #   beatleft
 #   beatright
 #   beatfx
-#   pad 1|2 N                        # hot-cue pad 1-8
+#   pad 1|2 N [shift]                # hot-cue pad 1-8; add 'shift' for +SHIFT
 #   padmode 1|2 hotcue|beatloop
 #
 # Example (hold-to-open the menu, scroll, activate):
@@ -789,7 +804,14 @@ def parse_sequence(text):
                 ) from None
             if not 1 <= pad_num <= 8:
                 raise ValueError(f"line {lineno}: pad number must be 1-8")
-            events.append(("pad", (deck, pad_num)))
+            shift = False
+            if len(args) >= 3:
+                if args[2].lower() != "shift":
+                    raise ValueError(
+                        f"line {lineno}: pad third argument must be 'shift'"
+                    )
+                shift = True
+            events.append(("pad", (deck, pad_num, shift)))
         elif cmd == "padmode":
             deck = _parse_deck(lineno, args, cmd)
             if len(args) < 2 or args[1].lower() not in ("hotcue", "beatloop"):
@@ -881,9 +903,9 @@ def run_script(emu, path):
             print("  beatfx")
             emu.beat_fx_onoff()
         elif cmd == "pad":
-            deck, pad_num = args
-            print(f"  pad deck{deck} {pad_num}")
-            emu.pad(deck, pad_num)
+            deck, pad_num, shift = args
+            print(f"  pad deck{deck} {pad_num}{' shift' if shift else ''}")
+            emu.pad(deck, pad_num, shift)
         elif cmd == "padmode":
             deck, mode = args
             print(f"  padmode deck{deck} {mode}")

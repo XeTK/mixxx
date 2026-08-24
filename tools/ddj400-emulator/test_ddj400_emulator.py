@@ -204,12 +204,26 @@ class ParseSequenceTest(unittest.TestCase):
                 ("beatleft", None),
                 ("beatright", None),
                 ("beatfx", None),
-                ("pad", (1, 1)),
-                ("pad", (2, 8)),
+                ("pad", (1, 1, False)),
+                ("pad", (2, 8, False)),
                 ("padmode", (1, "hotcue")),
                 ("padmode", (2, "beatloop")),
             ],
         )
+
+    def test_parses_shift_pad_token(self):
+        events = ddj400_emulator.parse_sequence("pad 1 3 shift\npad 2 6 shift\n")
+        self.assertEqual(
+            events,
+            [
+                ("pad", (1, 3, True)),
+                ("pad", (2, 6, True)),
+            ],
+        )
+
+    def test_pad_bad_shift_token_raises(self):
+        with self.assertRaises(ValueError):
+            ddj400_emulator.parse_sequence("pad 1 3 sift\n")
 
     def test_deck_transport_bad_deck_raises(self):
         with self.assertRaises(ValueError):
@@ -463,6 +477,22 @@ class EmulatorMidiTest(unittest.TestCase):
         self.assertEqual(
             self.backend.sent(),
             [(0x99, 0x07, 0x7F), (0x99, 0x07, 0x00)],
+        )
+
+    def test_pad_deck1_pad3_shift(self):
+        # Accessibility pads (issue #50): Shift+Pad3 = keylock toggle.
+        self.emu.pad(1, 3, shift=True)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x98, 0x02, 0x7F), (0x98, 0x02, 0x00)],
+        )
+
+    def test_pad_deck2_pad6_shift(self):
+        # Accessibility pads (issue #50): Shift+Pad6 = reset_key.
+        self.emu.pad(2, 6, shift=True)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0x9A, 0x05, 0x7F), (0x9A, 0x05, 0x00)],
         )
 
     def test_pad_mode_hotcue_deck1(self):

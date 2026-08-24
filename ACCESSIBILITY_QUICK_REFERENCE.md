@@ -67,6 +67,17 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
+## Key lock and pitch (harmonic mixing)
+
+Deck 1 keys listed; add `Shift` for deck 2:
+
+- `Ctrl+Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
+  on"/"off"), so pitch can be adjusted for tempo without shifting
+  the musical key.
+- `Ctrl+Alt+Up` / `Ctrl+Alt+Down` — Nudge pitch up/down one semitone.
+- `Ctrl+Alt+M` — Match key (sync to the other deck's key).
+- `Ctrl+Alt+R` — Reset to the track's original key.
+
 ## Adding a track to a crate or playlist
 
 With a track selected in the library:
@@ -133,12 +144,17 @@ speak deck 1, right pads deck 2:
 - Pad 8 — Beat click metronome on/off
 - `Shift+Pad 1` — Halve this deck's BPM grid
 - `Shift+Pad 2` — Double this deck's BPM grid
+- `Shift+Pad 3` — Key lock on/off
+- `Shift+Pad 4` — Pitch down one semitone
+- `Shift+Pad 5` — Pitch up one semitone
+- `Shift+Pad 6` — Reset to the track's original key
 - `Shift+Pad 7` — Per-deck split cue on/off
 - `Shift+Pad 8` — Speech on/off
 
 Hot cues are unavailable from the pads while this is on (Shift+pads
-3-6 do nothing, so nothing can be cleared by accident). Untick the
-setting to get normal hot cues back; other pad modes are unaffected.
+1-6 do something else instead, so nothing can be cleared by
+accident). Untick the setting to get normal hot cues back; other pad
+modes are unaffected.
 
 Independent of that setting: pressing Shift says "Shift", and each
 pad mode button announces its layer ("Pads, hot cues", "Pads, beat
