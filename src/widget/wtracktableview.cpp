@@ -30,6 +30,7 @@
 #include "util/dnd.h"
 #include "util/qt.h"
 #include "util/time.h"
+#include "widget/trackconfirmdialogs.h"
 #include "widget/wtrackmenu.h"
 #include "widget/wtracktableviewheader.h"
 
@@ -513,6 +514,12 @@ void WTrackTableView::slotPurge() {
     }
     const QModelIndexList indices = getSelectedRows();
     if (indices.isEmpty()) {
+        return;
+    }
+    // Accessibility (issue #53): Purge used to run with no confirmation at
+    // all, unlike every other destructive track-list action. Speak what's
+    // about to happen and require an explicit Yes.
+    if (!mixxx::trackconfirm::confirmPurge(this, m_pLibrary, indices.size())) {
         return;
     }
     saveCurrentIndex();
