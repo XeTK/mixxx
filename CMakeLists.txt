@@ -2835,6 +2835,7 @@ if(BUILD_TESTING)
     src/test/synctrackmetadatatest.cpp
     src/test/tableview_test.cpp
     src/test/taglibtest.cpp
+    src/test/trackcollection_test.cpp
     src/test/trackconfirmdialogs_test.cpp
     src/test/trackdao_test.cpp
     src/test/trackexport_test.cpp
