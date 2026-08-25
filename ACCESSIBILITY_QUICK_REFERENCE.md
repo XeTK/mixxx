@@ -96,7 +96,7 @@ list focused:
 - `Alt+Shift+S` — Sort by the next column (Artist, Title, Album, ...),
   wrapping back to the first after the last. Announces the result, e.g.
   "Sorting by title ascending".
-- `Alt+Shift+Q` — Same, but steps to the previous column instead.
+- `Alt+Shift+J` — Same, but steps to the previous column instead.
 - `Alt+Shift+O` — Reverse the current sort order (ascending/descending)
   without changing the column. Announces e.g. "Sorting by title
   descending".
