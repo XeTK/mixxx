@@ -157,6 +157,12 @@ LibraryScanner::~LibraryScanner() {
     cancelAndQuit();
 }
 
+void LibraryScanner::setAnnounceCallback(std::function<void(const QString&)> callback) {
+    if (m_pProgressDlg) {
+        m_pProgressDlg->setAnnounceCallback(std::move(callback));
+    }
+}
+
 void LibraryScanner::run() {
     kLogger.debug() << "Entering thread";
     {
