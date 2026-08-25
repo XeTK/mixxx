@@ -1461,6 +1461,69 @@ TEST_F(AnnouncementManagerTtsLogTest, UtteranceIdIsHandedToTheTtsEngine) {
     EXPECT_GT(pSpy->lastUtteranceId, static_cast<quint64>(0));
 }
 
+// Speech batching (issue #48, beginSpeechBatch()/endSpeechBatch()) merges N
+// synchronous speak() calls into one dispatched utterance so a same-event
+// side effect (Smart Cue's pfl move) can't barge in on the announcement that
+// triggered it. Each original speak() still gets its own REQUESTED (the
+// complete record of what was individually asked for), but only the joined
+// text that's actually handed to the synthesizer gets a SPOKEN -- under a
+// fresh id, not one of the per-call ids, since none of those ids' text
+// matches what was actually spoken.
+TEST_F(AnnouncementManagerTtsLogTest, SmartCueBatch_LogsRequestedPerCallAndOneSpokenForTheJoinedText) {
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+    m_pManager->connectGroupControls(QStringLiteral("[Channel2]"), 1);
+
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    ASSERT_EQ(1, pSpy->callCount);
+    const QString combined = pSpy->lastText;
+    ASSERT_TRUE(combined.contains(QStringLiteral("Loaded deck, Bravo")));
+    ASSERT_TRUE(combined.contains(QStringLiteral("headphone cue on")));
+
+    // Exactly one SPOKEN record exists at all, and it is for the joined text.
+    const QStringList allSpoken = logLines().filter(QStringLiteral(" SPOKEN "));
+    ASSERT_EQ(1, allSpoken.size());
+    const QStringList joinedRequested = recordsFor(QStringLiteral("REQUESTED"), combined);
+    const QStringList joinedSpoken = recordsFor(QStringLiteral("SPOKEN"), combined);
+    ASSERT_EQ(1, joinedRequested.size());
+    ASSERT_EQ(1, joinedSpoken.size());
+    // Same id links that REQUESTED to that SPOKEN ("<ts> EVENT id=N ..." --
+    // id is the third field).
+    EXPECT_QSTRING_EQ(joinedRequested.first().split(QChar(' ')).value(2),
+            joinedSpoken.first().split(QChar(' ')).value(2));
+
+    // Smart Cue's pfl move and the track-load announcement are two separate
+    // speak() calls batched into `combined` (see
+    // SmartCue_LoadAnnouncementNotLostToCueBargeIn above): each must have its
+    // own REQUESTED whose id differs from the joined dispatch's, and none of
+    // those per-call ids has a SPOKEN of its own -- confirming the merged
+    // pieces were recorded as intent only, not double-dispatched.
+    const QString joinedId = joinedRequested.first().split(QChar(' ')).value(2);
+    const QStringList allRequested = logLines().filter(QStringLiteral(" REQUESTED "));
+    ASSERT_EQ(3, allRequested.size())
+            << "expected one REQUESTED per original speak() call (2) plus one "
+               "for the joined text actually dispatched (1)";
+    for (const QString& line : allRequested) {
+        const QString id = line.split(QChar(' ')).value(2);
+        if (id == joinedId) {
+            continue; // the joined dispatch itself, already checked above
+        }
+        for (const QString& other : logLines()) {
+            EXPECT_FALSE(other.contains(QStringLiteral(" SPOKEN ")) && other.contains(id))
+                    << "a call merged into a batch must not also get its own "
+                       "SPOKEN record: "
+                    << line.toStdString();
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // On-demand deck status ([ChannelN],tts_status) and repeat ([Tts],repeat)
 // ---------------------------------------------------------------------------

@@ -149,7 +149,12 @@ class AnnouncementManager : public QObject {
     // Sends text to the TtsEngine (voice/rate/route sync + say()). This is
     // the tail end of what speak() used to do unconditionally; it is now
     // also the flush point for a speech batch (see beginSpeechBatch below).
-    void dispatchSpeech(const QString& text);
+    // `ttsLogUtteranceId` is the id (see util/ttslog.h) that SPOKEN and every
+    // later audio-path record for this exact dispatched text must carry; it
+    // is threaded through explicitly rather than read off a member so a
+    // batch's combined text can never be logged under one of its individual
+    // calls' ids (see endSpeechBatch()).
+    void dispatchSpeech(const QString& text, quint64 ttsLogUtteranceId);
 
     // Speech batching (issue #48): some call sites synchronously trigger a
     // second speak() as a side effect of the first -- e.g. Smart Cue moving
@@ -238,11 +243,6 @@ class AnnouncementManager : public QObject {
     QString m_currentTtsVoiceId;
     int m_currentTtsRate{0};
     int m_currentTtsRoute{-1};
-    // --tts-log (see util/ttslog.h): id of the utterance currently being
-    // dispatched, so the SPOKEN/SUPPRESSED records and everything the audio
-    // path reports later can be correlated with its REQUESTED record. Always
-    // 0 when the hook is off.
-    quint64 m_ttsLogUtteranceId{0};
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;

@@ -973,12 +973,23 @@ void AnnouncementManager::speak(const QString& text) {
     // actually heard. The SUPPRESSED/SPOKEN records below, and the
     // SUPERSEDED/FLUSHED/COMPLETED records raised further down the audio path,
     // are what make the outcome visible. See util/ttslog.h.
-    m_ttsLogUtteranceId = mixxx::ttslog::logRequested(text);
+    //
+    // Every speak() call gets its own REQUESTED record, including one that is
+    // about to be batched below -- that is the complete record of what was
+    // asked for. But when a batch merges N calls into one dispatched
+    // utterance, only that joined text is ever handed to the synthesizer, so
+    // it gets its own fresh id in endSpeechBatch() rather than reusing any of
+    // the N calls' ids: reusing one would attach a SPOKEN record to a
+    // REQUESTED record for different (shorter) text, and leave the other N-1
+    // ids looking like they vanished without a trace. A REQUESTED with no
+    // SPOKEN/SUPPRESSED of its own means exactly that: this text's content
+    // was merged into a later, separately-logged batch dispatch.
+    const quint64 ttsLogUtteranceId = mixxx::ttslog::logRequested(text);
 
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
         mixxx::ttslog::logSuppressed(
-                m_ttsLogUtteranceId, text, mixxx::ttslog::kReasonTtsDisabled);
+                ttsLogUtteranceId, text, mixxx::ttslog::kReasonTtsDisabled);
         return;
     }
 
@@ -987,7 +998,7 @@ void AnnouncementManager::speak(const QString& text) {
     // rather than synthesize into a torn-down sink (issue #30).
     if (m_ttsSinkDestroyed) {
         mixxx::ttslog::logSuppressed(
-                m_ttsLogUtteranceId, text, mixxx::ttslog::kReasonSinkDestroyed);
+                ttsLogUtteranceId, text, mixxx::ttslog::kReasonSinkDestroyed);
         return;
     }
 
@@ -995,15 +1006,17 @@ void AnnouncementManager::speak(const QString& text) {
         // Defer dispatch until the batch ends (see beginSpeechBatch()) so a
         // second speak() triggered synchronously as a side effect of this one
         // is concatenated into one utterance instead of silently
-        // superseding it (issue #48).
+        // superseding it (issue #48). This call's REQUESTED record (above)
+        // stands as its whole --tts-log lifecycle; see endSpeechBatch() for
+        // the id the joined text is actually dispatched under.
         m_batchedSpeech << text;
         return;
     }
 
-    dispatchSpeech(text);
+    dispatchSpeech(text, ttsLogUtteranceId);
 }
 
-void AnnouncementManager::dispatchSpeech(const QString& text) {
+void AnnouncementManager::dispatchSpeech(const QString& text, quint64 ttsLogUtteranceId) {
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -1035,8 +1048,8 @@ void AnnouncementManager::dispatchSpeech(const QString& text) {
         }
     }
     m_lastSpoken = text;
-    mixxx::ttslog::logSpoken(m_ttsLogUtteranceId, text);
-    m_pTts->setUtteranceId(m_ttsLogUtteranceId);
+    mixxx::ttslog::logSpoken(ttsLogUtteranceId, text);
+    m_pTts->setUtteranceId(ttsLogUtteranceId);
     m_pTts->say(text);
 }
 
@@ -1059,7 +1072,13 @@ void AnnouncementManager::endSpeechBatch() {
     // an earlier one that hadn't rendered yet.
     const QString combined = m_batchedSpeech.join(QStringLiteral(". "));
     m_batchedSpeech.clear();
-    dispatchSpeech(combined);
+    // --tts-log (see util/ttslog.h): the joined text is what actually reaches
+    // the synthesizer, so it gets its own REQUESTED/SPOKEN pair under a fresh
+    // id here rather than reusing one of the individual calls' ids (each of
+    // those already got its own REQUESTED in speak(), recording what was
+    // originally asked for).
+    const quint64 ttsLogUtteranceId = mixxx::ttslog::logRequested(combined);
+    dispatchSpeech(combined, ttsLogUtteranceId);
 }
 
 void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& speechText) {
