@@ -403,6 +403,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxControllerNavWithoutFocus">
+        <property name="toolTip">
+         <string>Let controller-driven library navigation (e.g. the DDJ-400 browse encoder) keep working even when Mixxx does not have OS window focus. Useful when you need to interact with your screen reader directly. Same effect as the --controller-navigation-without-focus command-line flag; either one enables it. Takes effect immediately, no restart needed.</string>
+        </property>
+        <property name="text">
+         <string>Allow controller navigation when Mixxx isn't focused</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayoutTestSpeech">
         <item>
          <spacer name="horizontalSpacerTestSpeech">
