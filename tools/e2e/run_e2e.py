@@ -18,7 +18,7 @@ The orchestrator:
   5. Asserts the scenario did not raise, then tears down.
 """
 import argparse
-import importlib
+import importlib.util
 import os
 import shutil
 import sys
