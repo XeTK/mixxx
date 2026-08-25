@@ -110,6 +110,11 @@ class BaseTrackTableModel : public QAbstractTableModel, public TrackModel {
     TrackPointer getTrackByRef(
             const TrackRef& trackRef) const override;
 
+    /// Spoken description of a row: artist/title plus whichever of rating,
+    /// color, played state and BPM lock are set, using the same wording as
+    /// Qt::AccessibleTextRole for those columns (see data()/roleValue()).
+    QString rowAccessibleText(const QModelIndex& index) const override;
+
     bool updateTrackGenre(
             Track* pTrack,
             const QString& genre) const override;

@@ -265,12 +265,45 @@ class EmulatorMidiTest(unittest.TestCase):
         self.emu = ddj400_emulator.DDJ400Emulator(self.backend)
 
     def test_browse_rotate_up(self):
+        # The browse knob is a two's-complement relative encoder: one detent
+        # up is 0x01, matching the <SelectKnob/> decode in
+        # midicontroller.cpp (and Pioneer-DDJ-400-script.js's browseRotate).
         self.emu.browse_rotate(1)
-        self.assertEqual(self.backend.sent(), [(0xB6, 0x40, 0x41)])
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x40, 0x01)])
 
     def test_browse_rotate_down(self):
+        # One detent down is 0x7F (-1 in 7-bit two's complement), not the
+        # offset-64 0x3F this emulator used to send.
         self.emu.browse_rotate(-1)
-        self.assertEqual(self.backend.sent(), [(0xB6, 0x40, 0x3F)])
+        self.assertEqual(self.backend.sent(), [(0xB6, 0x40, 0x7F)])
+
+    def test_browse_rotate_bytes_decode_to_single_detent(self):
+        """Regression test for issue #47.
+
+        Decode the raw byte the emulator sends using the exact two's
+        complement algorithm Pioneer-DDJ-400-script.js's browseRotate (and
+        midicontroller.cpp's <SelectKnob/> MIDI option) use, and assert it
+        is exactly +1/-1. Before this fix, the emulator sent offset-64 bytes
+        (0x41/0x3F) that this decode turns into +65/-65, which is exactly
+        the class of bug that sent 127 keypresses through the track list
+        for a single knob detent on real hardware.
+        """
+
+        def decode_twos_complement(raw_value):
+            delta = raw_value
+            if delta >= 64:
+                delta -= 128
+            return delta
+
+        self.emu.browse_rotate(1)
+        (_status, _data, raw_up) = self.backend.sent()[0]
+        self.assertEqual(decode_twos_complement(raw_up), 1)
+
+        self.backend.messages.clear()
+
+        self.emu.browse_rotate(-1)
+        (_status, _data, raw_down) = self.backend.sent()[0]
+        self.assertEqual(decode_twos_complement(raw_down), -1)
 
     def test_browse_press(self):
         self.emu.browse_press()
@@ -391,12 +424,21 @@ class EmulatorMidiTest(unittest.TestCase):
     # -- new CC knobs / faders ----------------------------------------------
 
     def test_tempo_deck1(self):
+        # The tempo fader is high-res: an MSB CC must be followed by an LSB
+        # CC, or Pioneer-DDJ-400-script.js's tempoSliderLSB handler (which
+        # is the only one that actually calls engine.setValue) never fires.
         self.emu.tempo(1, 64)
-        self.assertEqual(self.backend.sent(), [(0xB0, 0x00, 64)])
+        self.assertEqual(
+            self.backend.sent(),
+            [(0xB0, 0x00, 64), (0xB0, 0x20, 0)],
+        )
 
     def test_tempo_deck2(self):
         self.emu.tempo(2, 32)
-        self.assertEqual(self.backend.sent(), [(0xB1, 0x00, 32)])
+        self.assertEqual(
+            self.backend.sent(),
+            [(0xB1, 0x00, 32), (0xB1, 0x20, 0)],
+        )
 
     def test_trim_deck1(self):
         self.emu.trim(1, 96)

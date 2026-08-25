@@ -225,16 +225,29 @@ PioneerDDJ400.browseMenuActive = function() {
 };
 
 PioneerDDJ400.browseRotate = function(_channel, _control, value) {
+    // The browse knob is a relative encoder that reports its value as a 7-bit
+    // two's-complement delta -- the same convention the stock (pre-fork)
+    // mapping relied on the <SelectKnob/> MIDI option to decode in
+    // midicontroller.cpp: 0x01-0x3F = positive detents (1..63), 0x7F-0x40 =
+    // negative detents (-1..-64). Mirror that decode here since this control
+    // is bound through a Script-Binding (needed to branch on whether the
+    // [AccessMenu] is open) rather than <SelectKnob/>.
+    let delta = value;
+    if (delta >= 64) {
+        delta -= 128;
+    }
+    if (delta === 0) {
+        return;
+    }
+    // The encoder should only ever report one detent (+/-1) per MIDI
+    // message, but clamp defensively so a stray multi-step message can never
+    // send a runaway jump through the track list or spoken menu.
+    delta = delta > 0 ? 1 : -1;
+
     if (PioneerDDJ400.browseMenuActive()) {
-        // The browse knob is a relative encoder: 0x41 = up, 0x3F = down,
-        // 0x40 = center (no-op). Convert to a signed +/-1 delta so the
-        // [AccessMenu] navigate encoder scrolls in the correct direction.
-        const delta = value - 0x40;
-        if (delta !== 0) {
-            engine.setValue("[AccessMenu]", "navigate", delta);
-        }
+        engine.setValue("[AccessMenu]", "navigate", delta);
     } else {
-        engine.setValue("[Library]", "MoveVertical", value);
+        engine.setValue("[Library]", "MoveVertical", delta);
     }
 };
 
@@ -625,8 +638,18 @@ PioneerDDJ400.shiftPressed = function(channel, _control, value, _status, _group)
 // Accessibility: speak which pad layer a mode button selected. The hardware
 // switches the pads' MIDI notes internally, so without this a blind DJ has
 // no way to tell which of the eight layers the pads landed in. The values
-// are [Tts],pad_mode's fixed vocabulary; a repeated press of the same mode
-// stays silent (same-value CO writes don't re-announce).
+// are [Tts],pad_mode's fixed vocabulary; four of them (keyboard, pad
+// effects 1/2, key shift) have no working pad layer behind them at all
+// (see the "Not implemented" note at the top of this file) and
+// AnnouncementManager appends "(not yet supported)" to those specifically,
+// so a blind DJ isn't told a dead layer sounds the same as a working one.
+//
+// [Tts],pad_mode ignores same-value writes by design (Numark Scratch relies
+// on that to dedupe one mode press firing for both decks at once), so
+// re-pressing the mode you're already in would otherwise stay silent, with
+// no way to ask "which layer am I on?" without cycling through all eight.
+// Bounce the CO through 0 (outside the spoken vocabulary, so it doesn't
+// itself speak) before setting the real value, forcing a change every time.
 PioneerDDJ400.padModePressed = function(_channel, control, value, _status, _group) {
     if (value === 0) {
         return;
@@ -642,6 +665,7 @@ PioneerDDJ400.padModePressed = function(_channel, control, value, _status, _grou
         0x6F: 8, // key shift
     };
     if (control in spokenModes) {
+        engine.setValue("[Tts]", "pad_mode", 0);
         engine.setValue("[Tts]", "pad_mode", spokenModes[control]);
     }
 };

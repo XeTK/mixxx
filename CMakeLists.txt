@@ -1711,6 +1711,7 @@ add_library(
   src/widget/hexspinbox.cpp
   src/widget/hotcuedrag.cpp
   src/widget/paintable.cpp
+  src/widget/trackconfirmdialogs.cpp
   src/widget/wanalysislibrarytableview.cpp
   src/widget/wbasewidget.cpp
   src/widget/wbattery.cpp
@@ -2725,6 +2726,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
+    src/test/accessibilitysettings_test.cpp
     src/test/accessmenucontroller_test.cpp
     src/test/announcementmanager_test.cpp
     src/test/bootdialog_speech_test.cpp
@@ -2735,6 +2737,8 @@ if(BUILD_TESTING)
     src/test/enginebeatclick_test.cpp
     src/test/engineearcon_test.cpp
     src/test/enginetts_test.cpp
+    src/test/errordialoghandler_test.cpp
+    src/test/keyboardbindings_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
     src/test/beatgridtest.cpp
@@ -2792,6 +2796,7 @@ if(BUILD_TESTING)
     src/test/keyutilstest.cpp
     src/test/lcstest.cpp
     src/test/learningutilstest.cpp
+    src/test/library_test.cpp
     src/test/libraryscannertest.cpp
     src/test/librarytest.cpp
     src/test/looping_control_test.cpp
@@ -2834,6 +2839,8 @@ if(BUILD_TESTING)
     src/test/synctrackmetadatatest.cpp
     src/test/tableview_test.cpp
     src/test/taglibtest.cpp
+    src/test/trackcollection_test.cpp
+    src/test/trackconfirmdialogs_test.cpp
     src/test/trackdao_test.cpp
     src/test/trackexport_test.cpp
     src/test/trackmetadata_test.cpp
