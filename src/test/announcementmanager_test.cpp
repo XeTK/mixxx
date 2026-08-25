@@ -1433,6 +1433,52 @@ TEST_F(AnnouncementManagerPerformanceTest, EffectLoaded_AnnouncedDebounced) {
     EXPECT_QSTRING_EQ("Unit 2 effect 1 cleared", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_Announced) {
+    // focused_effect (the DDJ-400's BEAT FX </> paddles) moves which slot in
+    // the unit is focused; it does not load/unload an effect, so the
+    // loaded_effect observer never fires for it.
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QStringLiteral("Echo"); },
+            [](const QString&) { return QString(); });
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "focused_effect must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 1: Echo focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_NoResolverFallsBackToSlotNumber) {
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit2]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(3.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 2: effect 3 focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_EffectsSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceEffects")),
+            false);
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, EffectUnitRouting_Announced) {
     auto pRouting = std::make_unique<ControlObject>(ConfigKey(
             QStringLiteral("[EffectRack1_EffectUnit1]"),
@@ -1521,6 +1567,77 @@ TEST_F(AnnouncementManagerPerformanceTest, LoopOn_AnnouncedWithSize) {
     m_pLoopEnabled->set(0.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] loop off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_Halve_AnnouncesNewSize) {
+    // loop_scale (the DDJ-400's CUE/LOOP CALL) halves/doubles the loop
+    // bounds directly without ever touching beatloop_size, so the
+    // beatloop_size observer never fires for it; it must be observed on its
+    // own.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    // bIgnoreNops=false, matching LoopingControl's own loop_scale CO: every
+    // press re-fires even if it sets the same scale factor as last time.
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    pSpy->callCount = 0;
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "loop scale must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_RepeatedPresses_TrackActualSize) {
+    // Repeated CUE/LOOP CALL presses must keep announcing the real resulting
+    // size, not repeat the same stale beatloop_size-derived value.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+
+    pLoopScale->set(0.5); // CUE/LOOP CALL <- pressed again
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 2", pSpy->lastText);
+
+    pLoopScale->set(2.0); // CUE/LOOP CALL -> pressed
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_LoopSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLoop")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, HotcueSetAndCleared_Announced) {
@@ -1903,6 +2020,20 @@ TEST_F(AnnouncementManagerPerformanceTest, BackToStart_Announced) {
     setupGroup(); // proxies attach after the CO exists
 
     pStart->set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, BackToStart_StartStopControl_Announced) {
+    // start_stop (jump to start without playing) is the DDJ-400's Shift+CUE
+    // remap; it must be narrated the same way as start/cue_gotoandstop.
+    SpyTtsEngine* pSpy = makeManager();
+    auto pStartStop = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("start_stop")));
+    setupGroup();
+
+    pStartStop->set(1.0);
     QCoreApplication::processEvents();
 
     EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
@@ -2998,6 +3129,42 @@ TEST_F(AnnouncementManagerPerformanceTest, BeatsHalveDouble_Announced) {
     pDouble->set(1.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] B P M doubled", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Tempo range cycling (the DDJ-400's Shift+SYNC remaps to rateRange). The
+// pitch fader keeps the same physical position across a range change, so the
+// new range is spoken immediately: otherwise the next spoken pitch
+// percentage is ambiguous about which BPM delta it actually means.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_Announced) {
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 8 percent", pSpy->lastText);
+
+    pRateRange->set(0.16);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 16 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_TempoSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTempo")),
+            false);
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
 }
 
 // ---------------------------------------------------------------------------

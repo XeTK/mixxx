@@ -775,6 +775,32 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         }
     }
 
+    // Which effect slot within a unit is "focused" (the DDJ-400's BEAT FX
+    // </> paddles move this via changeFocusedEffectBy()). The CO holds a
+    // 1-based slot index; moving focus does not load/unload an effect, so
+    // the loaded_effect observer above never fires for it.
+    for (int unit = 1; unit <= 4; ++unit) {
+        auto pFocused = make_parented<ControlProxy>(
+                QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                QStringLiteral("focused_effect"),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pFocused->connectValueChanged(this, [this, unit](double value) {
+            if (!m_settings.getAnnounceEffects() || value <= 0.0) {
+                return;
+            }
+            const int slot = static_cast<int>(value);
+            QString name = m_effectNameResolver ? m_effectNameResolver(unit, slot)
+                                                 : QString();
+            if (name.isEmpty()) {
+                name = tr("effect %1").arg(slot);
+            }
+            // Debounced: the focus paddle can be stepped through several
+            // slots per second.
+            announceControlDebounced(tr("Unit %1: %2 focused").arg(QString::number(unit), name));
+        });
+    }
+
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
     // user who missed an announcement can re-hear it instead of guessing.
     // Trigger mode so each keypress fires even though the value doesn't change.
@@ -1103,9 +1129,10 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
     });
 
-    // Jumping back to the start (the Start key or cue-goto-and-stop) gives no
+    // Jumping back to the start (the Start key, cue-goto-and-stop, or the
+    // DDJ-400's Shift+CUE, which the fork remaps to start_stop) gives no
     // audible feedback of its own; narrate it.
-    for (const char* backControl : {"start", "cue_gotoandstop"}) {
+    for (const char* backControl : {"start", "cue_gotoandstop", "start_stop"}) {
         auto pBack = make_parented<ControlProxy>(group,
                 QLatin1String(backControl),
                 this,
@@ -1221,6 +1248,9 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                     nullptr,
                     ControlFlag::AllowMissingOrInvalid)
                                          .get();
+            // Seed the loop_scale tracker below so CUE/LOOP CALL halve/double
+            // presses have a sane starting size to scale from.
+            m_deckLoopBeats[group] = beats;
             const QString text = beats > 0.0
                     ? tr("%1 loop %2 beats").arg(deck, QString::number(beats))
                     : tr("%1 loop on").arg(deck);
@@ -1299,9 +1329,39 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (!m_settings.getAnnounceLoop() || value <= 0.0) {
             return;
         }
+        m_deckLoopBeats[group] = value;
         announceControlDebounced(tr("%1 loop size %2")
                         .arg(mixerDeckName(group, deckIndex),
                                 QString::number(value)));
+    });
+
+    // CUE/LOOP CALL <>/> (loop_scale) halves/doubles the active loop's actual
+    // length directly — see LoopingControl::slotLoopScale, which deliberately
+    // clears the active beatloop rather than reconciling beatloop_size after
+    // a scale — so the beatloop_size observer above never fires for this
+    // control and the loop-size change goes unannounced. Scale our own
+    // best-known loop size (seeded above from loop_enabled/beatloop_size) so
+    // repeated presses keep announcing an accurate size.
+    auto pLoopScale = make_parented<ControlProxy>(group,
+            QStringLiteral("loop_scale"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pLoopScale->connectValueChanged(this, [this, group, deckIndex](double scaleFactor) {
+        if (!m_settings.getAnnounceLoop() || scaleFactor <= 0.0) {
+            return;
+        }
+        double beats = m_deckLoopBeats.value(group, 0.0);
+        if (beats <= 0.0) {
+            beats = readGroupControl(group, QStringLiteral("beatloop_size"));
+        }
+        if (beats <= 0.0) {
+            return;
+        }
+        beats *= scaleFactor;
+        m_deckLoopBeats[group] = beats;
+        announceControlDebounced(tr("%1 loop size %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                QString::number(beats)));
     });
 
     // Beat jump: size changes and the actual jumps. Debounced — the size
@@ -1364,6 +1424,24 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         announceControlDebounced(group + QStringLiteral("rate_ratio"),
                 tr("%1 pitch").arg(mixerDeckName(group, deckIndex)),
                 valueText);
+    });
+
+    // Cycling the pitch fader's tempo range (the DDJ-400's Shift+SYNC) is a
+    // discrete button press, not a fader drag, so it is spoken immediately
+    // rather than debounced. This also matters because the same fader
+    // position now means a different BPM delta — without this the next
+    // spoken pitch percentage would be confusing.
+    auto pRateRange = make_parented<ControlProxy>(group,
+            QStringLiteral("rateRange"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pRateRange->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceTempo() || value <= 0.0) {
+            return;
+        }
+        const int percent = static_cast<int>(std::lround(value * 100.0));
+        speak(tr("%1 tempo range plus or minus %2 percent")
+                        .arg(deckName(group, deckIndex), QString::number(percent)));
     });
 
     // Fixing a half/double-tempo misanalysis (common for 160+ BPM genres —

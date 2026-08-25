@@ -265,6 +265,12 @@ class AnnouncementManager : public QObject {
     // True while the deck is playing because the cue button is held (cue
     // preview); the eventual stop is not announced.
     QHash<QString, bool> m_deckCuePreview;
+    // Best-known loop size in beats per deck, seeded whenever loop_enabled or
+    // beatloop_size fires. loop_scale (halve/double the active loop, e.g. the
+    // DDJ-400's CUE/LOOP CALL buttons) changes the loop length without ever
+    // touching beatloop_size, so this is the only way to keep announcing a
+    // sane size across repeated scale presses.
+    QHash<QString, double> m_deckLoopBeats;
 
     // On-demand announcement buttons: [ChannelN],tts_status per deck and the
     // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.
