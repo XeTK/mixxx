@@ -2,8 +2,6 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QFile>
-#include <QTextStream>
 #include <algorithm>
 #include <cmath>
 
@@ -26,9 +24,9 @@
 #include "track/beats.h"
 #include "track/keyutils.h"
 #include "track/track.h"
-#include "util/cmdlineargs.h"
 #include "util/parented_ptr.h"
 #include "util/ttsengine.h"
+#include "util/ttslog.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 
 namespace {
@@ -877,20 +875,19 @@ void AnnouncementManager::speak(const QString& text) {
     // slotAnnouncePendingControl() restores the context after its own speak().
     m_lastControlKey.clear();
 
-    // Test hook (--tts-log): append every spoken string to a file so automated
-    // accessibility tests can assert on what was spoken. Log before the
-    // TTS-disabled early return so the hook captures all utterances.
-    const QString ttsLogPath = CmdlineArgs::Instance().getTtsLogPath();
-    if (!ttsLogPath.isEmpty()) {
-        QFile logFile(ttsLogPath);
-        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream out(&logFile);
-            out << text << "\n";
-        }
-    }
+    // Test hook (--tts-log): record that this utterance was requested, and the
+    // id every later record for it carries. The old hook stopped here, which
+    // meant the log described intent only -- an utterance killed by the TTS
+    // toggle, by shutdown, or by barge-in looked identical to one the user
+    // actually heard. The SUPPRESSED/SPOKEN records below, and the
+    // SUPERSEDED/FLUSHED/COMPLETED records raised further down the audio path,
+    // are what make the outcome visible. See util/ttslog.h.
+    m_ttsLogUtteranceId = mixxx::ttslog::logRequested(text);
 
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
+        mixxx::ttslog::logSuppressed(
+                m_ttsLogUtteranceId, text, mixxx::ttslog::kReasonTtsDisabled);
         return;
     }
 
@@ -898,6 +895,8 @@ void AnnouncementManager::speak(const QString& text) {
     // the speech and the TtsEngine's sink pointer has been cleared, so bail
     // rather than synthesize into a torn-down sink (issue #30).
     if (m_ttsSinkDestroyed) {
+        mixxx::ttslog::logSuppressed(
+                m_ttsLogUtteranceId, text, mixxx::ttslog::kReasonSinkDestroyed);
         return;
     }
 
@@ -932,6 +931,8 @@ void AnnouncementManager::speak(const QString& text) {
         }
     }
     m_lastSpoken = text;
+    mixxx::ttslog::logSpoken(m_ttsLogUtteranceId, text);
+    m_pTts->setUtteranceId(m_ttsLogUtteranceId);
     m_pTts->say(text);
 }
 

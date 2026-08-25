@@ -211,6 +211,11 @@ class AnnouncementManager : public QObject {
     QString m_currentTtsVoiceId;
     int m_currentTtsRate{0};
     int m_currentTtsRoute{-1};
+    // --tts-log (see util/ttslog.h): id of the utterance currently being
+    // dispatched, so the SPOKEN/SUPPRESSED records and everything the audio
+    // path reports later can be correlated with its REQUESTED record. Always
+    // 0 when the hook is off.
+    quint64 m_ttsLogUtteranceId{0};
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;

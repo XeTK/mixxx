@@ -2,12 +2,16 @@
 
 #include <gtest/gtest.h>
 
+#include <QFile>
+#include <QStringList>
+#include <QTemporaryDir>
 #include <algorithm>
 #include <vector>
 
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "test/mixxxtest.h"
+#include "util/ttslog.h"
 #include "util/types.h"
 
 namespace {
@@ -399,4 +403,193 @@ TEST_F(EngineTtsTest, RouteHeadphones_HeadConfigured_MainStillUntouched) {
     EXPECT_TRUE(mainUntouched)
             << "pMain was modified with Route::Headphones and a configured "
                "headphone output — speech must stay DJ-only";
+}
+
+// ---------------------------------------------------------------------------
+// --tts-log audibility outcomes (util/ttslog.h)
+//
+// The FIFO drain is the last place in the process where "Mixxx wanted to say
+// this" becomes "the DJ actually heard this". Everything above it (speak(),
+// say(), the synthesizer) can look perfectly healthy while the audio is thrown
+// away here by a barge-in flush or the user's TTS toggle -- which is exactly
+// how a real regression (the track-load announcement eaten by Smart Cue's pfl
+// change) stayed hidden for weeks behind a log that showed both strings.
+//
+// process() runs on the audio callback, so it may not allocate, lock or do
+// I/O. It records the outcome into a lock-free ring; pollAudibilityEvents()
+// (a timer in production, called directly here) does the writing.
+// ---------------------------------------------------------------------------
+
+class EngineTtsAudibilityLogTest : public MixxxTest {
+  protected:
+    static constexpr const char* kLogGroup = "[EngineTtsAudibilityTest]";
+
+    void SetUp() override {
+        ASSERT_TRUE(m_tempDir.isValid());
+        m_logPath = m_tempDir.filePath(QStringLiteral("tts.log"));
+        // Must be set before EngineTts is constructed: the sink samples
+        // ttslog::isEnabled() once, in its constructor.
+        mixxx::ttslog::setLogPath(m_logPath);
+        m_pAppSampleRate = std::make_unique<ControlObject>(
+                ConfigKey(QStringLiteral("[App]"), QStringLiteral("samplerate")));
+        m_pAppSampleRate->set(44100.0);
+        m_pEngineTts = std::make_unique<EngineTts>(kLogGroup);
+    }
+
+    void TearDown() override {
+        m_pEngineTts.reset();
+        mixxx::ttslog::setLogPath(QString());
+    }
+
+    void writeSamples(CSAMPLE value, int count) {
+        std::vector<CSAMPLE> buf(static_cast<std::size_t>(count), value);
+        int written = 0;
+        while (written < count) {
+            const int n = m_pEngineTts->writeSamples(buf.data() + written, count - written);
+            ASSERT_GT(n, 0);
+            written += n;
+        }
+    }
+
+    void processOnce() {
+        std::vector<CSAMPLE> main(kBufferSize, 0.0f);
+        m_pEngineTts->process(main.data(), nullptr, kBufferSize, kFrames);
+    }
+
+    QStringList logLines() const {
+        QFile file(m_logPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            return {};
+        }
+        return QString::fromUtf8(file.readAll())
+                .split(QChar('\n'), Qt::SkipEmptyParts);
+    }
+
+    // Event names of the records carrying `id`, in order.
+    QStringList eventsFor(quint64 id) const {
+        const QString idField = QStringLiteral("id=%1").arg(id);
+        QStringList events;
+        for (const QString& line : logLines()) {
+            const QStringList fields = line.split(QChar(' '));
+            if (fields.size() >= 3 && fields.at(2) == idField) {
+                events << fields.at(1);
+            }
+        }
+        return events;
+    }
+
+    QTemporaryDir m_tempDir;
+    QString m_logPath;
+    std::unique_ptr<ControlObject> m_pAppSampleRate;
+    std::unique_ptr<EngineTts> m_pEngineTts;
+};
+
+TEST_F(EngineTtsAudibilityLogTest, FullyDrainedUtterance_LogsCompleted) {
+    const quint64 id = mixxx::ttslog::logRequested(QStringLiteral("Deck 1, Playing"));
+    ASSERT_GT(id, static_cast<quint64>(0));
+
+    m_pEngineTts->beginUtterance(id);
+    writeSamples(1.0f, kBufferSize * 2);
+    m_pEngineTts->endUtterance(id);
+
+    processOnce(); // half the utterance
+    m_pEngineTts->pollAudibilityEvents();
+    EXPECT_EQ(QStringList{QStringLiteral("REQUESTED")}, eventsFor(id))
+            << "an utterance still playing out must not be reported COMPLETED";
+
+    processOnce(); // the rest
+    m_pEngineTts->pollAudibilityEvents();
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("COMPLETED")}),
+            eventsFor(id));
+}
+
+TEST_F(EngineTtsAudibilityLogTest, BargeInFlush_LogsFlushedNotCompleted) {
+    const quint64 id = mixxx::ttslog::logRequested(QStringLiteral("Loading track"));
+    ASSERT_GT(id, static_cast<quint64>(0));
+
+    m_pEngineTts->beginUtterance(id);
+    writeSamples(1.0f, kBufferSize * 4);
+    m_pEngineTts->endUtterance(id);
+
+    processOnce(); // a quarter of it reaches the output
+
+    // A newer utterance barges in: TtsEngine asks the sink to drop the rest.
+    m_pEngineTts->requestFlush();
+    processOnce();
+    m_pEngineTts->pollAudibilityEvents();
+
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("FLUSHED")}),
+            eventsFor(id))
+            << "a partially-heard utterance must not be indistinguishable from "
+               "one the DJ heard in full";
+}
+
+TEST_F(EngineTtsAudibilityLogTest, UserDisablesTtsMidUtterance_LogsFlushed) {
+    const quint64 id = mixxx::ttslog::logRequested(QStringLiteral("Deck 2, Stopped"));
+    ASSERT_GT(id, static_cast<quint64>(0));
+
+    m_pEngineTts->beginUtterance(id);
+    writeSamples(1.0f, kBufferSize * 4);
+    m_pEngineTts->endUtterance(id);
+
+    processOnce();
+
+    ControlProxy userToggle(QString(kLogGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    userToggle.set(0.0);
+    processOnce(); // process() flushes the queued speech and bails
+
+    m_pEngineTts->pollAudibilityEvents();
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("FLUSHED")}),
+            eventsFor(id));
+}
+
+TEST_F(EngineTtsAudibilityLogTest, UtteranceWithNoSamples_LogsSuppressed) {
+    const quint64 id = mixxx::ttslog::logRequested(QStringLiteral("Silent"));
+    ASSERT_GT(id, static_cast<quint64>(0));
+
+    m_pEngineTts->beginUtterance(id);
+    m_pEngineTts->endUtterance(id); // backend produced nothing
+
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("SUPPRESSED")}),
+            eventsFor(id));
+}
+
+TEST_F(EngineTtsAudibilityLogTest, SecondUtteranceAfterAFlush_IsStillCompleted) {
+    // Regression guard for the accounting: a flush that killed an earlier
+    // utterance must not taint the next one, or every announcement after a
+    // barge-in would be misreported as FLUSHED.
+    const quint64 first = mixxx::ttslog::logRequested(QStringLiteral("First"));
+    m_pEngineTts->beginUtterance(first);
+    writeSamples(1.0f, kBufferSize * 4);
+    m_pEngineTts->endUtterance(first);
+    processOnce();
+    m_pEngineTts->requestFlush();
+    processOnce();
+
+    const quint64 second = mixxx::ttslog::logRequested(QStringLiteral("Second"));
+    m_pEngineTts->beginUtterance(second);
+    writeSamples(1.0f, kBufferSize);
+    m_pEngineTts->endUtterance(second);
+    processOnce();
+
+    m_pEngineTts->pollAudibilityEvents();
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("FLUSHED")}),
+            eventsFor(first));
+    EXPECT_EQ((QStringList{QStringLiteral("REQUESTED"), QStringLiteral("COMPLETED")}),
+            eventsFor(second));
+}
+
+TEST_F(EngineTtsAudibilityLogTest, ZeroUtteranceId_IsIgnored) {
+    // With --tts-log off the manager passes 0; nothing must be recorded and
+    // the FIFO accounting must not be disturbed.
+    m_pEngineTts->beginUtterance(0);
+    writeSamples(1.0f, kBufferSize);
+    m_pEngineTts->endUtterance(0);
+    processOnce();
+    m_pEngineTts->pollAudibilityEvents();
+
+    EXPECT_TRUE(logLines().isEmpty());
 }
