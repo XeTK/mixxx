@@ -122,6 +122,53 @@ TEST_F(ControllerScriptEngineLegacyTest, commonScriptHasNoErrors) {
     EXPECT_TRUE(evaluateScriptFile(commonScript));
 }
 
+// Regression test for issue #47: the DDJ-400 browse knob is a relative
+// encoder that reports a 7-bit two's-complement delta (0x01 = one detent
+// up, 0x7F = one detent down -- the same encoding the stock <SelectKnob/>
+// MIDI option decodes in midicontroller.cpp). browseRotate() must decode
+// that the same way and always resolve to exactly +/-1, whether driving
+// [Library],MoveVertical or [AccessMenu],navigate. Before this fix,
+// browseRotate() instead assumed an offset-64 encoding (value - 0x40),
+// which turned a real one-detent turn (0x7F) into a raw delta of 63/127
+// passed straight to MoveVertical -- i.e. 127 Up/Down keypresses for a
+// single knob click.
+TEST_F(ControllerScriptEngineLegacyTest, ddj400BrowseRotateDecodesTwosComplementToSingleStep) {
+    QFileInfo ddj400Script(config()->getResourcePath() +
+            QStringLiteral("/controllers/Pioneer-DDJ-400-script.js"));
+    ASSERT_TRUE(evaluateScriptFile(ddj400Script));
+
+    auto pMoveVertical =
+            std::make_unique<ControlObject>(ConfigKey("[Library]", "MoveVertical"));
+    auto pAccessMenuActive =
+            std::make_unique<ControlObject>(ConfigKey("[AccessMenu]", "active"));
+    auto pAccessMenuNavigate =
+            std::make_unique<ControlObject>(ConfigKey("[AccessMenu]", "navigate"));
+
+    // Menu closed: browseRotate() should drive [Library],MoveVertical with
+    // exactly +/-1, never the raw MIDI byte.
+    pAccessMenuActive->set(0.0);
+
+    pMoveVertical->set(0.0);
+    EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x01);"));
+    EXPECT_DOUBLE_EQ(1.0, pMoveVertical->get());
+
+    pMoveVertical->set(0.0);
+    EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x7F);"));
+    EXPECT_DOUBLE_EQ(-1.0, pMoveVertical->get());
+
+    // Menu open: browseRotate() should drive [AccessMenu],navigate with
+    // exactly +/-1 instead.
+    pAccessMenuActive->set(1.0);
+
+    pAccessMenuNavigate->set(0.0);
+    EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x01);"));
+    EXPECT_DOUBLE_EQ(1.0, pAccessMenuNavigate->get());
+
+    pAccessMenuNavigate->set(0.0);
+    EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x7F);"));
+    EXPECT_DOUBLE_EQ(-1.0, pAccessMenuNavigate->get());
+}
+
 TEST_F(ControllerScriptEngineLegacyTest, setValue) {
     auto co = std::make_unique<ControlObject>(ConfigKey("[Test]", "co"));
     EXPECT_TRUE(evaluateAndAssert("engine.setValue('[Test]', 'co', 1.0);"));
