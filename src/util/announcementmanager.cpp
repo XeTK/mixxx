@@ -1635,6 +1635,14 @@ void AnnouncementManager::slotTrackRowSelected(const QString& text, int row, int
     if (m_lastFocusWidget != FocusWidget::TracksTable) {
         return;
     }
+    // A model that does not override TrackModel::rowAccessibleText() gives us
+    // nothing to say. Bail out before touching the pending state: appending
+    // the position to an empty description would announce a bare ", 1 of 5",
+    // and clearing m_pendingTrack would throw away the artist/title fallback
+    // that slotTrackSelected just queued for this very same row.
+    if (text.trimmed().isEmpty()) {
+        return;
+    }
     m_pendingTrack.reset();
     m_pendingRowText = text;
     if (row >= 0 && rowCount > 1) {

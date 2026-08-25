@@ -354,6 +354,23 @@ TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EmptyTextIgnored) {
     EXPECT_EQ(0, pSpy->callCount);
 }
 
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EmptyTextFallsBackToTrackSelected) {
+    // Signal order for a model that does not override rowAccessibleText():
+    // trackSelected() fires first, then rowSelected() with nothing to say.
+    // The artist/title announcement must survive, and no bare position
+    // ("1 of 5") may be spoken in its place.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotTrackRowSelected(QStringLiteral("   "), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
 TEST_F(AnnouncementManagerTest, AnnounceRowSelection_PositionOmittedForSingleRow) {
     SpyTtsEngine* pSpy = makeManager();
     focusTrackList(pSpy);
