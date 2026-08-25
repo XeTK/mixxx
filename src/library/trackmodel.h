@@ -107,6 +107,17 @@ class TrackModel {
     virtual TrackPointer getTrack(const QModelIndex& index) const = 0;
     virtual TrackPointer getTrackByRef(const TrackRef& trackRef) const = 0;
 
+    /// Spoken description of a row, for screen readers. Used both as the
+    /// text announced when a row is selected in the track table (instead of
+    /// artist/title alone) and as a fallback for models whose rows have no
+    /// Track behind them yet (e.g. remote search results, which must be
+    /// fetched before a deck can load them; getTrack() necessarily returns
+    /// nothing for such a row). Empty means "nothing to say".
+    virtual QString rowAccessibleText(const QModelIndex& index) const {
+        Q_UNUSED(index);
+        return QString();
+    }
+
     /// Get the URL of the track at the given QModelIndex.
     ///
     /// This function should be used in favor of getTrackId() to allow
