@@ -30,18 +30,20 @@ whichever branch reworded it.
 
 | File | Area | Issues covered |
 |---|---|---|
-| `ddj400_hardware.feature` | Real DDJ-400 over MIDI | 47, 50, 54, 65, plus long-standing 18 |
+| `ddj400_hardware.feature` | Real DDJ-400 over MIDI | 47, 50, 54, 65, plus long-standing 18, and 32, 33 |
 | `macos_voiceover.feature` | Chords surviving VoiceOver | 58, and 56 / 50 as collateral |
 | `windows_screenreader.feature` | JAWS/NVDA reading the UI | 62, 63, 51 |
-| `audio_path.feature` | Things only a listener can confirm | 48, 55, 66, plus beat click / split cue / ducking |
-| `first_run_boot.feature` | Cold start and device errors | 49, 52, 63 |
-| `keyboard_only.feature` | Full workflow, no controller | 56, 57, 59, 61, 64 |
+| `audio_path.feature` | Things only a listener can confirm | 48, 55, 66, plus beat click / split cue / ducking, and 36, 14 |
+| `first_run_boot.feature` | Cold start and device errors | 49, 52, 63, and 30 |
+| `keyboard_only.feature` | Full workflow, no controller | 56, 57, 59, 61, 64, plus a non-keyboard check for 17 |
 | `destructive_actions.feature` | Confirmations before data loss | 53 |
 | `library_and_dialogs.feature` | Library narration, dialogs, YouTube | 51, 60, 63, 67 |
 | `blind_dj_workflow.feature` | End-to-end acceptance run | all of them, in anger |
 
-244 scenarios as written; 350 individual runs once `Scenario Outline`
-examples are expanded.
+257 scenarios as written; 363 individual runs once `Scenario Outline`
+examples are expanded. Issues #14, #17, #30, #32, #33 and #36 were added
+after the rest of this plan and closed before it existed; see
+`COVERAGE.md` for how they are covered.
 
 `COVERAGE.md` maps each of the 21 pull requests to the scenarios that
 touch it, and — more usefully — states what is still untested afterwards.
@@ -93,6 +95,7 @@ need the controller plugged in and the result gates the release.
 | `@nvda` | NVDA running |
 | `@audio` | Headphones and a working audio interface; a quiet room |
 | `@twodevices` | Two separate audio outputs (main + headphones) |
+| `@locale` | Mixxx's "Locale" preference set to a non-English language, and a restart. See below — as of this writing no shipped `.ts` has a translation for the strings these scenarios check, so most runs will confirm safe fallback rather than a translated word. |
 
 **Nature of the test**
 
@@ -156,6 +159,23 @@ so.
 Mixxx's own **Controller Debug** output is a useful cross-check but is
 **not** a substitute — it shows the bytes after Mixxx's own parsing. Enable
 it by launching with `mixxx --controllerDebug` and watch the log.
+
+### Non-English locale (`@locale`)
+
+Preferences, Interface has a "Locale" combo box (default "System"); Mixxx
+only reads it at startup, via `mixxx::Translations::initializeTranslations()`,
+so a change needs a restart. Pick any installed language other than English
+to exercise it.
+
+Before trusting a `@locale` result, check whether the string under test
+actually has a translation yet: search `res/translations/mixxx_<code>.ts`
+for the English source text. A newly `tr()`-wrapped string (like the 24
+musical key names from issue #14) can go a full release cycle with no
+translation at all, in which case Qt silently falls back to the English
+source and the scenario is only proving that fallback is safe, not that
+translation works. That distinction matters when recording a result —
+"heard English, no translation exists yet" is not the same finding as
+"heard English, translation exists and was not picked up".
 
 ### Screen readers
 
