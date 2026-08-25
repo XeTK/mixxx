@@ -92,10 +92,14 @@ jobs:
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
-          # 20G cap: the runner disk is 63G and OS + actcache + act use ~30G,
-          # so a 40G cap lets ccache grow past the disk and the cache save hits
-          # "no space left on device". 20G holds a full Mixxx build (~13G).
-          ccache --max-size=20G
+          # 12G cap + ccache's own compression. 20G was still too big: the
+          # save step tars *and* gzips ~/.cache/ccache, so a 16.5G cache spent
+          # 73 min in `tar -z` and the job died with "context deadline
+          # exceeded". Compressing inside ccache keeps the objects small, so
+          # the archive step has little left to do and the tarball no longer
+          # needs ~16G of headroom beside the cache on a 63G disk.
+          ccache --max-size=12G
+          ccache --set-config=compression=true
           # Persist the settings for any process that reads the config file.
           ccache --set-config=hash_dir=false
           ccache --set-config=sloppiness=file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
@@ -154,9 +158,12 @@ jobs:
           ccache --cleanup
 
       - name: "Save ccache"
-        # Runs unconditionally (even if Test/Package fail below) so a red
-        # build still speeds up the next push.
-        if: always()
+        # Runs even if Test/Package fail below so a red build still speeds up
+        # the next push -- but only on push/dispatch, never on pull_request.
+        # Archiving the cache costs many minutes; doing it on every PR run is
+        # what blew the job deadline. PRs still *restore* the cache, they just
+        # do not re-upload it; integration-branch pushes keep it fresh.
+        if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ccache
@@ -307,9 +314,12 @@ jobs:
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
-          # Generous cap: a Mixxx tree is large and the emulated arm64 build
-          # is slow, so we want as much of it cached between runs as possible.
-          ccache --max-size=20G
+          # Same 12G + compression as the x86 job. The emulated arm64 build
+          # is slow so we want a lot cached, but an uncompressed 20G cache
+          # cannot be archived inside the job deadline -- compression buys
+          # back most of the effective capacity at a fraction of the size.
+          ccache --max-size=12G
+          ccache --set-config=compression=true
           # Persist for any process reading the config file, and to survive
           # the per-run working dir in the ccache key (see the x86 job).
           ccache --set-config=hash_dir=false
@@ -365,8 +375,8 @@ jobs:
           ccache --cleanup
 
       - name: "Save ccache"
-        # Runs unconditionally so a red build still speeds up the next push.
-        if: always()
+        # Save only on push/dispatch, not pull_request -- see the x86 job.
+        if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/ccache
