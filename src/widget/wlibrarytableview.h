@@ -66,6 +66,10 @@ class WLibraryTableView : public QTableView, public virtual LibraryView {
 #endif
             bool play = false);
     void trackSelected(TrackPointer pTrack);
+    /// A selected row's full spoken description, with its position (see
+    /// TrackModel::rowAccessibleText). Fires alongside trackSelected(), for
+    /// screen readers, whether or not the row has a Track behind it.
+    void rowSelected(const QString& text, int row, int rowCount);
     void onlyCachedCoversAndOverviews(bool);
     void scrollValueChanged(int);
     FocusWidget setLibraryFocus(FocusWidget newFocus);
