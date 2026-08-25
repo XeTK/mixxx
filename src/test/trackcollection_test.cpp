@@ -17,13 +17,17 @@
 
 #include <QAbstractButton>
 #include <QApplication>
-#include <QDir>
 #include <QMessageBox>
+// QMessageBox::defaultButton() returns QPushButton*, which qmessagebox.h only
+// forward-declares. The complete type is needed to convert it to its
+// QAbstractButton base.
+#include <QPushButton>
 #include <QTimer>
 
 #include <functional>
 
 #include "library/dao/playlistdao.h"
+#include "library/trackcollectionmanager.h"
 #include "test/librarytest.h"
 #include "track/track.h"
 
@@ -43,15 +47,21 @@ void interactWithNextModal(const std::function<void(QMessageBox*)>& interact) {
 
 class TrackCollectionHideTracksTest : public LibraryTest {
   protected:
-    // Adds a temporary track to the collection and to a fresh playlist, so
-    // hideTracks() on it is guaranteed to hit the playlist-membership
-    // warning dialog.
+    // Adds a track to the collection and to a fresh playlist, so hideTracks()
+    // on it is guaranteed to hit the playlist-membership warning dialog.
+    //
+    // TrackCollection::addTrack()/hideTracks() are private (only
+    // TrackCollectionManager and Upgrade are friends), so this goes through
+    // the sanctioned LibraryTest/TrackCollectionManager entry points, as the
+    // other library tests do.
     TrackId addTrackInPlaylist() {
-        const mixxx::FileInfo fileInfo(
-                QDir(QDir::tempPath()), QStringLiteral("hide-tracks-test.mp3"));
-        TrackPointer pTrack = Track::newTemporary(mixxx::FileAccess(fileInfo));
-        pTrack->setDuration(135);
-        const TrackId trackId = internalCollection()->addTrack(pTrack, false);
+        TrackPointer pTrack = getOrAddTrackByLocation(
+                getTestFile(QStringLiteral("-jpg.mp3")));
+        EXPECT_NE(pTrack, nullptr);
+        if (!pTrack) {
+            return TrackId();
+        }
+        const TrackId trackId = pTrack->getId();
         EXPECT_TRUE(trackId.isValid());
 
         PlaylistDAO& playlistDao = internalCollection()->getPlaylistDAO();
@@ -70,13 +80,13 @@ TEST_F(TrackCollectionHideTracksTest, DefaultButtonIsCancel) {
     interactWithNextModal([](QMessageBox* pBox) {
         // A bare Enter/Escape must never proceed with the destructive
         // action: click whichever button is the dialog's default.
-        QAbstractButton* pDefault = pBox->defaultButton();
+        QPushButton* pDefault = pBox->defaultButton();
         ASSERT_NE(pDefault, nullptr);
         EXPECT_EQ(pBox->buttonRole(pDefault), QMessageBox::RejectRole);
         pDefault->click();
     });
 
-    EXPECT_FALSE(internalCollection()->hideTracks({trackId}));
+    EXPECT_FALSE(trackCollectionManager()->hideTracks({trackId}));
 }
 
 TEST_F(TrackCollectionHideTracksTest, ExplicitOkStillProceeds) {
@@ -88,5 +98,5 @@ TEST_F(TrackCollectionHideTracksTest, ExplicitOkStillProceeds) {
         pOk->click();
     });
 
-    EXPECT_TRUE(internalCollection()->hideTracks({trackId}));
+    EXPECT_TRUE(trackCollectionManager()->hideTracks({trackId}));
 }

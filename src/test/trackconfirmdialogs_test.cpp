@@ -17,6 +17,10 @@
 #include <QAbstractButton>
 #include <QApplication>
 #include <QMessageBox>
+// QMessageBox::defaultButton() returns QPushButton*, which qmessagebox.h only
+// forward-declares. The complete type is needed to convert it to its
+// QAbstractButton base.
+#include <QPushButton>
 #include <QTimer>
 
 #include <functional>
@@ -108,7 +112,7 @@ TEST_F(TrackConfirmDialogsTest, ConfirmPurge_DefaultButtonIsNo) {
     interactWithNextModal([](QMessageBox* pBox) {
         // A bare Enter/Escape must never purge: click whichever button is
         // the dialog's default.
-        QAbstractButton* pDefault = pBox->defaultButton();
+        QPushButton* pDefault = pBox->defaultButton();
         ASSERT_NE(pDefault, nullptr);
         EXPECT_EQ(pBox->buttonRole(pDefault), QMessageBox::NoRole);
         pDefault->click();
