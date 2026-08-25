@@ -24,6 +24,7 @@
 #ifdef __RUBBERBAND__
 #include "engine/bufferscalers/rubberbandworkerpool.h"
 #endif
+#include "errordialoghandler.h"
 #include "library/coverartcache.h"
 #include "library/library.h"
 #include "library/library_decl.h"
@@ -650,6 +651,19 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pEngine->getTts(),
             m_pEngine->getEarcon(),
             this);
+
+    // Accessibility: speak error/warning/info dialogs (broadcast connection
+    // failures, controller script errors, recording disk-full, etc.) through
+    // the same free-text announcement path used elsewhere (e.g.
+    // Library::announceText() for the boot-time dialogs and playlist/crate
+    // rename dialogs). ErrorDialogHandler is a process-wide singleton created
+    // in the main thread before this point (see main.cpp), so any error
+    // dialog requested earlier in boot is simply not spoken -- it is still
+    // shown normally either way. See errordialoghandler.h for details.
+    connect(ErrorDialogHandler::instance(),
+            &ErrorDialogHandler::errorDialogAnnouncement,
+            m_pLibrary.get(),
+            &Library::announceText);
 
     // Accessibility (issue #49): the skin loads (and with it, the "Mixxx
     // ready" announcement) before m_pSoundManager->setupDevices() has ever
