@@ -901,6 +901,19 @@ void AnnouncementManager::speak(const QString& text) {
         return;
     }
 
+    if (m_speechBatchDepth > 0) {
+        // Defer dispatch until the batch ends (see beginSpeechBatch()) so a
+        // second speak() triggered synchronously as a side effect of this one
+        // is concatenated into one utterance instead of silently
+        // superseding it (issue #48).
+        m_batchedSpeech << text;
+        return;
+    }
+
+    dispatchSpeech(text);
+}
+
+void AnnouncementManager::dispatchSpeech(const QString& text) {
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -933,6 +946,28 @@ void AnnouncementManager::speak(const QString& text) {
     }
     m_lastSpoken = text;
     m_pTts->say(text);
+}
+
+void AnnouncementManager::beginSpeechBatch() {
+    ++m_speechBatchDepth;
+}
+
+void AnnouncementManager::endSpeechBatch() {
+    if (m_speechBatchDepth <= 0) {
+        return; // defensive: begin/end should always be paired
+    }
+    if (--m_speechBatchDepth > 0) {
+        return; // still inside an outer batch
+    }
+    if (m_batchedSpeech.isEmpty()) {
+        return;
+    }
+    // Concatenate into one utterance so every piece of information reaches
+    // the DJ, instead of a later speak() in the batch silently superseding
+    // an earlier one that hadn't rendered yet.
+    const QString combined = m_batchedSpeech.join(QStringLiteral(". "));
+    m_batchedSpeech.clear();
+    dispatchSpeech(combined);
 }
 
 void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& speechText) {
@@ -1630,6 +1665,15 @@ void AnnouncementManager::slotAnnounceSelectedTrack() {
 }
 
 void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex) {
+    // Batch the load announcement with any cue-follow announcement the Smart
+    // Cue pfl set below triggers synchronously (issue #48, case 1): setting
+    // `pfl` fires its valueChanged observer immediately, which calls speak()
+    // again for "headphone cue on/off" before the load announcement -- the
+    // single most useful utterance in the app -- has had any chance to
+    // render, so it was silently discarded by TtsEngine's barge-in logic.
+    // Batching concatenates both into one utterance instead.
+    beginSpeechBatch();
+
     if (pTrack && m_settings.getAnnounceTrackLoad()) {
         speak(formatForLoad(pTrack, deckIndex));
     }
@@ -1640,22 +1684,22 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
     // hunt for the right cue button. Only when the target deck is not
     // playing: a live deck never has its cue stolen mid-mix. The pfl
     // changes themselves are announced by the existing cue observers.
-    if (!pTrack || deckIndex < 0 || !m_pPlayerManager ||
-            !m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue)) {
-        return;
+    if (pTrack && deckIndex >= 0 && m_pPlayerManager &&
+            m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue)) {
+        const QString group = PlayerManager::groupForDeck(deckIndex);
+        if (readGroupControl(group, QStringLiteral("play")) <= 0.0) {
+            const int numDecks = m_pPlayerManager->numberOfDecks();
+            for (int i = 0; i < numDecks; ++i) {
+                ControlProxy(PlayerManager::groupForDeck(i),
+                        QStringLiteral("pfl"),
+                        nullptr,
+                        ControlFlag::AllowMissingOrInvalid)
+                        .set(i == deckIndex ? 1.0 : 0.0);
+            }
+        }
     }
-    const QString group = PlayerManager::groupForDeck(deckIndex);
-    if (readGroupControl(group, QStringLiteral("play")) > 0.0) {
-        return;
-    }
-    const int numDecks = m_pPlayerManager->numberOfDecks();
-    for (int i = 0; i < numDecks; ++i) {
-        ControlProxy(PlayerManager::groupForDeck(i),
-                QStringLiteral("pfl"),
-                nullptr,
-                ControlFlag::AllowMissingOrInvalid)
-                .set(i == deckIndex ? 1.0 : 0.0);
-    }
+
+    endSpeechBatch();
 }
 
 // static
