@@ -407,6 +407,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotTrackSelected);
         connect(pLibrary,
+                &Library::trackRowSelected,
+                this,
+                &AnnouncementManager::slotTrackRowSelected);
+        connect(pLibrary,
                 &Library::sidebarItemActivated,
                 this,
                 &AnnouncementManager::slotSidebarItemActivated);
@@ -1655,11 +1659,40 @@ void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
         return;
     }
     m_pendingTrack = pTrack;
+    m_pendingRowText.clear();
+    m_selectionDebounce.start();
+}
+
+void AnnouncementManager::slotTrackRowSelected(const QString& text, int row, int rowCount) {
+    // Same gating and debounce as ordinary track selection: these arrive as
+    // fast as the user can hold an arrow key, and only matter while the
+    // track table itself has focus.
+    if (m_lastFocusWidget != FocusWidget::TracksTable) {
+        return;
+    }
+    // A model that does not override TrackModel::rowAccessibleText() gives us
+    // nothing to say. Bail out before touching the pending state: appending
+    // the position to an empty description would announce a bare ", 1 of 5",
+    // and clearing m_pendingTrack would throw away the artist/title fallback
+    // that slotTrackSelected just queued for this very same row.
+    if (text.trimmed().isEmpty()) {
+        return;
+    }
+    m_pendingTrack.reset();
+    m_pendingRowText = text;
+    if (row >= 0 && rowCount > 1) {
+        m_pendingRowText += tr(", %1 of %2").arg(row + 1).arg(rowCount);
+    }
     m_selectionDebounce.start();
 }
 
 void AnnouncementManager::slotAnnounceSelectedTrack() {
-    if (m_pendingTrack && m_settings.getAnnounceTrackSelection()) {
+    if (!m_settings.getAnnounceTrackSelection()) {
+        return;
+    }
+    if (!m_pendingRowText.isEmpty()) {
+        speak(m_pendingRowText);
+    } else if (m_pendingTrack) {
         speak(formatForBrowsing(m_pendingTrack));
     }
 }

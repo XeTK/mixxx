@@ -540,6 +540,10 @@ void Library::bindLibraryWidget(
             &WTrackTableView::trackSelected,
             this,
             &Library::trackSelected);
+    connect(pTrackTableView,
+            &WTrackTableView::rowSelected,
+            this,
+            &Library::trackRowSelected);
 
     connect(this,
             &Library::setTrackTableFont,

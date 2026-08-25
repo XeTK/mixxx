@@ -166,6 +166,11 @@ class Library: public QObject {
     void enableCoverArtDisplay(bool);
     void selectTrack(const TrackId&);
     void trackSelected(TrackPointer pTrack);
+    /// Full spoken description of a selected track-table row (artist/title
+    /// plus rating, color, played state, etc. - see
+    /// TrackModel::rowAccessibleText), with its position among the other
+    /// rows. row is 0-based; rowCount is the total number of rows.
+    void trackRowSelected(const QString& text, int row, int rowCount);
     // Sidebar navigation for spoken announcements. row/siblingCount give the
     // position among siblings ("3 of 12"); childCount and expanded describe
     // container items. row is -1 when position info is unavailable.

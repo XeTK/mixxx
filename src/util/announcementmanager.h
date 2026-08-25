@@ -50,6 +50,12 @@ class AnnouncementManager : public QObject {
     // a real Library or live signal connections.
   public slots:
     void slotTrackSelected(TrackPointer pTrack);
+    /// A selected track-table row's full spoken description with position
+    /// (see Library::trackRowSelected). Supersedes slotTrackSelected's
+    /// artist/title-only announcement when available - which is always,
+    /// except for models that don't override
+    /// TrackModel::rowAccessibleText().
+    void slotTrackRowSelected(const QString& text, int row, int rowCount);
     void slotAnnounceSelectedTrack();
     void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
@@ -235,6 +241,9 @@ class AnnouncementManager : public QObject {
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
+    // Spoken text for a pending row selection (see slotTrackRowSelected).
+    // Mutually exclusive with m_pendingTrack; takes priority when set.
+    QString m_pendingRowText;
     int m_connectedDecks{0};
 
     // Library focus tracking: updated in slotLibraryFocusChanged.
