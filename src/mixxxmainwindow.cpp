@@ -480,15 +480,19 @@ void MixxxMainWindow::initialize() {
     // Try to open configured devices. If that fails, display dialogs
     // that allow to either retry, reconfigure devices or exit.
     //
-    // Accessibility note (chicken-and-egg): on this branch TTS is mixed into
-    // Mixxx's own engine output, so speech is only audible once a sound device
-    // is configured and the engine is running. At this point in boot no device
-    // is open yet, so the failure dialogs below are spoken as a best-effort
-    // only (see soundDeviceBusyDlg()/soundDeviceErrorMsgDlg()/noOutputDlg()).
-    // A fresh install with working default audio already auto-configures the
-    // system default output via SoundManagerConfig::loadDefaults(), so this
-    // loop is normally skipped and "Mixxx ready" is spoken once the engine is
-    // up.
+    // Accessibility note (chicken-and-egg, issue #49): on this branch TTS is
+    // mixed into Mixxx's own engine output, so speech is only audible once a
+    // sound device is open and the engine is running. At this point in boot
+    // no device is open yet, so the failure dialogs below are spoken as a
+    // best-effort only (see soundDeviceBusyDlg()/soundDeviceErrorMsgDlg()/
+    // noOutputDlg()) -- there is no engine output to render them into
+    // audibly, and this loop is the only thing that can bring one up.
+    // "Mixxx ready" (spoken from loadConfiguredSkin(), which runs before this
+    // loop) does not have that problem: AnnouncementManager queues it and
+    // only speaks it once SoundManager::devicesSetup() confirms a device
+    // actually opened (see AnnouncementManager::slotSoundDevicesReady()),
+    // instead of writing it straight into EngineTts's FIFO with nothing yet
+    // pulling from it.
     bool retryClicked;
     do {
         retryClicked = false;

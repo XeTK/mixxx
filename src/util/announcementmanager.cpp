@@ -1770,7 +1770,29 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 }
 
 void AnnouncementManager::slotSkinLoaded() {
-    if (m_settings.getAnnounceStartup()) {
+    if (!m_settings.getAnnounceStartup()) {
+        return;
+    }
+    if (m_audioEngineReady) {
+        speak(tr("Mixxx ready"));
+        return;
+    }
+    // The skin loads (during boot) before setupDevices() has run, so there is
+    // no confirmation yet that any sound device is open and pulling from the
+    // TTS sink. Queue the announcement rather than speaking it now: speaking
+    // here would write into EngineTts's FIFO with nothing draining it, and it
+    // would likely be discarded by barge-in the moment a sound-device-error
+    // dialog (or anything else) speaks before the engine actually starts.
+    // slotSoundDevicesReady() flushes this once audio is confirmed running.
+    // See issue #49.
+    m_pendingReadyAnnouncement = true;
+}
+
+void AnnouncementManager::slotSoundDevicesReady() {
+    const bool wasReady = m_audioEngineReady;
+    m_audioEngineReady = true;
+    if (!wasReady && m_pendingReadyAnnouncement) {
+        m_pendingReadyAnnouncement = false;
         speak(tr("Mixxx ready"));
     }
 }
