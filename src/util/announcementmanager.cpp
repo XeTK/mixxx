@@ -405,6 +405,10 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotTrackSelected);
         connect(pLibrary,
+                &Library::trackRowSelected,
+                this,
+                &AnnouncementManager::slotTrackRowSelected);
+        connect(pLibrary,
                 &Library::sidebarItemActivated,
                 this,
                 &AnnouncementManager::slotSidebarItemActivated);
@@ -692,6 +696,48 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                           : tr("Split cue off"));
     });
 
+    // Talkover (mic) toggle (backtick key): the live on/off state has no
+    // earcon, VU meter change, or other cue a blind DJ can rely on, though
+    // the boot-time "no microphone input configured" warning is already read
+    // by the OS screen reader (a native QMessageBox in MixxxMainWindow).
+    // Always confirmed audibly, like the toggles above. [Microphone] is the
+    // group of the first/default microphone (see PlayerManager::
+    // groupForMicrophone) and matches the keyboard binding in
+    // res/keyboard/en_US.kbd.cfg.
+    auto pTalkover = make_parented<ControlProxy>(
+            QStringLiteral("[Microphone]"),
+            QStringLiteral("talkover"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pTalkover->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Microphone on") : tr("Microphone off"));
+    });
+
+    // Audio dropouts (xruns). [App],audio_latency_overload pulses to 1.0
+    // while the audio callback misses its deadline (see
+    // SoundManager::onDeviceOutputCallback) and back to 0 once the CPU
+    // catches up — the same pulse-and-throttle shape as the clipping
+    // indicators below, so this reuses their settings gate, feedback mode,
+    // and throttle window. Center-panned and unnamed like main clipping:
+    // this is a whole-system problem, not a single deck's. Easy to miss by
+    // ear under music but a genuine show-stopper, hence the distinct earcon.
+    auto pXrun = make_parented<ControlProxy>(
+            QStringLiteral("[App]"),
+            QStringLiteral("audio_latency_overload"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pXrun->connectValueChanged(this, [this](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceClipping()) {
+            return;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - m_lastXrunAnnounceMs < kClippingThrottleMs) {
+            return;
+        }
+        m_lastXrunAnnounceMs = now;
+        emitCue(static_cast<int>(EngineEarcon::Id::Xrun), -1, tr("Audio dropout"));
+    });
+
     // Beat click metronome toggle (Alt+B): always confirmed audibly.
     auto pBeatClick = make_parented<ControlProxy>(
             QStringLiteral("[BeatClick]"),
@@ -769,6 +815,32 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         }
     }
 
+    // Which effect slot within a unit is "focused" (the DDJ-400's BEAT FX
+    // </> paddles move this via changeFocusedEffectBy()). The CO holds a
+    // 1-based slot index; moving focus does not load/unload an effect, so
+    // the loaded_effect observer above never fires for it.
+    for (int unit = 1; unit <= 4; ++unit) {
+        auto pFocused = make_parented<ControlProxy>(
+                QStringLiteral("[EffectRack1_EffectUnit%1]").arg(unit),
+                QStringLiteral("focused_effect"),
+                this,
+                ControlFlag::AllowMissingOrInvalid);
+        pFocused->connectValueChanged(this, [this, unit](double value) {
+            if (!m_settings.getAnnounceEffects() || value <= 0.0) {
+                return;
+            }
+            const int slot = static_cast<int>(value);
+            QString name = m_effectNameResolver ? m_effectNameResolver(unit, slot)
+                                                 : QString();
+            if (name.isEmpty()) {
+                name = tr("effect %1").arg(slot);
+            }
+            // Debounced: the focus paddle can be stepped through several
+            // slots per second.
+            announceControlDebounced(tr("Unit %1: %2 focused").arg(QString::number(unit), name));
+        });
+    }
+
     // Repeat the last announcement on demand (mapped to Alt+Shift+R). A blind
     // user who missed an announcement can re-hear it instead of guessing.
     // Trigger mode so each keypress fires even though the value doesn't change.
@@ -809,7 +881,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
     // matching the mode button that was pressed. Setting the same value
     // again is silent (no CO change), which conveniently deduplicates
     // hardware that fires one mode press for both decks at once (Numark
-    // Scratch).
+    // Scratch relies on exactly this — see PadMode_AnnouncedByVocabulary in
+    // announcementmanager_test.cpp). Because that dedup is load-bearing for
+    // Numark Scratch, this CO deliberately keeps its default bIgnoreNops;
+    // mappings that want a re-press of the same mode to re-announce (e.g.
+    // the DDJ-400's query-current-mode fix, issue #65) bounce the value
+    // through 0 first instead of us changing this construction.
     auto pPadMode = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("pad_mode")));
     connect(pPadMode.get(),
@@ -817,6 +894,12 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             this,
             [this](double value) {
                 QString mode;
+                // Modes with no working pad layer behind them yet (issue
+                // #65): the hardware still switches into these layers and
+                // the mode button still lights up, but the pads themselves
+                // do nothing there. Say so, instead of announcing them the
+                // same way as a mode that actually works.
+                bool implemented = true;
                 switch (static_cast<int>(value)) {
                 case 1:
                     mode = tr("hot cues");
@@ -832,15 +915,19 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                     break;
                 case 5:
                     mode = tr("keyboard");
+                    implemented = false;
                     break;
                 case 6:
                     mode = tr("pad effects 1");
+                    implemented = false;
                     break;
                 case 7:
                     mode = tr("pad effects 2");
+                    implemented = false;
                     break;
                 case 8:
                     mode = tr("key shift");
+                    implemented = false;
                     break;
                 case 9:
                     mode = tr("loop roll");
@@ -848,7 +935,11 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 default:
                     return;
                 }
-                speak(tr("Pads, %1").arg(mode));
+                if (implemented) {
+                    speak(tr("Pads, %1").arg(mode));
+                } else {
+                    speak(tr("Pads, %1 (not yet supported)").arg(mode));
+                }
             });
     m_pPadModeControl = std::move(pPadMode);
 }
@@ -900,6 +991,19 @@ void AnnouncementManager::speak(const QString& text) {
         return;
     }
 
+    if (m_speechBatchDepth > 0) {
+        // Defer dispatch until the batch ends (see beginSpeechBatch()) so a
+        // second speak() triggered synchronously as a side effect of this one
+        // is concatenated into one utterance instead of silently
+        // superseding it (issue #48).
+        m_batchedSpeech << text;
+        return;
+    }
+
+    dispatchSpeech(text);
+}
+
+void AnnouncementManager::dispatchSpeech(const QString& text) {
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -936,6 +1040,28 @@ void AnnouncementManager::speak(const QString& text) {
     m_pTts->say(text);
 }
 
+void AnnouncementManager::beginSpeechBatch() {
+    ++m_speechBatchDepth;
+}
+
+void AnnouncementManager::endSpeechBatch() {
+    if (m_speechBatchDepth <= 0) {
+        return; // defensive: begin/end should always be paired
+    }
+    if (--m_speechBatchDepth > 0) {
+        return; // still inside an outer batch
+    }
+    if (m_batchedSpeech.isEmpty()) {
+        return;
+    }
+    // Concatenate into one utterance so every piece of information reaches
+    // the DJ, instead of a later speak() in the batch silently superseding
+    // an earlier one that hadn't rendered yet.
+    const QString combined = m_batchedSpeech.join(QStringLiteral(". "));
+    m_batchedSpeech.clear();
+    dispatchSpeech(combined);
+}
+
 void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& speechText) {
     // Per-event feedback mode: 0 = speech, 1 = sounds, 2 = both.
     int mode = 2;
@@ -962,6 +1088,7 @@ void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& sp
         mode = m_settings.getFeedbackModeLoop();
         break;
     case EngineEarcon::Id::Clipping:
+    case EngineEarcon::Id::Xrun:
         mode = m_settings.getFeedbackModeClipping();
         break;
     }
@@ -1043,6 +1170,60 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         m_deckIsPlaying[group] = nowPlaying;
     });
 
+    // Eject (Alt+Shift+Left/Right): BaseTrackPlayerImpl::slotEjectTrack()
+    // silently no-ops while the deck is playing, the same "dead key" trap
+    // the load-blocked announcement (see WTrackTableView::
+    // loadSelectedTrackToGroup) already covers for loading. Mirror that
+    // pattern here, and confirm a successful eject too, since it otherwise
+    // gives no feedback at all. React on the button press itself (not the
+    // trackUnloaded signal used elsewhere in this file for state bookkeeping)
+    // so this only fires for a genuine eject action, not for the unload half
+    // of loading a new track over an already-loaded deck. Known edge case:
+    // a rapid double-press (within the eject double-click-restore window)
+    // reloads the previous track instead of ejecting; that case is not
+    // distinguished here and may speak "ejected" for what is actually a
+    // reload, matching the load announcement that follows immediately after.
+    auto pEject = make_parented<ControlProxy>(
+            group, QStringLiteral("eject"), this, ControlFlag::AllowMissingOrInvalid);
+    pEject->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (value <= 0.0) {
+            return;
+        }
+        if (m_deckIsPlaying.value(group, false)) {
+            speak(tr("%1 is playing, eject blocked. Stop the deck first.")
+                            .arg(deckName(group, deckIndex)));
+            return;
+        }
+        if (m_deckHasTrack.value(group, false) && m_settings.getAnnounceTrackLoad()) {
+            speak(tr("%1 track ejected").arg(deckName(group, deckIndex)));
+        }
+    });
+
+    // Per-deck gain-staging clipping. [ChannelN],peak_indicator (alias
+    // [ChannelN],PeakIndicator) behaves exactly like the main-bus indicator
+    // above: pulses to 1.0 for ~500 ms after a clipped peak. Same settings
+    // gate, feedback mode, and throttle window, but tracked per deck so one
+    // channel clipping doesn't suppress another channel's warning, and named
+    // so the DJ knows which gain knob to pull back.
+    auto pChannelClipping = make_parented<ControlProxy>(group,
+            QStringLiteral("peak_indicator"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pChannelClipping->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceClipping()) {
+            return;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        qint64& last = m_lastChannelClippingAnnounceMs[group];
+        if (now - last < kClippingThrottleMs) {
+            return;
+        }
+        last = now;
+        emitCue(static_cast<int>(EngineEarcon::Id::Clipping),
+                deckIndex,
+                tr("%1 clipping").arg(deckName(group, deckIndex)));
+    });
+
     auto pEndOfTrack = make_parented<ControlProxy>(
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
     pEndOfTrack->connectValueChanged(this, [this, group, deckIndex](double value) {
@@ -1065,9 +1246,10 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         }
     });
 
-    // Jumping back to the start (the Start key or cue-goto-and-stop) gives no
+    // Jumping back to the start (the Start key, cue-goto-and-stop, or the
+    // DDJ-400's Shift+CUE, which the fork remaps to start_stop) gives no
     // audible feedback of its own; narrate it.
-    for (const char* backControl : {"start", "cue_gotoandstop"}) {
+    for (const char* backControl : {"start", "cue_gotoandstop", "start_stop"}) {
         auto pBack = make_parented<ControlProxy>(group,
                 QLatin1String(backControl),
                 this,
@@ -1183,6 +1365,9 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
                     nullptr,
                     ControlFlag::AllowMissingOrInvalid)
                                          .get();
+            // Seed the loop_scale tracker below so CUE/LOOP CALL halve/double
+            // presses have a sane starting size to scale from.
+            m_deckLoopBeats[group] = beats;
             const QString text = beats > 0.0
                     ? tr("%1 loop %2 beats").arg(deck, QString::number(beats))
                     : tr("%1 loop on").arg(deck);
@@ -1261,9 +1446,39 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (!m_settings.getAnnounceLoop() || value <= 0.0) {
             return;
         }
+        m_deckLoopBeats[group] = value;
         announceControlDebounced(tr("%1 loop size %2")
                         .arg(mixerDeckName(group, deckIndex),
                                 QString::number(value)));
+    });
+
+    // CUE/LOOP CALL <>/> (loop_scale) halves/doubles the active loop's actual
+    // length directly — see LoopingControl::slotLoopScale, which deliberately
+    // clears the active beatloop rather than reconciling beatloop_size after
+    // a scale — so the beatloop_size observer above never fires for this
+    // control and the loop-size change goes unannounced. Scale our own
+    // best-known loop size (seeded above from loop_enabled/beatloop_size) so
+    // repeated presses keep announcing an accurate size.
+    auto pLoopScale = make_parented<ControlProxy>(group,
+            QStringLiteral("loop_scale"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pLoopScale->connectValueChanged(this, [this, group, deckIndex](double scaleFactor) {
+        if (!m_settings.getAnnounceLoop() || scaleFactor <= 0.0) {
+            return;
+        }
+        double beats = m_deckLoopBeats.value(group, 0.0);
+        if (beats <= 0.0) {
+            beats = readGroupControl(group, QStringLiteral("beatloop_size"));
+        }
+        if (beats <= 0.0) {
+            return;
+        }
+        beats *= scaleFactor;
+        m_deckLoopBeats[group] = beats;
+        announceControlDebounced(tr("%1 loop size %2")
+                        .arg(mixerDeckName(group, deckIndex),
+                                QString::number(beats)));
     });
 
     // Beat jump: size changes and the actual jumps. Debounced — the size
@@ -1326,6 +1541,24 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         announceControlDebounced(group + QStringLiteral("rate_ratio"),
                 tr("%1 pitch").arg(mixerDeckName(group, deckIndex)),
                 valueText);
+    });
+
+    // Cycling the pitch fader's tempo range (the DDJ-400's Shift+SYNC) is a
+    // discrete button press, not a fader drag, so it is spoken immediately
+    // rather than debounced. This also matters because the same fader
+    // position now means a different BPM delta — without this the next
+    // spoken pitch percentage would be confusing.
+    auto pRateRange = make_parented<ControlProxy>(group,
+            QStringLiteral("rateRange"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pRateRange->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (!m_settings.getAnnounceTempo() || value <= 0.0) {
+            return;
+        }
+        const int percent = static_cast<int>(std::lround(value * 100.0));
+        speak(tr("%1 tempo range plus or minus %2 percent")
+                        .arg(deckName(group, deckIndex), QString::number(percent)));
     });
 
     // Fixing a half/double-tempo misanalysis (common for 160+ BPM genres —
@@ -1621,16 +1854,54 @@ void AnnouncementManager::slotTrackSelected(TrackPointer pTrack) {
         return;
     }
     m_pendingTrack = pTrack;
+    m_pendingRowText.clear();
+    m_selectionDebounce.start();
+}
+
+void AnnouncementManager::slotTrackRowSelected(const QString& text, int row, int rowCount) {
+    // Same gating and debounce as ordinary track selection: these arrive as
+    // fast as the user can hold an arrow key, and only matter while the
+    // track table itself has focus.
+    if (m_lastFocusWidget != FocusWidget::TracksTable) {
+        return;
+    }
+    // A model that does not override TrackModel::rowAccessibleText() gives us
+    // nothing to say. Bail out before touching the pending state: appending
+    // the position to an empty description would announce a bare ", 1 of 5",
+    // and clearing m_pendingTrack would throw away the artist/title fallback
+    // that slotTrackSelected just queued for this very same row.
+    if (text.trimmed().isEmpty()) {
+        return;
+    }
+    m_pendingTrack.reset();
+    m_pendingRowText = text;
+    if (row >= 0 && rowCount > 1) {
+        m_pendingRowText += tr(", %1 of %2").arg(row + 1).arg(rowCount);
+    }
     m_selectionDebounce.start();
 }
 
 void AnnouncementManager::slotAnnounceSelectedTrack() {
-    if (m_pendingTrack && m_settings.getAnnounceTrackSelection()) {
+    if (!m_settings.getAnnounceTrackSelection()) {
+        return;
+    }
+    if (!m_pendingRowText.isEmpty()) {
+        speak(m_pendingRowText);
+    } else if (m_pendingTrack) {
         speak(formatForBrowsing(m_pendingTrack));
     }
 }
 
 void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex) {
+    // Batch the load announcement with any cue-follow announcement the Smart
+    // Cue pfl set below triggers synchronously (issue #48, case 1): setting
+    // `pfl` fires its valueChanged observer immediately, which calls speak()
+    // again for "headphone cue on/off" before the load announcement -- the
+    // single most useful utterance in the app -- has had any chance to
+    // render, so it was silently discarded by TtsEngine's barge-in logic.
+    // Batching concatenates both into one utterance instead.
+    beginSpeechBatch();
+
     if (pTrack && m_settings.getAnnounceTrackLoad()) {
         speak(formatForLoad(pTrack, deckIndex));
     }
@@ -1641,22 +1912,22 @@ void AnnouncementManager::slotNewTrackLoaded(TrackPointer pTrack, int deckIndex)
     // hunt for the right cue button. Only when the target deck is not
     // playing: a live deck never has its cue stolen mid-mix. The pfl
     // changes themselves are announced by the existing cue observers.
-    if (!pTrack || deckIndex < 0 || !m_pPlayerManager ||
-            !m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue)) {
-        return;
+    if (pTrack && deckIndex >= 0 && m_pPlayerManager &&
+            m_pConfig->getValue(kConfigKeySmartCue, kDefaultSmartCue)) {
+        const QString group = PlayerManager::groupForDeck(deckIndex);
+        if (readGroupControl(group, QStringLiteral("play")) <= 0.0) {
+            const int numDecks = m_pPlayerManager->numberOfDecks();
+            for (int i = 0; i < numDecks; ++i) {
+                ControlProxy(PlayerManager::groupForDeck(i),
+                        QStringLiteral("pfl"),
+                        nullptr,
+                        ControlFlag::AllowMissingOrInvalid)
+                        .set(i == deckIndex ? 1.0 : 0.0);
+            }
+        }
     }
-    const QString group = PlayerManager::groupForDeck(deckIndex);
-    if (readGroupControl(group, QStringLiteral("play")) > 0.0) {
-        return;
-    }
-    const int numDecks = m_pPlayerManager->numberOfDecks();
-    for (int i = 0; i < numDecks; ++i) {
-        ControlProxy(PlayerManager::groupForDeck(i),
-                QStringLiteral("pfl"),
-                nullptr,
-                ControlFlag::AllowMissingOrInvalid)
-                .set(i == deckIndex ? 1.0 : 0.0);
-    }
+
+    endSpeechBatch();
 }
 
 // static

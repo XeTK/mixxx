@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <functional>
 #include <memory>
@@ -49,6 +50,12 @@ class AnnouncementManager : public QObject {
     // a real Library or live signal connections.
   public slots:
     void slotTrackSelected(TrackPointer pTrack);
+    /// A selected track-table row's full spoken description with position
+    /// (see Library::trackRowSelected). Supersedes slotTrackSelected's
+    /// artist/title-only announcement when available - which is always,
+    /// except for models that don't override
+    /// TrackModel::rowAccessibleText().
+    void slotTrackRowSelected(const QString& text, int row, int rowCount);
     void slotAnnounceSelectedTrack();
     void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
@@ -139,6 +146,26 @@ class AnnouncementManager : public QObject {
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
 
+    // Sends text to the TtsEngine (voice/rate/route sync + say()). This is
+    // the tail end of what speak() used to do unconditionally; it is now
+    // also the flush point for a speech batch (see beginSpeechBatch below).
+    void dispatchSpeech(const QString& text);
+
+    // Speech batching (issue #48): some call sites synchronously trigger a
+    // second speak() as a side effect of the first -- e.g. Smart Cue moving
+    // the headphone `pfl` control right after the track-load announcement,
+    // whose valueChanged observer speaks "headphone cue on" before the load
+    // announcement has had any chance to render. TtsEngine's barge-in
+    // generation counter then discards the load announcement, which is
+    // exactly backwards: barge-in should only interrupt *new* user-driven
+    // speech, not a same-event side effect of the utterance already in
+    // flight. Wrapping such a call site in beginSpeechBatch()/endSpeechBatch()
+    // defers dispatch of every speak() call in between until the batch ends,
+    // then joins them into a single utterance so nothing is silently lost.
+    // Nestable; only the outermost endSpeechBatch() actually dispatches.
+    void beginSpeechBatch();
+    void endSpeechBatch();
+
     // Feedback for an earcon-capable transport event, honoring the
     // FeedbackMode setting: speech only, earcon only (deck-panned), or both.
     // The per-event enable check is the caller's responsibility.
@@ -219,6 +246,9 @@ class AnnouncementManager : public QObject {
     PlayerManagerInterface* m_pPlayerManager;
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
+    // Spoken text for a pending row selection (see slotTrackRowSelected).
+    // Mutually exclusive with m_pendingTrack; takes priority when set.
+    QString m_pendingRowText;
     int m_connectedDecks{0};
 
     // Library focus tracking: updated in slotLibraryFocusChanged.
@@ -240,6 +270,12 @@ class AnnouncementManager : public QObject {
     // True while the deck is playing because the cue button is held (cue
     // preview); the eventual stop is not announced.
     QHash<QString, bool> m_deckCuePreview;
+    // Best-known loop size in beats per deck, seeded whenever loop_enabled or
+    // beatloop_size fires. loop_scale (halve/double the active loop, e.g. the
+    // DDJ-400's CUE/LOOP CALL buttons) changes the loop length without ever
+    // touching beatloop_size, so this is the only way to keep announcing a
+    // sane size across repeated scale presses.
+    QHash<QString, double> m_deckLoopBeats;
 
     // On-demand announcement buttons: [ChannelN],tts_status per deck and the
     // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.
@@ -251,6 +287,10 @@ class AnnouncementManager : public QObject {
     std::unique_ptr<ControlObject> m_pShiftControl;
     std::unique_ptr<ControlObject> m_pPadModeControl;
     QString m_lastSpoken;
+
+    // Speech batch state; see beginSpeechBatch()/endSpeechBatch().
+    int m_speechBatchDepth{0};
+    QStringList m_batchedSpeech;
 
     // Debounced announcements for continuously-variable controls.
     QTimer m_controlDebounce;
@@ -282,6 +322,15 @@ class AnnouncementManager : public QObject {
     // Last clipping announcement (ms since epoch), so sustained clipping
     // doesn't repeat the warning on every peak.
     qint64 m_lastClippingAnnounceMs{0};
+
+    // Per-deck equivalent of m_lastClippingAnnounceMs, keyed by deck group,
+    // so one channel clipping doesn't suppress another's warning.
+    QHash<QString, qint64> m_lastChannelClippingAnnounceMs;
+
+    // Last audio-dropout (xrun) announcement (ms since epoch); reuses the
+    // clipping throttle window since [App],audio_latency_overload can pulse
+    // just as fast under sustained CPU overload.
+    qint64 m_lastXrunAnnounceMs{0};
 
     // Effects name lookups; see setEffectNameResolvers().
     std::function<QString(int unit, int slot)> m_effectNameResolver;

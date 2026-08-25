@@ -304,6 +304,12 @@ bool TrackCollection::hideTracks(const QList<TrackId>& trackIds) {
                  playlistNames.join("\"\n\"") %
                  "\"\n\n";
 
+         // Accessibility (issue #53): no default button was set here, so Qt
+         // picked one on its own -- on the buttons used here (Ok | Cancel)
+         // that resolved to Ok, meaning a stray Enter press proceeded with
+         // the destructive action (removing the tracks from their
+         // playlists). Explicitly default to Cancel so Enter is always
+         // safe.
          if (QMessageBox::question(
                  nullptr,
                  tr("Hiding tracks"),
@@ -311,7 +317,8 @@ bool TrackCollection::hideTracks(const QList<TrackId>& trackIds) {
                      "%1"
                      "Hiding them will remove them from these playlists. Continue?")
                          .arg(playlistNamesSection),
-                 QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+                 QMessageBox::Ok | QMessageBox::Cancel,
+                 QMessageBox::Cancel) != QMessageBox::Ok) {
              return false;
          }
      }

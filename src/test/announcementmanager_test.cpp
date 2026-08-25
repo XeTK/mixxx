@@ -313,6 +313,117 @@ TEST_F(AnnouncementManagerTest, AnnounceSelection_NullTrackIgnored) {
 }
 
 // ---------------------------------------------------------------------------
+// Row selection announcements (Library::trackRowSelected)
+//
+// The track table sends the model's full spoken description of a selected
+// row - not just artist/title - via TrackModel::rowAccessibleText(), routed
+// through the same debounce/gating as ordinary track selection. See
+// BaseTrackTableModel::rowAccessibleText() for what that text contains
+// (rating, color, played state, BPM lock).
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EnabledByDefault) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title, 3 stars"), 2, 10);
+    m_pManager->slotAnnounceSelectedTrack(); // drive debounce synchronously
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title, 3 stars, 3 of 10", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_DisabledViaSettings) {
+    config()->setValue(ConfigKey("[Accessibility]", "AnnounceTrackSelection"), false);
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_SuppressedWhenSidebarFocused) {
+    SpyTtsEngine* pSpy = makeManager();
+    // Focus is FocusWidget::None by default — same suppression as sidebar.
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EmptyTextIgnored) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    m_pManager->slotTrackRowSelected(QString(), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_EmptyTextFallsBackToTrackSelected) {
+    // Signal order for a model that does not override rowAccessibleText():
+    // trackSelected() fires first, then rowSelected() with nothing to say.
+    // The artist/title announcement must survive, and no bare position
+    // ("1 of 5") may be spoken in its place.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotTrackRowSelected(QStringLiteral("   "), 0, 5);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_PositionOmittedForSingleRow) {
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+
+    // Only one row in the whole table: "1 of 1" would be noise.
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title"), 0, 1);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceRowSelection_TakesPriorityOverPlainTrackSelected) {
+    // Mirrors the real signal order from WTrackTableView::slotGuiTick50ms:
+    // trackSelected(pTrack) fires first, then rowSelected() with the fuller
+    // text. The row text should win.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotTrackRowSelected(QStringLiteral("Artist, Title, 5 stars"), 0, 3);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title, 5 stars, 1 of 3", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSelection_PlainTrackSelectedClearsPendingRowText) {
+    // A later plain trackSelected() (e.g. multi-selection collapsing to a
+    // single track) must not leave a stale row announcement behind.
+    SpyTtsEngine* pSpy = makeManager();
+    focusTrackList(pSpy);
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotTrackRowSelected(QStringLiteral("Old row text"), 0, 3);
+    m_pManager->slotTrackSelected(pTrack);
+    m_pManager->slotAnnounceSelectedTrack();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Artist, Title", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
 // Playstate announcements (play / stop / end-of-track)
 //
 // These tests drive the CO observers that connectGroupControls() wires up.
@@ -332,6 +443,10 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("end_of_track")));
         m_pPfl = std::make_unique<ControlObject>(
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("pfl")));
+        m_pEject = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("eject")));
+        m_pPeakIndicator = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("peak_indicator")));
         m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
         m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
     }
@@ -351,9 +466,23 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
         QCoreApplication::processEvents();
     }
 
+    void pressEject() {
+        m_pEject->set(1.0);
+        QCoreApplication::processEvents();
+        m_pEject->set(0.0);
+        QCoreApplication::processEvents();
+    }
+
+    void setPeakIndicator(double v) {
+        m_pPeakIndicator->set(v);
+        QCoreApplication::processEvents();
+    }
+
     std::unique_ptr<ControlObject> m_pPlay;
     std::unique_ptr<ControlObject> m_pEndOfTrack;
     std::unique_ptr<ControlObject> m_pPfl;
+    std::unique_ptr<ControlObject> m_pEject;
+    std::unique_ptr<ControlObject> m_pPeakIndicator;
 };
 
 TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_AnnouncesPlaying) {
@@ -861,6 +990,117 @@ TEST_F(AnnouncementManagerPlaystateTest, AnnounceCueDisabled_PlayStillSpoken) {
             << "Play was silenced when AnnounceCue was disabled — "
                "the two settings must be independent";
     EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Eject confirmation / eject-blocked-while-playing (issue #66)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_AnnouncesEjected) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] track ejected", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_NoTrackLoaded_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/false);
+
+    pressEject();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_SettingDisabled_Silent) {
+    // The eject confirmation reuses AnnounceTrackLoad (successful loads and
+    // ejects are the same "what's on this deck now" family of feedback).
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTrackLoad")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+
+    pressEject();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_WhilePlaying_AnnouncesBlocked) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] is playing, eject blocked. Stop the deck first.",
+            pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_WhilePlaying_BlockedEvenWithSettingDisabled) {
+    // The blocked message is a safety signal (mirrors the load-blocked
+    // announcement in WTrackTableView, which is also unconditional), not a
+    // stylistic preference, so it is not gated by AnnounceTrackLoad.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTrackLoad")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] is playing, eject blocked. Stop the deck first.",
+            pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Per-deck gain-staging clipping (issue #66)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] clipping", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceClipping")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_ThrottledOnRepeatedPeaks) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+    ASSERT_EQ(1, pSpy->callCount);
+
+    setPeakIndicator(0.0);
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount)
+            << "per-channel clipping warning must be throttled during sustained clipping";
 }
 
 // ---------------------------------------------------------------------------
@@ -1497,6 +1737,52 @@ TEST_F(AnnouncementManagerPerformanceTest, EffectLoaded_AnnouncedDebounced) {
     EXPECT_QSTRING_EQ("Unit 2 effect 1 cleared", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_Announced) {
+    // focused_effect (the DDJ-400's BEAT FX </> paddles) moves which slot in
+    // the unit is focused; it does not load/unload an effect, so the
+    // loaded_effect observer never fires for it.
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setEffectNameResolvers(
+            [](int, int) { return QStringLiteral("Echo"); },
+            [](const QString&) { return QString(); });
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "focused_effect must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 1: Echo focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_NoResolverFallsBackToSlotNumber) {
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit2]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(3.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("Unit 2: effect 3 focused", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, FocusedEffect_EffectsSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceEffects")),
+            false);
+    auto pFocused = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[EffectRack1_EffectUnit1]"),
+            QStringLiteral("focused_effect")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFocused->set(2.0);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, EffectUnitRouting_Announced) {
     auto pRouting = std::make_unique<ControlObject>(ConfigKey(
             QStringLiteral("[EffectRack1_EffectUnit1]"),
@@ -1585,6 +1871,77 @@ TEST_F(AnnouncementManagerPerformanceTest, LoopOn_AnnouncedWithSize) {
     m_pLoopEnabled->set(0.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] loop off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_Halve_AnnouncesNewSize) {
+    // loop_scale (the DDJ-400's CUE/LOOP CALL) halves/doubles the loop
+    // bounds directly without ever touching beatloop_size, so the
+    // beatloop_size observer never fires for it; it must be observed on its
+    // own.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    // bIgnoreNops=false, matching LoopingControl's own loop_scale CO: every
+    // press re-fires even if it sets the same scale factor as last time.
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    pSpy->callCount = 0;
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount) << "loop scale must be debounced";
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_RepeatedPresses_TrackActualSize) {
+    // Repeated CUE/LOOP CALL presses must keep announcing the real resulting
+    // size, not repeat the same stale beatloop_size-derived value.
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    m_pLoopEnabled->set(1.0);
+    QCoreApplication::processEvents();
+
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+
+    pLoopScale->set(0.5); // CUE/LOOP CALL <- pressed again
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 2", pSpy->lastText);
+
+    pLoopScale->set(2.0); // CUE/LOOP CALL -> pressed
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_QSTRING_EQ("[TestChannel1] loop size 4", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, LoopScale_LoopSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceLoop")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    auto pLoopScale = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("loop_scale")), false);
+    setupGroup();
+
+    m_pBeatloopSize->set(8.0);
+    pLoopScale->set(0.5);
+    QCoreApplication::processEvents();
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(0, pSpy->callCount);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, HotcueSetAndCleared_Announced) {
@@ -1972,6 +2329,20 @@ TEST_F(AnnouncementManagerPerformanceTest, BackToStart_Announced) {
     EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerPerformanceTest, BackToStart_StartStopControl_Announced) {
+    // start_stop (jump to start without playing) is the DDJ-400's Shift+CUE
+    // remap; it must be narrated the same way as start/cue_gotoandstop.
+    SpyTtsEngine* pSpy = makeManager();
+    auto pStartStop = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("start_stop")));
+    setupGroup();
+
+    pStartStop->set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("[TestChannel1] back to start", pSpy->lastText);
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, TempoChange_IncludesNewBpm) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();
@@ -2286,6 +2657,20 @@ TEST_F(AnnouncementManagerTest, HeadSplitDecks_Announced) {
     pSplit->set(0.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("Split cue off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Talkover_Announced) {
+    auto pTalkover = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Microphone]"), QStringLiteral("talkover")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pTalkover->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Microphone on", pSpy->lastText);
+
+    pTalkover->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Microphone off", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -2826,6 +3211,65 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_ClippingSilentSpee
 }
 
 // ---------------------------------------------------------------------------
+// Audio dropouts (xruns) — issue #66.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Xrun_Announced) {
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Audio dropout", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_SettingDisabled_Silent) {
+    // Xrun speech reuses the AnnounceClipping gate (both are audio-quality
+    // safety signals, on by default).
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceClipping")),
+            false);
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_ThrottledOnRepeatedOverloads) {
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    ASSERT_EQ(1, pSpy->callCount);
+
+    pXrun->set(0.0);
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(1, pSpy->callCount)
+            << "sustained xruns must be throttled, not repeated on every pulse";
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_FeedbackSoundsMode_SilentSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeClipping")),
+            1); // sounds only
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak the xrun warning";
+}
+
+// ---------------------------------------------------------------------------
 // Knob/fader announcement context: name-once while the same control keeps
 // moving, jitter suppression for a control resting on the same readout, and
 // context reset when any other announcement interleaves.
@@ -3012,6 +3456,106 @@ TEST_F(AnnouncementManagerTest, PadMode_AnnouncedByVocabulary) {
     EXPECT_EQ(calls, pSpy->callCount);
 }
 
+// Issue #65: the DDJ-400's Keyboard, Pad FX1, Pad FX2, and Key Shift pad
+// layers switch the hardware's MIDI notes but have no working pad behavior
+// behind them (see the "Not implemented" note atop
+// res/controllers/Pioneer-DDJ-400-script.js). Before this fix they were
+// announced exactly like a working mode, so a blind DJ had no way to tell
+// the pads underneath were dead until pressing one. The 4 unimplemented
+// modes (5-8) must say so; the 5 working modes (1-4, 9) must not change.
+TEST_F(AnnouncementManagerTest, PadMode_UnimplementedModesSayNotYetSupported) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(5.0); // keyboard
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, keyboard (not yet supported)", pSpy->lastText);
+
+    padMode.set(6.0); // pad effects 1
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+
+    padMode.set(7.0); // pad effects 2
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 2 (not yet supported)", pSpy->lastText);
+
+    padMode.set(8.0); // key shift
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, key shift (not yet supported)", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, PadMode_ImplementedModesUnaffectedByHonestyFix) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, hot cues", pSpy->lastText);
+
+    padMode.set(2.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, beat loop", pSpy->lastText);
+
+    padMode.set(3.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, beat jump", pSpy->lastText);
+
+    padMode.set(4.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, sampler", pSpy->lastText);
+
+    padMode.set(9.0); // loop roll (Numark Scratch only, but still "working")
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, loop roll", pSpy->lastText);
+}
+
+// Issue #65: [Tts],pad_mode deliberately keeps ignoring same-value writes
+// (PadMode_AnnouncedByVocabulary above locks that in, since Numark Scratch's
+// dedup of its mode button firing once per deck depends on it), so a
+// controller mapping that wants a re-press of the same mode button to
+// re-announce - letting a blind DJ query which of the eight layers they're
+// currently on instead of cycling through all of them - has to force a
+// change itself. The DDJ-400 mapping does this by bouncing the CO through 0
+// (outside the spoken vocabulary) before re-setting the real value. This
+// test exercises that exact primitive directly on the CO, without needing
+// to run the DDJ-400 script.
+TEST_F(AnnouncementManagerTest, PadMode_NeutralBounceForcesReannouncement) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(6.0); // pad effects 1
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+    const int callsAfterFirstPress = pSpy->callCount;
+
+    // Bouncing through 0 must not itself speak: 0 isn't in the spoken
+    // vocabulary, so the switch's default case returns silently.
+    padMode.set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPress, pSpy->callCount)
+            << "bouncing through the neutral value must stay silent";
+
+    // Re-setting the same mode after the bounce must re-announce it, unlike
+    // a bare same-value write (see PadMode_AnnouncedByVocabulary).
+    padMode.set(6.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPress + 1, pSpy->callCount)
+            << "re-press via the neutral-value bounce must re-announce the current mode";
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+}
+
 // ---------------------------------------------------------------------------
 // Search result count folded into the spoken search announcement.
 // ---------------------------------------------------------------------------
@@ -3062,6 +3606,42 @@ TEST_F(AnnouncementManagerPerformanceTest, BeatsHalveDouble_Announced) {
     pDouble->set(1.0);
     QCoreApplication::processEvents();
     EXPECT_QSTRING_EQ("[TestChannel1] B P M doubled", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Tempo range cycling (the DDJ-400's Shift+SYNC remaps to rateRange). The
+// pitch fader keeps the same physical position across a range change, so the
+// new range is spoken immediately: otherwise the next spoken pitch
+// percentage is ambiguous about which BPM delta it actually means.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_Announced) {
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 8 percent", pSpy->lastText);
+
+    pRateRange->set(0.16);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] tempo range plus or minus 16 percent", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, RateRangeChange_TempoSettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTempo")),
+            false);
+    auto pRateRange = std::make_unique<ControlObject>(
+            ConfigKey(QLatin1String(kGroup), QStringLiteral("rateRange")));
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    pRateRange->set(0.08);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
 }
 
 // ---------------------------------------------------------------------------
@@ -3126,4 +3706,44 @@ TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
 
     EXPECT_EQ(1.0, pPfl1->get());
     EXPECT_EQ(0.0, pPfl2->get());
+}
+
+// Reproduces issue #48 (case 1): with Smart Cue, AnnounceTrackLoad, and
+// AnnounceCue all on by default (as they are), loading a track into a
+// stopped deck used to speak the load announcement and then have the Smart
+// Cue pfl set -- fired synchronously within the same slotNewTrackLoaded call
+// -- immediately clobber it with "headphone cue on" before the load
+// announcement had any chance to render. TtsEngine's barge-in generation
+// counter meant only the second utterance was ever actually audible.
+TEST_F(AnnouncementManagerTest, SmartCue_LoadAnnouncementNotLostToCueBargeIn) {
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    SpyTtsEngine* pSpy = makeManager();
+    // Wire up the pfl -> "headphone cue on/off" observer the way a real
+    // connectDeck() would, so the Smart Cue pfl set below actually speaks
+    // through the normal AnnounceCue path instead of just moving a bare CO.
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+    m_pManager->connectGroupControls(QStringLiteral("[Channel2]"), 1);
+
+    // Deck B (index 1) is stopped; loading into it triggers Smart Cue, which
+    // moves pfl from deck A to deck B and (with AnnounceCue on) speaks
+    // "headphone cue on" for deck B.
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    // Both pieces of information must reach the engine -- concatenated into
+    // a single utterance -- instead of the cue announcement silently
+    // overwriting the load announcement.
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Loaded deck, Bravo")))
+            << pSpy->lastText.toStdString();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("headphone cue on")))
+            << pSpy->lastText.toStdString();
+
+    // The underlying cue behavior is unaffected by batching the speech.
+    EXPECT_EQ(0.0, pPfl1->get());
+    EXPECT_EQ(1.0, pPfl2->get());
 }
