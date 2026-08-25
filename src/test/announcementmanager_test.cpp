@@ -3079,6 +3079,106 @@ TEST_F(AnnouncementManagerTest, PadMode_AnnouncedByVocabulary) {
     EXPECT_EQ(calls, pSpy->callCount);
 }
 
+// Issue #65: the DDJ-400's Keyboard, Pad FX1, Pad FX2, and Key Shift pad
+// layers switch the hardware's MIDI notes but have no working pad behavior
+// behind them (see the "Not implemented" note atop
+// res/controllers/Pioneer-DDJ-400-script.js). Before this fix they were
+// announced exactly like a working mode, so a blind DJ had no way to tell
+// the pads underneath were dead until pressing one. The 4 unimplemented
+// modes (5-8) must say so; the 5 working modes (1-4, 9) must not change.
+TEST_F(AnnouncementManagerTest, PadMode_UnimplementedModesSayNotYetSupported) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(5.0); // keyboard
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, keyboard (not yet supported)", pSpy->lastText);
+
+    padMode.set(6.0); // pad effects 1
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+
+    padMode.set(7.0); // pad effects 2
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 2 (not yet supported)", pSpy->lastText);
+
+    padMode.set(8.0); // key shift
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, key shift (not yet supported)", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, PadMode_ImplementedModesUnaffectedByHonestyFix) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, hot cues", pSpy->lastText);
+
+    padMode.set(2.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, beat loop", pSpy->lastText);
+
+    padMode.set(3.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, beat jump", pSpy->lastText);
+
+    padMode.set(4.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, sampler", pSpy->lastText);
+
+    padMode.set(9.0); // loop roll (Numark Scratch only, but still "working")
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, loop roll", pSpy->lastText);
+}
+
+// Issue #65: [Tts],pad_mode deliberately keeps ignoring same-value writes
+// (PadMode_AnnouncedByVocabulary above locks that in, since Numark Scratch's
+// dedup of its mode button firing once per deck depends on it), so a
+// controller mapping that wants a re-press of the same mode button to
+// re-announce - letting a blind DJ query which of the eight layers they're
+// currently on instead of cycling through all of them - has to force a
+// change itself. The DDJ-400 mapping does this by bouncing the CO through 0
+// (outside the spoken vocabulary) before re-setting the real value. This
+// test exercises that exact primitive directly on the CO, without needing
+// to run the DDJ-400 script.
+TEST_F(AnnouncementManagerTest, PadMode_NeutralBounceForcesReannouncement) {
+    SpyTtsEngine* pSpy = makeManager(); // creates the [Tts],pad_mode control
+
+    ControlProxy padMode(QStringLiteral("[Tts]"),
+            QStringLiteral("pad_mode"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    padMode.set(6.0); // pad effects 1
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+    const int callsAfterFirstPress = pSpy->callCount;
+
+    // Bouncing through 0 must not itself speak: 0 isn't in the spoken
+    // vocabulary, so the switch's default case returns silently.
+    padMode.set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPress, pSpy->callCount)
+            << "bouncing through the neutral value must stay silent";
+
+    // Re-setting the same mode after the bounce must re-announce it, unlike
+    // a bare same-value write (see PadMode_AnnouncedByVocabulary).
+    padMode.set(6.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPress + 1, pSpy->callCount)
+            << "re-press via the neutral-value bounce must re-announce the current mode";
+    EXPECT_QSTRING_EQ("Pads, pad effects 1 (not yet supported)", pSpy->lastText);
+}
+
 // ---------------------------------------------------------------------------
 // Search result count folded into the spoken search announcement.
 // ---------------------------------------------------------------------------
