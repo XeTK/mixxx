@@ -123,6 +123,7 @@ void YouTubeFeature::slotDeferredLoadRequested(const YouTubeTrack& track,
     }
     m_pendingLoadGroup = group;
     m_pendingLoadPlay = play;
+    m_lastAnnouncedDownloadMilestone = 0;
     // Show the fetch on the deck it is destined for, from 0 so the indicator
     // appears immediately rather than at the first progress line from yt-dlp.
     setDownloadProgress(0.0);
@@ -146,11 +147,21 @@ void YouTubeFeature::clearPendingLoad() {
     setDownloadProgress(kNoDownloadProgress);
     m_pendingLoadGroup.clear();
     m_pendingLoadPlay = false;
+    m_lastAnnouncedDownloadMilestone = 0;
 }
 
 void YouTubeFeature::slotDownloadProgress(const QString& videoId, int percent) {
     Q_UNUSED(videoId);
     setDownloadProgress(percent / 100.0);
+
+    // The waveform bar is visual-only. Speak progress at 25% steps so a
+    // longer fetch doesn't look (and sound) like nothing is happening,
+    // without narrating every single percent yt-dlp reports.
+    const int milestone = (percent / 25) * 25;
+    if (milestone > m_lastAnnouncedDownloadMilestone && milestone < 100) {
+        m_lastAnnouncedDownloadMilestone = milestone;
+        m_pLibrary->announceText(tr("%1%").arg(milestone));
+    }
 }
 
 void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
