@@ -231,6 +231,49 @@ TEST_F(AnnouncementManagerTest, FormatForLoad_MissingArtistSkipped) {
 }
 
 // ---------------------------------------------------------------------------
+// formatForSamplerLoad
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, FormatForSamplerLoad_FullInfo) {
+    auto pTrack = makeTrack(
+            QStringLiteral("Aphex Twin"),
+            QStringLiteral("Windowlicker"),
+            128.0,
+            QStringLiteral("A minor"));
+    // samplerIndex is 0-based; the spoken name is 1-based ("Sampler 3" for
+    // index 2), matching the pad numbering printed on the hardware.
+    EXPECT_QSTRING_EQ(
+            "Sampler 3 loaded. Aphex Twin. Windowlicker. 128 B P M. Key: A Minor.",
+            AnnouncementManager::formatForSamplerLoad(pTrack, 2));
+}
+
+TEST_F(AnnouncementManagerTest, FormatForSamplerLoad_SamplerNumber) {
+    auto pTrack = makeTrack(QStringLiteral(""), QStringLiteral(""));
+    EXPECT_TRUE(AnnouncementManager::formatForSamplerLoad(pTrack, 0).startsWith(
+            QStringLiteral("Sampler 1 loaded")));
+    EXPECT_TRUE(AnnouncementManager::formatForSamplerLoad(pTrack, 15).startsWith(
+            QStringLiteral("Sampler 16 loaded")));
+}
+
+TEST_F(AnnouncementManagerTest, FormatForSamplerLoad_NoBpm) {
+    auto pTrack = makeTrack(QStringLiteral("Aphex Twin"),
+            QStringLiteral("Windowlicker"),
+            0.0,
+            QStringLiteral("A minor"));
+    const QString result = AnnouncementManager::formatForSamplerLoad(pTrack, 0);
+    EXPECT_TRUE(result.contains(QStringLiteral("Sampler 1 loaded")));
+    EXPECT_FALSE(result.contains(QStringLiteral("B P M")));
+    EXPECT_TRUE(result.contains(QStringLiteral("Key:")));
+}
+
+TEST_F(AnnouncementManagerTest, FormatForSamplerLoad_NoKey) {
+    auto pTrack = makeTrack(QStringLiteral("Aphex Twin"), QStringLiteral("Windowlicker"), 128.0);
+    const QString result = AnnouncementManager::formatForSamplerLoad(pTrack, 0);
+    EXPECT_TRUE(result.contains(QStringLiteral("128 B P M")));
+    EXPECT_FALSE(result.contains(QStringLiteral("Key:")));
+}
+
+// ---------------------------------------------------------------------------
 // Announcement gating via settings
 // ---------------------------------------------------------------------------
 
@@ -292,6 +335,32 @@ TEST_F(AnnouncementManagerTest, AnnounceLoad_DisabledViaSettings) {
 TEST_F(AnnouncementManagerTest, AnnounceLoad_NullTrackIgnored) {
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotNewTrackLoaded(TrackPointer(), 0);
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSamplerLoad_EnabledByDefault) {
+    SpyTtsEngine* pSpy = makeManager();
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"), 120.0);
+
+    m_pManager->slotNewSamplerTrackLoaded(pTrack, 2);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Sampler 3 loaded.")));
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSamplerLoad_DisabledViaSettings) {
+    config()->setValue(ConfigKey("[Accessibility]", "AnnounceTrackLoad"), false);
+    SpyTtsEngine* pSpy = makeManager();
+    auto pTrack = makeTrack(QStringLiteral("Artist"), QStringLiteral("Title"));
+
+    m_pManager->slotNewSamplerTrackLoaded(pTrack, 2);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSamplerLoad_NullTrackIgnored) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotNewSamplerTrackLoaded(TrackPointer(), 2);
     EXPECT_EQ(0, pSpy->callCount);
 }
 
@@ -565,6 +634,144 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
 
     EXPECT_EQ(2, pSpy->callCount);
     EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Sampler play / stop / eject announcements
+//
+// These drive the CO observers that connectSamplerControls() wires up — the
+// lighter-weight sampler counterpart of connectGroupControls() above. The
+// test group COs are created explicitly so no real Sampler is needed.
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerSamplerTest : public AnnouncementManagerTest {
+  protected:
+    static constexpr const char* kGroup = "[TestSampler1]";
+    // 0-based index; the spoken name is "Sampler 3" (1-based, matching pad
+    // numbering).
+    static constexpr int kSamplerIndex = 2;
+
+    // Call after makeManager() to create the group COs and wire up the
+    // observers. hasTrack controls whether the sampler is seen as loaded.
+    void setupGroup(bool hasTrack = true) {
+        m_pPlay = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("play")));
+        m_pEject = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("eject")));
+        m_pManager->connectSamplerControls(QString::fromLatin1(kGroup), kSamplerIndex);
+        m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
+    }
+
+    void setPlay(double v) {
+        m_pPlay->set(v);
+        QCoreApplication::processEvents();
+    }
+
+    void setEject(double v) {
+        m_pEject->set(v);
+        QCoreApplication::processEvents();
+    }
+
+    std::unique_ptr<ControlObject> m_pPlay;
+    std::unique_ptr<ControlObject> m_pEject;
+};
+
+TEST_F(AnnouncementManagerSamplerTest, PlayStarted_AnnouncesPlaying) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sampler 3 playing", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, PlayStarted_NoTrackLoaded_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/false);
+
+    setPlay(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, PlayStarted_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnouncePlay")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, PlayStopped_AnnouncesStopped) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0); // → "Sampler 3 playing"
+    pSpy->callCount = 0;
+    setPlay(0.0); // → "Sampler 3 stopped"
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sampler 3 stopped", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, PlayStopped_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceStop")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    setPlay(0.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, Eject_AnnouncesEjected) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setEject(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sampler 3 ejected", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, Eject_NoTrackLoaded_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/false);
+
+    setEject(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// The engine itself refuses to eject a playing pad; the announcement should
+// not claim it happened.
+TEST_F(AnnouncementManagerSamplerTest, Eject_WhilePlaying_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPlay(1.0); // → "Sampler 3 playing"
+    pSpy->callCount = 0;
+    setEject(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerSamplerTest, Eject_SettingDisabled_Silent) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTrackLoad")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setEject(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
 }
 
 // ---------------------------------------------------------------------------
