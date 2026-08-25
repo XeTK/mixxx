@@ -325,6 +325,8 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("pfl")));
         m_pEject = std::make_unique<ControlObject>(
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("eject")));
+        m_pPeakIndicator = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("peak_indicator")));
         m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
         m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
     }
@@ -351,10 +353,16 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
         QCoreApplication::processEvents();
     }
 
+    void setPeakIndicator(double v) {
+        m_pPeakIndicator->set(v);
+        QCoreApplication::processEvents();
+    }
+
     std::unique_ptr<ControlObject> m_pPlay;
     std::unique_ptr<ControlObject> m_pEndOfTrack;
     std::unique_ptr<ControlObject> m_pPfl;
     std::unique_ptr<ControlObject> m_pEject;
+    std::unique_ptr<ControlObject> m_pPeakIndicator;
 };
 
 TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_AnnouncesPlaying) {
@@ -890,6 +898,46 @@ TEST_F(AnnouncementManagerPlaystateTest, Eject_WhilePlaying_BlockedEvenWithSetti
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("[TestChannel1] is playing, eject blocked. Stop the deck first.",
             pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Per-deck gain-staging clipping (issue #66)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_Announced) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] clipping", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_SettingDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceClipping")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, ChannelClipping_ThrottledOnRepeatedPeaks) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPeakIndicator(1.0);
+    ASSERT_EQ(1, pSpy->callCount);
+
+    setPeakIndicator(0.0);
+    setPeakIndicator(1.0);
+
+    EXPECT_EQ(1, pSpy->callCount)
+            << "per-channel clipping warning must be throttled during sustained clipping";
 }
 
 // ---------------------------------------------------------------------------
@@ -2694,6 +2742,65 @@ TEST_F(AnnouncementManagerPerformanceTest, FeedbackSoundsMode_ClippingSilentSpee
     QCoreApplication::processEvents();
     EXPECT_EQ(0, pSpy->callCount)
             << "sounds-only mode must not speak the clipping warning";
+}
+
+// ---------------------------------------------------------------------------
+// Audio dropouts (xruns) — issue #66.
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, Xrun_Announced) {
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Audio dropout", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_SettingDisabled_Silent) {
+    // Xrun speech reuses the AnnounceClipping gate (both are audio-quality
+    // safety signals, on by default).
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceClipping")),
+            false);
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_ThrottledOnRepeatedOverloads) {
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    ASSERT_EQ(1, pSpy->callCount);
+
+    pXrun->set(0.0);
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(1, pSpy->callCount)
+            << "sustained xruns must be throttled, not repeated on every pulse";
+}
+
+TEST_F(AnnouncementManagerTest, Xrun_FeedbackSoundsMode_SilentSpeech) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("FeedbackModeClipping")),
+            1); // sounds only
+    auto pXrun = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[App]"), QStringLiteral("audio_latency_overload")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pXrun->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(0, pSpy->callCount)
+            << "sounds-only mode must not speak the xrun warning";
 }
 
 // ---------------------------------------------------------------------------

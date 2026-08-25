@@ -259,6 +259,15 @@ class AnnouncementManager : public QObject {
     // doesn't repeat the warning on every peak.
     qint64 m_lastClippingAnnounceMs{0};
 
+    // Per-deck equivalent of m_lastClippingAnnounceMs, keyed by deck group,
+    // so one channel clipping doesn't suppress another's warning.
+    QHash<QString, qint64> m_lastChannelClippingAnnounceMs;
+
+    // Last audio-dropout (xrun) announcement (ms since epoch); reuses the
+    // clipping throttle window since [App],audio_latency_overload can pulse
+    // just as fast under sustained CPU overload.
+    qint64 m_lastXrunAnnounceMs{0};
+
     // Effects name lookups; see setEffectNameResolvers().
     std::function<QString(int unit, int slot)> m_effectNameResolver;
     std::function<QString(const QString& deckGroup)> m_quickEffectNameResolver;

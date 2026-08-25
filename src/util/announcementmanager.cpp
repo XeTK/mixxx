@@ -711,6 +711,31 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
         speak(value > 0.0 ? tr("Microphone on") : tr("Microphone off"));
     });
 
+    // Audio dropouts (xruns). [App],audio_latency_overload pulses to 1.0
+    // while the audio callback misses its deadline (see
+    // SoundManager::onDeviceOutputCallback) and back to 0 once the CPU
+    // catches up — the same pulse-and-throttle shape as the clipping
+    // indicators below, so this reuses their settings gate, feedback mode,
+    // and throttle window. Center-panned and unnamed like main clipping:
+    // this is a whole-system problem, not a single deck's. Easy to miss by
+    // ear under music but a genuine show-stopper, hence the distinct earcon.
+    auto pXrun = make_parented<ControlProxy>(
+            QStringLiteral("[App]"),
+            QStringLiteral("audio_latency_overload"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pXrun->connectValueChanged(this, [this](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceClipping()) {
+            return;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - m_lastXrunAnnounceMs < kClippingThrottleMs) {
+            return;
+        }
+        m_lastXrunAnnounceMs = now;
+        emitCue(static_cast<int>(EngineEarcon::Id::Xrun), -1, tr("Audio dropout"));
+    });
+
     // Beat click metronome toggle (Alt+B): always confirmed audibly.
     auto pBeatClick = make_parented<ControlProxy>(
             QStringLiteral("[BeatClick]"),
@@ -978,6 +1003,7 @@ void AnnouncementManager::emitCue(int earconId, int deckIndex, const QString& sp
         mode = m_settings.getFeedbackModeLoop();
         break;
     case EngineEarcon::Id::Clipping:
+    case EngineEarcon::Id::Xrun:
         mode = m_settings.getFeedbackModeClipping();
         break;
     }
@@ -1086,6 +1112,31 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (m_deckHasTrack.value(group, false) && m_settings.getAnnounceTrackLoad()) {
             speak(tr("%1 track ejected").arg(deckName(group, deckIndex)));
         }
+    });
+
+    // Per-deck gain-staging clipping. [ChannelN],peak_indicator (alias
+    // [ChannelN],PeakIndicator) behaves exactly like the main-bus indicator
+    // above: pulses to 1.0 for ~500 ms after a clipped peak. Same settings
+    // gate, feedback mode, and throttle window, but tracked per deck so one
+    // channel clipping doesn't suppress another channel's warning, and named
+    // so the DJ knows which gain knob to pull back.
+    auto pChannelClipping = make_parented<ControlProxy>(group,
+            QStringLiteral("peak_indicator"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pChannelClipping->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (value <= 0.0 || !m_settings.getAnnounceClipping()) {
+            return;
+        }
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        qint64& last = m_lastChannelClippingAnnounceMs[group];
+        if (now - last < kClippingThrottleMs) {
+            return;
+        }
+        last = now;
+        emitCue(static_cast<int>(EngineEarcon::Id::Clipping),
+                deckIndex,
+                tr("%1 clipping").arg(deckName(group, deckIndex)));
     });
 
     auto pEndOfTrack = make_parented<ControlProxy>(
