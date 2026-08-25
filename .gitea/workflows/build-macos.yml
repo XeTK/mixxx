@@ -54,7 +54,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/Library/Caches/ccache
-          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
           restore-keys: |
             macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
             macos-ccache-${{ runner.arch }}-
@@ -70,7 +70,13 @@ jobs:
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
-          ccache --max-size=40G
+          # 12G + compression, matching the Linux jobs. 40G is far past what
+          # the runner can archive: the save step tars *and* gzips the cache,
+          # and an oversized cache is what yields "no space left on device"
+          # and cache-upload 500s. Compression preserves most of the effective
+          # capacity at a fraction of the on-disk size.
+          ccache --max-size=12G
+          ccache --set-config=compression=true 2>/dev/null || true
           # On macOS the ccache config file may be root-owned and unwritable;
           # the env vars above already take effect for this job, but try to
           # persist them anyway so other invocations see them too.
@@ -116,11 +122,17 @@ jobs:
           ccache --cleanup
 
       - name: "Save ccache"
-        if: always()
+        # No run_number in the key: with it, every run wrote a NEW cache
+        # entry instead of overwriting, accumulating one cache per run
+        # until the disk filled. The Linux jobs already use a stable
+        # branch-only key for this reason; macOS was missed.
+        # Only save on push/dispatch -- archiving is expensive and PR
+        # runs only need to *restore*.
+        if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           path: ~/Library/Caches/ccache
-          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
 
       - name: "Test"
         working-directory: build
