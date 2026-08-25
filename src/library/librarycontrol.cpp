@@ -89,9 +89,10 @@ void LoadToGroupController::slotLoadToGroupAndPlay(double v) {
     }
 }
 
-LibraryControl::LibraryControl(Library* pLibrary)
+LibraryControl::LibraryControl(Library* pLibrary, UserSettingsPointer pConfig)
         : QObject(pLibrary),
           m_pLibrary(pLibrary),
+          m_accessibilitySettings(pConfig),
           m_focusedWidget(FocusWidget::None),
           m_prevFocusedWidget(FocusWidget::None),
           m_pLibraryWidget(nullptr),
@@ -1019,9 +1020,14 @@ void LibraryControl::slotMoveTrack(double v) {
     QApplication::sendEvent(pTrackTableview, &pEvent);
 }
 
+bool LibraryControl::controllerNavigationWithoutFocusAllowed() const {
+    return m_accessibilitySettings.getControllerNavigationWithoutFocus() ||
+            CmdlineArgs::Instance().getControllerNavigationWithoutFocus();
+}
+
 void LibraryControl::emitKeyEvent(QKeyEvent&& event) {
     if (!QApplication::focusWindow() &&
-            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
+            !controllerNavigationWithoutFocusAllowed()) {
         qInfo() << "No Mixxx window, popup or menu has focus."
                 << "Don't send key events.";
         return;
@@ -1045,7 +1051,7 @@ void LibraryControl::emitKeyEvent(QKeyEvent&& event) {
     // deliver the synthesized key event to. If controller navigation without
     // focus is enabled, deliver the event to the active track table view
     // instead so controller-driven navigation still works.
-    if (CmdlineArgs::Instance().getControllerNavigationWithoutFocus() &&
+    if (controllerNavigationWithoutFocusAllowed() &&
             m_pLibraryWidget) {
         auto* pTrackTableview = m_pLibraryWidget->getCurrentTrackTableView();
         if (pTrackTableview) {
@@ -1059,40 +1065,48 @@ void LibraryControl::emitKeyEvent(QKeyEvent&& event) {
 FocusWidget LibraryControl::getFocusedWidget() {
     auto* focusWindow = QApplication::focusWindow();
     if (!focusWindow &&
-            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
+            !controllerNavigationWithoutFocusAllowed()) {
         return FocusWidget::None;
     }
 
-    // Any QMenu is focusWindow() but NOT focusWidget() before any menu item
-    // is highlighted, though it can already receive keypress events.
-    // Thus, test for focus window type first to catch open popups.
-    if (focusWindow->type() == Qt::Popup) {
-        // WMainMenuBar
-        // WTrackMenuClassWindow = WTrackMenu + submenus
-        // QMenuClassWindow      = e.g. sidebar context menu
-        // qt_edit_menuWindow    = QLineEdit/QCombobox context menu
-        // QComboBoxPrivateContainerClassWindow
-        //    = QComboBoxListView of WEffectSelector, WSearchLineEdit, ...
-        auto* pFocusWidget = QApplication::focusWidget();
-        if (pFocusWidget &&
-                qobject_cast<QCheckBox*>(pFocusWidget) &&
-                qobject_cast<WSearchRelatedTracksMenu*>(pFocusWidget->parent())) {
-            // TODO Also use this for the Crates menu?
-            return FocusWidget::SearchRelatedMenu;
-        } else {
-            return FocusWidget::ContextMenu;
+    // focusWindow can be null here when controller navigation without focus
+    // is allowed and Mixxx currently has no OS window focus at all (e.g. a
+    // screen-reader user alt-tabbed away to interact with VoiceOver/JAWS/
+    // NVDA). There is then no popup/dialog window to classify, so skip
+    // straight to the QApplication::focusWidget()-based checks below, which
+    // already handle a null result.
+    if (focusWindow) {
+        // Any QMenu is focusWindow() but NOT focusWidget() before any menu item
+        // is highlighted, though it can already receive keypress events.
+        // Thus, test for focus window type first to catch open popups.
+        if (focusWindow->type() == Qt::Popup) {
+            // WMainMenuBar
+            // WTrackMenuClassWindow = WTrackMenu + submenus
+            // QMenuClassWindow      = e.g. sidebar context menu
+            // qt_edit_menuWindow    = QLineEdit/QCombobox context menu
+            // QComboBoxPrivateContainerClassWindow
+            //    = QComboBoxListView of WEffectSelector, WSearchLineEdit, ...
+            auto* pFocusWidget = QApplication::focusWidget();
+            if (pFocusWidget &&
+                    qobject_cast<QCheckBox*>(pFocusWidget) &&
+                    qobject_cast<WSearchRelatedTracksMenu*>(pFocusWidget->parent())) {
+                // TODO Also use this for the Crates menu?
+                return FocusWidget::SearchRelatedMenu;
+            } else {
+                return FocusWidget::ContextMenu;
+            }
+        } else if (focusWindow->type() == Qt::Dialog) {
+            // DlgPreferencesDlgWindow
+            // DlgDeveloperToolsWindow
+            // DlgAboutDlgWindow
+            // DlgKeywheelWindow
+            // QInputDialogClassWindow (file dialogs, rename/create dialogs)
+            // error messages and Close Mixxx confirmation dialog
+            // ToDo(ronso0) handle CoverArt:
+            // - refocus tracks view?
+            // DlgCoverArtFullSizeWindow
+            return FocusWidget::Dialog;
         }
-    } else if (focusWindow->type() == Qt::Dialog) {
-        // DlgPreferencesDlgWindow
-        // DlgDeveloperToolsWindow
-        // DlgAboutDlgWindow
-        // DlgKeywheelWindow
-        // QInputDialogClassWindow (file dialogs, rename/create dialogs)
-        // error messages and Close Mixxx confirmation dialog
-        // ToDo(ronso0) handle CoverArt:
-        // - refocus tracks view?
-        // DlgCoverArtFullSizeWindow
-        return FocusWidget::Dialog;
     }
 
     // Now we assume MixxxMainWindow is focused
@@ -1115,7 +1129,7 @@ FocusWidget LibraryControl::getFocusedWidget() {
 
 void LibraryControl::setLibraryFocus(FocusWidget newFocusWidget) {
     if (!QApplication::focusWindow() &&
-            !CmdlineArgs::Instance().getControllerNavigationWithoutFocus()) {
+            !controllerNavigationWithoutFocusAllowed()) {
         qInfo() << "No Mixxx window, popup or menu has focus."
                 << "Don't attempt to focus a specific widget.";
         return;

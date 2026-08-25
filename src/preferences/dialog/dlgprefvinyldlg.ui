@@ -397,6 +397,9 @@
         <property name="font">
          <font/>
         </property>
+        <property name="accessibleName">
+         <string>Deck 1 vinyl speed</string>
+        </property>
        </widget>
       </item>
 
@@ -413,6 +416,9 @@
         </property>
         <property name="font">
          <font/>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 2 vinyl speed</string>
         </property>
        </widget>
       </item>
@@ -431,6 +437,9 @@
         <property name="font">
          <font/>
         </property>
+        <property name="accessibleName">
+         <string>Deck 3 vinyl speed</string>
+        </property>
        </widget>
       </item>
 
@@ -447,6 +456,9 @@
         </property>
         <property name="font">
          <font/>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 4 vinyl speed</string>
         </property>
        </widget>
       </item>
@@ -477,6 +489,9 @@
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
+        <property name="accessibleName">
+         <string>Deck 1 lead-in</string>
+        </property>
        </widget>
       </item>
 
@@ -505,6 +520,9 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 2 lead-in</string>
         </property>
        </widget>
       </item>
@@ -535,6 +553,9 @@
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
+        <property name="accessibleName">
+         <string>Deck 3 lead-in</string>
+        </property>
        </widget>
       </item>
 
@@ -563,6 +584,9 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 4 lead-in</string>
         </property>
        </widget>
       </item>
@@ -593,6 +617,9 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="accessibleName">
+         <string>Deck 1 pitch estimator</string>
+        </property>
        </widget>
       </item>
 
@@ -621,6 +648,9 @@
           <width>200</width>
           <height>16777215</height>
          </size>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 2 pitch estimator</string>
         </property>
        </widget>
       </item>
@@ -651,6 +681,9 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="accessibleName">
+         <string>Deck 3 pitch estimator</string>
+        </property>
        </widget>
       </item>
 
@@ -679,6 +712,9 @@
           <width>200</width>
           <height>16777215</height>
          </size>
+        </property>
+        <property name="accessibleName">
+         <string>Deck 4 pitch estimator</string>
         </property>
        </widget>
       </item>
@@ -823,15 +859,20 @@
   <tabstop>ComboBoxVinylType1</tabstop>
   <tabstop>ComboBoxVinylSpeed1</tabstop>
   <tabstop>LeadinTime1</tabstop>
+  <tabstop>ComboBoxPitchEstimator1</tabstop>
   <tabstop>ComboBoxVinylType2</tabstop>
   <tabstop>ComboBoxVinylSpeed2</tabstop>
   <tabstop>LeadinTime2</tabstop>
+  <tabstop>ComboBoxPitchEstimator2</tabstop>
   <tabstop>ComboBoxVinylType3</tabstop>
   <tabstop>ComboBoxVinylSpeed3</tabstop>
   <tabstop>LeadinTime3</tabstop>
+  <tabstop>ComboBoxPitchEstimator3</tabstop>
   <tabstop>ComboBoxVinylType4</tabstop>
   <tabstop>ComboBoxVinylSpeed4</tabstop>
   <tabstop>LeadinTime4</tabstop>
+  <tabstop>ComboBoxPitchEstimator4</tabstop>
+  <tabstop>SignalQualityEnable</tabstop>
  </tabstops>
  <connections/>
 </ui>

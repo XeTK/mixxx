@@ -28,6 +28,9 @@
           <height>130</height>
          </size>
         </property>
+        <property name="accessibleName">
+         <string>Live broadcasting connections</string>
+        </property>
         <property name="styleSheet">
          <string notr="true"/>
         </property>
@@ -168,6 +171,9 @@
                   <property name="text">
                    <string>Reconnect period</string>
                   </property>
+                  <property name="buddy">
+                   <cstring>spinBoxReconnectPeriod</cstring>
+                  </property>
                  </widget>
                 </item>
                 <item row="1" column="1">
@@ -207,6 +213,9 @@
                   <property name="text">
                    <string>Maximum retries</string>
                   </property>
+                  <property name="buddy">
+                   <cstring>spinBoxMaximumRetries</cstring>
+                  </property>
                  </widget>
                 </item>
                 <item row="2" column="0" colspan="2">
@@ -236,6 +245,9 @@
                  <widget class="QLabel" name="label_19">
                   <property name="text">
                    <string>Wait until first attempt</string>
+                  </property>
+                  <property name="buddy">
+                   <cstring>spinBoxFirstDelay</cstring>
                   </property>
                  </widget>
                 </item>
@@ -277,6 +289,9 @@
              </property>
              <property name="text">
               <string>Bitrate</string>
+             </property>
+             <property name="buddy">
+              <cstring>comboBoxEncodingBitrate</cstring>
              </property>
             </widget>
            </item>
@@ -371,6 +386,9 @@
             <widget class="QLabel" name="label_16">
              <property name="text">
               <string>Format</string>
+             </property>
+             <property name="buddy">
+              <cstring>metadata_format</cstring>
              </property>
             </widget>
            </item>
@@ -485,12 +503,18 @@
              <property name="text">
               <string>ICQ</string>
              </property>
+             <property name="buddy">
+              <cstring>stream_ICQ</cstring>
+             </property>
             </widget>
            </item>
            <item row="6" column="0">
             <widget class="QLabel" name="stream_AIM_label">
              <property name="text">
               <string>AIM</string>
+             </property>
+             <property name="buddy">
+              <cstring>stream_AIM</cstring>
              </property>
             </widget>
            </item>
@@ -519,7 +543,7 @@
               <string>Stream name</string>
              </property>
              <property name="buddy">
-              <cstring>comboBoxServerType</cstring>
+              <cstring>stream_name</cstring>
              </property>
             </widget>
            </item>
@@ -535,7 +559,7 @@
               <string>Website</string>
              </property>
              <property name="buddy">
-              <cstring>mountpoint</cstring>
+              <cstring>stream_website</cstring>
              </property>
             </widget>
            </item>
@@ -642,6 +666,9 @@ p, li { white-space: pre-wrap; }
              <property name="text">
               <string>IRC</string>
              </property>
+             <property name="buddy">
+              <cstring>stream_IRC</cstring>
+             </property>
             </widget>
            </item>
            <item row="5" column="1">
@@ -678,6 +705,9 @@ p, li { white-space: pre-wrap; }
              <property name="text">
               <string>Type</string>
              </property>
+             <property name="buddy">
+              <cstring>comboBoxServerType</cstring>
+             </property>
             </widget>
            </item>
            <item row="0" column="1">
@@ -705,6 +735,9 @@ p, li { white-space: pre-wrap; }
              <property name="text">
               <string>Mount</string>
              </property>
+             <property name="buddy">
+              <cstring>mountpoint</cstring>
+             </property>
             </widget>
            </item>
            <item row="0" column="4">
@@ -719,6 +752,9 @@ p, li { white-space: pre-wrap; }
              <property name="text">
               <string>Host</string>
              </property>
+             <property name="buddy">
+              <cstring>host</cstring>
+             </property>
             </widget>
            </item>
            <item row="1" column="1">
@@ -732,6 +768,9 @@ p, li { white-space: pre-wrap; }
             <widget class="QLabel" name="label_3">
              <property name="text">
               <string>Port</string>
+             </property>
+             <property name="buddy">
+              <cstring>port</cstring>
              </property>
             </widget>
            </item>
@@ -753,6 +792,9 @@ p, li { white-space: pre-wrap; }
              <property name="text">
               <string>Login</string>
              </property>
+             <property name="buddy">
+              <cstring>login</cstring>
+             </property>
             </widget>
            </item>
            <item row="2" column="1">
@@ -766,6 +808,9 @@ p, li { white-space: pre-wrap; }
             <widget class="QLabel" name="label_7">
              <property name="text">
               <string>Password</string>
+             </property>
+             <property name="buddy">
+              <cstring>password</cstring>
              </property>
             </widget>
            </item>
@@ -793,6 +838,9 @@ p, li { white-space: pre-wrap; }
                <widget class="QLabel" name="label_20">
                 <property name="text">
                  <string>Password storage</string>
+                </property>
+                <property name="buddy">
+                 <cstring>rbPasswordCleartext</cstring>
                 </property>
                </widget>
               </item>
@@ -874,6 +922,7 @@ p, li { white-space: pre-wrap; }
   <tabstop>login</tabstop>
   <tabstop>password</tabstop>
   <tabstop>rbPasswordCleartext</tabstop>
+  <tabstop>rbPasswordKeychain</tabstop>
 
   <tabstop>checkBoxEnableReconnect</tabstop>
   <tabstop>spinBoxFirstDelay</tabstop>

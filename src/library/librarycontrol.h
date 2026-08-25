@@ -7,6 +7,8 @@
 #include "control/controlproxy.h"
 #include "library/library_decl.h"
 #include "library/trackmodel.h"
+#include "preferences/accessibilitysettings.h"
+#include "preferences/usersettings.h"
 #ifdef __STEM__
 #include "engine/engine.h"
 #endif
@@ -54,7 +56,7 @@ class LoadToGroupController : public QObject {
 class LibraryControl : public QObject {
     Q_OBJECT
   public:
-    LibraryControl(Library* pLibrary);
+    LibraryControl(Library* pLibrary, UserSettingsPointer pConfig);
     virtual ~LibraryControl();
 
     void bindLibraryWidget(WLibrary* pLibrary, KeyboardEventFilter* pKeyboard);
@@ -166,6 +168,15 @@ class LibraryControl : public QObject {
 
     // Simulate pressing a key on the keyboard
     void emitKeyEvent(QKeyEvent&& event);
+
+    // True if controller-driven library navigation should keep working while
+    // Mixxx lacks OS keyboard focus, either because the persistent
+    // Accessibility preference is on or the --controller-navigation-
+    // without-focus command-line flag was passed. Re-checked on every call
+    // so toggling the preference takes effect immediately.
+    bool controllerNavigationWithoutFocusAllowed() const;
+
+    AccessibilitySettings m_accessibilitySettings;
 
     // Controls to navigate vertically within currently focused widget (up/down buttons)
     std::unique_ptr<ControlPushButton> m_pMoveUp;

@@ -1,8 +1,11 @@
 #include "library/library.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QDir>
+#include <QMenu>
 #include <QMessageBox>
+#include <memory>
 
 #include "control/controlobject.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
@@ -70,7 +73,7 @@ Library::Library(
           m_pDbConnectionPool(std::move(pDbConnectionPool)),
           m_pTrackCollectionManager(pTrackCollectionManager),
           m_pSidebarModel(make_parented<SidebarModel>(this)),
-          m_pLibraryControl(make_parented<LibraryControl>(this)),
+          m_pLibraryControl(make_parented<LibraryControl>(this, pConfig)),
           m_pLibraryWidget(nullptr),
           m_pMixxxLibraryFeature(nullptr),
           m_pPlaylistFeature(nullptr),
@@ -490,6 +493,39 @@ void Library::announceSearchResultCount(int count) {
     emit searchResultCountChanged(count);
 }
 
+void Library::announceMenuHover(QMenu* pMenu) {
+    VERIFY_OR_DEBUG_ASSERT(pMenu) {
+        return;
+    }
+    // Deduplicated in case setActiveAction()/keyboard navigation triggers
+    // hovered() more than once for the same action on some Qt versions (see
+    // WTrackTableView::showQuickAddPickerMenu, which uses the same guard).
+    auto pLastAnnounced = std::make_shared<QAction*>(nullptr);
+    connect(pMenu, &QMenu::hovered, this, [this, pLastAnnounced](QAction* pAction) {
+        if (pAction == *pLastAnnounced) {
+            return;
+        }
+        *pLastAnnounced = pAction;
+        const QString name = hoverAnnouncementTextForAction(pAction);
+        if (name.isEmpty()) {
+            return;
+        }
+        announceQuickPickerItem(name);
+    });
+}
+
+// static
+QString Library::hoverAnnouncementTextForAction(const QAction* pAction) {
+    if (!pAction) {
+        return QString();
+    }
+    // Prefer the action's data() over its text(): dynamically named items
+    // (e.g. playlist/crate names) store their unescaped name in data()
+    // because text() may contain a doubled "&&" to escape it against
+    // QAction's mnemonic handling.
+    return pAction->data().isValid() ? pAction->data().toString() : pAction->text();
+}
+
 void Library::bindLibraryWidget(
         WLibrary* pLibraryWidget, KeyboardEventFilter* pKeyboard) {
     m_pLibraryWidget = pLibraryWidget;
@@ -540,6 +576,10 @@ void Library::bindLibraryWidget(
             &WTrackTableView::trackSelected,
             this,
             &Library::trackSelected);
+    connect(pTrackTableView,
+            &WTrackTableView::rowSelected,
+            this,
+            &Library::trackRowSelected);
 
     connect(this,
             &Library::setTrackTableFont,
