@@ -133,6 +133,9 @@ Select from different types of displays for the waveform, which differ primarily
        <property name="toolTip">
         <string/>
        </property>
+       <property name="accessibleName">
+        <string>Frame rate value</string>
+       </property>
        <property name="suffix">
         <string> fps</string>
        </property>
@@ -194,6 +197,9 @@ Select from different types of displays for the waveform, which differ primarily
        <property name="toolTip">
         <string>Highlight the waveforms when the last seconds of a track remains.</string>
        </property>
+       <property name="accessibleName">
+        <string>End of track warning value</string>
+       </property>
        <property name="suffix">
         <string> seconds</string>
        </property>
@@ -223,6 +229,9 @@ Select from different types of displays for the waveform, which differ primarily
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
        </property>
+       <property name="buddy">
+        <cstring>beatGridAlphaSlider</cstring>
+       </property>
       </widget>
      </item>
      <item row="6" column="1" colspan="3">
@@ -243,6 +252,9 @@ Select from different types of displays for the waveform, which differ primarily
        <property name="toolTip">
         <string>Set amount of opacity on beat grid lines.</string>
        </property>
+       <property name="accessibleName">
+        <string>Beat grid opacity value</string>
+       </property>
        <property name="suffix">
         <string>%</string>
        </property>
@@ -259,6 +271,9 @@ Select from different types of displays for the waveform, which differ primarily
       <widget class="QLabel" name="playMarkerPositionLabel">
        <property name="text">
         <string>Play marker position</string>
+       </property>
+       <property name="buddy">
+        <cstring>playMarkerPositionSlider</cstring>
        </property>
       </widget>
      </item>
@@ -706,6 +721,9 @@ Select from different types of displays for the waveform, which differ primarily
        <property name="text">
         <string>Type</string>
        </property>
+       <property name="buddy">
+        <cstring>waveformOverviewComboBox</cstring>
+       </property>
       </widget>
      </item>
      <item row="0" column="1" colspan="4">
@@ -732,6 +750,9 @@ Select from different types of displays for the waveform overview, which differ 
        </property>
        <property name="text">
         <string>Gain</string>
+       </property>
+       <property name="buddy">
+        <cstring>overview_scale_normalize</cstring>
        </property>
       </widget>
      </item>
@@ -898,6 +919,9 @@ Select from different types of displays for the waveform overview, which differ 
   <tabstop>untilMarkAlignComboBox</tabstop>
   <tabstop>untilMarkTextPointSizeSpinBox</tabstop>
   <tabstop>untilMarkTextHeightLimitComboBox</tabstop>
+  <tabstop>stemOpacitySpinBox</tabstop>
+  <tabstop>stemOutlineOpacitySpinBox</tabstop>
+  <tabstop>stemReorderLayerOnChangedCheckBox</tabstop>
   <tabstop>waveformOverviewComboBox</tabstop>
   <tabstop>overviewMinuteMarkersCheckBox</tabstop>
   <tabstop>overview_scale_normalize</tabstop>
