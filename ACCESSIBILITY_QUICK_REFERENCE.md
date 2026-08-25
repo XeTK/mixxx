@@ -173,7 +173,13 @@ setting to get normal hot cues back; other pad modes are unaffected.
 
 Independent of that setting: pressing Shift says "Shift", and each
 pad mode button announces its layer ("Pads, hot cues", "Pads, beat
-loop", "Pads, beat jump", "Pads, sampler", plus the shifted modes).
+loop", "Pads, beat jump", "Pads, sampler"). The shifted modes
+(Keyboard, Pad FX1, Pad FX2, Key Shift) have no working pad layer
+behind them, so their announcement says so too — e.g. "Pads, keyboard
+(not yet supported)". Re-pressing the mode you're already in
+re-announces it, so you can check your current layer without cycling
+through the others.
+
 Two more settings on the same preferences page: "Disable jog wheel
 scratching" (platter touch does nothing; rotation still nudges
 pitch) and "Jog wheel sensitivity" (scales the nudge, the Shift+jog

@@ -351,6 +351,9 @@ All settings live under Options, Preferences, Accessibility. In order:
     effects" — most with their own feedback-style combo
     (speech/sounds/both) for play, stop, end of track, headphone cue,
     back-to-start, and loop on/off
+12. "Allow controller navigation when Mixxx isn't focused" — off by
+    default; see "Controller navigation without window focus" under
+    "Controller mapping" below
 
 Smart cue (headphone cue follows the loaded track, on by default) is a
 general deck-loading behavior rather than an accessibility setting, so
@@ -398,7 +401,34 @@ mapped to buttons on a DJ controller:
   pad mode buttons; a mapping writes 1 hot cues, 2 beat loop, 3 beat
   jump, 4 sampler, 5 keyboard, 6 pad effects 1, 7 pad effects 2,
   8 key shift, 9 loop roll. Writing the value already set stays
-  silent.
+  silent — a mapping that wants a re-press to re-announce (so a
+  blind DJ can query the current layer) bounces the value through 0
+  first, which is outside the spoken vocabulary and so doesn't itself
+  announce anything.
+
+### Controller navigation without window focus
+
+Normally, controller-driven library navigation (browse/rotate,
+sidebar and track-list movement) is dropped whenever the Mixxx window
+does not have OS keyboard focus — the same as stock Mixxx. This
+becomes a real problem for a blind DJ using a controller such as the
+DDJ-400 alongside a screen reader: alt-tabbing to VoiceOver, JAWS, or
+NVDA to read something takes window focus away from Mixxx, and
+controller navigation input is silently dropped until you tab back.
+
+To keep controller navigation working in that situation, either:
+
+- Check "Allow controller navigation when Mixxx isn't focused" under
+  Preferences, Accessibility. Takes effect immediately, no restart
+  required.
+- Or start Mixxx with the `--controller-navigation-without-focus`
+  command-line flag (handy for scripting or testing). Either one is
+  enough on its own; you don't need both.
+
+This only affects library/browse navigation controls (see "Controller
+mapping" above); it does not change how deck transport, mixer, or
+effects controls behave when Mixxx is unfocused — those already work
+regardless of window focus.
 
 ### Numark Scratch (built in)
 
@@ -472,9 +502,14 @@ Two more settings live next to it on the same page:
 Independent of that setting, the mapping speaks the layer buttons
 themselves: pressing Shift says "Shift", and each pad mode button
 announces the layer it selected — "Pads, hot cues", "Pads, beat
-loop", "Pads, beat jump", "Pads, sampler", and the shifted modes
+loop", "Pads, beat jump", "Pads, sampler". The shifted modes
 ("Pads, keyboard", "Pads, pad effects 1", "Pads, pad effects 2",
-"Pads, key shift"). Pressing the mode you're already in stays silent.
+"Pads, key shift") have no pad layer behind them yet — see the "Not
+implemented" note at the top of the DDJ-400 mapping script — so their
+announcement adds "(not yet supported)"; the pads themselves stay
+dead in those four layers. Pressing the mode you're already in
+re-announces it (rather than staying silent), so you can check which
+of the eight layers you're on without cycling through the rest.
 
 ## Timecode vinyl (DVS)
 

@@ -72,6 +72,7 @@ void PlaylistFeature::onRightClick(const QPoint& globalPos) {
     menu.addSeparator();
     menu.addAction(m_pExportAllPlaylistsToEngineAction);
 #endif
+    m_pLibrary->announceMenuHover(&menu);
     menu.exec(globalPos);
 }
 
@@ -113,6 +114,7 @@ void PlaylistFeature::onRightClickChild(
 #ifdef __ENGINEPRIME__
     menu.addAction(m_pExportPlaylistToEngineAction);
 #endif
+    m_pLibrary->announceMenuHover(&menu);
     menu.exec(globalPos);
 }
 
