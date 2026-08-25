@@ -468,7 +468,8 @@ QVariant BaseTrackTableModel::data(
             role != Qt::ToolTipRole &&
             role != kDataExportRole &&
             role != Qt::TextAlignmentRole &&
-            role != Qt::DecorationRole) {
+            role != Qt::DecorationRole &&
+            role != Qt::AccessibleTextRole) {
         return QVariant();
     }
 
@@ -492,6 +493,60 @@ QVariant BaseTrackTableModel::rawSiblingValue(
     }
     const QModelIndex siblingIndex = index.sibling(index.row(), siblingColumn);
     return rawValue(siblingIndex);
+}
+
+QString BaseTrackTableModel::rowAccessibleText(const QModelIndex& index) const {
+    if (!index.isValid()) {
+        return QString();
+    }
+
+    QStringList parts;
+
+    const TrackPointer pTrack = getTrack(index);
+    if (pTrack) {
+        const QString artist = pTrack->getArtist().trimmed();
+        const QString title = pTrack->getTitle().trimmed();
+        if (!artist.isEmpty() && !title.isEmpty()) {
+            parts << artist + QStringLiteral(", ") + title;
+        } else if (!title.isEmpty()) {
+            parts << title;
+        } else if (!artist.isEmpty()) {
+            parts << artist;
+        }
+    }
+
+    // BPM lock is spoken on its own, not via the BPM column's accessible
+    // text (which also carries the numeric BPM - fine when tabbing to that
+    // one cell, too much noise to repeat on every row selection).
+    const auto lockRaw = rawSiblingValue(index, ColumnCache::COLUMN_LIBRARYTABLE_BPM_LOCK);
+    if (!lockRaw.isNull() && lockRaw.canConvert<bool>() && lockRaw.toBool()) {
+        parts << tr("BPM locked");
+    }
+
+    // Other columns whose visual state (star widget, color swatch,
+    // checkbox) would otherwise be silent to a screen reader. Reuses the
+    // same text as Qt::AccessibleTextRole (see roleValue()) so the two stay
+    // in sync.
+    static constexpr ColumnCache::Column kSpokenColumns[] = {
+            ColumnCache::COLUMN_LIBRARYTABLE_RATING,
+            ColumnCache::COLUMN_LIBRARYTABLE_COLOR,
+            ColumnCache::COLUMN_LIBRARYTABLE_TIMESPLAYED,
+    };
+    for (const auto column : kSpokenColumns) {
+        const int fieldCol = fieldIndex(column);
+        if (fieldCol < 0) {
+            // Column not present in this particular model (e.g. some
+            // playlist/history variants), nothing to say for it.
+            continue;
+        }
+        const QModelIndex fieldIdx = index.sibling(index.row(), fieldCol);
+        const QString text = data(fieldIdx, Qt::AccessibleTextRole).toString();
+        if (!text.isEmpty()) {
+            parts << text;
+        }
+    }
+
+    return parts.join(QStringLiteral(", "));
 }
 
 bool BaseTrackTableModel::setData(
@@ -808,6 +863,59 @@ QVariant BaseTrackTableModel::roleValue(
             break;
         }
         break;
+    // Text handed to assistive technology (screen readers) when a cell gets
+    // focus. Several columns render their state purely visually (star
+    // widget, color swatch, checkboxes) and would otherwise be silent; give
+    // those a spoken equivalent. Everything else reuses the same text as
+    // Qt::DisplayRole, which is already meaningful to read aloud.
+    case Qt::AccessibleTextRole:
+        switch (field) {
+        case ColumnCache::COLUMN_LIBRARYTABLE_RATING: {
+            if (rawValue.isNull() || !rawValue.canConvert<int>()) {
+                return tr("Unrated");
+            }
+            const auto starCount = rawValue.toInt();
+            if (starCount <= StarRating::kMinStarCount) {
+                return tr("Unrated");
+            }
+            return tr("%n star(s)", "", starCount);
+        }
+        case ColumnCache::COLUMN_LIBRARYTABLE_COLOR: {
+            const auto rgbColor = mixxx::RgbColor::fromQVariant(rawValue);
+            if (!rgbColor) {
+                return tr("No color");
+            }
+            return tr("Color %1").arg(mixxx::RgbColor::toQString(rgbColor));
+        }
+        case ColumnCache::COLUMN_LIBRARYTABLE_TIMESPLAYED: {
+            const auto playedRaw = rawSiblingValue(
+                    index, ColumnCache::COLUMN_LIBRARYTABLE_PLAYED);
+            const bool played = !playedRaw.isNull() &&
+                    playedRaw.canConvert<bool>() && playedRaw.toBool();
+            if (!played) {
+                return tr("Not played");
+            }
+            int timesPlayed = 0;
+            if (!rawValue.isNull() && rawValue.canConvert<int>()) {
+                timesPlayed = rawValue.toInt();
+            }
+            return tr("Played, %n time(s)", "", timesPlayed);
+        }
+        case ColumnCache::COLUMN_LIBRARYTABLE_BPM: {
+            QString text = roleValue(index, QVariant(rawValue), Qt::DisplayRole).toString();
+            const auto lockRaw = rawSiblingValue(
+                    index, ColumnCache::COLUMN_LIBRARYTABLE_BPM_LOCK);
+            const bool locked = !lockRaw.isNull() &&
+                    lockRaw.canConvert<bool>() && lockRaw.toBool();
+            if (locked) {
+                text += QStringLiteral(", ") + tr("BPM locked");
+            }
+            return text;
+        }
+        default:
+            // Same value as spoken for Qt::DisplayRole.
+            return roleValue(index, QVariant(rawValue), Qt::DisplayRole);
+        }
     case Qt::EditRole:
         switch (field) {
         case ColumnCache::COLUMN_LIBRARYTABLE_BPM: {

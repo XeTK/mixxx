@@ -79,10 +79,11 @@ TEST_F(AccessMenuControllerTest, Open_SpeaksMainMenuAndSetsActive) {
     press(QStringLiteral("open"));
 
     EXPECT_EQ(1.0, active());
-    ASSERT_GE(m_pSpy->m_texts.size(), 2);
-    EXPECT_QSTRING_EQ("Main menu", m_pSpy->m_texts.at(0));
-    // First item (Back) is spoken on open.
-    EXPECT_QSTRING_EQ("Back", m_pSpy->m_texts.at(1));
+    // "Main menu" and the first highlighted item (Back) are spoken as one
+    // utterance (issue #48): two separate speak() calls here used to let the
+    // second silently supersede the first before it could render.
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Main menu. Back", m_pSpy->m_texts.at(0));
 }
 
 TEST_F(AccessMenuControllerTest, Navigate_ScrollsAndSpeaksEachItem) {
@@ -443,11 +444,13 @@ TEST_F(ValueEditorTest, EnterValueEditMode_SpeaksLabelAndStartValue) {
 
     press(QStringLiteral("activate"));
 
-    // Mode announcement then the current value.
-    ASSERT_GE(m_pSpy->m_texts.size(), 2);
-    EXPECT_QSTRING_EQ("Speech rate. Turn to change, confirm to set, back to cancel",
+    // Mode announcement and the current value are one utterance (issue #48,
+    // case 3): two separate speak() calls here used to let the value
+    // silently supersede the instructions before they could render.
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ(
+            "Speech rate. Turn to change, confirm to set, back to cancel. 3",
             m_pSpy->m_texts.at(0));
-    EXPECT_QSTRING_EQ("3", m_pSpy->m_texts.at(1));
 }
 
 TEST_F(ValueEditorTest, Navigate_ChangesValueAndSpeaksIt) {
@@ -505,11 +508,11 @@ TEST_F(ValueEditorTest, Confirm_CommitsAndExitsEditMode) {
     // The value stays at the committed value.
     EXPECT_EQ(2.0, getRate());
 
-    // Exiting edit mode goes back to speaking the current menu item, which is
-    // the same Value item with its new value.
-    ASSERT_GE(m_pSpy->m_texts.size(), 2);
-    EXPECT_QSTRING_EQ("Set", m_pSpy->m_texts.at(0));
-    EXPECT_QSTRING_EQ("Speech rate, 2", m_pSpy->m_texts.at(1));
+    // Exiting edit mode speaks the confirmation and the current menu item
+    // (the same Value item with its new value) as one utterance (issue #48,
+    // case 3).
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Set. Speech rate, 2", m_pSpy->m_texts.at(0));
 
     // The browse knob now scrolls the menu again, not the value.
     auto pDuck = std::make_unique<ControlObject>(
@@ -535,10 +538,10 @@ TEST_F(ValueEditorTest, Back_CancelsEditAndRestoresValue) {
     // The original value is restored.
     EXPECT_EQ(4.0, getRate());
 
-    // Back exits edit mode without navigating the menu.
-    ASSERT_GE(m_pSpy->m_texts.size(), 2);
-    EXPECT_QSTRING_EQ("Cancelled", m_pSpy->m_texts.at(0));
-    EXPECT_QSTRING_EQ("Speech rate, 4", m_pSpy->m_texts.at(1));
+    // Back exits edit mode without navigating the menu; the cancellation and
+    // the re-highlighted item are one utterance (issue #48, case 3).
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Cancelled. Speech rate, 4", m_pSpy->m_texts.at(0));
 }
 
 TEST_F(ValueEditorTest, Boolean_StepsOnOff) {

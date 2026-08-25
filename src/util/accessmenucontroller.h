@@ -183,6 +183,13 @@ class AccessMenuController : public QObject {
     void openMenu();
     void closeMenu();
     void restartTimeout();
+    // Text that speakCurrentItem() would speak for the highlighted item,
+    // without speaking it. Used to fold the highlighted item into the same
+    // utterance as a preceding announcement (e.g. "Main menu") so the two
+    // don't race as separate speak() calls -- see speakCurrentItem() and
+    // issue #48 (case 2/3: a second speak() call fired synchronously right
+    // after the first silently supersedes it before it can render).
+    QString currentItemText() const;
     void speakCurrentItem();
     void activateCurrentItem();
     void goBack();
