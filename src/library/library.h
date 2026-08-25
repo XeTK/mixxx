@@ -16,6 +16,8 @@
 #include "util/parented_ptr.h"
 
 class AnalysisFeature;
+class AutoDJFeature;
+class AutoDJProcessor;
 class BrowseFeature;
 class ControlObject;
 class CrateFeature;
@@ -124,6 +126,11 @@ class Library: public QObject {
     /// track table right after it applies a search.
     void announceSearchResultCount(int count);
 
+    /// Non-owning access to the Auto DJ processor, for the accessibility
+    /// layer's "what's next in Auto DJ" on-demand readout. Null only if
+    /// AutoDJFeature somehow failed to construct.
+    AutoDJProcessor* getAutoDJProcessor() const;
+
   public slots:
     void slotShowTrackModel(QAbstractItemModel* model);
     void slotSwitchToView(const QString& view);
@@ -221,6 +228,7 @@ class Library: public QObject {
     const static QString m_sAutoDJViewName;
     WLibrary* m_pLibraryWidget;
     MixxxLibraryFeature* m_pMixxxLibraryFeature;
+    AutoDJFeature* m_pAutoDJFeature;
     PlaylistFeature* m_pPlaylistFeature;
     CrateFeature* m_pCrateFeature;
     AnalysisFeature* m_pAnalysisFeature;
