@@ -2145,6 +2145,20 @@ TEST_F(AnnouncementManagerTest, HeadSplitDecks_Announced) {
     EXPECT_QSTRING_EQ("Split cue off", pSpy->lastText);
 }
 
+TEST_F(AnnouncementManagerTest, Talkover_Announced) {
+    auto pTalkover = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[Microphone]"), QStringLiteral("talkover")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pTalkover->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Microphone on", pSpy->lastText);
+
+    pTalkover->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Microphone off", pSpy->lastText);
+}
+
 // ---------------------------------------------------------------------------
 // Playlist and crate announcements (Tier 1)
 // ---------------------------------------------------------------------------

@@ -694,6 +694,23 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                           : tr("Split cue off"));
     });
 
+    // Talkover (mic) toggle (backtick key): the live on/off state has no
+    // earcon, VU meter change, or other cue a blind DJ can rely on, though
+    // the boot-time "no microphone input configured" warning is already read
+    // by the OS screen reader (a native QMessageBox in MixxxMainWindow).
+    // Always confirmed audibly, like the toggles above. [Microphone] is the
+    // group of the first/default microphone (see PlayerManager::
+    // groupForMicrophone) and matches the keyboard binding in
+    // res/keyboard/en_US.kbd.cfg.
+    auto pTalkover = make_parented<ControlProxy>(
+            QStringLiteral("[Microphone]"),
+            QStringLiteral("talkover"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pTalkover->connectValueChanged(this, [this](double value) {
+        speak(value > 0.0 ? tr("Microphone on") : tr("Microphone off"));
+    });
+
     // Beat click metronome toggle (Alt+B): always confirmed audibly.
     auto pBeatClick = make_parented<ControlProxy>(
             QStringLiteral("[BeatClick]"),
