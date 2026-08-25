@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html' aria-current='page'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>Mixxx accessibility manual test plan</h1>
+<p>This is an HTML rendering of the hand-written Gherkin manual test plan in <code>features/*.feature</code>, built for a tester who is using a screen reader to work through it. Every scenario has real Pass / Fail / Skip / Not tested controls and a notes box; your answers are saved to this browser's local storage as you go, so you can close the tab and come back later on the same machine.</p>
+<p><strong>257 scenarios</strong> across 9 feature files. <a href='coverage.html'>See what is still <strong>not</strong> tested</a> before assuming a clean run means full coverage.</p>
+<h2>Files</h2>
+<p>Jump directly to any feature file's scenarios:</p>
+<table>
+<thead><tr><th scope='col'>File</th><th scope='col'>Feature</th><th scope='col'>Scenarios</th></tr></thead>
+<tbody>
+<tr><td><a href='ddj400_hardware.html'><code>ddj400_hardware.feature</code></a></td><td>Pioneer DDJ-400 on real hardware</td><td>34</td></tr>
+<tr><td><a href='macos_voiceover.html'><code>macos_voiceover.feature</code></a></td><td>Keyboard chords surviving macOS VoiceOver</td><td>16</td></tr>
+<tr><td><a href='windows_screenreader.html'><code>windows_screenreader.feature</code></a></td><td>Reading Mixxx with JAWS and NVDA</td><td>30</td></tr>
+<tr><td><a href='audio_path.html'><code>audio_path.feature</code></a></td><td>The audio path — things only a listener can confirm</td><td>39</td></tr>
+<tr><td><a href='first_run_boot.html'><code>first_run_boot.feature</code></a></td><td>Cold start, first run, and device errors</td><td>22</td></tr>
+<tr><td><a href='keyboard_only.html'><code>keyboard_only.feature</code></a></td><td>The full workflow from the keyboard alone</td><td>48</td></tr>
+<tr><td><a href='destructive_actions.html'><code>destructive_actions.feature</code></a></td><td>Confirmations before anything is destroyed</td><td>27</td></tr>
+<tr><td><a href='library_and_dialogs.html'><code>library_and_dialogs.feature</code></a></td><td>Library navigation, menus and the YouTube source</td><td>37</td></tr>
+<tr><td><a href='blind_dj_workflow.html'><code>blind_dj_workflow.feature</code></a></td><td>A complete mix, performed without sight</td><td>4</td></tr>
+</tbody></table>
+<h2>Quick links</h2>
+<ul><li><a href='#tags'>Tag legend</a> — what each <code>@tag</code> means and what equipment it requires</li><li><a href='#setting-up'>Setting up</a> — throwaway profiles, MIDI monitoring, locales</li><li><a href='#recording-results'>Recording results</a></li><li><a href='#when-a-scenario-fails'>When a scenario fails</a></li></ul>
+<h2>About this plan</h2>
+<p>The full text below is rendered directly from <code>features/README.md</code>, which covers setup (throwaway profiles, MIDI monitoring, locales), the tag legend, how to record results, and how to triage a failing scenario.</p>
+<h2 id='manual-test-plan-accessibility-work-issues-47-67'>Manual test plan — accessibility work (issues #47-#67)</h2>
+<p>Gherkin scenarios for the parts of this fork's accessibility work that <strong>CI cannot verify</strong>. Unit tests already cover the string formatting, the control plumbing, and the debounce arithmetic. What they cannot cover is whether a real DDJ-400 sends the byte we guessed it sends, whether VoiceOver swallows a chord before Mixxx ever sees it, whether the speech you needed actually reached your ears in the two seconds you had, and whether a blind DJ can get from "app launched" to "track mixed and filed" without once asking a sighted person what is on screen.</p>
+<p>These are <strong>manual</strong> scenarios. No runner executes them. There is no step definition layer and none is planned — the Gherkin is here because it is a good format for a checklist a human works through: numbered, tagged, filterable, and unambiguous about what counts as a pass.</p>
+<h3 id='the-scenarios-are-written-for-a-tester-who-cannot-see-the-screen'>The scenarios are written for a tester who cannot see the screen</h3>
+<p>Every <code>Then</code> is something you can <strong>hear</strong> or something your <strong>screen reader speaks</strong>. There are no steps of the form "the dialog shows X" or "the button is highlighted". If a scenario cannot be checked without sight, it does not belong in this plan and should be rewritten or dropped.</p>
+<p>Where an exact spoken string matters, it is quoted verbatim from the source. A near-miss is a fail: "Deck 1 keylock on" and "Keylock on deck 1" are different results, and the difference is usually a real regression in whichever branch reworded it.</p>
+<h3 id='files'>Files</h3>
+<table class="md-table">
+<thead><tr><th scope="col">File</th><th scope="col">Area</th><th scope="col">Issues covered</th></tr></thead>
+<tbody>
+<tr><td><code>ddj400_hardware.feature</code></td><td>Real DDJ-400 over MIDI</td><td>47, 50, 54, 65, plus long-standing 18, and 32, 33</td></tr>
+<tr><td><code>macos_voiceover.feature</code></td><td>Chords surviving VoiceOver</td><td>58, and 56 / 50 as collateral</td></tr>
+<tr><td><code>windows_screenreader.feature</code></td><td>JAWS/NVDA reading the UI</td><td>62, 63, 51</td></tr>
+<tr><td><code>audio_path.feature</code></td><td>Things only a listener can confirm</td><td>48, 55, 66, plus beat click / split cue / ducking, and 36, 14</td></tr>
+<tr><td><code>first_run_boot.feature</code></td><td>Cold start and device errors</td><td>49, 52, 63, and 30</td></tr>
+<tr><td><code>keyboard_only.feature</code></td><td>Full workflow, no controller</td><td>56, 57, 59, 61, 64, plus a non-keyboard check for 17</td></tr>
+<tr><td><code>destructive_actions.feature</code></td><td>Confirmations before data loss</td><td>53</td></tr>
+<tr><td><code>library_and_dialogs.feature</code></td><td>Library narration, dialogs, YouTube</td><td>51, 60, 63, 67</td></tr>
+<tr><td><code>blind_dj_workflow.feature</code></td><td>End-to-end acceptance run</td><td>all of them, in anger</td></tr>
+</tbody></table>
+<p>257 scenarios as written; 363 individual runs once <code>Scenario Outline</code> examples are expanded. Issues #14, #17, #30, #32, #33 and #36 were added after the rest of this plan and closed before it existed; see <code>COVERAGE.md</code> for how they are covered.</p>
+<p><code>COVERAGE.md</code> maps each of the 21 pull requests to the scenarios that touch it, and — more usefully — states what is still untested afterwards.</p>
+<h3 id='if-you-only-have-an-hour-run-these-five'>If you only have an hour, run these five</h3>
+<p>Ordered by how likely they are to reveal a real problem, not by how important the feature is.</p>
+<ol><li><strong><code>ddj400_hardware.feature</code> → "Browse knob byte convention matches what the mapping assumes"</strong> (<code>@inference @blocking @midimonitor</code>). The one thing in the fork whose result genuinely cannot be predicted. Needs a MIDI monitor and five minutes.</li><li><strong><code>macos_voiceover.feature</code> → "Do the new mixer chords survive VoiceOver at all"</strong> (<code>@inference @blocking</code>). Two PRs contradict each other about the <code>Ctrl+Alt</code> namespace. If VoiceOver eats these, the whole keyboard-only mixing workflow is dead on macOS.</li><li><strong><code>audio_path.feature</code> → "Loading a track with Smart Cue speaks the load AND the cue move"</strong> (<code>@blocking @timing</code>). The bug this fixed was invisible to unit tests because the string was generated correctly and then thrown away before it was synthesised.</li><li><strong><code>ddj400_hardware.feature</code> → "Pad-mode button note numbers match the mapping"</strong> (<code>@inference @blocking @midimonitor</code>). Eight note numbers nobody has ever confirmed. A wrong one announces the wrong layer, which is worse than saying nothing.</li><li><strong><code>destructive_actions.feature</code> → "Pressing Enter on the purge dialog does not purge"</strong> (<code>@destructive @blocking</code>). Purge had no confirmation at all until recently. Cheap to run, and the failure mode is losing library entries.</li></ol>
+<h3 id='tags'>Tags</h3>
+<p>Filter a session down to what you can actually run today. A scenario carries every tag that applies, so <code>@hardware @ddj400 @blocking</code> means you need the controller plugged in and the result gates the release.</p>
+<p><strong>Equipment / platform</strong></p>
+<table class="md-table">
+<thead><tr><th scope="col">Tag</th><th scope="col">You need</th></tr></thead>
+<tbody>
+<tr><td><code>@hardware</code></td><td>Physical hardware beyond the computer</td></tr>
+<tr><td><code>@ddj400</code></td><td>A Pioneer DDJ-400, USB-connected, powered</td></tr>
+<tr><td><code>@midimonitor</code></td><td>A MIDI monitoring tool alongside Mixxx (see below)</td></tr>
+<tr><td><code>@macos</code></td><td>macOS build</td></tr>
+<tr><td><code>@windows</code></td><td>Windows build</td></tr>
+<tr><td><code>@linux</code></td><td>Linux build</td></tr>
+<tr><td><code>@voiceover</code></td><td>macOS VoiceOver running (Cmd+F5)</td></tr>
+<tr><td><code>@jaws</code></td><td>JAWS running</td></tr>
+<tr><td><code>@nvda</code></td><td>NVDA running</td></tr>
+<tr><td><code>@audio</code></td><td>Headphones and a working audio interface; a quiet room</td></tr>
+<tr><td><code>@twodevices</code></td><td>Two separate audio outputs (main + headphones)</td></tr>
+<tr><td><code>@locale</code></td><td>Mixxx's "Locale" preference set to a non-English language, and a restart. See below — as of this writing no shipped <code>.ts</code> has a translation for the strings these scenarios check, so most runs will confirm safe fallback rather than a translated word.</td></tr>
+</tbody></table>
+<p><strong>Nature of the test</strong></p>
+<table class="md-table">
+<thead><tr><th scope="col">Tag</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>@manual</code></td><td>On every scenario in this plan. Nothing here is automated.</td></tr>
+<tr><td><code>@blocking</code></td><td>Do not ship if this fails.</td></tr>
+<tr><td><code>@inference</code></td><td><strong>Tests an assumption, not a known-good behaviour.</strong> The implementation was written from a sibling mapping, a datasheet, or a reasonable guess — nobody has ever seen it work. Read the comment above the scenario before running.</td></tr>
+<tr><td><code>@regression</code></td><td>Checks that something that used to work still works.</td></tr>
+<tr><td><code>@keyboard</code></td><td>Keyboard only; unplug the controller first.</td></tr>
+<tr><td><code>@firstrun</code></td><td>Requires a clean profile (see below).</td></tr>
+<tr><td><code>@destructive</code></td><td>Can delete tracks or files. Use a throwaway library.</td></tr>
+<tr><td><code>@e2e</code></td><td>Long end-to-end run, not a single-behaviour check.</td></tr>
+<tr><td><code>@timing</code></td><td>Outcome depends on when things happen, not just what. Run it more than once.</td></tr>
+</tbody></table>
+<p>Useful selections:</p>
+<ul><li><code>@blocking</code> — the minimum bar for a release.</li><li><code>@inference</code> — the highest-value hour you can spend. These are the scenarios most likely to fail.</li><li><code>@ddj400 and not @midimonitor</code> — what you can do with just the controller.</li><li><code>not @hardware and not @voiceover and not @jaws and not @nvda</code> — what you can do on a plain laptop with headphones.</li></ul>
+<h3 id='setting-up'>Setting up</h3>
+<h4 id='a-throwaway-profile'>A throwaway profile</h4>
+<p>Several scenarios (<code>@firstrun</code>, <code>@destructive</code>) need a Mixxx settings directory you do not mind losing. Do not test against your real library.</p>
+<ul><li>macOS: <code>~/Library/Application Support/Mixxx</code></li><li>Windows: <code>%LOCALAPPDATA%\Mixxx</code></li><li>Linux: <code>~/.mixxx</code></li></ul>
+<p>Move the real one aside, run the test, move it back. Mixxx recreates a fresh one on launch, which is exactly what <code>@firstrun</code> is testing.</p>
+<p>You also want a small throwaway music folder — a dozen tracks, at least one of which is analysed at the wrong tempo (a drum-and-bass or footwork track usually is), and at least one with an accented or non-Latin title.</p>
+<h4 id='midi-monitoring-midimonitor'>MIDI monitoring (<code>@midimonitor</code>)</h4>
+<p>Some DDJ-400 scenarios need you to see the raw bytes the controller sends, independently of what Mixxx decides they mean. That is the whole point: the scenario is checking that Mixxx's interpretation matches the hardware, so reading Mixxx's interpretation back proves nothing.</p>
+<ul><li>macOS: <strong>MIDI Monitor</strong> (free, snoize.com), or <code>receivemidi</code> from the <code>midi-tools</code> Homebrew formula for a scriptable text log.</li><li>Windows: <strong>MIDI-OX</strong>.</li><li>Linux: <code>amidi -d -p hw:1</code> or <code>aseqdump -p "DDJ-400"</code>.</li></ul>
+<p>Mixxx will normally hold the DDJ-400 port exclusively. Either close Mixxx while monitoring, or use a virtual port / the OS's multi-client MIDI support. Where a scenario needs Mixxx <em>and</em> the monitor at once it says so.</p>
+<p>Mixxx's own <strong>Controller Debug</strong> output is a useful cross-check but is <strong>not</strong> a substitute — it shows the bytes after Mixxx's own parsing. Enable it by launching with <code>mixxx --controllerDebug</code> and watch the log.</p>
+<h4 id='non-english-locale-locale'>Non-English locale (<code>@locale</code>)</h4>
+<p>Preferences, Interface has a "Locale" combo box (default "System"); Mixxx only reads it at startup, via <code>mixxx::Translations::initializeTranslations()</code>, so a change needs a restart. Pick any installed language other than English to exercise it.</p>
+<p>Before trusting a <code>@locale</code> result, check whether the string under test actually has a translation yet: search <code>res/translations/mixxx_&lt;code&gt;.ts</code> for the English source text. A newly <code>tr()</code>-wrapped string (like the 24 musical key names from issue #14) can go a full release cycle with no translation at all, in which case Qt silently falls back to the English source and the scenario is only proving that fallback is safe, not that translation works. That distinction matters when recording a result — "heard English, no translation exists yet" is not the same finding as "heard English, translation exists and was not picked up".</p>
+<h4 id='screen-readers'>Screen readers</h4>
+<p>VoiceOver, JAWS and NVDA each speak through their own audio device, which is usually the system default. Before an <code>@audio</code> run, make sure the screen reader and Mixxx's own speech are not fighting for the same ears — scenarios that care about this say which device should be which.</p>
+<h3 id='recording-results'>Recording results</h3>
+<p>Keep a run log. A plain text file is fine; a spreadsheet is easier to diff between builds. Per scenario record:</p>
+<ol><li>Scenario name and file.</li><li>Build under test — <code>git rev-parse --short HEAD</code>, plus OS and version.</li><li>Equipment — controller firmware version, audio interface, screen reader and version, TTS voice and rate.</li><li><strong>Pass / Fail / Blocked / Not-run.</strong> "Blocked" means you could not run it (no hardware, prerequisite scenario failed); it is not a pass.</li><li>On fail: <strong>what you actually heard</strong>, verbatim, versus what the scenario said you should hear. This is the single most valuable thing in the log. "Announcement wrong" is not actionable; "said 'Keylock enabled' instead of 'Deck 1 keylock on'" is a one-line fix.</li><li>On fail with hardware: the raw MIDI bytes from the monitor.</li></ol>
+<p>A scenario that passed on a previous build and fails now is a regression and outranks a scenario that has never passed.</p>
+<h3 id='when-a-scenario-fails'>When a scenario fails</h3>
+<p>Triage in this order.</p>
+<p><strong>1. Is it the test or the code?</strong> These scenarios quote strings that were read out of the source. If the code deliberately changed the wording after this plan was written, the plan is wrong — fix the <code>.feature</code> file in the same PR as the wording change, and say so in the commit. A stale test plan that cries wolf gets ignored, which is worse than having no plan.</p>
+<p><strong>2. Is it an <code>@inference</code> scenario?</strong> Then a failure is the expected outcome roughly as often as not. It is not a regression — it is the assumption being wrong, which is what you were checking. Capture the real behaviour (raw MIDI bytes, the actual note numbers) and file it as a finding with that evidence, not as a bug report saying "browse knob doesn't work". The evidence is the deliverable.</p>
+<p><strong>3. Is speech missing entirely, or just wrong?</strong> Missing speech has a short list of causes that are not the feature under test: speech toggled off (<code>Alt+Shift+A</code>), the category's checkbox unticked in Preferences → Accessibility, "Speech output" routed to a device you are not listening to, or the TTS engine failing to produce audio at all. Rule those out with a known-good announcement (<code>Alt+1</code> reads deck 1's status) before blaming the scenario's feature.</p>
+<p><strong>4. Is it timing-dependent?</strong> Anything tagged <code>@timing</code> — speech batching, "Mixxx ready", the ducking envelope — can pass or fail depending on machine load and on how fast you pressed the keys. Run it three times. Two of three failing is a bug; one of three is a note in the log with the conditions attached.</p>
+<p><strong>5. Does it reproduce without the screen reader?</strong> If a chord fails under VoiceOver, retry it with VoiceOver off. Working without and failing with means the screen reader is intercepting it — that is issue #58's whole subject and the finding belongs there. Failing both ways is a Mixxx bug.</p>
+<p><strong>6. File it.</strong> One issue per finding, on gitea.xetk.co.uk/xetk/mixxx. Title it with the behaviour, not the scenario number — scenario numbering will drift, behaviour descriptions will not. Include: scenario name, build hash, equipment, expected string, heard string, and whether it reproduces without a screen reader.</p>
+<h3 id='keeping-this-plan-honest'>Keeping this plan honest</h3>
+<p>The strings in these scenarios were transcribed from the source at the time of writing. They will rot. When you change a spoken string, a key chord, or a MIDI note number, grep this directory for it:</p>
+<pre><code>grep -rn &quot;the string you changed&quot; features/</code></pre>
+<p>and update it in the same commit. <code>COVERAGE.md</code> should be updated when a PR adds behaviour that nothing here covers — including, deliberately, adding it to the "still untested" list rather than writing a scenario that cannot really be run.</p>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>
