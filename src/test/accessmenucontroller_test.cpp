@@ -299,6 +299,16 @@ class ToggleStateTest : public AccessMenuControllerTest {
             navigate(1.0);
         }
     }
+
+    // Make the controller speak the currently highlighted item again. A single
+    // tick always moves the selection (there is no "repeat" control), so step
+    // to the neighbouring item and back; the spy is cleared in between, so only
+    // the second announcement of the original item is recorded.
+    void respeakCurrentItem() {
+        navigate(1.0);
+        clearSpy();
+        navigate(-1.0);
+    }
 };
 
 TEST_F(ToggleStateTest, Recording_SpeaksOnState) {
@@ -320,9 +330,10 @@ TEST_F(ToggleStateTest, Tts_SpeaksOffThenOnState) {
     ASSERT_GE(m_pSpy->m_texts.size(), 1);
     EXPECT_QSTRING_EQ("Speech on/off, off", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 
+    // The state is read live on every announcement, so flipping the control
+    // and re-speaking the item reports the new state.
     pEnabled->set(1.0);
-    clearSpy();
-    navigate(-1.0); // re-speak the same item
+    respeakCurrentItem();
     ASSERT_GE(m_pSpy->m_texts.size(), 1);
     EXPECT_QSTRING_EQ("Speech on/off, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 }
@@ -337,8 +348,7 @@ TEST_F(ToggleStateTest, Fullscreen_SpeaksStatePushedFromMainWindow) {
     EXPECT_QSTRING_EQ("Fullscreen, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 
     m_pController->setFullScreenState(false);
-    clearSpy();
-    navigate(-1.0);
+    respeakCurrentItem();
     ASSERT_GE(m_pSpy->m_texts.size(), 1);
     EXPECT_QSTRING_EQ("Fullscreen, off", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 }
