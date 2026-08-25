@@ -5,6 +5,7 @@
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
+#include "moc_enginetts.cpp"
 #include "util/defs.h"
 #include "util/sample.h"
 
@@ -57,7 +58,14 @@ EngineTts::EngineTts(const QString& group)
     updateDuckingParameters(m_pSampleRate->get());
 }
 
-EngineTts::~EngineTts() = default;
+EngineTts::~EngineTts() {
+    // The [Tts],enabled control is destroyed here, before the AnnouncementManager
+    // (which observes it via a ControlProxy whose lambda calls speak()) is torn
+    // down. Emit a signal so the manager can drop its raw sink pointer before
+    // this object's members are destroyed — otherwise a control change firing
+    // the proxy after this point would call isUserEnabled() on freed memory.
+    emit sinkDestroyed();
+}
 
 bool EngineTts::isUserEnabled() const {
     return m_pEnabled->toBool();

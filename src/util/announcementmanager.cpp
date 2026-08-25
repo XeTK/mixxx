@@ -1,5 +1,6 @@
 #include "util/announcementmanager.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
 #include <QTextStream>
@@ -13,6 +14,7 @@
 #include "engine/enginetts.h"
 #include "library/library.h"
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_announcementmanager.cpp"
@@ -33,6 +35,10 @@ namespace {
 constexpr int kSelectionDebounceMs = 400;
 constexpr int kSearchDebounceMs = 600;
 constexpr int kControlDebounceMs = 400;
+// Sort column/order changes are debounced so a single toggle that updates
+// both controls (a new column resets the order to ascending) collapses into
+// one announcement.
+constexpr int kSortDebounceMs = 400;
 // Minimum gap between spoken updates in announce-while-moving mode.
 constexpr qint64 kMovingThrottleMs = 300;
 // How long a knob/fader keeps its spoken "context": while the same control
@@ -185,34 +191,35 @@ QString pitchDeviationText(double rateRatio) {
 // Returns a fully-spelled pronounceable key name for the given ChromaticKey,
 // e.g. A_MINOR → "A Minor", F#_MAJOR → "F Sharp Major".
 // Using a lookup table keyed by the enum integer (INVALID=0, C_MAJOR=1 … B_MINOR=24).
+// Each name is wrapped in tr() so the spoken key respects the app locale.
 QString keyForSpeech(mixxx::track::io::key::ChromaticKey key) {
     using namespace mixxx::track::io::key;
     static const QString kNames[] = {
             QString(),                       // 0  INVALID
-            QStringLiteral("C Major"),       // 1
-            QStringLiteral("D Flat Major"),  // 2
-            QStringLiteral("D Major"),       // 3
-            QStringLiteral("E Flat Major"),  // 4
-            QStringLiteral("E Major"),       // 5
-            QStringLiteral("F Major"),       // 6
-            QStringLiteral("F Sharp Major"), // 7
-            QStringLiteral("G Major"),       // 8
-            QStringLiteral("A Flat Major"),  // 9
-            QStringLiteral("A Major"),       // 10
-            QStringLiteral("B Flat Major"),  // 11
-            QStringLiteral("B Major"),       // 12
-            QStringLiteral("C Minor"),       // 13
-            QStringLiteral("C Sharp Minor"), // 14
-            QStringLiteral("D Minor"),       // 15
-            QStringLiteral("E Flat Minor"),  // 16
-            QStringLiteral("E Minor"),       // 17
-            QStringLiteral("F Minor"),       // 18
-            QStringLiteral("F Sharp Minor"), // 19
-            QStringLiteral("G Minor"),       // 20
-            QStringLiteral("A Flat Minor"),  // 21
-            QStringLiteral("A Minor"),       // 22
-            QStringLiteral("B Flat Minor"),  // 23
-            QStringLiteral("B Minor"),       // 24
+            AnnouncementManager::tr("C Major"),                  // 1
+            AnnouncementManager::tr("D Flat Major"),             // 2
+            AnnouncementManager::tr("D Major"),                  // 3
+            AnnouncementManager::tr("E Flat Major"),             // 4
+            AnnouncementManager::tr("E Major"),                  // 5
+            AnnouncementManager::tr("F Major"),                  // 6
+            AnnouncementManager::tr("F Sharp Major"),            // 7
+            AnnouncementManager::tr("G Major"),                  // 8
+            AnnouncementManager::tr("A Flat Major"),             // 9
+            AnnouncementManager::tr("A Major"),                  // 10
+            AnnouncementManager::tr("B Flat Major"),             // 11
+            AnnouncementManager::tr("B Major"),                  // 12
+            AnnouncementManager::tr("C Minor"),                  // 13
+            AnnouncementManager::tr("C Sharp Minor"),            // 14
+            AnnouncementManager::tr("D Minor"),                  // 15
+            AnnouncementManager::tr("E Flat Minor"),             // 16
+            AnnouncementManager::tr("E Minor"),                  // 17
+            AnnouncementManager::tr("F Minor"),                  // 18
+            AnnouncementManager::tr("F Sharp Minor"),            // 19
+            AnnouncementManager::tr("G Minor"),                  // 20
+            AnnouncementManager::tr("A Flat Minor"),             // 21
+            AnnouncementManager::tr("A Minor"),                  // 22
+            AnnouncementManager::tr("B Flat Minor"),             // 23
+            AnnouncementManager::tr("B Minor"),                  // 24
     };
     const int idx = static_cast<int>(key);
     if (idx < 0 || idx >= static_cast<int>(std::size(kNames))) {
@@ -353,6 +360,14 @@ AnnouncementManager::AnnouncementManager(
                 QStringLiteral("samplerate"),
                 this,
                 ControlFlag::AllowMissingOrInvalid);
+        // The engine sink outlives the manager in normal shutdown, but a
+        // ControlProxy observing its [Tts],enabled control can still fire
+        // speak() after the sink is destroyed (see issue #30). Drop the raw
+        // pointer when the sink is torn down so speak() never dereferences it.
+        connect(m_pTtsSink,
+                &EngineTts::sinkDestroyed,
+                this,
+                &AnnouncementManager::onTtsSinkDestroyed);
     }
     init(pLibrary, pPlayerManager);
 }
@@ -378,6 +393,13 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
             &QTimer::timeout,
             this,
             &AnnouncementManager::slotAnnouncePendingControl);
+
+    m_sortDebounce.setSingleShot(true);
+    m_sortDebounce.setInterval(kSortDebounceMs);
+    connect(&m_sortDebounce,
+            &QTimer::timeout,
+            this,
+            &AnnouncementManager::slotAnnounceSort);
 
     if (pLibrary) {
         connect(pLibrary,
@@ -409,6 +431,29 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 this,
                 &AnnouncementManager::slotSearchResultCount);
     }
+
+    // Track-list sort column/order feedback. [Library],sort_column holds the
+    // active TrackModel::SortColumnId and [Library],sort_order the direction
+    // (0 = ascending, 1 = descending); both are driven by the keyboard
+    // binding sort_column_toggle (and by clicking a column header). A blind
+    // user toggling the sort column needs to hear which column the library is
+    // now sorted by.
+    auto pSortColumn = make_parented<ControlProxy>(
+            QStringLiteral("[Library]"),
+            QStringLiteral("sort_column"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pSortColumn->connectValueChanged(this, [this](double) {
+        m_sortDebounce.start();
+    });
+    auto pSortOrder = make_parented<ControlProxy>(
+            QStringLiteral("[Library]"),
+            QStringLiteral("sort_order"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pSortOrder->connectValueChanged(this, [this](double) {
+        m_sortDebounce.start();
+    });
 
     connect(pPlayerManager,
             &PlayerManagerInterface::numberOfDecksChanged,
@@ -812,6 +857,20 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
 
 AnnouncementManager::~AnnouncementManager() = default;
 
+void AnnouncementManager::onTtsSinkDestroyed() {
+    // The engine sink (and its [Tts],enabled control) is being destroyed. Drop
+    // the raw pointer so speak() bails instead of dereferencing freed memory,
+    // and clear the TtsEngine's own sink pointer so its say() path can't reach
+    // the destroyed sink either. The ControlProxy observing [Tts],enabled is
+    // parented to this object and will be destroyed with it; until then its
+    // valueChanged lambda must not reach into the sink.
+    m_ttsSinkDestroyed = true;
+    m_pTtsSink = nullptr;
+    if (m_pTts) {
+        m_pTts->setSink(nullptr);
+    }
+}
+
 void AnnouncementManager::speak(const QString& text) {
     // Any announcement invalidates the knob/fader name-once context: after an
     // unrelated utterance the next control move must name the control again.
@@ -832,6 +891,13 @@ void AnnouncementManager::speak(const QString& text) {
 
     // Skip if TTS is disabled via the user toggle.
     if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) {
+        return;
+    }
+
+    // The engine sink has been destroyed (shutdown). There is nowhere to render
+    // the speech and the TtsEngine's sink pointer has been cleared, so bail
+    // rather than synthesize into a torn-down sink (issue #30).
+    if (m_ttsSinkDestroyed) {
         return;
     }
 
@@ -1606,7 +1672,29 @@ QString AnnouncementManager::formatForBrowsing(TrackPointer pTrack) {
 }
 
 void AnnouncementManager::slotSkinLoaded() {
-    if (m_settings.getAnnounceStartup()) {
+    if (!m_settings.getAnnounceStartup()) {
+        return;
+    }
+    if (m_audioEngineReady) {
+        speak(tr("Mixxx ready"));
+        return;
+    }
+    // The skin loads (during boot) before setupDevices() has run, so there is
+    // no confirmation yet that any sound device is open and pulling from the
+    // TTS sink. Queue the announcement rather than speaking it now: speaking
+    // here would write into EngineTts's FIFO with nothing draining it, and it
+    // would likely be discarded by barge-in the moment a sound-device-error
+    // dialog (or anything else) speaks before the engine actually starts.
+    // slotSoundDevicesReady() flushes this once audio is confirmed running.
+    // See issue #49.
+    m_pendingReadyAnnouncement = true;
+}
+
+void AnnouncementManager::slotSoundDevicesReady() {
+    const bool wasReady = m_audioEngineReady;
+    m_audioEngineReady = true;
+    if (!wasReady && m_pendingReadyAnnouncement) {
+        m_pendingReadyAnnouncement = false;
         speak(tr("Mixxx ready"));
     }
 }
@@ -1753,6 +1841,103 @@ void AnnouncementManager::slotAnnounceSearch() {
         text += tr(". %1 tracks").arg(m_pendingSearchCount);
     }
     speak(text);
+}
+
+void AnnouncementManager::slotAnnounceSort() {
+    if (!m_settings.getAnnounceSort()) {
+        return;
+    }
+    ControlProxy sortColumn(QStringLiteral("[Library]"),
+            QStringLiteral("sort_column"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    ControlProxy sortOrder(QStringLiteral("[Library]"),
+            QStringLiteral("sort_order"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    const auto columnId =
+            static_cast<TrackModel::SortColumnId>(static_cast<int>(sortColumn.get()));
+    const QString columnName = sortColumnName(columnId);
+    if (columnName.isEmpty()) {
+        return;
+    }
+    const bool ascending = sortOrder.get() == 0.0;
+    speak(tr("Sorting by %1 %2")
+                    .arg(columnName,
+                            ascending ? tr("ascending") : tr("descending")));
+}
+
+QString AnnouncementManager::sortColumnName(TrackModel::SortColumnId column) {
+    // Spoken column names, mirroring the display titles in columncache.cpp
+    // (BaseTrackTableModel/BaseSqlTableModel translation contexts).
+    switch (column) {
+    case TrackModel::SortColumnId::Artist:
+        return tr("artist");
+    case TrackModel::SortColumnId::Title:
+        return tr("title");
+    case TrackModel::SortColumnId::Album:
+        return tr("album");
+    case TrackModel::SortColumnId::AlbumArtist:
+        return tr("album artist");
+    case TrackModel::SortColumnId::Year:
+        return tr("year");
+    case TrackModel::SortColumnId::Genre:
+        return tr("genre");
+    case TrackModel::SortColumnId::Composer:
+        return tr("composer");
+    case TrackModel::SortColumnId::Grouping:
+        return tr("grouping");
+    case TrackModel::SortColumnId::TrackNumber:
+        return tr("track number");
+    case TrackModel::SortColumnId::FileType:
+        return tr("file type");
+    case TrackModel::SortColumnId::NativeLocation:
+        return tr("location");
+    case TrackModel::SortColumnId::Comment:
+        return tr("comment");
+    case TrackModel::SortColumnId::Duration:
+        return tr("duration");
+    case TrackModel::SortColumnId::BitRate:
+        return tr("bitrate");
+    case TrackModel::SortColumnId::Bpm:
+        return tr("BPM");
+    case TrackModel::SortColumnId::ReplayGain:
+        return tr("replay gain");
+    case TrackModel::SortColumnId::DateTimeAdded:
+        return tr("date added");
+    case TrackModel::SortColumnId::TimesPlayed:
+        return tr("times played");
+    case TrackModel::SortColumnId::Rating:
+        return tr("rating");
+    case TrackModel::SortColumnId::Key:
+        return tr("key");
+    case TrackModel::SortColumnId::Preview:
+        return tr("preview");
+    case TrackModel::SortColumnId::CoverArt:
+        return tr("cover art");
+    case TrackModel::SortColumnId::Position:
+        return tr("position");
+    case TrackModel::SortColumnId::PlaylistId:
+        return tr("playlist");
+    case TrackModel::SortColumnId::Location:
+        return tr("location");
+    case TrackModel::SortColumnId::Filename:
+        return tr("filename");
+    case TrackModel::SortColumnId::FileModifiedTime:
+        return tr("modified time");
+    case TrackModel::SortColumnId::FileCreationTime:
+        return tr("creation time");
+    case TrackModel::SortColumnId::SampleRate:
+        return tr("sample rate");
+    case TrackModel::SortColumnId::Color:
+        return tr("color");
+    case TrackModel::SortColumnId::LastPlayedAt:
+        return tr("last played");
+    case TrackModel::SortColumnId::PlaylistDateTimeAdded:
+        return tr("date added");
+    default:
+        return QString();
+    }
 }
 
 // static

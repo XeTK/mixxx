@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "preferences/accessibilitysettings.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
@@ -52,6 +53,17 @@ class AnnouncementManager : public QObject {
     void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
     void slotSkinLoaded();
+    // Connected to SoundManager::devicesSetup(). Marks the engine as
+    // confirmed running (a sound device is open and the audio callback is
+    // pulling from the EngineTts sink) and, the first time this fires,
+    // flushes a "Mixxx ready" announcement queued by slotSkinLoaded() while
+    // audio wasn't up yet. On boot the skin loads (and slotSkinLoaded() runs)
+    // before setupDevices() ever runs -- speaking immediately at that point
+    // would write into EngineTts's FIFO with nothing pulling it yet, and a
+    // later boot-dialog utterance (e.g. a sound-device-busy retry) would
+    // likely flush it away via barge-in before the engine ever started. See
+    // issue #49.
+    void slotSoundDevicesReady();
     void slotLibraryFocusChanged(double value);
     void slotSidebarItemActivated(const QString& title,
             int row = -1,
@@ -64,6 +76,9 @@ class AnnouncementManager : public QObject {
     void slotSearchTextChanged(const QString& text);
     void slotSearchResultCount(int count);
     void slotAnnounceSearch();
+    // Speaks the current track-list sort column/order after the debounce
+    // timer fires. Public so tests can drive it synchronously.
+    void slotAnnounceSort();
 
     // Speaks the pending debounced control announcement (tempo/mixer moves).
     // Public so tests can fire the debounce without waiting for the timer.
@@ -96,6 +111,11 @@ class AnnouncementManager : public QObject {
     void connectGroupControls(const QString& group, int deckIndex = -1);
     void setDeckHasTrack(const QString& group, bool value);
 
+    // Drops the raw engine sink pointer. Called from the sink's destruction
+    // signal (see EngineTts::sinkDestroyed) so speak() never dereferences a
+    // torn-down EngineTts. Also exposed for tests.
+    void onTtsSinkDestroyed();
+
     // Plain methods below — not slots. (moc chokes on std::function
     // parameters when it generates slot invokers.)
   public:
@@ -109,6 +129,10 @@ class AnnouncementManager : public QObject {
     void setEffectNameResolvers(
             std::function<QString(int unit, int slot)> effectName,
             std::function<QString(const QString& deckGroup)> quickEffectName);
+
+    // Spoken name for a track-table sort column, or empty for columns that
+    // are never sorted by (e.g. the internal id). Public for tests.
+    static QString sortColumnName(TrackModel::SortColumnId column);
 
   private:
     void connectDeck(int deckIndex);
@@ -164,6 +188,18 @@ class AnnouncementManager : public QObject {
     // Engine sink the synthesized speech is rendered into. Null in unit tests,
     // where a spy TtsEngine is injected instead.
     EngineTts* m_pTtsSink{nullptr};
+    // True once the engine sink has been destroyed (see onTtsSinkDestroyed).
+    // speak() bails once this is set: there is nowhere to render the speech and
+    // the TtsEngine's own sink pointer has been cleared.
+    bool m_ttsSinkDestroyed{false};
+    // True once slotSoundDevicesReady() has fired at least once, i.e. a sound
+    // device is confirmed open and the engine is pulling from the TTS sink.
+    // False from construction, matching real boot: the manager is created
+    // well before setupDevices() is ever attempted (see issue #49).
+    bool m_audioEngineReady{false};
+    // Set by slotSkinLoaded() when it wants to announce "Mixxx ready" but
+    // m_audioEngineReady is still false; slotSoundDevicesReady() flushes it.
+    bool m_pendingReadyAnnouncement{false};
     // Engine earcon player for transport cues. Null in unit tests.
     EngineEarcon* m_pEarcon{nullptr};
     std::unique_ptr<ControlProxy> m_pSampleRate;
@@ -189,6 +225,9 @@ class AnnouncementManager : public QObject {
     // Debounced search announcement.
     QTimer m_searchDebounce;
     QString m_pendingSearch;
+
+    // Debounced track-list sort column/order announcement.
+    QTimer m_sortDebounce;
 
     // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
     QHash<QString, bool> m_deckHasTrack;

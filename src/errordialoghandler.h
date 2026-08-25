@@ -140,6 +140,23 @@ class ErrorDialogHandler : public QObject {
     void showErrorDialog(ErrorDialogProperties* props);
     void stdButtonClicked(const QString& key, QMessageBox::StandardButton whichStdButton);
 
+    // Accessibility: emitted with a spoken-friendly summary (title + message,
+    // HTML markup stripped) right as a dialog is about to be shown -- the
+    // single choke point every requestErrorDialog() call funnels through,
+    // covering every consumer (broadcast connection failures, controller
+    // script errors, recording disk-full, etc.) without touching each call
+    // site. These dialogs are frequently non-modal and may not even take
+    // focus, so without this a blind, TTS-only user could get no indication
+    // anything went wrong at all.
+    //
+    // CoreServices connects this to Library::announceText() once the
+    // accessibility TTS machinery exists (see coreservices.cpp). This handler
+    // is a process-wide singleton created in the main thread before
+    // AnnouncementManager exists (see main.cpp), so until that connection is
+    // made -- e.g. very early boot -- the signal simply has no listener and
+    // nothing is spoken; the dialog is still shown normally either way.
+    void errorDialogAnnouncement(const QString& text);
+
   private slots:
     /** Actually displays the box */
     void errorDialog(ErrorDialogProperties* props);

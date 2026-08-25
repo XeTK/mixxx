@@ -12,6 +12,7 @@
 #include "control/controlproxy.h"
 #include "engine/enginetts.h"
 #include "library/library_decl.h"
+#include "library/trackmodel.h"
 #include "mixer/playermanager.h"
 #include "preferences/usersettings.h"
 #include "test/mixxxtest.h"
@@ -441,19 +442,62 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
 // Startup announcement (slotSkinLoaded)
 // ---------------------------------------------------------------------------
 
-TEST_F(AnnouncementManagerTest, SkinLoaded_AnnouncesReady) {
+// On boot, the skin loads (running slotSkinLoaded()) before setupDevices()
+// has ever run, so slotSoundDevicesReady() (wired to
+// SoundManager::devicesSetup()) has not fired yet. Speaking "Mixxx ready"
+// immediately in that state would write into EngineTts's FIFO with nothing
+// pulling it yet -- issue #49. It must be queued and only spoken once a
+// sound device is confirmed open.
+TEST_F(AnnouncementManagerTest, SkinLoaded_BeforeAudioReady_QueuesAnnouncement) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    EXPECT_EQ(0, pSpy->callCount);
+
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
+}
+
+// A skin reload while Mixxx is already running (e.g. rebootMixxxView()) finds
+// audio already confirmed running, so the announcement is spoken immediately
+// rather than queued.
+TEST_F(AnnouncementManagerTest, SkinLoaded_AfterAudioReady_AnnouncesImmediately) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
     m_pManager->slotSkinLoaded();
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
+TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_NeverAnnouncesEvenOnceReady) {
     config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
                                QStringLiteral("AnnounceStartup")),
             false);
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// slotSoundDevicesReady() firing with nothing queued (the common case: audio
+// comes up before AnnounceStartup would ever have anything pending, or the
+// user has startup announcements disabled) must not speak anything.
+TEST_F(AnnouncementManagerTest, SoundDevicesReady_NoPendingAnnouncement_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// devicesSetup() can fire again later, e.g. the user reopens Preferences and
+// reconfigures sound hardware. That must not re-announce "Mixxx ready".
+TEST_F(AnnouncementManagerTest, SoundDevicesReady_FiresAgain_DoesNotReannounce) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    m_pManager->slotSoundDevicesReady();
     EXPECT_EQ(0, pSpy->callCount);
 }
 
@@ -646,6 +690,79 @@ TEST_F(AnnouncementManagerTest, AnnounceSearch_ClearedSearchText) {
     m_pManager->slotAnnounceSearch();
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Search cleared", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Track-list sort announcements (slotAnnounceSort)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_ColumnAndOrder) {
+    // The [Library] sort controls must exist before the manager attaches its
+    // observers in init().
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Title));
+    pSortOrder->set(0.0); // ascending
+    m_pManager->slotAnnounceSort(); // drive debounce synchronously
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sorting by title ascending", pSpy->lastText);
+
+    pSortOrder->set(1.0); // descending
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(2, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Sorting by title descending", pSpy->lastText);
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Bpm));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_QSTRING_EQ("Sorting by BPM ascending", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_DisabledViaSettings) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceSort")),
+            false);
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Title));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_UnknownColumnSilent) {
+    auto pSortColumn = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_column")));
+    auto pSortOrder = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Library]"), QStringLiteral("sort_order")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    // Invalid / internal columns have no spoken name and must stay silent.
+    pSortColumn->set(static_cast<double>(TrackModel::SortColumnId::Invalid));
+    pSortOrder->set(0.0);
+    m_pManager->slotAnnounceSort();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerTest, AnnounceSort_ColumnNameMapping) {
+    // Spot-check the static name mapping used to build the announcement.
+    EXPECT_QSTRING_EQ("title",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::Title));
+    EXPECT_QSTRING_EQ("BPM",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::Bpm));
+    EXPECT_QSTRING_EQ("album artist",
+            AnnouncementManager::sortColumnName(TrackModel::SortColumnId::AlbumArtist));
+    EXPECT_TRUE(AnnouncementManager::sortColumnName(
+            TrackModel::SortColumnId::Invalid)
+            .isEmpty());
 }
 
 TEST_F(AnnouncementManagerTest, AnnounceSearch_UpdatesPendingTextBeforeAnnounce) {
@@ -851,6 +968,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToMain) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // audio confirmed running: skinLoaded speaks immediately
 
     m_pManager->slotSkinLoaded(); // triggers speak()
 
@@ -862,6 +980,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToHeadphones) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 0);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
 
     m_pManager->slotSkinLoaded();
 
@@ -873,6 +992,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkipsRouteSyncWhenUnchanged) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
 
     m_pManager->slotSkinLoaded(); // first speak — sets route
     // Change the CO back to 0 externally to detect a second setRoute() call.
@@ -889,6 +1009,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
     // When the user disables TTS via the menu/shortcut, the EngineTts enabled CO
     // goes to 0. speak() must bail before calling say() so no synthesis happens.
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually calls speak()
 
     ControlProxy enabledCO(QLatin1String(kSinkGroup),
             QStringLiteral("enabled"),
@@ -901,6 +1022,28 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
 
     EXPECT_EQ(0, pSpy->callCount)
             << "speak() was not skipped when the engine sink is user-disabled";
+}
+
+TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) {
+    // Regression test for issue #30: when the EngineTts sink is destroyed while
+    // the AnnouncementManager still holds a raw pointer to it (shutdown), the
+    // manager must drop the pointer and stop speaking instead of dereferencing
+    // freed memory. Destroying the sink emits sinkDestroyed(); a subsequent
+    // speak() must bail without calling into the torn-down sink.
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually calls speak()
+
+    // Destroy the engine sink. ~EngineTts() emits sinkDestroyed(), which the
+    // manager is connected to, so it nulls its raw pointer and flags the sink
+    // as gone.
+    m_pEngineTts.reset();
+
+    // A control change (or any other path) firing speak() after the sink is
+    // gone must not dereference the destroyed EngineTts.
+    m_pManager->slotSkinLoaded();
+
+    EXPECT_EQ(0, pSpy->callCount)
+            << "speak() must not synthesize after the engine sink is destroyed";
 }
 
 // ---------------------------------------------------------------------------
@@ -986,6 +1129,7 @@ TEST_F(AnnouncementManagerStatusTest, StatusButton_TriggersAnnouncement) {
 
 TEST_F(AnnouncementManagerStatusTest, RepeatButton_RepeatsLastAnnouncement) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually speaks
 
     m_pManager->slotSkinLoaded(); // speaks "Mixxx ready"
     ASSERT_EQ(1, pSpy->callCount);
@@ -1312,7 +1456,26 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
     EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent) {
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pVolume->set(0.5);
+    QCoreApplication::processEvents();
+    // Name on touch: the fader names itself the moment it moves; the value
+    // is debounced until it stops.
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText);
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(2, pSpy->callCount)
+            << "mixer announcements are on by default (AnnounceMixer defaults on)";
+    EXPECT_QSTRING_EQ("a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            false);
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();
     setupGroup();
@@ -1321,7 +1484,7 @@ TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOffByDefault_Silent
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
     EXPECT_EQ(0, pSpy->callCount)
-            << "mixer announcements must be opt-in (AnnounceMixer defaults off)";
+            << "mixer announcements can be turned off (AnnounceMixer=false)";
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerEnabled_Spoken) {
@@ -2314,7 +2477,26 @@ TEST_F(AnnouncementManagerTest, HeadMix_Even_Announced) {
     EXPECT_QSTRING_EQ("even", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
+TEST_F(AnnouncementManagerTest, HeadMix_MixerOnByDefault_Spoken) {
+    auto pHeadMix = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pHeadMix->set(0.5);
+    QCoreApplication::processEvents();
+    // Name on touch: the knob names itself the moment it moves; the value
+    // is debounced until it stops.
+    EXPECT_QSTRING_EQ("Headphone mix", pSpy->lastText);
+    m_pManager->slotAnnouncePendingControl();
+    EXPECT_EQ(2, pSpy->callCount)
+            << "mixer announcements are on by default (AnnounceMixer defaults on)";
+    EXPECT_QSTRING_EQ("main a half", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, HeadMix_MixerDisabled_Silent) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            false);
     auto pHeadMix = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headMix")));
     SpyTtsEngine* pSpy = makeManager();
@@ -2322,7 +2504,8 @@ TEST_F(AnnouncementManagerTest, HeadMix_MixerOffByDefault_Silent) {
     pHeadMix->set(0.5);
     QCoreApplication::processEvents();
     m_pManager->slotAnnouncePendingControl();
-    EXPECT_EQ(0, pSpy->callCount);
+    EXPECT_EQ(0, pSpy->callCount)
+            << "mixer announcements can be turned off (AnnounceMixer=false)";
 }
 
 // ---------------------------------------------------------------------------

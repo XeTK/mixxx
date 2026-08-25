@@ -714,7 +714,7 @@
       <item>
        <widget class="QCheckBox" name="checkBoxAnnounceMixer">
         <property name="toolTip">
-         <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. Off by default because these move constantly during a mix.</string>
+         <string>Speak volume faders, EQ knobs, and the crossfader after they stop moving. On by default; readouts are debounced so they are not chatty mid-mix.</string>
         </property>
         <property name="text">
          <string>Announce mixer controls (volume, EQ, crossfader)</string>
@@ -807,6 +807,16 @@
         </property>
         <property name="text">
          <string>Announce library search</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxAnnounceSort">
+        <property name="toolTip">
+         <string>Speak the sort column and direction when the track list is re-sorted (e.g. via the sort column toggle).</string>
+        </property>
+        <property name="text">
+         <string>Announce track list sorting</string>
         </property>
        </widget>
       </item>

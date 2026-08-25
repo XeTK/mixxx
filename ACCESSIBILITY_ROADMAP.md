@@ -54,10 +54,13 @@ one-page shortcut cheat sheet.
   seeding saved cues doesn't fire a burst)
 - Recording started / stopped
 - Pitch fader position after it stops moving (debounced)
-- Volume faders, EQ knobs, crossfader (debounced; opt-in, off by
-  default because they move constantly mid-mix)
+- Volume faders, EQ knobs, crossfader (debounced; on by default so a
+  blind DJ hears them — readouts are debounced and "announce while
+  moving" is a separate opt-in, so this is not chatty mid-mix)
 - Library: sidebar item names during arrow-key navigation, pane focus
   changes (search bar / sidebar / track list), and search feedback
+- Track-list sort column/order when it changes (via the sort column
+  toggle or a column-header click), e.g. "Sorting by title ascending"
 - "Speech on" confirmation when re-enabling TTS
 
 ### Keyboard control (all also controller-mappable)
@@ -120,6 +123,12 @@ one-page shortcut cheat sheet.
   the "…and Traditional" variants append the full name too. Traditional,
   Custom, and ID3v2 notations are unaffected — they already spoke the
   full name.
+- **DDJ-400 auto-configures its decks** (2026-08-08, issue #33): the
+  mapping now sets `[App],num_decks` to 2 on init (alongside the
+  existing `num_samplers` = 16), so a blind user no longer has to
+  manually configure deck count in Preferences > Decks. Like the
+  sampler logic, it only raises the count — it never lowers a user's
+  intentional higher deck count.
 
 ### Bugs fixed and cleanups along the way
 
@@ -160,7 +169,8 @@ one-page shortcut cheat sheet.
   development-build resource lookup (empty resource path, no skin,
   "crash on load" when launching mixxx.exe without --resourcePath).
 - All spoken strings are translatable (`tr()`); musical key names are
-  the remaining exception.
+  now translatable too (wrapped in `tr()` in `keyForSpeech()`), so the
+  spoken key respects the app locale.
 - Qt TextToSpeech gated to Qt >= 6.6 in CMake; the preferences page
   shows a warning when the build has no speech backend.
 - Merged upstream 2.6 (July 1 state), conflict-free.
@@ -170,6 +180,17 @@ one-page shortcut cheat sheet.
   never worked outside the US layout.
 - 125 unit tests cover the announcement manager, engine speech sink,
   and beat-click metronome.
+- Fixed a hard crash (issue #30): `AnnouncementManager::speak()` could
+  dereference a destroyed `EngineTts` sink during shutdown. The manager
+  held a raw pointer to the engine sink (and a `ControlProxy` observing
+  its `[Tts],enabled` control) that outlived the sink, which is owned by
+  `EngineMixer` and torn down in `CoreServices::finalize()` before the
+  manager. A control change firing that proxy after the engine was gone
+  called `speak()` → `isUserEnabled()` on freed memory. Fixed by (a)
+  destroying the `AnnouncementManager` in `finalize()` before the engine
+  is torn down, and (b) making `EngineTts` a `QObject` that emits
+  `sinkDestroyed()` from its destructor so the manager drops its raw
+  pointer and bails out of `speak()` as a defensive safety net.
 
 ### Digital vinyl (DVS) + controller coexistence (2026-07-14, branch `dvs-cueing-2026-07-14`) — see [handoff/08-dvs-cueing.md](handoff/08-dvs-cueing.md)
 
@@ -230,16 +251,35 @@ Worked through the full 13-item tester bug list:
 
 - App-local DLL deployment (81 DLLs next to mixxx.exe) so the exe runs
   by double-click with no PATH setup.
-- Interim workaround for the debug-protobuf link bug: the release
-  protobuf DLL is provided under the debug import name. A proper CMake
-  fix is being worked on in a separate session; until it lands,
-  anything protobuf-touching would crash without the shim.
+- Debug-protobuf link bug resolved: `CMakeLists.txt` now maps
+  RelWithDebInfo to Release for imported targets, so the release build
+  no longer links debug `libprotobuf-lited.dll`; the renamed-DLL shim
+  is gone and binaries can be handed to another machine. Full diagnosis
+  in [handoff/05-protobuf-debug-link-fix.md](handoff/05-protobuf-debug-link-fix.md).
 
 ## In progress
 
 - **Screen reader labels, tranche 2** — accessible names for
   skin-level widgets (deck play/cue buttons, knobs, faders reachable
   by keyboard). Large: these are custom-painted widgets.
+
+Done since (2026-08-08) — issue #32, DDJ-400 value editor (first slice):
+
+- **Value editor for the spoken menu** — the DDJ-400 spoken menu could
+  open preference pages but couldn't change values inside them. Added a
+  value-edit mode to `AccessMenuController` (`src/util/accessmenucontroller.*`):
+  a new `ItemType::Value` item enters edit mode when activated, where the
+  browse knob steps the value (each change spoken), activate/confirm commits,
+  and back cancels (restoring the value captured on entry). Values are a
+  generic "control + min + max + step + format" model, either control-backed
+  (`ControlObject` via `ControlProxy`) or config-backed (`UserSettings` key,
+  e.g. TTS rate). New top-level **Values** submenu with Speech on/off
+  (`[Tts],enabled`), Speech rate (`[Accessibility],TtsRate`), Ducking strength
+  (`[Tts],duckStrength`), and Beat click volume (`[BeatClick],volume`). No
+  DDJ-400 script change needed — it reuses the existing `[AccessMenu]`
+  navigate/activate/back/confirm controls. Unit tests in
+  `src/test/accessmenucontroller_test.cpp` (20 controller tests pass). See
+  spec 01 addendum for the full design and next steps.
 
 ## To do
 
@@ -434,11 +474,6 @@ announced.
 
 ### Known issues / parked
 
-- **Debug-protobuf link bug** — the build links debug
-  `libprotobuf-lited.dll` into a release build; crashes anything
-  touching track key data without the shim. Proper CMake fix in
-  progress in a separate session; two FormatForLoad unit tests fail
-  without the shim.
 - **JAWS audio routing during performance** — JAWS speaks through the
   Windows default device, which may be the main (audience) output.
   Plan: document pinning JAWS to a specific sound card, and keep

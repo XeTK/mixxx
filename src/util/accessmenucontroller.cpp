@@ -1,17 +1,58 @@
 #include "util/accessmenucontroller.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "control/controlencoder.h"
+#include "control/controlobject.h"
+#include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
 #include "moc_accessmenucontroller.cpp"
 
 namespace {
 constexpr int kDefaultTimeoutMs = 30000;
+
+// Control objects / config keys the value editor reads/writes. These are the
+// same keys the engine and preference pages use, so edits take effect
+// immediately and are persisted by the owning engine. Kept in one place so
+// the menu tree and the restore-on-cancel logic stay in sync.
+struct ValueControl {
+    const char* group;      // control group, or config group when configBacked
+    const char* item;       // control item, or config item when configBacked
+    double min;
+    double max;
+    double step;
+    AccessMenuController::ValueFormat format;
+    bool configBacked{false};
+};
+
+const ValueControl kValueControls[] = {
+        // Speech on/off. [Tts],enabled is a Toggle push button; writing 0/1
+        // flips it to the requested state.
+        {"[Tts]", "enabled", 0.0, 1.0, 1.0,
+                AccessMenuController::ValueFormat::Boolean},
+        // Speech rate, -10..10, 0 = normal. Stored as a config key
+        // ([Accessibility],TtsRate); AnnouncementManager reads it on every
+        // utterance, so writing the config key takes effect on the next speak.
+        {"[Accessibility]", "TtsRate", -10.0, 10.0, 1.0,
+                AccessMenuController::ValueFormat::Integer, true},
+        // Music ducking strength while speech is spoken, 0..1. [Tts],
+        // duckStrength is a plain control; the engine persists it.
+        {"[Tts]", "duckStrength", 0.0, 1.0, 0.05,
+                AccessMenuController::ValueFormat::Percent},
+        // Beat-click metronome volume, 0..1.
+        {"[BeatClick]", "volume", 0.0, 1.0, 0.05,
+                AccessMenuController::ValueFormat::Percent},
+};
 } // namespace
 
 AccessMenuController::AccessMenuController(
-        std::function<void(const QString&)> speak, QObject* parent)
+        std::function<void(const QString&)> speak,
+        UserSettingsPointer pConfig,
+        QObject* parent)
         : QObject(parent),
-          m_speak(std::move(speak)) {
+          m_speak(std::move(speak)),
+          m_pConfig(std::move(pConfig)) {
     buildMenuTree();
 
     m_timeout.setSingleShot(true);
@@ -144,12 +185,49 @@ void AccessMenuController::buildMenuTree() {
             tr("Vinyl Control"),
             QStringLiteral("pref_vinyl_control"));
 
+    // Value editor submenu (issue #32): numeric/boolean settings the browse
+    // knob can change and hear. Each item enters value-edit mode when
+    // activated.
+    std::vector<Item> values;
+    values.emplace_back(ItemType::Action, tr("Back"), QStringLiteral("back"));
+    for (const ValueControl& vc : kValueControls) {
+        if (vc.configBacked) {
+            values.emplace_back(ItemType::Value,
+                    ValueItem(QString(),
+                            QString::fromLatin1(vc.group),
+                            QString::fromLatin1(vc.item),
+                            vc.min,
+                            vc.max,
+                            vc.step,
+                            vc.format,
+                            true));
+        } else {
+            values.emplace_back(ItemType::Value,
+                    ValueItem(QString(),
+                            QString::fromLatin1(vc.group),
+                            QString::fromLatin1(vc.item),
+                            vc.min,
+                            vc.max,
+                            vc.step,
+                            vc.format));
+        }
+    }
+    // Replace the placeholder labels with the real spoken names.
+    values[1].label = tr("Speech on/off");
+    values[2].label = tr("Speech rate");
+    values[3].label = tr("Ducking strength");
+    values[4].label = tr("Beat click volume");
+
     // Every menu starts with a Back item.
     m_root.emplace_back(ItemType::Action, tr("Back"), QStringLiteral("back"));
     m_root.emplace_back(ItemType::Submenu,
             tr("Preferences"),
             QString(),
             std::move(preferences));
+    m_root.emplace_back(ItemType::Submenu,
+            tr("Values"),
+            QString(),
+            std::move(values));
     m_root.emplace_back(ItemType::Toggle,
             tr("Recording"),
             QStringLiteral("toggleRecording"));
@@ -217,13 +295,20 @@ void AccessMenuController::slotNavigate(double value) {
     if (!m_open) {
         return;
     }
+    int delta = value > 0.0 ? 1 : (value < 0.0 ? -1 : 0);
+    if (delta == 0) {
+        return;
+    }
+    if (m_editing) {
+        // In value-edit mode the browse knob changes the value, not the
+        // selection, and each change is spoken (issue #32).
+        stepValue(delta);
+        restartTimeout();
+        return;
+    }
     MenuState& state = m_stack.back();
     const int count = static_cast<int>(state.menu->size());
     if (count == 0) {
-        return;
-    }
-    int delta = value > 0.0 ? 1 : (value < 0.0 ? -1 : 0);
-    if (delta == 0) {
         return;
     }
     state.index = (state.index + delta + count) % count;
@@ -235,6 +320,12 @@ void AccessMenuController::slotActivate() {
     if (!m_open) {
         return;
     }
+    if (m_editing) {
+        // In value-edit mode activate commits the current value and exits.
+        commitValue();
+        restartTimeout();
+        return;
+    }
     activateCurrentItem();
     restartTimeout();
 }
@@ -243,12 +334,24 @@ void AccessMenuController::slotBack() {
     if (!m_open) {
         return;
     }
+    if (m_editing) {
+        // Back cancels the edit, restoring the value captured on entry.
+        exitValueEdit();
+        restartTimeout();
+        return;
+    }
     goBack();
     restartTimeout();
 }
 
 void AccessMenuController::slotConfirm() {
     if (!m_open) {
+        return;
+    }
+    if (m_editing) {
+        // Confirm commits the current value and exits, like activate.
+        commitValue();
+        restartTimeout();
         return;
     }
     activateCurrentItem();
@@ -266,6 +369,11 @@ void AccessMenuController::speakCurrentItem() {
     }
     if (item->type == ItemType::Submenu) {
         speak(tr("%1, submenu").arg(item->label));
+    } else if (item->type == ItemType::Value) {
+        // Speak the label and the current value, e.g. "Speech rate, 0".
+        speak(tr("%1, %2")
+                        .arg(item->label,
+                                formatItemValue(item->value, readItemValue(item->value))));
     } else {
         speak(item->label);
     }
@@ -286,6 +394,11 @@ void AccessMenuController::activateCurrentItem() {
         // Stay-open: fire the action but keep the menu open.
         emit actionTriggered(item->actionId);
         break;
+    case ItemType::Value:
+        // Enter value-edit mode: the browse knob now changes the value and
+        // each change is spoken (issue #32).
+        enterValueEdit(item);
+        break;
     case ItemType::Action:
         if (item->actionId == QStringLiteral("back")) {
             goBack();
@@ -304,6 +417,150 @@ void AccessMenuController::goBack() {
     } else {
         closeMenu();
     }
+}
+
+void AccessMenuController::enterValueEdit(const Item* item) {
+    if (!item || item->type != ItemType::Value) {
+        return;
+    }
+    m_editing = true;
+    m_editingIndex = m_stack.back().index;
+    m_editStartValue = readItemValue(item->value);
+    // Announce the mode and the starting value so the DJ knows the knob now
+    // edits instead of scrolling.
+    speak(tr("%1. Turn to change, confirm to set, back to cancel")
+                    .arg(item->label));
+    speak(formatItemValue(item->value, m_editStartValue));
+}
+
+void AccessMenuController::exitValueEdit() {
+    if (!m_editing) {
+        return;
+    }
+    // Cancel: restore the value captured on entry.
+    writeValue(m_editStartValue);
+    m_editing = false;
+    m_editingIndex = -1;
+    speak(tr("Cancelled"));
+    speakCurrentItem();
+}
+
+void AccessMenuController::stepValue(double delta) {
+    const Item* item = currentEditingItem();
+    if (!item) {
+        return;
+    }
+    const double current = readItemValue(item->value);
+    double next;
+    if (item->value.format == ValueFormat::Boolean) {
+        // Booleans toggle on each tick: a blink DJ hears "off"/"on" with
+        // every navigate.
+        next = current > 0.0 ? item->value.min : item->value.max;
+        (void)delta;
+    } else {
+        next = current + delta * item->value.step;
+        if (next < item->value.min) {
+            next = item->value.min;
+        } else if (next > item->value.max) {
+            next = item->value.max;
+        }
+    }
+    if (next == current) {
+        // Already at a boundary; still say where we are so the DJ knows the
+        // knob is doing something.
+        speak(formatItemValue(item->value, next));
+        return;
+    }
+    writeItemValue(item->value, next);
+    speak(formatItemValue(item->value, next));
+}
+
+void AccessMenuController::commitValue() {
+    if (!m_editing) {
+        return;
+    }
+    m_editing = false;
+    m_editingIndex = -1;
+    speak(tr("Set"));
+    speakCurrentItem();
+}
+
+const AccessMenuController::Item* AccessMenuController::currentEditingItem() const {
+    if (!m_editing) {
+        return nullptr;
+    }
+    const auto* menu = currentMenu();
+    if (!menu || m_editingIndex < 0 ||
+            m_editingIndex >= static_cast<int>(menu->size())) {
+        return nullptr;
+    }
+    const Item& item = (*menu)[m_editingIndex];
+    return item.type == ItemType::Value ? &item : nullptr;
+}
+
+double AccessMenuController::readValue() const {
+    const Item* item = currentEditingItem();
+    if (!item) {
+        return 0.0;
+    }
+    return readItemValue(item->value);
+}
+
+void AccessMenuController::writeValue(double value) {
+    const Item* item = currentEditingItem();
+    if (!item) {
+        return;
+    }
+    writeItemValue(item->value, value);
+}
+
+double AccessMenuController::readItemValue(const ValueItem& value) const {
+    double v;
+    if (value.configBacked) {
+        v = m_pConfig ? m_pConfig->getValue<double>(
+                                ConfigKey(value.configGroup, value.configItem),
+                                value.min)
+                      : value.min;
+    } else {
+        // Use a proxy so a control that does not exist yet (e.g. before the
+        // engine creates it) reads as the clamped default instead of asserting.
+        ControlProxy proxy(value.group,
+                value.item,
+                nullptr,
+                ControlFlag::NoWarnIfMissing);
+        v = proxy.valid() ? proxy.get() : value.min;
+    }
+    return std::clamp(v, value.min, value.max);
+}
+
+void AccessMenuController::writeItemValue(const ValueItem& value, double v) const {
+    if (value.configBacked) {
+        if (m_pConfig) {
+            m_pConfig->setValue(ConfigKey(value.configGroup, value.configItem), v);
+        }
+        return;
+    }
+    ControlProxy proxy(value.group,
+            value.item,
+            nullptr,
+            ControlFlag::NoWarnIfMissing);
+    if (proxy.valid()) {
+        proxy.set(v);
+    }
+}
+
+QString AccessMenuController::formatItemValue(
+        const ValueItem& value, double v) const {
+    switch (value.format) {
+    case ValueFormat::Boolean:
+        return v > 0.0 ? tr("on") : tr("off");
+    case ValueFormat::Percent:
+        return tr("%1 percent").arg(QString::number(
+                static_cast<int>(std::lround(v * 100.0))));
+    case ValueFormat::Integer:
+        return QString::number(static_cast<int>(std::lround(v)));
+    }
+    return QString();
 }
 
 const std::vector<AccessMenuController::Item>* AccessMenuController::currentMenu() const {

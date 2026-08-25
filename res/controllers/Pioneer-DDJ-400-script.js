@@ -172,6 +172,11 @@ PioneerDDJ400.init = function() {
     engine.softTakeover("[EffectRack1_EffectUnit1_Effect3]", "meta", true);
     engine.softTakeover("[EffectRack1_EffectUnit1]", "mix", true);
 
+    const deckCount = 2;
+    if (engine.getValue("[App]", "num_decks") < deckCount) {
+        engine.setValue("[App]", "num_decks", deckCount);
+    }
+
     const samplerCount = 16;
     if (engine.getValue("[App]", "num_samplers") < samplerCount) {
         engine.setValue("[App]", "num_samplers", samplerCount);
@@ -220,16 +225,29 @@ PioneerDDJ400.browseMenuActive = function() {
 };
 
 PioneerDDJ400.browseRotate = function(_channel, _control, value) {
+    // The browse knob is a relative encoder that reports its value as a 7-bit
+    // two's-complement delta -- the same convention the stock (pre-fork)
+    // mapping relied on the <SelectKnob/> MIDI option to decode in
+    // midicontroller.cpp: 0x01-0x3F = positive detents (1..63), 0x7F-0x40 =
+    // negative detents (-1..-64). Mirror that decode here since this control
+    // is bound through a Script-Binding (needed to branch on whether the
+    // [AccessMenu] is open) rather than <SelectKnob/>.
+    let delta = value;
+    if (delta >= 64) {
+        delta -= 128;
+    }
+    if (delta === 0) {
+        return;
+    }
+    // The encoder should only ever report one detent (+/-1) per MIDI
+    // message, but clamp defensively so a stray multi-step message can never
+    // send a runaway jump through the track list or spoken menu.
+    delta = delta > 0 ? 1 : -1;
+
     if (PioneerDDJ400.browseMenuActive()) {
-        // The browse knob is a relative encoder: 0x41 = up, 0x3F = down,
-        // 0x40 = center (no-op). Convert to a signed +/-1 delta so the
-        // [AccessMenu] navigate encoder scrolls in the correct direction.
-        const delta = value - 0x40;
-        if (delta !== 0) {
-            engine.setValue("[AccessMenu]", "navigate", delta);
-        }
+        engine.setValue("[AccessMenu]", "navigate", delta);
     } else {
-        engine.setValue("[Library]", "MoveVertical", value);
+        engine.setValue("[Library]", "MoveVertical", delta);
     }
 };
 
