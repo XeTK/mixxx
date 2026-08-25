@@ -12,6 +12,7 @@
 #include "control/controlpushbutton.h"
 #include "engine/engineearcon.h"
 #include "engine/enginetts.h"
+#include "library/autodj/autodjprocessor.h"
 #include "library/library.h"
 #include "library/library_decl.h"
 #include "library/trackmodel.h"
@@ -430,6 +431,7 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 &Library::searchResultCountChanged,
                 this,
                 &AnnouncementManager::slotSearchResultCount);
+        m_pAutoDJProcessor = pLibrary->getAutoDJProcessor();
     }
 
     // Track-list sort column/order feedback. [Library],sort_column holds the
@@ -703,6 +705,66 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
     pBeatClick->connectValueChanged(this, [this](double value) {
         speak(value > 0.0 ? tr("Beat click on") : tr("Beat click off"));
     });
+
+    // Auto DJ enable/disable (Shift+F12): always confirmed audibly, and folds
+    // in what's queued next so enabling Auto DJ tells you what's about to
+    // happen instead of leaving that to a separate lookup.
+    auto pAutoDJEnabled = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJEnabled->connectValueChanged(this, [this](double value) {
+        if (value <= 0.0) {
+            speak(tr("Auto DJ off"));
+            return;
+        }
+        TrackPointer pNext = m_pAutoDJProcessor ? m_pAutoDJProcessor->getNextQueuedTrack()
+                                                 : TrackPointer();
+        speak(pNext ? tr("Auto DJ on. Next: %1").arg(formatForBrowsing(pNext))
+                    : tr("Auto DJ on"));
+    });
+
+    // Fade now (Shift+F11): a direct user action mid-set, so it is always
+    // confirmed even though the resulting track load gets its own
+    // announcement moments later.
+    auto pAutoDJFadeNow = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("fade_now"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJFadeNow->connectValueChanged(this, [this](double value) {
+        if (value > 0.0) {
+            speak(tr("Fading now"));
+        }
+    });
+
+    // Skip next (Shift+F10): drops the head of the queue without loading it.
+    // The track that becomes current next is spoken separately once it
+    // actually loads, same as any other track load.
+    auto pAutoDJSkipNext = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("skip_next"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJSkipNext->connectValueChanged(this, [this](double value) {
+        if (value > 0.0) {
+            speak(tr("Skipped"));
+        }
+    });
+
+    // On-demand "what's next in Auto DJ" readout (Alt+Shift+N): whether Auto
+    // DJ is on, the next queued track, and roughly how long until the
+    // currently playing deck hands off. Trigger mode so every press fires.
+    auto pAutoDJNext = std::make_unique<ControlPushButton>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("tts_next")));
+    pAutoDJNext->setButtonMode(mixxx::control::ButtonMode::Trigger);
+    connect(pAutoDJNext.get(), &ControlObject::valueChanged, this, [this](double value) {
+        if (value > 0.0) {
+            speak(formatAutoDJNext());
+        }
+    });
+    m_pAutoDJNextButton = std::move(pAutoDJNext);
 
     // Jog wheel touch lock (Alt+J): disables click-and-drag scratching on the
     // on-screen waveform and vinyl widgets for both decks, so an accidental
@@ -2083,6 +2145,42 @@ QString AnnouncementManager::formatTrackName(const QString& group, int deckIndex
         return trackText + QStringLiteral(".");
     }
     return deck + QStringLiteral(". ") + trackText + QStringLiteral(".");
+}
+
+QString AnnouncementManager::formatAutoDJNext() const {
+    QStringList parts;
+    const bool enabled = readGroupControl(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")) > 0.0;
+    parts << (enabled ? tr("Auto DJ is on") : tr("Auto DJ is off"));
+
+    const TrackPointer pNext = m_pAutoDJProcessor ? m_pAutoDJProcessor->getNextQueuedTrack()
+                                                   : TrackPointer();
+    parts << (pNext ? tr("Next: %1").arg(formatForBrowsing(pNext)) : tr("Queue is empty"));
+
+    // Roughly how long until the currently playing deck hands off: the
+    // remaining time on whichever connected deck is playing. This is an
+    // approximation of the time until transition (the actual crossfade can
+    // start earlier, at the outro point), not an exact countdown.
+    for (int i = 0; i < m_connectedDecks && m_pPlayerManager; ++i) {
+        BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(i);
+        if (!pDeck) {
+            continue;
+        }
+        const QString group = pDeck->getGroup();
+        if (!m_deckIsPlaying.value(group, false)) {
+            continue;
+        }
+        const double duration = readGroupControl(group, QStringLiteral("duration"));
+        if (duration <= 0.0) {
+            continue;
+        }
+        const double playPos = readGroupControl(group, QStringLiteral("playposition"));
+        parts << tr("About %1 on %2")
+                             .arg(remainingText(static_cast<int>(
+                                          std::lround(duration * (1.0 - playPos)))),
+                                     deckName(group, i));
+        break;
+    }
+    return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
 }
 
 QString AnnouncementManager::deckName(const QString& group, int deckIndex) const {
