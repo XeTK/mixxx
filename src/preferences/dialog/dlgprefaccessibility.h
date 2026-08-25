@@ -87,6 +87,7 @@ class DlgPrefAccessibility : public DlgPreferencePage, public Ui::DlgAccessibili
     bool m_bAnnounceWhileMoving;
     bool m_bDeckNumbers;
     bool m_bConcise;
+    bool m_bControllerNavWithoutFocus;
 
     std::unique_ptr<TtsEngine> m_pTestEngine;
 };

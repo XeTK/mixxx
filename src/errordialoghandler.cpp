@@ -4,6 +4,7 @@
 #include <QGuiApplication>
 #include <QScopedPointer>
 #include <QScreen>
+#include <QTextDocumentFragment>
 #include <QThread>
 #include <QtDebug>
 
@@ -21,6 +22,24 @@ constexpr int kEstimatedShowDetailedDialogHeight = 500; // px
 constexpr int kEstimatedDialogPadding = 50;             // px
 // used to push the dialog away from screen borders to not cover taskbars
 constexpr int kMinimumDialogMargin = 40; // px
+
+// Accessibility: the primary dialog text is meant to stay short -- long
+// content like backtraces belongs in the collapsed "Show Details" section
+// (setDetails()), which is intentionally not spoken here -- but nothing
+// stops a future caller from passing something long, so cap it defensively.
+constexpr int kMaxSpokenMessageChars = 300;
+
+// Strips HTML markup (several callers embed formatting like <br> or <b> in
+// the primary message) so it isn't read aloud literally, and caps the
+// length for speech. QTextDocumentFragment::fromHtml() is a no-op for plain
+// text, so this is safe to call unconditionally.
+QString spokenMessageText(const QString& text) {
+    QString plain = QTextDocumentFragment::fromHtml(text).toPlainText().simplified();
+    if (plain.length() > kMaxSpokenMessageChars) {
+        plain = plain.left(kMaxSpokenMessageChars) + QChar(0x2026); // ellipsis
+    }
+    return plain;
+}
 } // namespace
 
 ErrorDialogProperties::ErrorDialogProperties()
@@ -151,6 +170,15 @@ void ErrorDialogHandler::errorDialog(ErrorDialogProperties* pProps) {
         qWarning() << "WARNING: errorDialog not called in the main thread. Not showing error dialog.";
         return;
     }
+
+    // Accessibility: announce the dialog before showing it, so speech isn't
+    // delayed until a modal dialog's exec() call returns (i.e. until the
+    // user already closed it). See the doc comment on
+    // errorDialogAnnouncement() for why this is the single choke point for
+    // all error dialog consumers, and why it is safe to emit unconditionally
+    // even when nothing is connected yet.
+    emit errorDialogAnnouncement(
+            tr("%1. %2").arg(props->m_title, spokenMessageText(props->m_text)));
 
     QMessageBox* pMsgBox = new QMessageBox();
     pMsgBox->setIcon(props->m_icon);

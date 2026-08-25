@@ -267,8 +267,11 @@ void AccessMenuController::openMenu() {
     m_pActive->set(1.0);
     m_stack.clear();
     m_stack.push_back({&m_root, 0});
-    speak(tr("Main menu"));
-    speakCurrentItem();
+    // Speak "Main menu" and the highlighted item as one utterance: two
+    // separate speak() calls here let the second silently supersede the
+    // first before it can render (issue #48, case 2).
+    const QString itemText = currentItemText();
+    speak(itemText.isEmpty() ? tr("Main menu") : tr("Main menu. %1").arg(itemText));
     restartTimeout();
 }
 
@@ -362,20 +365,26 @@ void AccessMenuController::restartTimeout() {
     m_timeout.start();
 }
 
-void AccessMenuController::speakCurrentItem() {
+QString AccessMenuController::currentItemText() const {
     const Item* item = currentItem();
     if (!item) {
-        return;
+        return QString();
     }
     if (item->type == ItemType::Submenu) {
-        speak(tr("%1, submenu").arg(item->label));
+        return tr("%1, submenu").arg(item->label);
     } else if (item->type == ItemType::Value) {
-        // Speak the label and the current value, e.g. "Speech rate, 0".
-        speak(tr("%1, %2")
-                        .arg(item->label,
-                                formatItemValue(item->value, readItemValue(item->value))));
-    } else {
-        speak(item->label);
+        // Label and the current value, e.g. "Speech rate, 0".
+        return tr("%1, %2")
+                .arg(item->label,
+                        formatItemValue(item->value, readItemValue(item->value)));
+    }
+    return item->label;
+}
+
+void AccessMenuController::speakCurrentItem() {
+    const QString text = currentItemText();
+    if (!text.isEmpty()) {
+        speak(text);
     }
 }
 
@@ -426,11 +435,12 @@ void AccessMenuController::enterValueEdit(const Item* item) {
     m_editing = true;
     m_editingIndex = m_stack.back().index;
     m_editStartValue = readItemValue(item->value);
-    // Announce the mode and the starting value so the DJ knows the knob now
-    // edits instead of scrolling.
-    speak(tr("%1. Turn to change, confirm to set, back to cancel")
-                    .arg(item->label));
-    speak(formatItemValue(item->value, m_editStartValue));
+    // Announce the mode and the starting value in one utterance so the DJ
+    // knows the knob now edits instead of scrolling; two separate speak()
+    // calls here let the value silently supersede the instructions before
+    // they can render (issue #48, case 3).
+    speak(tr("%1. Turn to change, confirm to set, back to cancel. %2")
+                    .arg(item->label, formatItemValue(item->value, m_editStartValue)));
 }
 
 void AccessMenuController::exitValueEdit() {
@@ -441,8 +451,11 @@ void AccessMenuController::exitValueEdit() {
     writeValue(m_editStartValue);
     m_editing = false;
     m_editingIndex = -1;
-    speak(tr("Cancelled"));
-    speakCurrentItem();
+    // One utterance for the confirmation and the re-highlighted item (issue
+    // #48, case 3): calling speak() separately for each let the item name
+    // silently supersede "Cancelled" before it could render.
+    const QString itemText = currentItemText();
+    speak(itemText.isEmpty() ? tr("Cancelled") : tr("Cancelled. %1").arg(itemText));
 }
 
 void AccessMenuController::stepValue(double delta) {
@@ -481,8 +494,10 @@ void AccessMenuController::commitValue() {
     }
     m_editing = false;
     m_editingIndex = -1;
-    speak(tr("Set"));
-    speakCurrentItem();
+    // One utterance for the confirmation and the re-highlighted item; see
+    // exitValueEdit() above (issue #48, case 3).
+    const QString itemText = currentItemText();
+    speak(itemText.isEmpty() ? tr("Set") : tr("Set. %1").arg(itemText));
 }
 
 const AccessMenuController::Item* AccessMenuController::currentEditingItem() const {

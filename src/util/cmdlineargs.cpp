@@ -387,7 +387,9 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
             QStringLiteral("controller-navigation-without-focus"),
             forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
                                       "Allow controller-driven library navigation even when the "
-                                      "Mixxx window does not have keyboard focus.")
+                                      "Mixxx window does not have keyboard focus. Also available "
+                                      "as \"Allow controller navigation when Mixxx isn't focused\" "
+                                      "under Preferences, Accessibility; either one enables it.")
                             : QString());
     parser.addOption(controllerNavigationWithoutFocus);
 
