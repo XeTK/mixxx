@@ -1042,6 +1042,35 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         m_deckIsPlaying[group] = nowPlaying;
     });
 
+    // Eject (Alt+Shift+Left/Right): BaseTrackPlayerImpl::slotEjectTrack()
+    // silently no-ops while the deck is playing, the same "dead key" trap
+    // the load-blocked announcement (see WTrackTableView::
+    // loadSelectedTrackToGroup) already covers for loading. Mirror that
+    // pattern here, and confirm a successful eject too, since it otherwise
+    // gives no feedback at all. React on the button press itself (not the
+    // trackUnloaded signal used elsewhere in this file for state bookkeeping)
+    // so this only fires for a genuine eject action, not for the unload half
+    // of loading a new track over an already-loaded deck. Known edge case:
+    // a rapid double-press (within the eject double-click-restore window)
+    // reloads the previous track instead of ejecting; that case is not
+    // distinguished here and may speak "ejected" for what is actually a
+    // reload, matching the load announcement that follows immediately after.
+    auto pEject = make_parented<ControlProxy>(
+            group, QStringLiteral("eject"), this, ControlFlag::AllowMissingOrInvalid);
+    pEject->connectValueChanged(this, [this, group, deckIndex](double value) {
+        if (value <= 0.0) {
+            return;
+        }
+        if (m_deckIsPlaying.value(group, false)) {
+            speak(tr("%1 is playing, eject blocked. Stop the deck first.")
+                            .arg(deckName(group, deckIndex)));
+            return;
+        }
+        if (m_deckHasTrack.value(group, false) && m_settings.getAnnounceTrackLoad()) {
+            speak(tr("%1 track ejected").arg(deckName(group, deckIndex)));
+        }
+    });
+
     auto pEndOfTrack = make_parented<ControlProxy>(
             group, QStringLiteral("end_of_track"), this, ControlFlag::AllowMissingOrInvalid);
     pEndOfTrack->connectValueChanged(this, [this, group, deckIndex](double value) {

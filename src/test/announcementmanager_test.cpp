@@ -323,6 +323,8 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("end_of_track")));
         m_pPfl = std::make_unique<ControlObject>(
                 ConfigKey(QLatin1String(kGroup), QStringLiteral("pfl")));
+        m_pEject = std::make_unique<ControlObject>(
+                ConfigKey(QLatin1String(kGroup), QStringLiteral("eject")));
         m_pManager->connectGroupControls(QString::fromLatin1(kGroup));
         m_pManager->setDeckHasTrack(QString::fromLatin1(kGroup), hasTrack);
     }
@@ -342,9 +344,17 @@ class AnnouncementManagerPlaystateTest : public AnnouncementManagerTest {
         QCoreApplication::processEvents();
     }
 
+    void pressEject() {
+        m_pEject->set(1.0);
+        QCoreApplication::processEvents();
+        m_pEject->set(0.0);
+        QCoreApplication::processEvents();
+    }
+
     std::unique_ptr<ControlObject> m_pPlay;
     std::unique_ptr<ControlObject> m_pEndOfTrack;
     std::unique_ptr<ControlObject> m_pPfl;
+    std::unique_ptr<ControlObject> m_pEject;
 };
 
 TEST_F(AnnouncementManagerPlaystateTest, PlayStarted_AnnouncesPlaying) {
@@ -809,6 +819,77 @@ TEST_F(AnnouncementManagerPlaystateTest, AnnounceCueDisabled_PlayStillSpoken) {
             << "Play was silenced when AnnounceCue was disabled — "
                "the two settings must be independent";
     EXPECT_QSTRING_EQ("Playing", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
+// Eject confirmation / eject-blocked-while-playing (issue #66)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_AnnouncesEjected) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] track ejected", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_NoTrackLoaded_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/false);
+
+    pressEject();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_SettingDisabled_Silent) {
+    // The eject confirmation reuses AnnounceTrackLoad (successful loads and
+    // ejects are the same "what's on this deck now" family of feedback).
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTrackLoad")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+
+    pressEject();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_WhilePlaying_AnnouncesBlocked) {
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] is playing, eject blocked. Stop the deck first.",
+            pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, Eject_WhilePlaying_BlockedEvenWithSettingDisabled) {
+    // The blocked message is a safety signal (mirrors the load-blocked
+    // announcement in WTrackTableView, which is also unconditional), not a
+    // stylistic preference, so it is not gated by AnnounceTrackLoad.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceTrackLoad")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup(/*hasTrack=*/true);
+    setPlay(1.0);
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    pressEject();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("[TestChannel1] is playing, eject blocked. Stop the deck first.",
+            pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
