@@ -30,6 +30,7 @@
 #include "util/dnd.h"
 #include "util/qt.h"
 #include "util/time.h"
+#include "widget/trackconfirmdialogs.h"
 #include "widget/wtrackmenu.h"
 #include "widget/wtracktableviewheader.h"
 
@@ -525,6 +526,12 @@ void WTrackTableView::slotPurge() {
     }
     const QModelIndexList indices = getSelectedRows();
     if (indices.isEmpty()) {
+        return;
+    }
+    // Accessibility (issue #53): Purge used to run with no confirmation at
+    // all, unlike every other destructive track-list action. Speak what's
+    // about to happen and require an explicit Yes.
+    if (!mixxx::trackconfirm::confirmPurge(this, m_pLibrary, indices.size())) {
         return;
     }
     saveCurrentIndex();
@@ -1450,6 +1457,16 @@ void WTrackTableView::hideOrRemoveSelectedTracks() {
                         tr("Are you sure you want to remove the selected "
                            "tracks from this playlist?");
             }
+        }
+
+        // Accessibility (issue #53): this QMessageBox was previously
+        // TTS-silent, relying on a screen reader being present. Speak the
+        // same confirmation a screen reader would announce, matching the
+        // playlist/crate delete dialogs.
+        if (m_pLibrary) {
+            m_pLibrary->announceText(
+                    mixxx::trackconfirm::hideOrRemoveAnnouncement(
+                            cap, indices.size()));
         }
 
         QMessageBox msg;

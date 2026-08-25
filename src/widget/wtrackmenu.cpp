@@ -42,6 +42,7 @@
 #include "util/qt.h"
 #include "util/widgethelper.h"
 #include "widget/findonwebmenufactory.h"
+#include "widget/trackconfirmdialogs.h"
 #include "widget/wcolorpickeraction.h"
 #include "widget/wcoverartlabel.h"
 #include "widget/wcoverartmenu.h"
@@ -2490,6 +2491,16 @@ void WTrackMenu::slotRemoveFromDisk() {
         return;
     }
 
+    // Accessibility (issue #53): this custom dialog was previously
+    // TTS-silent, relying on a screen reader being present. Speak the same
+    // confirmation a screen reader would announce, matching the
+    // playlist/crate delete dialogs. Cancel is already the default button
+    // below (cancelBtn->setDefault(true)).
+    if (m_pLibrary) {
+        m_pLibrary->announceText(
+                mixxx::trackconfirm::deleteFromDiskAnnouncement(locations.size()));
+    }
+
     {
         QDialog dlgDelConfirm;
 
@@ -2946,7 +2957,14 @@ void WTrackMenu::slotPurge() {
     if (!m_pTrackModel) {
         return;
     }
-    m_pTrackModel->purgeTracks(getTrackIndices());
+    const QModelIndexList indices = getTrackIndices();
+    // Accessibility (issue #53): Purge used to run with no confirmation at
+    // all, unlike every other destructive track-list action. Speak what's
+    // about to happen and require an explicit Yes.
+    if (!mixxx::trackconfirm::confirmPurge(this, m_pLibrary, indices.size())) {
+        return;
+    }
+    m_pTrackModel->purgeTracks(indices);
     emit restoreCurrentViewStateOrIndex();
 }
 
