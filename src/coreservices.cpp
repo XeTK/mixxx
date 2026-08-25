@@ -665,6 +665,17 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pLibrary.get(),
             &Library::announceText);
 
+    // Accessibility (issue #49): the skin loads (and with it, the "Mixxx
+    // ready" announcement) before m_pSoundManager->setupDevices() has ever
+    // run, so speaking it immediately would push audio into EngineTts's FIFO
+    // with no sound device open yet to drain it. AnnouncementManager queues
+    // that announcement instead and flushes it once a device is confirmed
+    // open (devicesSetup() only fires on the success path of setupDevices()).
+    connect(m_pSoundManager.get(),
+            &SoundManager::devicesSetup,
+            m_pAnnouncementManager.get(),
+            &AnnouncementManager::slotSoundDevicesReady);
+
     // Let effects announcements speak real effect/preset names. The raw
     // pointer is safe: the announcement manager only calls these while the
     // app is running, and CoreServices owns both objects.

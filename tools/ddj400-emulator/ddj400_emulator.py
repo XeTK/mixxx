@@ -50,7 +50,15 @@ import tty
 # Each control is described as (status_byte, data_byte, value_semantics).
 # status_byte includes the MIDI channel nibble (e.g. 0x96 = Note On, ch 7).
 #
-#   BROWSE knob rotate : CC 0xB6/0x40, value 0x41 = up, 0x3F = down (relative)
+#   BROWSE knob rotate : CC 0xB6/0x40, two's-complement relative delta:
+#                        0x01 = one detent up, 0x7F = one detent down (this
+#                        is the same encoding the stock <SelectKnob/> MIDI
+#                        option decodes for this knob on other Pioneer
+#                        controllers, e.g. the DDJ-FLX4's identical
+#                        0xB6/0x40 browse knob binding -- NOT the offset-64
+#                        convention, 0x41/0x3F, used elsewhere in this file
+#                        for absolute-position knobs/faders centered at
+#                        0x40)
 #   BROWSE press       : Note 0x96/0x41, 0x7F down / 0x00 up
 #   BROWSE + SHIFT     : Note 0x96/0x42, 0x7F down / 0x00 up
 #   LOAD Deck1         : Note 0x96/0x46, 0x7F down / 0x00 up
@@ -58,8 +66,8 @@ import tty
 #   SHIFT Deck1        : Note 0x90/0x3F, 0x7F down / 0x00 up
 #   SHIFT Deck2        : Note 0x91/0x3F, 0x7F down / 0x00 up
 
-BROWSE_UP = (0xB6, 0x40, 0x41)      # CC, rotate up
-BROWSE_DOWN = (0xB6, 0x40, 0x3F)    # CC, rotate down
+BROWSE_UP = (0xB6, 0x40, 0x01)      # CC, rotate up (two's-complement +1)
+BROWSE_DOWN = (0xB6, 0x40, 0x7F)    # CC, rotate down (two's-complement -1)
 BROWSE_PRESS = (0x96, 0x41)         # Note, BROWSE press
 BROWSE_SHIFT_PRESS = (0x96, 0x42)   # Note, BROWSE + SHIFT press
 LOAD_DECK1 = (0x96, 0x46)           # Note, LOAD Deck1
@@ -86,8 +94,10 @@ RELOOP_DECK1 = (0x90, 0x4D)         # Note, RELOOP / EXIT
 RELOOP_DECK2 = (0x91, 0x4D)
 PFL_DECK1 = (0x90, 0x54)            # Note, CUE channel (headphone cue)
 PFL_DECK2 = (0x91, 0x54)
-TEMPO_DECK1 = (0xB0, 0x00)          # CC, TEMPO fader (0x40 = center)
+TEMPO_DECK1 = (0xB0, 0x00)          # CC, TEMPO fader MSB (0x40 = center)
 TEMPO_DECK2 = (0xB1, 0x00)
+TEMPO_DECK1_LSB = (0xB0, 0x20)      # CC, TEMPO fader LSB (high-res pair)
+TEMPO_DECK2_LSB = (0xB1, 0x20)
 TRIM_DECK1 = (0xB0, 0x04)           # CC, TRIM knob (0x40 = center)
 TRIM_DECK2 = (0xB1, 0x04)
 EQ_HI_DECK1 = (0xB0, 0x07)          # CC, EQ HI
@@ -310,7 +320,24 @@ class DDJ400Emulator:
 
     # -- deck CC knobs / faders (absolute value 0-127) ----------------------
     def tempo(self, deck, value):
-        self._cc(*(TEMPO_DECK1 if deck == 1 else TEMPO_DECK2), value)
+        """Send a tempo fader position as a high-res (MSB+LSB) CC pair.
+
+        The real hardware reports the tempo fader with 14-bit resolution:
+        an MSB CC message followed by an LSB CC message. `value` is the
+        familiar 7-bit position (0-127, center = CC_CENTER == 0x40) used
+        elsewhere in this module; it is scaled up to the 14-bit range by
+        using it as the MSB and sending an LSB of 0.
+
+        Pioneer-DDJ-400-script.js only applies the new rate once the LSB
+        message arrives (tempoSliderLSB combines the last-seen MSB with the
+        LSB before calling engine.setValue) -- see tempoSliderMSB/LSB in the
+        mapping script. Sending the MSB alone is a silent no-op, so both
+        messages must always be sent, MSB first.
+        """
+        msb_control = TEMPO_DECK1 if deck == 1 else TEMPO_DECK2
+        lsb_control = TEMPO_DECK1_LSB if deck == 1 else TEMPO_DECK2_LSB
+        self._cc(*msb_control, value)
+        self._cc(*lsb_control, 0)
 
     def trim(self, deck, value):
         self._cc(*(TRIM_DECK1 if deck == 1 else TRIM_DECK2), value)

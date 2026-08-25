@@ -53,6 +53,17 @@ class AnnouncementManager : public QObject {
     void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
     void slotSkinLoaded();
+    // Connected to SoundManager::devicesSetup(). Marks the engine as
+    // confirmed running (a sound device is open and the audio callback is
+    // pulling from the EngineTts sink) and, the first time this fires,
+    // flushes a "Mixxx ready" announcement queued by slotSkinLoaded() while
+    // audio wasn't up yet. On boot the skin loads (and slotSkinLoaded() runs)
+    // before setupDevices() ever runs -- speaking immediately at that point
+    // would write into EngineTts's FIFO with nothing pulling it yet, and a
+    // later boot-dialog utterance (e.g. a sound-device-busy retry) would
+    // likely flush it away via barge-in before the engine ever started. See
+    // issue #49.
+    void slotSoundDevicesReady();
     void slotLibraryFocusChanged(double value);
     void slotSidebarItemActivated(const QString& title,
             int row = -1,
@@ -181,6 +192,14 @@ class AnnouncementManager : public QObject {
     // speak() bails once this is set: there is nowhere to render the speech and
     // the TtsEngine's own sink pointer has been cleared.
     bool m_ttsSinkDestroyed{false};
+    // True once slotSoundDevicesReady() has fired at least once, i.e. a sound
+    // device is confirmed open and the engine is pulling from the TTS sink.
+    // False from construction, matching real boot: the manager is created
+    // well before setupDevices() is ever attempted (see issue #49).
+    bool m_audioEngineReady{false};
+    // Set by slotSkinLoaded() when it wants to announce "Mixxx ready" but
+    // m_audioEngineReady is still false; slotSoundDevicesReady() flushes it.
+    bool m_pendingReadyAnnouncement{false};
     // Engine earcon player for transport cues. Null in unit tests.
     EngineEarcon* m_pEarcon{nullptr};
     std::unique_ptr<ControlProxy> m_pSampleRate;
