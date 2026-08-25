@@ -71,12 +71,14 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
 
 Deck 1 keys listed; add `Shift` for deck 2:
 
-- `Ctrl+Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
+- `Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
   on"/"off"), so pitch can be adjusted for tempo without shifting
   the musical key.
-- `Ctrl+Alt+Up` / `Ctrl+Alt+Down` — Nudge pitch up/down one semitone.
-- `Ctrl+Alt+M` — Match key (sync to the other deck's key).
-- `Ctrl+Alt+R` — Reset to the track's original key.
+- `Alt+Up` / `Alt+Down` — Nudge pitch up/down one semitone.
+- `Alt+M` — Match key (sync to the other deck's key).
+- `Ctrl+Alt+R` — Reset to the track's original key. Still on the old
+  `Ctrl+Alt` chord for now (TODO issue #50 follow-up: pending
+  AccessMenu routing instead of a keyboard chord — see PR #71/#77/#81).
 
 ## Adding a track to a crate or playlist
 

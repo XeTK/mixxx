@@ -175,14 +175,17 @@ the sound alone is just the alert.
   grid; it's on by default and remembered per deck across restarts, so
   if it ever ends up off this is the way back on. Both states are
   spoken ("Deck 1 quantize on").
-- Key lock and pitch, for harmonic mixing without a mouse: Control
-  plus Alt plus K toggles key lock for deck 1 (add Shift for deck 2),
-  so the track's key stays put while its tempo is adjusted — both
-  states are spoken ("Deck 1 key lock on"). Control plus Alt plus Up
-  and Control plus Alt plus Down nudge the pitch up or down one
-  semitone (add Shift for deck 2). Control plus Alt plus M matches
-  this deck's key to the other deck's, and Control plus Alt plus R
-  resets it back to the track's original key.
+- Key lock and pitch, for harmonic mixing without a mouse: Alt plus K
+  toggles key lock for deck 1 (add Shift for deck 2), so the track's
+  key stays put while its tempo is adjusted — both states are spoken
+  ("Deck 1 key lock on"). Alt plus Up and Alt plus Down nudge the
+  pitch up or down one semitone (add Shift for deck 2). Alt plus M
+  matches this deck's key to the other deck's. Reset is the exception:
+  Control plus Alt plus R resets it back to the track's original key,
+  still on its old chord — there wasn't enough free letter-space
+  across the sibling PRs to move it this round, so it's deliberately
+  left on Ctrl+Alt pending a follow-up that routes it through the
+  AccessMenu value editor instead (issue #50 follow-up).
 - Filing the playing track: Control plus Alt plus P opens the playlist
   picker for the track loaded in deck 1, Control plus Alt plus C the
   crate picker; add Shift for deck 2. It's the same spoken menu as the
@@ -468,7 +471,7 @@ Hot Cue pad mode speaks instead of triggering hotcues:
   analysis by ear — confirmed out loud)
 - Shift plus pad 3 — key lock on/off, so pitch can be adjusted for
   tempo without shifting the musical key (the pad-sized version of
-  Control plus Alt plus K)
+  Alt plus K)
 - Shift plus pad 4 — pitch down one semitone
 - Shift plus pad 5 — pitch up one semitone
 - Shift plus pad 6 — reset to the track's original key
