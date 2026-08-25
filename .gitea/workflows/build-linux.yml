@@ -194,31 +194,47 @@ jobs:
         # Create (or update) a Gitea release for this build and attach the
         # .deb. The Pi's updater polls the releases API for new versions.
         # Uses the GITHUB_TOKEN Gitea injects for the runner.
+        #
+        # Only publish on a real push to the accessibility integration branch
+        # (or a manual dispatch of it) -- PR runs and pushes to `main` (the
+        # upstream mirror) build and test but should not mint a release.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'accessibility-improvements-2026-06-25'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
-          # Version the release with git describe (e.g. accessibility-beta-2026-07-07-75-g4e5adcb893)
-          # so each build gets a unique, sortable tag.
-          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
-          # Cap the tag length. git describe chains the previous tag + a
-          # -N-g<sha> segment per merge, so the name grows unboundedly and
-          # eventually exceeds Windows' 260-char MAX_PATH when git materializes
-          # refs/tags/<name>.lock during `git fetch --tags` on the Windows
-          # runner ("Filename too long"). Keep the leading tag and the trailing
-          # short sha so the name stays unique/informative but bounded.
-          TAG_MAX=60
-          if [ "${#TAG}" -gt "$TAG_MAX" ]; then
-            TAG="${TAG:0:40}...${TAG: -10}"
-          fi
+          # A short, monotonically increasing version counter, NOT chained
+          # git-describe output. The old scheme created a real git tag from
+          # its own `git describe` string every run, so the *next* run found
+          # that tag as "nearest" and appended another -N-g<sha> segment on
+          # top of it -- unbounded growth across runs (some tags exceeded 200
+          # chars). A later truncate-to-60-chars patch tried to cap it, but
+          # its "..." elision marker embeds two consecutive dots, which git
+          # forbids in ref names -- so every release since that patch landed
+          # silently failed to create (see the RELEASE_ID check below).
+          #
+          # github.run_number is a plain incrementing integer scoped to this
+          # workflow file, shared by every job in the same run -- so this job
+          # and the arm64 job below compute the identical tag for one push
+          # and correctly attach both .debs to the same release. No
+          # describe-chaining, no unbounded growth, nothing to truncate.
+          TAG="v${{ github.run_number }}"
+          # The rich, human-useful description (git describe, short sha, UTC
+          # date) has none of a tag's naming restrictions, since it only goes
+          # in the release title, not a git ref -- put it there instead of
+          # cramming it into TAG.
+          DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
+          SHORT_SHA="$(git rev-parse --short=10 HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          RELEASE_NAME="Mixxx ${TAG} (${BUILD_DATE}, ${DESCRIBE}, ${SHORT_SHA})"
           # Create the release if it doesn't exist; ignore "already exists". Capture
           # the release ID from the response so we can upload assets to it.
           # Gitea's /releases/latest/assets endpoint 404s, so we must target the
           # release by ID (upload_url) instead.
           CREATE_RESP="$(curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"${RELEASE_NAME}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
             "${API}/releases" 2>/dev/null || true)"
           # If creation failed (e.g. release already exists), look it up by tag.
           if [ -z "$CREATE_RESP" ] || ! echo "$CREATE_RESP" | grep -q '"id"'; then
@@ -388,24 +404,27 @@ jobs:
           path: ${{ env.STABLE_SRC }}/build/*.deb
 
       - name: "Publish release"
+        # See the x86 job for the full rationale on the tag/name scheme.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'accessibility-improvements-2026-06-25'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
-          TAG="$(git describe --tags --always 2>/dev/null || echo ci-build)"
-          # Cap the tag length (see the x86 job): exceeds Windows MAX_PATH on
-          # `git fetch --tags` otherwise.
-          TAG_MAX=60
-          if [ "${#TAG}" -gt "$TAG_MAX" ]; then
-            TAG="${TAG:0:40}...${TAG: -10}"
-          fi
+          # Same monotonic counter as the x86 job -- github.run_number is
+          # shared across jobs in one workflow run, so both jobs land on the
+          # same release and each attaches its own .deb.
+          TAG="v${{ github.run_number }}"
+          DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
+          SHORT_SHA="$(git rev-parse --short=10 HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          RELEASE_NAME="Mixxx ${TAG} (${BUILD_DATE}, ${DESCRIBE}, ${SHORT_SHA})"
           # Create the release if it doesn't exist; ignore "already exists". Capture
           # the release ID so we can upload assets to it (Gitea's
           # /releases/latest/assets endpoint 404s, so target by ID instead).
           CREATE_RESP="$(curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"${TAG}\",\"name\":\"Mixxx ${TAG}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"${RELEASE_NAME}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
             "${API}/releases" 2>/dev/null || true)"
           # If creation failed (e.g. release already exists), look it up by tag.
           if [ -z "$CREATE_RESP" ] || ! echo "$CREATE_RESP" | grep -q '"id"'; then
