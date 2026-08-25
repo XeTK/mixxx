@@ -442,19 +442,62 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
 // Startup announcement (slotSkinLoaded)
 // ---------------------------------------------------------------------------
 
-TEST_F(AnnouncementManagerTest, SkinLoaded_AnnouncesReady) {
+// On boot, the skin loads (running slotSkinLoaded()) before setupDevices()
+// has ever run, so slotSoundDevicesReady() (wired to
+// SoundManager::devicesSetup()) has not fired yet. Speaking "Mixxx ready"
+// immediately in that state would write into EngineTts's FIFO with nothing
+// pulling it yet -- issue #49. It must be queued and only spoken once a
+// sound device is confirmed open.
+TEST_F(AnnouncementManagerTest, SkinLoaded_BeforeAudioReady_QueuesAnnouncement) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    EXPECT_EQ(0, pSpy->callCount);
+
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
+}
+
+// A skin reload while Mixxx is already running (e.g. rebootMixxxView()) finds
+// audio already confirmed running, so the announcement is spoken immediately
+// rather than queued.
+TEST_F(AnnouncementManagerTest, SkinLoaded_AfterAudioReady_AnnouncesImmediately) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
     m_pManager->slotSkinLoaded();
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_QSTRING_EQ("Mixxx ready", pSpy->lastText);
 }
 
-TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_Silent) {
+TEST_F(AnnouncementManagerTest, SkinLoaded_SettingDisabled_NeverAnnouncesEvenOnceReady) {
     config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
                                QStringLiteral("AnnounceStartup")),
             false);
     SpyTtsEngine* pSpy = makeManager();
     m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// slotSoundDevicesReady() firing with nothing queued (the common case: audio
+// comes up before AnnounceStartup would ever have anything pending, or the
+// user has startup announcements disabled) must not speak anything.
+TEST_F(AnnouncementManagerTest, SoundDevicesReady_NoPendingAnnouncement_Silent) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// devicesSetup() can fire again later, e.g. the user reopens Preferences and
+// reconfigures sound hardware. That must not re-announce "Mixxx ready".
+TEST_F(AnnouncementManagerTest, SoundDevicesReady_FiresAgain_DoesNotReannounce) {
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    m_pManager->slotSoundDevicesReady();
     EXPECT_EQ(0, pSpy->callCount);
 }
 
@@ -925,6 +968,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToMain) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // audio confirmed running: skinLoaded speaks immediately
 
     m_pManager->slotSkinLoaded(); // triggers speak()
 
@@ -936,6 +980,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SyncsRouteToHeadphones) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 0);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
 
     m_pManager->slotSkinLoaded();
 
@@ -947,6 +992,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkipsRouteSyncWhenUnchanged) {
     config()->setValue(
             ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("TtsRoute")), 1);
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
 
     m_pManager->slotSkinLoaded(); // first speak — sets route
     // Change the CO back to 0 externally to detect a second setRoute() call.
@@ -963,6 +1009,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
     // When the user disables TTS via the menu/shortcut, the EngineTts enabled CO
     // goes to 0. speak() must bail before calling say() so no synthesis happens.
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually calls speak()
 
     ControlProxy enabledCO(QLatin1String(kSinkGroup),
             QStringLiteral("enabled"),
@@ -984,6 +1031,7 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) 
     // freed memory. Destroying the sink emits sinkDestroyed(); a subsequent
     // speak() must bail without calling into the torn-down sink.
     SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually calls speak()
 
     // Destroy the engine sink. ~EngineTts() emits sinkDestroyed(), which the
     // manager is connected to, so it nulls its raw pointer and flags the sink
@@ -1081,6 +1129,7 @@ TEST_F(AnnouncementManagerStatusTest, StatusButton_TriggersAnnouncement) {
 
 TEST_F(AnnouncementManagerStatusTest, RepeatButton_RepeatsLastAnnouncement) {
     SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady(); // so slotSkinLoaded() below actually speaks
 
     m_pManager->slotSkinLoaded(); // speaks "Mixxx ready"
     ASSERT_EQ(1, pSpy->callCount);
