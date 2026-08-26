@@ -263,6 +263,11 @@ void DlgTrackInfoMulti::init() {
     starsLayout->insertWidget(0, m_pWStarRating.get());
     // This is necessary to pass on mouseMove events to WStarRating
     m_pWStarRating->setMouseTracking(true);
+    // Issue #63: make the star rating keyboard-operable in this dialog; see
+    // the matching comment in DlgTrackInfo::init() for why this is scoped to
+    // the instance rather than changing WStarRating's shared default.
+    m_pWStarRating->setFocusPolicy(Qt::StrongFocus);
+    m_pWStarRating->setAccessibleName(tr("Star rating"));
     connect(m_pWStarRating,
             &WStarRating::ratingChangeRequest,
             this,

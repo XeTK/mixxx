@@ -59,6 +59,12 @@ class AnnouncementManager : public QObject {
     void slotAnnounceSelectedTrack();
     void slotNewTrackLoaded(TrackPointer pTrack, int deckIndex);
     void slotNumberOfDecksChanged(int decks);
+    // Sampler counterparts of the two slots above: [SamplerN] groups get a
+    // lighter-weight subset of deck feedback (load/play/stop/eject) rather
+    // than the full connectGroupControls() surface — sync, hotcues, loops,
+    // effects routing etc. don't apply to a sampler.
+    void slotNewSamplerTrackLoaded(TrackPointer pTrack, int samplerIndex);
+    void slotNumberOfSamplersChanged(int samplers);
     void slotSkinLoaded();
     // Connected to SoundManager::devicesSetup(). Marks the engine as
     // confirmed running (a sound device is open and the audio callback is
@@ -94,6 +100,10 @@ class AnnouncementManager : public QObject {
     // Static helpers are public so tests can verify formatting independently.
     static QString formatForBrowsing(TrackPointer pTrack);
     static QString formatForLoad(TrackPointer pTrack, int deckIndex);
+    // Sampler load announcement — "Sampler 3 loaded. Artist. Title. …" —
+    // mirrors formatForLoad()'s field order and phrasing but names the
+    // sampler by number instead of the deck's phonetic letter.
+    static QString formatForSamplerLoad(TrackPointer pTrack, int samplerIndex);
 
     // Spoken summary of a deck's state (playback, time remaining, BPM,
     // pitch), used by the on-demand [ChannelN],tts_status hotkey. Public so
@@ -117,6 +127,11 @@ class AnnouncementManager : public QObject {
     // without needing a real BaseTrackPlayer.
     void connectGroupControls(const QString& group, int deckIndex = -1);
     void setDeckHasTrack(const QString& group, bool value);
+    // Sampler counterpart of connectGroupControls(): wires just play/stop and
+    // eject feedback for a synthetic sampler group, without the deck-only
+    // machinery (sync, hotcues, loops, EQ, effects routing, vinyl control…)
+    // that doesn't apply to a sampler pad.
+    void connectSamplerControls(const QString& group, int samplerIndex = -1);
 
     // Drops the raw engine sink pointer. Called from the sink's destruction
     // signal (see EngineTts::sinkDestroyed) so speak() never dereferences a
@@ -143,6 +158,7 @@ class AnnouncementManager : public QObject {
 
   private:
     void connectDeck(int deckIndex);
+    void connectSampler(int samplerIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
 
@@ -203,6 +219,11 @@ class AnnouncementManager : public QObject {
     // number in concise mode ("A, volume a half"), the full name otherwise.
     QString mixerDeckName(const QString& group, int deckIndex) const;
 
+    // Spoken sampler name for announcements — "Sampler 3". Samplers are
+    // always numbered (no letter-naming preference the way decks have),
+    // since there's no established convention for naming them otherwise.
+    static QString samplerName(int samplerIndex);
+
     // True when mixer/fader readouts should be spoken as percentages instead
     // of fractions, per the MixerReadoutStyle preference.
     bool mixerReadoutAsPercent() const;
@@ -250,6 +271,7 @@ class AnnouncementManager : public QObject {
     // Mutually exclusive with m_pendingTrack; takes priority when set.
     QString m_pendingRowText;
     int m_connectedDecks{0};
+    int m_connectedSamplers{0};
 
     // Library focus tracking: updated in slotLibraryFocusChanged.
     FocusWidget m_lastFocusWidget{FocusWidget::None};
@@ -264,7 +286,8 @@ class AnnouncementManager : public QObject {
     // Debounced track-list sort column/order announcement.
     QTimer m_sortDebounce;
 
-    // Per-deck playback state tracking. Keyed by deck group (e.g. "[Channel1]").
+    // Per-deck (and per-sampler) playback state tracking. Keyed by group
+    // (e.g. "[Channel1]", "[Sampler3]").
     QHash<QString, bool> m_deckHasTrack;
     QHash<QString, bool> m_deckIsPlaying;
     // True while the deck is playing because the cue button is held (cue

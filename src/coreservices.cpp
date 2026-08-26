@@ -632,6 +632,16 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
+    // Speak once when the library scan's progress dialog first appears
+    // (issue #63): it currently shows up silently ~2s into a scan and steals
+    // focus with no announcement. The scanner is owned by
+    // m_pTrackCollectionManager, which is constructed before Library exists,
+    // so the callback is wired up here instead of at construction time.
+    m_pTrackCollectionManager->setScanAnnounceCallback(
+            [this](const QString& text) {
+                m_pLibrary->announceText(text);
+            });
+
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),
             &TrackDAO::waveformSummaryUpdated,

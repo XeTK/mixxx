@@ -13,15 +13,18 @@ still append *something* (a REQUESTED/SUPPRESSED/SUPERSEDED record) without
 the deck-status text ever having been spoken. Checking for a SPOKEN/COMPLETED
 record naming the exact text is the only way this scenario can tell "Mixxx
 tried to say something" apart from "Mixxx actually said the deck status".
+
+Run via the orchestrator::
+
+    python3 tools/e2e/run_e2e.py --scenario m4_keyboard_readout
 """
 import re
 import sys
 import time
 
-import Quartz
-from ApplicationServices import AXUIElementCreateApplication
+from ax_driver import AxDriver, TtsLog, create_backend
 
-# Alt+1 = deck 1 status readout. Keycode 18 = '1'. Alt = kCGEventFlagMaskAlternate.
+# Alt+1 = deck 1 status readout. Keycode 18 = '1'.
 KEY_1 = 18
 
 # The deck-status announcement for an empty deck 1 always ends this way
@@ -72,78 +75,25 @@ def find_spoken_or_completed(content, substring):
     return None
 
 
-def find_mixxx():
-    for app in Quartz.NSWorkspace.sharedWorkspace().runningApplications():
-        p = app.executableURL().path() if app.executableURL() else ""
-        if p.endswith("/mixxx"):
-            return app
-    return None
-
-
-def focus_mixxx(app):
-    """Bring Mixxx to the foreground so the synthetic keypress reaches it
-    rather than whatever window happened to have focus (e.g. this script's
-    own terminal)."""
-    try:
-        # macOS 14+.
-        app.activate()
-    except AttributeError:
-        # Older macOS: NSApplicationActivateIgnoringOtherApps.
-        app.activateWithOptions_(1 << 1)
-    time.sleep(0.5)
-
-
-def send_key(keycode, flags):
-    down = Quartz.CGEventCreateKeyboardEvent(None, keycode, True)
-    Quartz.CGEventSetFlags(down, flags)
-    Quartz.CGEventPost(Quartz.kCGHIDEventTap, down)
-    up = Quartz.CGEventCreateKeyboardEvent(None, keycode, False)
-    Quartz.CGEventSetFlags(up, flags)
-    Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
-
-
-def main():
-    mixxx = find_mixxx()
-    if mixxx is None:
-        print("FAIL: Mixxx not running")
-        sys.exit(1)
-    pid = mixxx.processIdentifier()
-    print(f"Mixxx pid={pid}")
-    # AXUIElementCreateApplication isn't used for element lookups in this
-    # scenario, but constructing it (as the other AX-driven scenarios do)
-    # confirms the accessibility tree is actually available before we rely on
-    # the app being keyboard-focusable.
-    AXUIElementCreateApplication(pid)
-
-    focus_mixxx(mixxx)
-
-    tts_log = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mixxx-a11y-test/tts.log"
-    try:
-        with open(tts_log) as f:
-            before = f.read()
-    except FileNotFoundError:
-        before = ""
-
+def run(driver, tts):
     print("Sending Alt+1 (deck 1 status)...")
-    send_key(KEY_1, Quartz.kCGEventFlagMaskAlternate)
+    before = tts.snapshot()
+    driver.send_key(KEY_1, modifiers=("alt",))
 
     # Poll rather than a single fixed sleep: SPOKEN is logged as soon as the
     # text is handed to the synthesizer backend, but COMPLETED can lag behind
     # by however long the utterance takes to render and drain through
     # EngineTts's FIFO (see EngineTts::pollAudibilityEvents).
     deadline = time.time() + 10.0
-    after = before
     found = None
+    new = ""
     while time.time() < deadline:
-        with open(tts_log) as f:
-            after = f.read()
-        new = after[len(before):]
+        new = tts.new_since(before)
         found = find_spoken_or_completed(new, EXPECTED_SUBSTRING)
         if found:
             break
         time.sleep(0.25)
 
-    new = after[len(before):].strip()
     print("\n=== New TTS log records after Alt+1 ===")
     print(new if new else "(nothing new logged)")
 
@@ -158,8 +108,9 @@ def main():
 
     event, rec_id, text = found
     print(f'\nPASS: {event} id={rec_id} text="{text}"')
-    sys.exit(0)
 
 
 if __name__ == "__main__":
-    main()
+    tts_path = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mixxx-e2e/tts.log"
+    driver = AxDriver(create_backend()).connect()
+    run(driver, TtsLog(tts_path))

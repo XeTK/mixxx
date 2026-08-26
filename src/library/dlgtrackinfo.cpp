@@ -89,6 +89,14 @@ void DlgTrackInfo::init() {
     starsLayout->insertWidget(0, m_pWStarRating.get());
     // This is necessary to pass on mouseMove events to WStarRating
     m_pWStarRating->setMouseTracking(true);
+    // Issue #63: WStarRating defaults to mouse-only (its skin usage
+    // explicitly sets Qt::NoFocus in setup(), which isn't called here, but
+    // the WWidget base default of ClickFocus still isn't Tab-reachable).
+    // Scoped to this dialog's instance rather than changing the shared
+    // widget's default, since WStarRating is also used unmodified in skins
+    // and the track context menu.
+    m_pWStarRating->setFocusPolicy(Qt::StrongFocus);
+    m_pWStarRating->setAccessibleName(tr("Star rating"));
 
     if (m_pTrackModel) {
         connect(btnNext,
