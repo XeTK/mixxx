@@ -186,8 +186,14 @@ jobs:
         # validates one static, read-only controller mapping XML file, with
         # no shared state between them, i.e. closer to embarrassingly
         # parallel than anything requiring serialization.
+        # 45s (this repo's prior sequential-era default) was too tight once
+        # -j actually saturates every core: SoundSourceProxyTest.skipAndRead
+        # does real audio-codec decode/seek I/O and timed out under CPU/disk
+        # contention with all cores busy, surviving all 3 --repeat
+        # until-pass attempts. 90s gives I/O-bound tests headroom without
+        # masking a real hang (a genuinely stuck test still trips it).
         run: >-
-          ctest --timeout 45
+          ctest --timeout 90
           -j"$(sysctl -n hw.ncpu)"
           --exclude-regex "DirectoryDAOTest\.relocateDirectory|SoundSourceProxyTest\.firstSoundTest|HidMappings.*Dummy_Device_Screen|TtsEngineIntegrationTest\..*"
           --repeat until-pass:3
