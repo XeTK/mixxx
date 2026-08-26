@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QList>
 #include <QSet>
+#include <functional>
 #include <memory>
 
 #include "library/dao/directorydao.h"
@@ -97,6 +98,12 @@ class TrackCollectionManager: public QObject,
     SaveTrackResult saveTrack(const TrackPointer& pTrack) const;
     // Same as startLibraryScan() but don't emit the scan summary.
     void startLibraryAutoScan();
+
+    // Forwarded to the LibraryScanner's progress dialog (issue #63): speaks
+    // once when the scan progress dialog first appears. Set up by
+    // CoreServices once Library exists, since the scanner (and this class)
+    // are constructed before it.
+    void setScanAnnounceCallback(std::function<void(const QString&)> callback);
 
   signals:
     void libraryScanStarted();

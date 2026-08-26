@@ -26,12 +26,17 @@ class WCoverArtLabel : public QLabel {
   protected:
     void mousePressEvent(QMouseEvent* pEvent) override;
     void contextMenuEvent(QContextMenuEvent* pEvent) override;
+    // Issue #63: Enter/Return/Space trigger the same open/close-full-size
+    // action as a left click, now that the label is keyboard-focusable.
+    void keyPressEvent(QKeyEvent* pEvent) override;
 
   private slots:
       void slotCoverMenu(const QPoint& pos);
 
   private:
     void setPixmapAndResize(const QPixmap& px);
+    // Shared by mousePressEvent's left-click branch and keyPressEvent.
+    void activate();
 
     WCoverArtMenu* m_pCoverMenu;
 
