@@ -158,6 +158,17 @@ PioneerDDJ400.toggleLight = function(midiIn, active) {
 
 PioneerDDJ400.init = function() {
     engine.setValue("[EffectRack1_EffectUnit1]", "show_focus", 1);
+    // Issue #110: EffectChain's focused_effect control (C++) defaults to 0 on
+    // a fresh profile (no persisted value yet), which is not a valid slot --
+    // valid slots are 1..3. Until the DJ presses BEAT LEFT/RIGHT at least
+    // once, focusedFxGroup() below would compute
+    // "[EffectRack1_EffectUnit1_Effect0]", a group that does not exist, so
+    // BEAT FX ON/OFF would silently target nothing on first use. Only set
+    // this if it is not already a valid slot, so a value restored from a
+    // previous session (focused_effect is persisted) is left alone.
+    if (engine.getValue("[EffectRack1_EffectUnit1]", "focused_effect") < 1) {
+        engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
+    }
 
     engine.makeUnbufferedConnection("[Channel1]", "vu_meter", PioneerDDJ400.vuMeterUpdate);
     engine.makeUnbufferedConnection("[Channel2]", "vu_meter", PioneerDDJ400.vuMeterUpdate);
@@ -271,13 +282,30 @@ PioneerDDJ400.browsePress = function(_channel, _control, value) {
     // Press-down: start the hold-to-open timer.
     PioneerDDJ400.browseHeld = true;
     PioneerDDJ400.browseHoldFired = false;
+    // oneShot=true is required (issue #106): engine.beginTimer()'s oneShot
+    // parameter defaults to false (repeating). Without it explicitly set
+    // here, this timer never stopped itself -- it kept firing every
+    // browseHoldThreshold interval forever after the first hold, including
+    // long after the button was released, repeatedly calling
+    // "[AccessMenu],open" and reopening the menu right after it had been
+    // closed (no way to back out) or while navigating elsewhere.
     PioneerDDJ400.timers.browseHold = engine.beginTimer(
         Math.round(PioneerDDJ400.browseHoldThreshold * 1000),
         () => {
             PioneerDDJ400.browseHeld = false;
             PioneerDDJ400.browseHoldFired = true;
-            engine.setValue("[AccessMenu]", "open", 1);
-        }
+            // Toggle: hold-to-open when closed, hold-to-exit-to-the-main-
+            // application when already open (issue #106, symptom 4/5) --
+            // previously this always sent "open", which is a no-op while the
+            // menu is already open (openMenu() early-returns), leaving no
+            // hold gesture to back all the way out.
+            if (PioneerDDJ400.browseMenuActive()) {
+                engine.setValue("[AccessMenu]", "close", 1);
+            } else {
+                engine.setValue("[AccessMenu]", "open", 1);
+            }
+        },
+        true
     );
 };
 
