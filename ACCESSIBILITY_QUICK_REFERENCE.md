@@ -57,13 +57,13 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
 Fast tracks (drum and bass, footwork) are often analysed at half
 their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
 
-- `Alt+H` — Halve the deck's BPM grid ("Deck 1 B P M halved").
-- `Alt+D` — Double it ("Deck 1 B P M doubled"). Check the
+- `Alt+F5` — Halve the deck's BPM grid ("Deck 1 B P M halved").
+- `Alt+F6` — Double it ("Deck 1 B P M doubled"). Check the
   result with `Alt+5` / `Alt+6`.
 
 ## Quantize
 
-- `Alt+Q` — Quantize on/off for deck 1 (add `Shift` for
+- `Alt+F7` — Quantize on/off for deck 1 (add `Shift` for
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
