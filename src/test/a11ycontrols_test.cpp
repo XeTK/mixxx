@@ -459,7 +459,7 @@ TEST_F(A11yControlExistenceTest, RecordingStatusControlExists) {
 /// it, so a null Library is enough to make it create its ControlObjects - which
 /// is all this test needs, and keeps the controls coming from production code.
 TEST_F(A11yControlExistenceTest, LibraryControlsObservedByAccessibilityLayerExist) {
-    LibraryControl libraryControl(nullptr);
+    LibraryControl libraryControl(nullptr, m_pConfig);
 
     std::vector<A11yKey> keys{
             // Upstream-owned, observed by the fork.
