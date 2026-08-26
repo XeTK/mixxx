@@ -37,7 +37,11 @@ jobs:
         run: git fetch origin --force --tags
 
       - name: "Install build tools"
-        run: brew install cmake ninja ccache
+        # zstd is included so actions/cache can archive/restore the ccache
+        # directory with it instead of falling back to gzip - see the
+        # equivalent step in build-linux.yml for why that matters for cache
+        # transfer speed on both restore and save.
+        run: brew install cmake ninja ccache zstd
 
       - name: "Get build environment name"
         run: tools/macos_release_buildenv.sh name
@@ -117,8 +121,10 @@ jobs:
         run: cmake --build . --config RelWithDebInfo -- -j"$(sysctl -n hw.ncpu)"
 
       - name: "Print ccache stats"
+        # -v breaks "Hits" down into direct vs. preprocessed mode - see the
+        # equivalent step in build-linux.yml.
         run: |
-          ccache --show-stats
+          ccache --show-stats -v
           ccache --cleanup
 
       - name: "Save ccache"
