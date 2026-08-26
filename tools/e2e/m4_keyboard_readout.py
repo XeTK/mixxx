@@ -3,63 +3,35 @@
 
 Sends the Alt+1 key combination (deck status readout) to Mixxx and asserts
 the TTS log contains new spoken output.
+
+Run via the orchestrator::
+
+    python3 tools/e2e/run_e2e.py --scenario m4_keyboard_readout
 """
 import sys
-import time
 
-import Quartz
-from ApplicationServices import AXUIElementCreateApplication
+from ax_driver import AxDriver, TtsLog, create_backend
 
-
-def find_mixxx():
-    for app in Quartz.NSWorkspace.sharedWorkspace().runningApplications():
-        p = app.executableURL().path() if app.executableURL() else ""
-        if p.endswith("/mixxx"):
-            return app
-    return None
+# Alt+1 = deck 1 status readout. Keycode 18 = '1'.
+KEY_1 = 18
 
 
-def send_key(keycode, flags):
-    down = Quartz.CGEventCreateKeyboardEvent(None, keycode, True)
-    Quartz.CGEventSetFlags(down, flags)
-    Quartz.CGEventPost(Quartz.kCGHIDEventTap, down)
-    up = Quartz.CGEventCreateKeyboardEvent(None, keycode, False)
-    Quartz.CGEventSetFlags(up, flags)
-    Quartz.CGEventPost(Quartz.kCGHIDEventTap, up)
-
-
-def main():
-    mixxx = find_mixxx()
-    if mixxx is None:
-        print("FAIL: Mixxx not running")
-        sys.exit(1)
-    pid = mixxx.processIdentifier()
-    print(f"Mixxx pid={pid}")
-
-    tts_log = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mixxx-a11y-test/tts.log"
-    try:
-        with open(tts_log) as f:
-            before = f.read()
-    except FileNotFoundError:
-        before = ""
-
-    # Alt+1 = deck 1 status readout. Keycode 18 = '1'. Alt = 0x80000.
+def run(driver, tts):
     print("Sending Alt+1 (deck 1 status)...")
-    send_key(18, Quartz.kCGEventFlagMaskAlternate)
-    time.sleep(2.0)
+    before = tts.snapshot()
+    driver.send_key(KEY_1, modifiers=("alt",))
 
-    with open(tts_log) as f:
-        after = f.read()
-    new = after[len(before):].strip()
-    print(f"\n=== New TTS output after Alt+1 ===")
-    print(new if new else "(nothing new spoken)")
-
-    if not new:
+    if not tts.wait_for_change(before, timeout=10.0):
         print("FAIL: no speech captured after Alt+1")
         sys.exit(1)
+
+    new = tts.new_since(before)
+    print(f"\n=== New TTS output after Alt+1 ===")
+    print(new)
     print("\nPASS: keyboard readout produced speech")
-    sys.exit(0)
 
 
 if __name__ == "__main__":
-    main()
+    tts_path = sys.argv[1] if len(sys.argv) > 1 else "/tmp/mixxx-e2e/tts.log"
+    driver = AxDriver(create_backend()).connect()
+    run(driver, TtsLog(tts_path))
