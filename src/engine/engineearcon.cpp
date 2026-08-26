@@ -41,6 +41,10 @@ const Grain kClipping[] = {{350.0, 0.0, 60.0}, {350.0, 70.0, 60.0}};
 // above the CueOn/CueOff (headphone cue) pitches so the two cue families
 // stay distinct.
 const Grain kCuePreview[] = {{988.0, 0.0, 40.0}};
+// Audio dropout (xrun): a low, harsh triple-buzz, longer and lower than the
+// clipping warning so it can never be mistaken for "turn the gain down" —
+// this is an engine-level glitch, not a mixing note.
+const Grain kXrun[] = {{196.0, 0.0, 90.0}, {196.0, 110.0, 90.0}, {196.0, 220.0, 90.0}};
 
 struct Gesture {
     const Grain* grains;
@@ -69,6 +73,8 @@ Gesture gestureFor(EngineEarcon::Id id) {
         return {kClipping, 2};
     case EngineEarcon::Id::CuePreview:
         return {kCuePreview, 1};
+    case EngineEarcon::Id::Xrun:
+        return {kXrun, 3};
     }
     return {nullptr, 0};
 }

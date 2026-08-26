@@ -30,7 +30,7 @@ The MIDI numbers sent are verified against
 
 | Control | MIDI | Value semantics |
 |---|---|---|
-| BROWSE knob rotate | CC `0xB6` / `0x40` | `0x41` = up, `0x3F` = down (relative) |
+| BROWSE knob rotate | CC `0xB6` / `0x40` | two's-complement relative delta: `0x01` = one detent up, `0x7F` = one detent down (same encoding as the `<SelectKnob/>` MIDI option, e.g. the DDJ-FLX4's identical browse knob binding -- not the offset-64 encoding used by the absolute knobs/faders below) |
 | BROWSE press | Note `0x96` / `0x41` | `0x7F` down, `0x00` up |
 | BROWSE + SHIFT press | Note `0x96` / `0x42` | `0x7F` down, `0x00` up |
 | LOAD Deck1 / Deck2 | Note `0x96` / `0x46` / `0x47` | `0x7F` down, `0x00` up |
@@ -42,7 +42,7 @@ The MIDI numbers sent are verified against
 | LOOP OUT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x11` | `0x7F` down, `0x00` up |
 | RELOOP / EXIT Deck1 / Deck2 | Note `0x90` / `0x91` / `0x4D` | `0x7F` down, `0x00` up |
 | CUE channel (PFL) Deck1 / Deck2 | Note `0x90` / `0x91` / `0x54` | `0x7F` down, `0x00` up |
-| TEMPO fader Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x00` | absolute 0-127 (`0x40` = center) |
+| TEMPO fader Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x00` (MSB) + `0x20` (LSB) | high-res 14-bit pair; MSB alone is a no-op, both messages are always sent (`0x40` MSB = center) |
 | TRIM knob Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x04` | absolute 0-127 (`0x40` = center) |
 | EQ HI Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x07` | absolute 0-127 |
 | EQ MID Deck1 / Deck2 | CC `0xB0` / `0xB1` / `0x0B` | absolute 0-127 |

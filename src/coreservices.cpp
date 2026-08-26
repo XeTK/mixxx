@@ -24,6 +24,7 @@
 #ifdef __RUBBERBAND__
 #include "engine/bufferscalers/rubberbandworkerpool.h"
 #endif
+#include "errordialoghandler.h"
 #include "library/coverartcache.h"
 #include "library/library.h"
 #include "library/library_decl.h"
@@ -631,6 +632,16 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
+    // Speak once when the library scan's progress dialog first appears
+    // (issue #63): it currently shows up silently ~2s into a scan and steals
+    // focus with no announcement. The scanner is owned by
+    // m_pTrackCollectionManager, which is constructed before Library exists,
+    // so the callback is wired up here instead of at construction time.
+    m_pTrackCollectionManager->setScanAnnounceCallback(
+            [this](const QString& text) {
+                m_pLibrary->announceText(text);
+            });
+
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),
             &TrackDAO::waveformSummaryUpdated,
@@ -650,6 +661,30 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pEngine->getTts(),
             m_pEngine->getEarcon(),
             this);
+
+    // Accessibility: speak error/warning/info dialogs (broadcast connection
+    // failures, controller script errors, recording disk-full, etc.) through
+    // the same free-text announcement path used elsewhere (e.g.
+    // Library::announceText() for the boot-time dialogs and playlist/crate
+    // rename dialogs). ErrorDialogHandler is a process-wide singleton created
+    // in the main thread before this point (see main.cpp), so any error
+    // dialog requested earlier in boot is simply not spoken -- it is still
+    // shown normally either way. See errordialoghandler.h for details.
+    connect(ErrorDialogHandler::instance(),
+            &ErrorDialogHandler::errorDialogAnnouncement,
+            m_pLibrary.get(),
+            &Library::announceText);
+
+    // Accessibility (issue #49): the skin loads (and with it, the "Mixxx
+    // ready" announcement) before m_pSoundManager->setupDevices() has ever
+    // run, so speaking it immediately would push audio into EngineTts's FIFO
+    // with no sound device open yet to drain it. AnnouncementManager queues
+    // that announcement instead and flushes it once a device is confirmed
+    // open (devicesSetup() only fires on the success path of setupDevices()).
+    connect(m_pSoundManager.get(),
+            &SoundManager::devicesSetup,
+            m_pAnnouncementManager.get(),
+            &AnnouncementManager::slotSoundDevicesReady);
 
     // Let effects announcements speak real effect/preset names. The raw
     // pointer is safe: the announcement manager only calls these while the
