@@ -74,8 +74,15 @@ Deck 1 keys listed; add `Shift` for deck 2:
 - `Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
   on"/"off"), so pitch can be adjusted for tempo without shifting
   the musical key.
-- `Alt+Up` / `Alt+Down` — Nudge pitch up/down one semitone.
-- `Alt+M` — Match key (sync to the other deck's key).
+- `Alt+Up` / `Alt+Down` (deck 1) / `Alt+Shift+F1` / `Alt+Shift+F2`
+  (deck 2) — Nudge pitch up/down one semitone. Deck 2 isn't
+  `Alt+Shift+Up` / `Alt+Shift+Down` because the always-available
+  `[AccessMenu]` navigation chords (issue #57) claim those
+  combinations fork-wide.
+- `Alt+M` (deck 1) / `Alt+Shift+F8` (deck 2) — Match key (sync to
+  the other deck's key). Deck 2 isn't `Alt+Shift+M` because the
+  always-available `[AccessMenu]` toggle chord (issue #57) claims
+  that combination fork-wide.
 - `Ctrl+Alt+R` — Reset to the track's original key. Still on the old
   `Ctrl+Alt` chord for now (TODO issue #50 follow-up: pending
   AccessMenu routing instead of a keyboard chord — see PR #71/#77/#81).
