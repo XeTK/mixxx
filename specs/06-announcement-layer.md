@@ -1,63 +1,72 @@
 # Spec 06 — Announcement layer (`AnnouncementManager`)
 
-**Status:** Verified current state — rebase contract
-**Branch:** `spec-speech` (based on `accessibility-improvements-2026-06-25` @ `2390edf423`)
+**Status:** Verified current state — rebase contract (refreshed against the current PR wave)
+**Branch:** `spec-speech` — content re-verified against the merged target-state tree
+(`scratch-target-state` @ `4a9641692c`: the `accessibility-improvements-2026-06-25`
+tip plus all 19 other currently-open accessibility PRs merged together, with the
+cross-PR bugs that merge surfaced found and fixed). 141 commits landed on top of
+the previous verification point, `2390edf423`.
 **Owner:** accessibility fork
 **Related:** Spec 05 (speech engine and audio path), Spec 07 (spoken menu), Spec 04 (E2E testing)
 
 ## Purpose
 
-`AnnouncementManager` (`src/util/announcementmanager.{h,cpp}`, 284 + 2250
-lines) is the largest piece of fork-specific code and the layer that decides
-**what gets said**. Spec 05 covers how a string becomes audible; this spec
-covers how a `ControlObject` change or a `Library` signal becomes a string.
+`AnnouncementManager` (`src/util/announcementmanager.{h,cpp}`, 404 + 2855
+lines, up from 284 + 2250) is still the largest piece of fork-specific code
+and the layer that decides **what gets said**. Spec 05 covers how a string
+becomes audible; this spec covers how a `ControlObject` change or a `Library`
+signal becomes a string.
 
-It also states, bluntly, the two structural weaknesses a rebase is most likely
-to trip over: the `AllowMissingOrInvalid` silent-failure mode, and the
-intent-versus-audibility gap in `--tts-log`.
+It also states, bluntly, the structural weaknesses a rebase is most likely to
+trip over. One of the two flagged in the previous verification —
+`--tts-log`'s "intent, not audibility" gap — is **now fixed** (Spec 05,
+Invariant 6). The other — the `AllowMissingOrInvalid` / `NoWarnIfMissing`
+silent-failure mode — is unchanged in shape and has grown in surface area.
 
-## Background / current state (verified on this branch)
+## Background / current state
 
 | Aspect | Value |
 |---|---|
-| Construction | `AnnouncementManager::create()`, `announcementmanager.cpp:323–338` |
-| Instantiated at | `coreservices.cpp:647–653`, after `PlayerManager::bindToLibrary()` |
-| Destroyed at | `coreservices.cpp:987–991`, **before** the engine (issue #30) |
-| Observer construction sites | 40 (`make_parented<ControlProxy>` + `connectValueChanged`) |
-| `ControlFlag::AllowMissingOrInvalid` uses | **45** |
-| Distinct CO keys observed | **48** (loops expanded to patterns) |
-| Distinct CO keys polled but not observed | 6 |
-| Distinct COs *owned* (created) | 9 |
-| `[Accessibility]` preference keys | **35** (`src/preferences/accessibilitysettings.h`) |
-| Unit tests | `src/test/announcementmanager_test.cpp`, 2954 lines |
+| Construction | `AnnouncementManager::create()`, `announcementmanager.cpp:323–338` (unchanged) |
+| Instantiated at | `coreservices.cpp:657–663`, after `PlayerManager::bindToLibrary()` |
+| Destroyed at | `coreservices.cpp:997–1001`, **before** the engine (issue #30) |
+| `ControlProxy` construction sites (`make_parented<ControlProxy>(` + `std::make_unique<ControlProxy>(`) | **53** (was "40 observer construction sites") |
+| `ControlFlag::AllowMissingOrInvalid` uses | **56** (was 45) |
+| Owned `ControlObject`/`ControlProxy` member fields | `m_pSampleRate`, `m_pStatusButtons` (per-deck vector), `m_pRepeatButton`, `m_pShiftControl`, `m_pPadModeControl`, plus the **new** `m_pAutoDJNextButton` (`h:330`, issue #61) |
+| `[Accessibility]` preference keys | **37** (`src/preferences/accessibilitysettings.h`, was 35 — see below) |
+| `announceText(` call sites across `src/` | **94** (was 49) |
+| Unit tests | `src/test/announcementmanager_test.cpp`, **4308 lines** (was 2954) |
 
-The class is deliberately decoupled: it takes a `Library*`, a
+The class is still deliberately decoupled: it takes a `Library*`, a
 `PlayerManagerInterface*`, a `UserSettingsPointer`, an owned
 `std::unique_ptr<TtsEngine>`, and raw `EngineTts*` / `EngineEarcon*` sinks.
-Tests inject a spy `TtsEngine` and pass `nullptr` for both sinks.
+Tests inject a spy `TtsEngine` and pass `nullptr` for both sinks. Effect and
+QuickEffect **names** are still supplied by two injected `std::function`
+resolvers, wired from `CoreServices` where `EffectsManager` lives.
 
-Effect and QuickEffect **names** are supplied by two injected
-`std::function` resolvers (`setEffectNameResolvers()`,
-`announcementmanager.cpp:1569–1574`), wired from `CoreServices` where
-`EffectsManager` lives (`coreservices.cpp:683–704`). Without them the
-announcements degrade to numeric descriptions ("effect 2") rather than
-failing.
+The observed-key and owned-CO counts below are the most defensible
+apples-to-apples successors of the previous verification's "48 distinct CO
+keys observed" and "9 owned COs" — the exact dedup methodology behind those
+two numbers wasn't fully recoverable, but every measurable proxy (construction
+sites, `AllowMissingOrInvalid` uses, test file size, `announceText()` sites)
+grew by roughly 20–90%, consistent with five new features landing in this
+window.
 
 ## The two input channels
 
 ### 1. ControlObject observation (the bulk)
 
-Every observer is a `ControlProxy` parented to the manager, with a
-`connectValueChanged()` lambda. Global observers are set up in `init()`
-(`announcementmanager.cpp:375–856`); per-deck observers in
-`connectGroupControls()` (`:978–1567`), called from `connectDeck()` (`:1580`)
-for each deck and again from `slotNumberOfDecksChanged()` (`:1608`) as decks
-are added.
+Unchanged in shape: every observer is a `ControlProxy` parented to the
+manager, with a `connectValueChanged()` lambda. Global observers in `init()`;
+per-deck observers in `connectGroupControls()`, called from `connectDeck()`
+for each deck and again from `slotNumberOfDecksChanged()`. New this window:
+the four AutoDJ observers (below) live directly in `init()` alongside the
+other global observers, not in a separate module.
 
 ### 2. `Library` signals and the `announceText()` free-text channel
 
-`Library::announceText(const QString&)` (`src/library/library.h:120`,
-`src/library/library.cpp:485–487`) is a one-line adapter:
+`Library::announceText(const QString&)` (`src/library/library.h:124`,
+`src/library/library.cpp:496–498`) is unchanged, still a one-line adapter:
 
 ```cpp
 void Library::announceText(const QString& text) {
@@ -65,559 +74,449 @@ void Library::announceText(const QString& text) {
 }
 ```
 
-It reuses the quick-picker signal with "no position", landing in
-`slotQuickPickerItemHighlighted()` (`announcementmanager.cpp:1740–1752`).
-That slot is **unconditional** — deliberately not gated by any
+It still reuses the quick-picker signal with "no position", landing in
+`slotQuickPickerItemHighlighted()`, still **unconditional** — not gated by any
 `[Accessibility]` preference, because every caller is a deliberate one-off
 event rather than ambient chatter.
 
-**Verified count: 49 direct call sites**, plus one signal connection
-(`ErrorDialogHandler`, below) that feeds the same channel without calling it
-directly. The channel has grown well beyond the boot dialogs it started as.
+**Verified count: 94 call sites** (up from 49) across `src/`, roughly double.
+The channel has kept growing well beyond the boot dialogs it started as. New
+feeders landing in this window, each detailed in its own subsection below:
 
-| Area | File | Sites | Examples |
-|---|---|---|---|
-| Boot / hardware dialogs | `src/mixxxmainwindow.cpp` | 11 | 450 (AccessMenu speak callback), 737/816/848 (sound-device dialogs), 880 (no output), 1305/1334/1363/1392 (no vinyl / passthrough / mic / aux input), 1460 (library scan summary), 1812 (direct rendering) |
-| Playlist dialogs | `src/library/trackset/baseplaylistfeature.cpp` | 16 | create / rename / duplicate / delete, plus the "name already exists" and "blank name" validation messages |
-| Crate dialogs | `src/library/trackset/crate/cratefeature.cpp` | 7 | rename, delete, "You entered: %1" echo |
-| Crate creation helper | `src/library/trackset/crate/cratefeaturehelper.cpp` | 9 | create / duplicate + validation |
-| Track table | `src/widget/wtracktableview.cpp` | 3 | 1165/1169 ("Moved to position %1 of %2"), 1529 |
-| Library views | `src/library/library.cpp` | 2 | 669 ("Playlists view"), 671 ("Crates view") |
-| Library control | `src/library/librarycontrol.cpp` | 1 | 800 ("Deck %1, no track loaded") |
+| Feature | Issue | Where |
+|---|---|---|
+| Exit confirmation dialogs | #115 | `src/mixxxmainwindow.cpp` |
+| Dialog-trap fixes (purge/hide/remove/delete confirmations, library scanner dialog, key-wheel notation) | #63 | `src/widget/trackconfirmdialogs.cpp`, `src/library/scanner/libraryscannerdlg.cpp`, `src/dialog/dlgkeywheel.cpp` |
+| YouTube library source | #67 | `src/library/youtube/youtubefeature.cpp` |
+| Menu-hover narration (`Library::announceMenuHover()`) | adjacent, likely issue #60 territory | `src/library/library.cpp:508–536` |
 
-The boot-dialog strings are factored into pure helpers (`noOutputSpeech()`,
-`noVinylControlInputSpeech()`, `libraryScanSummarySpeech()`, …) declared at
-`mixxxmainwindow.h:49–52` and unit-tested in
-`src/test/bootdialog_speech_test.cpp` without needing a running app.
+The pre-existing boot-dialog helpers and `ErrorDialogHandler` choke point
+(issue #52) are unchanged in mechanism; see the previous section of this spec
+for their tables if needed for the diff, and see Spec 08/09 for anything that
+is really library/UI-layer territory rather than the announcement layer
+itself (e.g. the full YouTube feature or the menu-hover feature are library
+features first and speech feeders second — documented here only to the extent
+they touch `AnnouncementManager`'s or `Library`'s speech surface).
 
-### 2b. Error dialogs via `ErrorDialogHandler` (issue #52, merged)
+### 2a. Exit confirmation dialogs (issue #115, new)
 
-The newest and highest-leverage feeder into the free-text channel. Rather than
-touching every call site, the fork emits from the **single choke point** every
-`requestErrorDialog()` call funnels through:
+Lives in `src/mixxxmainwindow.{h,cpp}`, not in `AnnouncementManager` itself —
+three pure helper functions alongside the existing boot-dialog helpers:
 
-| Element | Location |
-|---|---|
-| Signal declaration | `src/errordialoghandler.h:158` — `void errorDialogAnnouncement(const QString& text)` |
-| Emit site | `src/errordialoghandler.cpp:180–181`, inside `ErrorDialogHandler::errorDialog()` |
-| Text sanitiser | `spokenMessageText()`, `src/errordialoghandler.cpp:36–41` |
-| Length cap | `kMaxSpokenMessageChars = 300`, `:30` |
-| Connection | `coreservices.cpp:663–666` → `Library::announceText` |
-| Tests | `src/test/errordialoghandler_test.cpp`, 4 cases |
+| Helper | Declared | Defined |
+|---|---|---|
+| `confirmExitDeckPlayingSpeech()` | `mixxxmainwindow.h:70` | `mixxxmainwindow.cpp:175–…` |
+| `confirmExitSamplerPlayingSpeech()` | `mixxxmainwindow.h:71` | `mixxxmainwindow.cpp:…` |
+| `confirmExitPreferencesOpenSpeech()` | `mixxxmainwindow.h:72` | `mixxxmainwindow.cpp:…–191` |
 
-Behaviour worth preserving:
+Called from `MixxxMainWindow::confirmExit()` (`mixxxmainwindow.cpp:1916–1976`,
+itself invoked from the window-close path at `:1873`). Each of the three
+branches speaks via `Library::announceText()` **before** the blocking
+`QMessageBox::question()` call — deck-playing at `:1942`/`:1943–1946`,
+sampler-playing at `:1951`/`:1952–1955`, preferences-open at
+`:1961`/`:1962–1966`. Before this landed, **none** of the three exit
+confirmation dialogs were wired into TTS at all — a blind user closing the
+window mid-mix got a modal dialog they could neither hear nor necessarily see
+land. `src/test/exitdialog_speech_test.cpp` (66 lines) calls the three static
+helpers directly (no live `MixxxMainWindow`), asserting each string states
+the situational fact, the question, and — importantly — which button is the
+keyboard default ("No is selected by default" / similar), and that all three
+strings are pairwise distinct.
 
-- **Emitted *before* `QMessageBox` is shown**, so speech is not deferred until
-  a modal `exec()` returns — i.e. until the user has already dismissed a dialog
-  they could not perceive.
-- **HTML stripped** via `QTextDocumentFragment::fromHtml(...).toPlainText()
-  .simplified()`; several callers embed `<br>` / `<b>` in the primary message,
-  which would otherwise be read aloud literally.
-- **Truncated at 300 chars** with an ellipsis. The collapsed "Show Details"
-  section (backtraces etc.) is deliberately **not** spoken.
-- Format is `tr("%1. %2").arg(title, message)`.
-- `ErrorDialogHandler` is a process-wide singleton created in `main.cpp`
-  **before** `CoreServices` builds the announcement machinery, so error dialogs
-  raised in very early boot have no listener and are simply not spoken. The
-  dialog is still shown normally either way.
+### 2b. Dialog-trap fixes (issue #63, new)
 
-This closes a real gap: these dialogs are frequently non-modal and may not even
-take focus, so a TTS-only user previously got no indication anything went
-wrong.
+Three independent dialogs that were reachable but silent — the "trap" is a
+modal or focus-stealing dialog with no spoken indication it appeared:
+
+**Track confirm dialogs** (`src/widget/trackconfirmdialogs.cpp`/`.h`, namespace
+`mixxx::trackconfirm`): `purgeAnnouncement()`, `hideOrRemoveAnnouncement()`,
+and `deleteFromDiskAnnouncement()` are pure text helpers; `confirmPurge()`
+calls `Library::announceText()` **before** the still-blocking
+`QMessageBox::question()`. Every generated string ends by stating the
+keyboard default ("No is selected by default…" / "Cancel is selected by
+default…"). Before this fix, purge in particular ran with zero spoken
+confirmation. Tested in `src/test/trackconfirmdialogs_test.cpp` (130 lines),
+including two tests that drive a real modal dialog via a deferred
+`QTimer::singleShot(0, …)` to confirm the default button really is `NoRole`.
+
+**Library scanner dialog** (`src/library/scanner/libraryscannerdlg.{h,cpp}`):
+an injected `std::function<void(const QString&)>` announce callback
+(`libraryscannerdlg.h:26–28`), fired once per scan on `showEvent()`
+(`libraryscannerdlg.cpp:67–78`, guarded by `m_announcedThisScan`,
+`h:59`) speaking `tr("Scanning library")`. Before this fix the dialog
+appeared roughly two seconds into a scan and stole focus with no announcement
+at all. Wired `TrackCollectionManager::setScanAnnounceCallback()`
+(`trackcollectionmanager.cpp:182–186`) ← `LibraryScanner::setAnnounceCallback()`
+(`libraryscanner.cpp:160–163`) ← `coreservices.cpp:640`. Tested in
+`src/test/libraryscannerdlg_speech_test.cpp` (72 lines): announces exactly
+once per scan, not on every `slotUpdate()` repaint.
+
+**Key wheel notation** (`src/dialog/dlgkeywheel.{h,cpp}`): cycling the key
+notation used to be a purely visual SVG redraw with no announcement.
+`DlgKeywheel::notationChanged(QString)` now emits
+`notationDisplayName(m_notation)` (`dlgkeywheel.cpp:133–139`) after redrawing;
+`MixxxMainWindow` connects it to `Library::announceText()`
+(`mixxxmainwindow.cpp:1553–1558`). Tested in `src/test/dlgkeywheel_speech_test.cpp`
+(44 lines) as a pure lookup-table test of `notationDisplayName()`.
+
+### 2c. YouTube library source (issue #67, new)
+
+`src/library/youtube/` (12 new files, ~1477 lines) is a genuinely new library
+source — not a networking "port" in the TCP sense — gated by
+`ConfigKey("[Library]","ShowYouTubeLibrary")` (default true, **not** an
+`[Accessibility]` key) and wired into `Library` at `library.cpp:269–272`. This
+feature is properly library/UI territory (Spec 08/09); documented here only
+for its speech surface, which bypasses `AnnouncementManager` entirely and
+calls `Library::announceText()` directly, same as the boot dialogs:
+
+| Site | Trigger | Text |
+|---|---|---|
+| `youtubefeature.cpp:97–103` | opening the feature | `"YouTube search. Type in the search box to find tracks."` |
+| `youtubefeature.cpp:49–56` + `youtubesearchmodel.cpp:87/90/102/104` | search status changes | forwards the model's status string (searching / no results / N results) |
+| `youtubefeature.cpp:119–135` | loading a search result to a deck | `"Downloading %1"` |
+| `youtubefeature.cpp:154–166` | download progress | speaks only every 25% (`:158–160`) — never per-percent |
+| `youtubefeature.cpp:210–216` | download failure | `"Download failed: %1"` |
+
+Notably, CC-attribution text was **deliberately removed** from the spoken
+strings (kept in the track's comment tag instead) — a real commit exists
+purely to walk that back once it was found to be too chatty. Worth knowing if
+a rebase reintroduces it from an older branch state.
 
 ## Observed ControlObject keys, by subsystem
 
-40 observer construction sites; loops expand to 48 distinct key patterns. A
-rebase that renames any of these upstream kills the corresponding feature
-**silently** — see the risk section below.
+The tables from the previous verification (global application/library/
+recording, mixer/master, effects, per-deck, polled-not-observed) are
+**unchanged in content and gate semantics** except for the additions below;
+line numbers throughout the file have shifted upward by roughly 600 lines due
+to the new material, so treat any specific `:NNNN` citation from the previous
+verification as stale and re-grep rather than trust it verbatim.
 
-### Global — application, library, recording
+### New — Auto DJ (issue #61)
 
-| Key | Site | Gate | Behaviour |
+| Key / control | Site | Gate | Behaviour |
 |---|---|---|---|
-| `[Library],sort_column` | `:441` | `AnnounceSort` | Starts the 400 ms sort debounce |
-| `[Library],sort_order` | `:449` | `AnnounceSort` | Same debounce (a column change also resets order) |
-| `[Library],focused_widget` | `:469` | `AnnounceLibraryFocus` | "Search bar" / "Sidebar" / "Track list" |
-| `[Tts],enabled` | `:479` | always | Speaks "Speech on" on the 0→1 edge only (off flushes the FIFO, so it can't be spoken) |
-| `[Recording],status` | `:492` | `AnnounceRecording` | 0 = off, 1 = ready, 2 = recording; announces both transitions of `>= 2.0` |
-| `[Main],peak_indicator` | `:515` | `AnnounceClipping` | Rising edge → `Clipping` earcon, throttled to one per 5 s |
+| `[AutoDJ],enabled` | `announcementmanager.cpp:781–795` (`AllowMissingOrInvalid`) | always | Off → `"Auto DJ off"`. On → `"Auto DJ on. Next: <artist>, <title>"` via `getNextQueuedTrack()`, or bare `"Auto DJ on"` if the queue is empty |
+| `[AutoDJ],fade_now` | `:800–809` | always | `"Fading now"` |
+| `[AutoDJ],skip_next` | `:814–823` | always | `"Skipped"` — the newly-current track is announced separately by the normal track-load path |
+| `[AutoDJ],tts_next` (**owned**, `ControlPushButton`, Trigger, `m_pAutoDJNextButton`, `h:330`) | `:828–836` | on demand (keyboard `Alt+Shift+N`) | `speak(formatAutoDJNext())` |
 
-### Global — mixer and master
+None of the four are gated by an `[Accessibility]` toggle — AutoDJ transport
+confirmations are always-on, matching the pattern for other transport
+confirmations elsewhere in the class. `formatAutoDJNext()`
+(`announcementmanager.cpp:2637–2671`) builds "Auto DJ is on/off. Next:
+<track>/Queue is empty. About <remaining> on <deck>." — the remaining-time
+estimate is explicitly approximate (comment `:2646–2649`): the real crossfade
+can start earlier, at the track's outro point.
 
-| Key | Site | Gate | Readout |
-|---|---|---|---|
-| `[Master],crossfader_lock` | `:534` | always | "Crossfader locked/unlocked" (Alt+X) |
-| `[Master],crossfader` | `:547` | `AnnounceMixer` | "left/right <fraction>", "center" within ±0.05; **suppressed while locked** |
-| `[Master],headMix` | `:579` | `AnnounceMixer` | "cue/main <fraction>", "even" within ±0.05 |
-| `[Master],gain` | `:617` | `AnnounceMixer` | "Main volume …" — read via `getParameter()`, not `get()` |
-| `[Master],headGain` | `:617` | `AnnounceMixer` | "Headphone volume …" — same |
-| `[Master],headSplitDecks` | `:687` | always | "Split cue on. Deck 1 left, deck 2 right" (Alt+H) |
-| `[Master],disable_touch_scratch` | `:710` | always | "Jog wheel touch locked/unlocked" (Alt+J) |
-| `[BeatClick],enabled` | `:698` | always | "Beat click on/off" (Alt+B) |
-
-### Global — effects
-
-| Key | Site | Gate | Notes |
-|---|---|---|---|
-| `[EffectRack1_EffectUnitN],mix` (N = 1..4) | `:659` | `AnnounceMixer` | "Effect N mix …" |
-| `[EffectRack1_EffectUnitN],super1` (N = 1..4) | `:659` | `AnnounceMixer` | "Effect N super …" |
-| `[EffectRack1_EffectUnitU_EffectS],enabled` (16) | `:729` | `AnnounceEffects` | "Unit U <name> on/off"; name from resolver |
-| `[EffectRack1_EffectUnitU_EffectS],loaded_effect` (16) | `:747` | `AnnounceEffects` | "Unit U: <name> loaded" / "cleared"; debounced |
-
-### Per deck (`connectGroupControls(group, deckIndex)`)
-
-| Key | Site | Gate | Behaviour |
-|---|---|---|---|
-| `play` | `:1008` | `AnnouncePlay` / `AnnounceStop` | Distinguishes real play from a held-cue preview by reading `cue_default`; suppresses "Stopped" when `end_of_track` fired |
-| `end_of_track` | `:1045` | `AnnounceEndOfTrack` | "End of track. N minutes M seconds remaining." |
-| `start`, `cue_gotoandstop` | `:1070` | `AnnouncePlay` | "<deck> back to start" + `Restart` earcon |
-| `pfl` | `:1083` | `AnnounceCue` | "<deck> headphone cue on/off" — "headphone cue", never bare "cue" |
-| `sync_enabled` | `:1110` | `AnnounceSync` | Latch-aware, see below |
-| `keylock`, `quantize` | `:1153` | `AnnounceSync` | "<deck> key lock on" etc. |
-| `loop_enabled` | `:1170` | `AnnounceLoop` | "<deck> loop N beats" (reads `beatloop_size`) |
-| `hotcue_1..8_status` | `:1199` | `AnnounceHotcue` | Only 0↔1 edges; suppressed for 1 s after a track change |
-| `hotcue_1..8_activate` | `:1222` | `AnnounceHotcue` | Only when the pad was **already** set (otherwise `_status` speaks "set") |
-| `cue_set` | `:1243` | `AnnounceHotcue` | "<deck> cue set" |
-| `beatloop_size` | `:1255` | `AnnounceLoop` | Debounced |
-| `beatjump_size` | `:1270` | `AnnounceLoop` | Debounced |
-| `beatjump_forward`, `beatjump_backward` | `:1291` | `AnnounceLoop` | "<deck> jump forward N beats"; debounced |
-| `rate_ratio` | `:1310` | `AnnounceTempo` | Keyed readout: "<deck> pitch" then "up 2 percent. 128 B P M" |
-| `beats_set_halve`, `beats_set_double` | `:1343` | `AnnounceTempo` | "<deck> B P M halved/doubled". Deliberately does **not** read the new BPM back — the engine updates `bpm` on its own schedule, so it would race; `tts_bpm` gives the exact number |
-| `volume` | `:1360` | `AnnounceMixer` | `getParameter()`, not `get()` — see the taper note |
-| `pregain` | `:1383` | `AnnounceMixer` | Center-split: "trim plus a quarter" |
-| `[EqualizerRack1_<group>_Effect1],parameter1/2/3` | `:1416` | `AnnounceMixer` | "E Q low/mid/high" (or "low/mid/high" in concise mode), center-split from unity=1 over range 0..4 |
-| `[QuickEffectRack1_<group>],super1` | `:1450` | `AnnounceMixer` | "<deck> filter", center-split around 0.5 |
-| `[EffectRack1_EffectUnitU],group_<group>_enable` (U = 1..4) | `:1469` | `AnnounceEffects` | "<deck> effect unit U on/off" |
-| `[QuickEffectRack1_<group>],loaded_chain_preset` | `:1488` | `AnnounceEffects` | "<deck> filter: <preset>"; debounced |
-| `vinylcontrol_enabled` | `:1514` | **none** | Always spoken |
-| `vinylcontrol_mode` | `:1524` | **none** | absolute / relative / constant |
-| `vinylcontrol_cueing` | `:1546` | **none** | needle-drop cueing off / cue point / nearest hotcue |
-
-The three DVS observers are ungated on purpose (`announcementmanager.cpp:1509–1513`):
-mode changes also happen *automatically* (a loop or seek drops absolute mode to
-relative; the end of the record switches to constant), and without feedback a
-blind DJ has no way to know why the deck stopped following the turntable.
-
-**Sync is latch-aware** (`:1103–1140`). `sync_enabled` is `LongPressLatching`:
-it flips to 1 on press and reverts if released within 300 ms. A `QTimer` probes
-at `kSyncLatchProbeMs = 450` (`:63`) to tell the two apart:
-
-| Outcome | Spoken |
-|---|---|
-| Held past 450 ms | "<deck> sync locked" |
-| Released inside the window | "<deck> beat synced. Hold sync to lock" |
-| 1 → 0 outside the window | "<deck> sync off" |
-
-### Polled, not observed
-
-Read on demand via the `readGroupControl()` helper (`:65–67`), which
-constructs a throwaway `ControlProxy` with `AllowMissingOrInvalid`:
-
-`cue_default`, `duration`, `playposition`, `bpm`, `key`, and
-`[Library],key_notation`.
+`AutoDJProcessor::getNextQueuedTrack() const` — declared
+`src/library/autodj/autodjprocessor.h:200`, defined
+`src/library/autodj/autodjprocessor.cpp:1818`. Exposed to `AnnouncementManager`
+via `Library::getAutoDJProcessor()` (`library.cpp:504–506`), set from
+`pLibrary->getAutoDJProcessor()` at construction (`announcementmanager.cpp:445`).
+`src/test/autodjprocessor_test.cpp` adds two tests directly against
+`getNextQueuedTrack()` (empty queue → null; populated queue → head of queue).
 
 ## ControlObjects the manager *owns*
 
-| Key | Type | Mode | Purpose |
-|---|---|---|---|
-| `[Tts],repeat` | `ControlPushButton` | Trigger | Re-speaks `m_lastSpoken` (Alt+Shift+R) |
-| `[Tts],shift` | `ControlPushButton` | default | Controller mappings set 1 while hardware shift is held; announced on **press only** |
-| `[Tts],pad_mode` | `ControlObject` | — | Cross-controller pad-layer vocabulary, see table below |
-| `[ChannelN],tts_status` | `ControlPushButton` | Trigger | Full deck status |
-| `[ChannelN],tts_time` | `ControlPushButton` | Trigger | Time remaining |
-| `[ChannelN],tts_bpm` | `ControlPushButton` | Trigger | BPM |
-| `[ChannelN],tts_key` | `ControlPushButton` | Trigger | Musical key |
-| `[ChannelN],tts_bar` | `ControlPushButton` | Trigger | Bar / beat position |
-| `[ChannelN],tts_track` | `ControlPushButton` | Trigger | Artist / title |
+Unchanged from the previous verification (`[Tts],repeat`, `[Tts],shift`,
+`[Tts],pad_mode`, and the six per-deck `[ChannelN],tts_*` triggers), plus the
+new `[AutoDJ],tts_next` documented above. All Trigger-mode buttons still fire
+on every press regardless of whether the underlying value changes.
 
-All six per-deck readouts are created in one table-driven loop
-(`:982–1006`). **Trigger** mode is required so every press fires even though
-the value doesn't change.
-
-`[Tts],pad_mode` values (`:822–852`) — a fixed cross-controller vocabulary,
-so a mapping sets the value matching the mode button pressed. Setting the same
-value again is a no-op (no CO change), which conveniently deduplicates hardware
-that fires one mode press for both decks at once (Numark Scratch):
-
-| Value | Spoken as "Pads, …" |
-|---|---|
-| 1 | hot cues |
-| 2 | beat loop |
-| 3 | beat jump |
-| 4 | sampler |
-| 5 | keyboard |
-| 6 | pad effects 1 |
-| 7 | pad effects 2 |
-| 8 | key shift |
-| 9 | loop roll |
-
-Keyboard bindings (`res/keyboard/en_US.kbd.cfg:45–50`, `:109–114`) —
-odd hotkeys are deck 1, even are deck 2:
-
-| Readout | Deck 1 | Deck 2 |
-|---|---|---|
-| `tts_status` | Alt+1 | Alt+2 |
-| `tts_time` | Alt+3 | Alt+4 |
-| `tts_bpm` | Alt+5 | Alt+6 |
-| `tts_key` | Alt+7 | Alt+8 |
-| `tts_bar` | Alt+9 | Alt+0 |
-| `tts_track` | Alt+Shift+T | Alt+Shift+Y |
-
-Readout formatters (`formatDeckStatus`, `formatTimeRemaining`, `formatBpm`,
-`formatKey`, `formatBarPosition`, `formatTrackName`,
-`announcementmanager.cpp:1950–2109`) are all **public** so tests can verify
-formatting without a running app. `formatBarPosition()` assumes 4/4 and
-returns "Before first beat." / "No beat grid." rather than guessing.
+`[Tts],pad_mode`'s spoken vocabulary gained a small but important refinement:
+the DDJ-400 mapping now appends **"(not yet supported)"** for the four pad
+layers that have no working behaviour behind them (Keyboard, Pad FX1, Pad
+FX2, Key Shift — `Pioneer-DDJ-400-script.js:638–655`), so a blind DJ isn't
+told a dead layer sounds identical to a working one. The mapping also now
+bounces the CO through `0` before setting the real value
+(`Pioneer-DDJ-400-script.js:668`) so re-pressing the mode you're already in
+re-announces it — previously same-value writes were silently swallowed
+(deliberately, for the Numark Scratch dedup case) with no way to ask "which
+layer am I on?" without cycling through all eight. This mapping-side detail
+belongs to Spec 01/08's territory; noted here only because the spoken text it
+triggers is formatted by `AnnouncementManager`.
 
 ## Debounce, dedup, and name-once-then-value
 
-The mechanism that makes a continuously-moving knob usable rather than
-maddening. Two overloads of `announceControlDebounced()`:
+The six-rule state machine from the previous verification (name-on-touch,
+name-once, no-change suppression, context-clear-on-unrelated-utterance,
+repeat-gets-full-text, announce-while-moving) is **unchanged in behaviour**.
+What changed is the data structure backing rule 1–3 for the **keyed**
+overload, to fix a real bug (issue #114):
 
-| Overload | Site | Use |
-|---|---|---|
-| `(text)` | `:2126` | One-shot debounced string (loop size, effect loaded, …) |
-| `(key, name, valueText)` | `:2134` | Keyed readout for physical knobs and faders |
+### The per-control debounce fix (issue #114)
 
-The keyed path is the interesting one. Timing constants (`:35–63`):
+**The bug:** the keyed debounce path used to share a single pending slot
+across *all* controls. Touching a second control (e.g. a volume fader) before
+the first control's (e.g. a pitch fader's) debounce timer fired silently
+discarded the first control's queued value — the DJ heard the control's name
+on touch, but the value never followed.
 
-| Constant | Value | Meaning |
-|---|---|---|
-| `kSelectionDebounceMs` | 400 | Track-browsing selection |
-| `kSearchDebounceMs` | 600 | Library search |
-| `kControlDebounceMs` | 400 | Knob/fader at rest |
-| `kSortDebounceMs` | 400 | Sort column + order collapse into one utterance |
-| `kMovingThrottleMs` | 300 | Min gap in announce-while-moving mode |
-| `kControlContextMs` | 8000 | How long a control keeps its spoken "context" |
-| `kHotcueSuppressMs` | 1000 | Hotcue silence after a track change |
-| `kClippingThrottleMs` | 5000 | Min gap between clipping warnings |
-| `kSyncLatchProbeMs` | 450 | Long-press latch probe |
+**The fix:** a small struct and a hash, replacing the single slot:
 
-### The rules, in order
+```cpp
+// announcementmanager.h:360-363
+struct PendingControlAnnouncement {
+    QString name;
+    QString value;
+};
+```
 
-1. **Name on touch.** The first movement of a control speaks its name
-   immediately ("Deck 1 volume") so the DJ knows what they grabbed. The value
-   follows once it stops (`:2141–2161`).
-2. **Name once.** While the *same* key keeps moving within
-   `kControlContextMs`, only the new value is spoken ("a half"), not the name
-   again. A long slow drag must not re-announce the name halfway through
-   (`:2150–2153`).
-3. **No-change suppression.** If the readout text is identical to the last one
-   announced for that key (`m_lastValueByKey`, session-lifetime), **nothing is
-   said at all** — neither name nor value (`:2154–2155`, `:2198–2208`). This is
-   the worn-pot guard: a jittery potentiometer resting near a boundary would
-   otherwise chant the same readout forever.
-4. **Any unrelated utterance clears the context.** `speak()` clears
-   `m_lastControlKey` on its very first line (`:874–878`), so the next control
-   move names the control again.
-   `slotAnnouncePendingControl()` deliberately **restores** the context after
-   its own `speak()` (`:2211–2217`) — a subtle dance worth preserving verbatim.
-5. **Repeat gets the full text.** Even when only the value was spoken,
-   `m_lastSpoken` is set to `name + " " + value` (`:2214`) so Alt+Shift+R
-   re-speaks something intelligible standing alone.
-6. **Announce-while-moving** (`AnnounceWhileMoving`, default off) speaks
-   immediately, throttled to `kMovingThrottleMs`, and *still* arms the debounce
-   so the resting value is always spoken (`:2165–2178`).
+- `QStringList m_pendingControlOrder` (`h:368`) + `QHash<QString, PendingControlAnnouncement> m_pendingControls` (`h:369`) — one pending entry **per control key**, in touch order.
+- The *unkeyed* overload's single slot, `QString m_pendingControlText` (`h:350`), is **deliberately kept separate and unchanged** — it represents one conceptual readout (loop size, beat-jump size, effect focus) being stepped through, where "supersede, don't queue" is the correct behaviour (comment `h:344–349`).
+- Both paths still share **one** `QTimer m_controlDebounce` (`h:343`, `kControlDebounceMs = 400`, set up `announcementmanager.cpp:398–399`) — the fix is in what gets queued when it fires, not in giving every key its own timer.
+- `announceControlDebounced(text)` (unkeyed) — `cpp:2719–2727`.
+- `announceControlDebounced(key, name, valueText)` (keyed) — `cpp:2729–2759`: inserts into the hash/order list, does name-on-touch/name-once logic, starts the debounce.
+- `slotAnnouncePendingControl()` — `cpp:2776–2845`: flushes **both** the unkeyed text and the *entire* keyed hash in insertion order, wrapped in `beginSpeechBatch()`/`endSpeechBatch()` (`:2787`/`:2840` — see Spec 05, Invariant 3) so multiple controls settling in the same debounce window are joined into one utterance instead of each `speak()` barging in on the last.
+- **Follow-on correctness fix bundled with this change:** `m_lastSpoken` (backing the Alt+Shift+R repeat command) is now built from `fullTextsForRepeat.join(...)` — the full wording of *every* flushed announcement — rather than whatever partial text the batched dispatch happened to produce, so repeat no longer returns a clipped or wrong string after a multi-control flush (comment `cpp:2789–2794`, `:2842–2844`).
 
-### Taper traps (do not "simplify" these)
+`kControlContextMs = 8000` still governs "same control still in context, so
+speak the value only" (now checked per-key against the hash rather than a
+single shared field). Per-key jitter/no-change suppression against
+`m_lastValueByKey` (`h:378`) is unchanged in intent.
 
-`volume`, `pregain`, `[Master],gain` and `[Master],headGain` are
-`ControlAudioTaperPot`s. `get()` returns the **linear gain multiplier**, not
-the fader position. The code reads `getParameter()` instead
-(`:1355–1359`, `:603–608`). Using `get()` makes a half-way fader read out as
-roughly a quarter. This is a correctness bug that reads as a plausible number,
-so it will not be caught by eye.
+### Taper traps and readout vocabulary
 
-Similarly, `[Master],gain` / `headGain` are spoken as **plain travel**
-("a half"), not center-split — testers reading "minus a quarter" concluded the
-volume had gone negative.
-
-### Readout vocabulary
-
-`fractionText()` (`:92–129`) snaps to the user's `MixerFractionDetail`
-denominator (4 / 8 / 16), then expresses in sixteenths so naming simplifies
-identically at every detail level: zero, a sixteenth, an eighth, a quarter,
-3 eighths, a half, … full. `centerSplitText()` (`:134–149`) wraps it as
-"center" / "plus X" / "minus X".
-
-Two deliberate pronunciation workarounds that must survive a rebase:
-
-- **"B P M" with spaces** (`:1928–1929`) — engines read the letters
-  individually instead of attempting a word.
-- **NATO phonetic deck letters** (`phoneticLetter()`, `:248–282`). An earlier
-  version used short words ("Ay", "Bee", "See"). "Ay" is a real homograph
-  (the vote/nautical interjection) and macOS speech resolved "Ay", "Aye" and
-  "eye" to **byte-for-byte identical audio** — confirmed by rendering and
-  diffing. All 26 NATO words were rendered and diffed for collisions. Costs a
-  syllable or two; correctness matters more for a feature meant to be trusted
-  at face value. The comma in `tr("Deck, %1")` (`:2088–2099`) is equally
-  deliberate: without it engines glue the letter on ("Decka").
+Unchanged from the previous verification: `getParameter()` vs. `get()` for
+`ControlAudioTaperPot`s, plain-travel phrasing for `[Master],gain`/`headGain`,
+`fractionText()`/`centerSplitText()`, the "B P M" spacing workaround, and the
+NATO phonetic deck letters. No evidence these were touched in this PR wave;
+re-verify by grep if a rebase touches `phoneticLetter()` or the fraction
+helpers, since their line numbers have also shifted with the file's growth.
 
 ## Per-event feedback modes: speech / earcon / both
 
-`emitCue(earconId, deckIndex, speechText)` (`:938–976`) is the single dispatch
-point for every earcon-capable transport event:
-
-```
-mode != 1  →  speak(speechText)
-mode != 0  →  m_pEarcon->trigger(id, pan)
-```
-
-so `0` = speech only, `1` = sounds only, `2` = both (the default). Pan is
-derived from `deckIndex`: 0 → Left, 1 → Right, anything else → Center.
-
-| `EngineEarcon::Id` | Preference key | Default |
-|---|---|---|
-| `Play` | `FeedbackModePlay` | 2 |
-| `Stop` | `FeedbackModeStop` | 2 |
-| `EndOfTrack` | `FeedbackModeEndOfTrack` | 2 |
-| `CueOn` / `CueOff` / `CuePreview` | `FeedbackModeCue` | 2 |
-| `Restart` | `FeedbackModeRestart` | 2 |
-| `LoopOn` / `LoopOff` | `FeedbackModeLoop` | 2 |
-| `Clipping` | `FeedbackModeClipping` | 2 |
-
-The mode is consulted **only** when the matching `Announce*` toggle is already
-on — the enable check is the caller's responsibility (`announcementmanager.h:131–134`).
-Every other announcement in the class is speech-only.
-
-The `CuePreview` earcon exists because repeated cue taps while beat-matching
-turned "Cue" into an irritating chant (`:1020–1026`); the Cue feedback mode
-lets the user swap it for a short tick.
+`emitCue()` remains the single dispatch point for every earcon-capable
+transport event, with the same `0`/`1`/`2` semantics (speech only / sounds
+only / both, default `2`). One addition: the `Xrun` earcon (Spec 05) does
+**not** go through `emitCue()` — it has no speech/earcon feedback-mode split
+of its own, since an audio dropout is an engine-level fact rather than a
+transport event with a "how should this be phrased" question. If a rebase
+wants text feedback for xruns, it needs its own gate, not a slot in the
+`emitCue()` table.
 
 ## `[Accessibility]` preference keys
 
-**Verified count: 35** (`src/preferences/accessibilitysettings.h`, all via
-`DEFINE_PREFERENCE_HELPERS`). The brief said ~36 — the code wins.
+**Verified count: 37** (`src/preferences/accessibilitysettings.h`, was 35).
+Exactly **two** new keys landed in this window (confirmed by diff, +31 lines
+total including comments):
 
-### Event enables (17, all default `true`)
+| Key | Type | Default | Line | Purpose |
+|---|---|---|---|---|
+| `ControllerNavigationWithoutFocus` | bool | `false` | `:231–235` | Lets controller-driven library navigation (e.g. the DDJ-400 browse encoder) keep working without OS keyboard focus on the Mixxx window; OR'd with the `--controller-navigation-without-focus` CLI flag (issue #64) |
+| `OrientationPlayed` | bool | `false` | `:272–276` | One-shot flag backing the first-run orientation speech (issue #105, below); deliberately not exposed in the Preferences UI |
 
-`AnnounceTrackSelection`, `AnnounceTrackLoad`, `AnnouncePlay`, `AnnounceCue`,
-`AnnounceStop`, `AnnounceEndOfTrack`, `AnnounceLibraryFocus`,
-`AnnounceStartup`, `AnnounceSearch`, `AnnounceSort`, `AnnounceSync`,
-`AnnounceTempo`, `AnnounceLoop`, `AnnounceHotcue`, `AnnounceRecording`,
-`AnnounceEffects`, `AnnounceMixer`.
+All other categories (event enables, feedback modes, style/phrasing, speech
+engine) are unchanged in membership and defaults from the previous
+verification — specifically, `AnnounceMixer` still defaults **on** (issue
+#36); do not let a rebase revert that. Neither AutoDJ speech nor YouTube
+speech got a dedicated `[Accessibility]` toggle — both are "always on," per
+the comments at their observer sites (see above).
 
-> `AnnounceMixer` defaults **on** (issue #36). A blind DJ needs to hear
-> faders and EQ; the debounce plus the opt-in while-moving mode keep it from
-> being chatty mid-mix. Do not let a rebase revert this to `false`.
+### First-run TTS onboarding orientation (issue #105, new)
 
-### Per-event feedback modes (7, all default `2`)
+`AnnouncementManager::maybeSpeakFirstRunOrientation()` (declared
+`announcementmanager.h:182`, doc `:172–181`, defined `cpp:2188–2203`):
 
-`FeedbackModePlay`, `FeedbackModeStop`, `FeedbackModeEndOfTrack`,
-`FeedbackModeCue`, `FeedbackModeRestart`, `FeedbackModeLoop`,
-`FeedbackModeClipping`.
+```cpp
+void AnnouncementManager::maybeSpeakFirstRunOrientation() {
+    if (m_settings.getOrientationPlayed()) {
+        return;
+    }
+    m_settings.setOrientationPlayed(true);
+    speak(tr("Welcome to Mixxx. "
+             "Press Alt plus Shift plus A at any time to turn speech on or off. "
+             "Press Alt plus 1 or Alt plus 2 to hear the full status of deck 1 or deck 2. "
+             "Press Alt plus Shift plus R to repeat the last thing spoken. "
+             "The Accessibility Guide and Quick Reference that shipped with Mixxx list "
+             "every shortcut."));
+}
+```
 
-### Other event enables (2)
-
-`AnnounceClipping` (default `true` — a safety signal, not a style choice),
-`AnnouncePlaylist` (default `true`).
-
-### Style and phrasing (5)
-
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `MixerReadoutStyle` | int | 0 | 0 = fractions, 1 = percentages |
-| `MixerFractionDetail` | int | 1 | 0 = quarters, 1 = eighths, 2 = sixteenths |
-| `AnnounceWhileMoving` | bool | false | Speak during movement, throttled |
-| `DeckNamesAsNumbers` | bool | false | "Deck 1" instead of "Deck, Alpha" |
-| `ConciseAnnouncements` | bool | false | Drop "Deck" / "E Q" filler; single-fact hotkeys speak just the value |
-
-### Speech engine (4)
-
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `TtsVoice` | QString | `""` | Empty = system default voice |
-| `TtsRate` | int | 0 | [-10, 10] |
-| `TtsRoute` | int | 0 | 0 = headphone/cue, 1 = main. Matches `EngineTts::Route` |
-| `TtsVoiceQualityFilter` | int | 0 | macOS only; filters the voice picker by `AVSpeechSynthesisVoice` quality tier. Browsing aid only |
-
-Smart cue is deliberately **not** here — it lives under `[Controls]`, owned by
-`DlgPrefDeck` (`announcementmanager.cpp:21–24`), because it is a general
-deck-loading behaviour, not accessibility-specific. `AnnouncementManager`
-therefore keeps a raw `m_pConfig` alongside `m_settings` to read it.
-
-`speak()` re-reads `TtsVoice`, `TtsRate` and `TtsRoute` on every utterance and
-pushes them down only on change (`:904–933`), so preference edits take effect
-on the next spoken string with no restart and no explicit apply.
+The flag is marked played **before** speaking (comment `cpp:2192–2196`) —
+deliberate, since it's a one-shot "has this install run before" flag, not a
+"was the orientation actually heard" flag; a crash mid-utterance must not
+repeat it forever. Called from `slotSoundDevicesReady()`
+(`cpp:2171–2186`, call at `:2184`), inside the same `beginSpeechBatch()`/
+`endSpeechBatch()` pair (`:2179`/`:2185`) that speaks "Mixxx ready," so a
+first-ever boot doesn't have one announcement barge in on the other. See
+Spec 05 for the boot-sequence plumbing this rides on (no changes needed
+there — it reuses the existing `devicesSetup()` signal from issue #49).
 
 ---
 
 # Invariants — and the danger
 
-## Invariant A — 45 `AllowMissingOrInvalid` proxies fail *silently*
+## Invariant A — `AllowMissingOrInvalid` / `NoWarnIfMissing` proxies fail *silently*
 
-This is the fork's single largest structural risk. It is not a code-quality
-observation; it is a specific, mechanical failure mode.
+Still the fork's single largest structural risk, unchanged in mechanism from
+the previous verification (`ControlProxy`'s constructor,
+`src/control/controlproxy.cpp:10–18`: a missing control silently binds to a
+shared, process-wide dummy that never changes; `AllowMissingOrInvalid`
+suppresses the assertion; `NoWarnIfMissing` — used by `AccessMenuController`,
+see Spec 07 — additionally suppresses the log warning). What changed is
+**scale and, for the first time, coverage**:
 
-`ControlProxy`'s constructor, verified at `src/control/controlproxy.cpp:10–18`:
+- `AllowMissingOrInvalid` uses in `announcementmanager.cpp` alone: **56**
+  (was 45).
+- `ControlProxy` construction sites: **53** (was ~40).
 
-```cpp
-ControlProxy::ControlProxy(const ConfigKey& key, QObject* pParent, ControlFlags flags)
-        : QObject(pParent) {
-    m_pControl = ControlDoublePrivate::getControl(key, flags);
-    if (!m_pControl) {
-        DEBUG_ASSERT(flags & ControlFlag::AllowMissingOrInvalid);
-        m_pControl = ControlDoublePrivate::getDefaultControl();
-    }
-    DEBUG_ASSERT(m_pControl);
-}
-```
+**This gap is now guarded, not just documented — the biggest structural
+change since the previous verification.** `src/test/a11ycontrols_test.cpp`
+(637 lines, **new**; the previous verification listed this as "pending,
+branch `guard-co-existence`, does not exist yet") now exists and is
+substantial:
 
-When the control does not exist, the proxy binds to a **shared, process-wide
-dummy control that never changes value**. `ControlFlag::AllowMissingOrInvalid`
-(`src/control/control.h:25`) is `AllowInvalidKey | NoAssertIfMissing`, so the
-`DEBUG_ASSERT` passes and no assertion fires.
+- Fixture `A11yControlExistenceTest` derives from `BaseSignalPathTest`, so
+  every `ControlObject` it checks was created by real production code
+  (`EngineMixer`/`Deck`/`EngineBuffer`/`CueControl`/`EffectsManager`), not
+  fabricated by the test — closing exactly the gap the previous verification
+  flagged (`announcementmanager_test.cpp` fabricates its own
+  `[TestChannel1]` group and proves formatting logic, not that the real
+  controls still exist).
+- Header comment (`:1–40`) documents ~90 distinct control names / **263**
+  concrete `(group, item)` pairs once decks and effect units are expanded,
+  and states the failure mode in the same terms as this Invariant.
+- `AnnouncementManagerOwnedControlsExist` (`:572–623`) constructs a real
+  `AnnouncementManager` and asserts `[Tts],repeat`/`shift`/`pad_mode` and all
+  six per-deck `tts_*` controls exist.
+- `AccessMenuControlsExist` (`:536–561`) covers the seven `[AccessMenu]`
+  controls too (see Spec 07) — this single test file now guards both classes
+  the previous verification flagged as unguarded (`AllowMissingOrInvalid` in
+  this class and `NoWarnIfMissing` in `AccessMenuController`).
+- A trailing comment (`:625–636`) records a **deliberate non-coverage
+  decision**: `[Shoutcast],enabled` is not checked, with the stated reasoning
+  "no accessibility code reads it." **This reasoning is now stale** — see
+  Spec 07's Invariant B, which found that `AccessMenuController`'s
+  Broadcasting menu item *does* now read `[Shoutcast],enabled` (via
+  `NoWarnIfMissing`) to speak its on/off state. This is a real, currently
+  live gap: update `a11ycontrols_test.cpp`'s comment and add the key.
 
-Consequences, in order of nastiness:
+Three complementary new guard tests round out the coverage:
 
-1. `connectValueChanged()` succeeds. The connection is real. It is connected to
-   a control that will never change.
-2. **The observer never fires.** Not once.
-3. There is **no crash**, **no test failure**, and **no exception**.
-4. `ControlProxy` **never re-binds**. Binding early is permanent — this is the
-   exact hazard `EngineBeatClick` was restructured to avoid
-   (`src/engine/enginebeatclick.h:31–40`: constructing per-deck proxies in the
-   constructor latched onto the dummy forever, reading "not playing"
-   regardless of actual deck state).
-5. For a blind user, the only perceptible signal is **silence** — which is
-   indistinguishable from "this feature was never implemented".
+- `src/test/a11ymixpath_test.cpp` (309 lines) — guards that the engine sinks
+  are actually wired into `EngineMixer::process()`'s output, not just
+  functional in isolation. See Spec 05, Invariant 2.
+- `src/test/announcetext_guard_test.cpp` (551 lines) — two tiers: a genuine
+  behavioural test of `Library::announceText()` reaching the TTS transport
+  (`AnnounceTextBehaviourTest`, `:176–225`), plus an explicitly-labelled
+  **source-level census** (`AnnounceTextCallSiteCensusTest`, `:453–…`) that
+  parses the fork's own `.cpp` files and checks each announcing function
+  still textually contains an `announceText()` call. The file is explicit
+  that the census tier proves the call site still exists in source, **not**
+  that it's reachable or correct — a genuinely weaker guarantee than the
+  behavioural tier, worth remembering before treating a green run here as
+  proof of anything more.
+- `src/test/keyboardbindings_test.cpp` (493 lines) — locale parity and chord
+  collision detection across all 12 shipped `.kbd.cfg` files. See the Rebase
+  checklist and Spec 07 for specifics.
 
-So: **if upstream renames one observed control object during the rebase, the
-corresponding announcement simply stops existing, and every automated check
-still passes.**
+**Net effect: this invariant is no longer purely a documentation warning.**
+A rebase that renames an observed control now has a real chance of being
+caught by `a11ycontrols_test.cpp`, provided the renamed control is in its
+table — which is a **maintained, hand-written list**, not derived from the
+production code automatically. Adding a new observer without adding it to
+that table (or to `kValueControls` in Spec 07) reintroduces exactly the same
+silent-failure risk with zero automated defence. Treat the guard test's table
+as part of the contract, not a one-time chore.
 
-Highest-risk keys, because they are upstream-owned and historically volatile:
+Highest-risk keys, because they are upstream-owned and historically volatile,
+are unchanged from the previous verification (`[Main],peak_indicator`, the
+`[Master]`→`[Main]` migration family, `[EffectRack1_…]`/`[EqualizerRack1_…]`/
+`[QuickEffectRack1_…]` naming, fork-added `[Library]` keys, `[Recording],status`).
 
-| Key | Why it is at risk |
-|---|---|
-| `[Main],peak_indicator` | Already carries an alias to `[Master],PeakIndicator`; the `[Master]` → `[Main]` migration is ongoing upstream |
-| `[Master],crossfader`, `crossfader_lock`, `headMix`, `gain`, `headGain`, `headSplitDecks` | Same `[Master]` → `[Main]` migration |
-| `[EffectRack1_EffectUnitN…]` | Effects group naming has churned repeatedly upstream |
-| `[EqualizerRack1_<group>_Effect1],parameterN` | Same |
-| `[QuickEffectRack1_<group>],super1` / `loaded_chain_preset` | Same |
-| `[Library],focused_widget`, `sort_column`, `sort_order` | **Fork-added** COs — a rebase can drop the code that creates them without touching the observer |
-| `[Recording],status` | Upstream-owned |
+## Invariant B — `--tts-log` now records outcome, not just intent (previously Invariant B; largely resolved)
 
-Exactly **one** observed proxy is bound *without* the flag: `[ChannelN],play`
-(`announcementmanager.cpp:1008`). If that one goes missing it asserts in a
-debug build. That is the behaviour we want everywhere and cannot have, because
-the manager legitimately connects before some controls exist.
+The previous verification's headline claim — "the log answers 'was this
+string requested,' never 'did the user hear it'" — **is now outdated**. See
+Spec 05, Invariant 6 for the full mechanism; the summary for this spec's
+purposes:
 
-> **Guard test — Status: pending, branch `guard-co-existence`.**
-> `src/test/a11ycontrols_test.cpp` is intended to assert, once, that every
-> control key the accessibility layer observes actually exists after a normal
-> engine + player-manager bring-up, converting the silent failure into a red
-> test.
->
-> **Verified: `guard-co-existence` currently points at `ac931df0ed` and
-> contains no such file.** It has not been written yet. Until it lands, the
-> only defence against this failure mode is a human listening to the app. Say
-> so out loud when planning the rebase.
+- `AnnouncementManager::speak()` still calls into the log **first**, before
+  either early return (TTS-disabled at `cpp:1079–1080`, sink-destroyed at
+  `:1089–1090`) — this ordering is unchanged and still deliberate, now
+  producing a REQUESTED record either way (`:1074`), with the early-return
+  path additionally producing a SUPPRESSED record with a `reason=`.
+- A successfully dispatched utterance produces SPOKEN
+  (`dispatchSpeech()`, `:1140`) and, downstream in the engine (Spec 05),
+  SUPERSEDED / FLUSHED / COMPLETED depending on what actually happened to its
+  audio.
+- `endSpeechBatch()` gives the joined, batched text its **own** fresh
+  REQUESTED id rather than reusing any constituent call's id (`:1169`,
+  comment `:1164–1168`) — so a log reader correlating REQUESTED→outcome pairs
+  by id will see the individual pre-batch calls as REQUESTED with no matching
+  SPOKEN of their own, by design; only the combined utterance gets the full
+  lifecycle.
 
-Note that `EngineBeatClick` (`enginebeatclick.cpp:50–53`, `:58–63`) and
-`EngineEarcon` (`engineearcon.cpp:98–101`) use the same flag for
-`[Tts],route_to_main` and the per-deck `play` / `beat_distance` / `bpm`
-proxies, so the same failure mode reaches into the engine layer. Any guard test
-should cover those too.
+**What is genuinely new and worth stating plainly for Spec 04's test
+strategy:** an E2E harness can now assert COMPLETED for "this was audibly
+delivered," not just that a string was requested. COMPLETED is described in
+`ttslog.h` as the strongest signal available short of capturing the physical
+device output — a proxy for audibility, not literal proof a human perceived
+it (no assertion is made about volume, device routing to actual speakers,
+etc.). Do not overstate what COMPLETED proves; it closes the specific gap
+that hid the Smart Cue bug, not every conceivable "did the user hear this"
+question.
 
-## Invariant B — `--tts-log` records *intent*, never audibility
+## Invariant C — shutdown ordering (issue #30, unchanged)
 
-`--tts-log PATH` (`src/util/cmdlineargs.cpp:394–400`, `:476–477`;
-accessor `cmdlineargs.h:51–53`) appends every spoken string to a file. Spec 04
-identifies it as "the single highest-value test hook". It is — but only if you
-understand exactly what it measures.
-
-`AnnouncementManager::speak()`, `announcementmanager.cpp:874–936`, in order:
-
-| Line | Statement |
-|---|---|
-| 878 | `m_lastControlKey.clear();` |
-| **883–890** | **`--tts-log` write** |
-| 893–895 | `if (m_pTtsSink && !m_pTtsSink->isUserEnabled()) return;` — **TTS disabled** |
-| 900–902 | `if (m_ttsSinkDestroyed) return;` — **shutdown race** |
-| 904–933 | voice / rate / sample-rate / route sync |
-| 935 | `m_pTts->say(text);` |
-
-The log write happens **before both early returns**, deliberately — the comment
-at `:880–882` says "Log before the TTS-disabled early return so the hook
-captures all utterances."
-
-Therefore the log answers **"was this string requested?"** and never **"did the
-user hear it?"**. Specifically, a line appears in the log even when:
-
-| Condition | Where it drops | Detectable in log? |
-|---|---|---|
-| TTS toggled off by the user | `:893` | **no** |
-| Engine sink already destroyed (shutdown) | `:900` | **no** |
-| No sound device open yet (boot dialogs) | Spec 05 — no engine output exists | **no** |
-| Barge-in: superseded by a newer utterance | `TtsEngine::say()` generation counter | **no** |
-| FIFO full; synthesizer drops the tail (macOS) | `ttsenginemac.mm:143–145` | **no** |
-| Speech routed to a headphone bus the DJ isn't monitoring | `EngineTts::process()` | **no** |
-| `NullTtsEngine` (no backend compiled in) | `ttsengine.cpp:652` | **no** |
-
-**Any E2E harness built on `--tts-log` alone cannot distinguish "spoken" from
-"requested but silent."** This is the precise reason the Smart-Cue barge-in bug
-(Spec 05, Invariant 3) hid for weeks: the log showed the track-load
-announcement every single time. It was never audible.
-
-Consequences for the test strategy in Spec 04:
-
-- `--tts-log` assertions are valid for **string content and ordering** — did we
-  compute the right text, in the right order, with the right debouncing?
-- They are **not** valid as an audibility assertion. Scenario 1 ("assert TTS
-  log contains 'Mixxx ready'") passes on a build with no audio backend at all.
-- To close the gap, a second sink is needed at or below
-  `EngineTts::writeSamples()` / `EngineTts::process()` — i.e. log what actually
-  reached the FIFO, and what survived the flush. That instrumentation does not
-  exist today.
-
-Do not "tidy" the log write to sit after the early returns during a rebase. Its
-current position is a deliberate choice; what is missing is a *second*,
-lower-level hook, not a relocated one.
-
-## Invariant C — shutdown ordering (issue #30)
-
-Two independent guards against one use-after-free:
+Two independent guards against one use-after-free, unchanged in mechanism:
 
 1. `EngineTts::~EngineTts()` emits `sinkDestroyed()` before destroying members
-   (`enginetts.cpp:61–68`); `AnnouncementManager::onTtsSinkDestroyed()`
-   (`:860–872`) sets `m_ttsSinkDestroyed`, nulls `m_pTtsSink`, and clears the
-   `TtsEngine`'s own sink pointer. Connected at `:367–370`.
+   (now also flushing pending audibility outcomes first — Spec 05);
+   `AnnouncementManager::onTtsSinkDestroyed()` sets `m_ttsSinkDestroyed`,
+   nulls `m_pTtsSink`, and clears the `TtsEngine`'s own sink pointer.
 2. `CoreServices::finalize()` destroys the manager before the engine
-   (`coreservices.cpp:987–991`).
+   (`coreservices.cpp:997–1001`).
 
 Keep both. The `ControlProxy` observing `[Tts],enabled` is parented to the
 manager and can fire during teardown.
 
 ## Invariant D — the debounce/dedup state machine is load-bearing
 
-`speak()` clearing `m_lastControlKey` and `slotAnnouncePendingControl()`
-restoring it is not incidental bookkeeping — it is what makes rules 1–5 above
-work. A rebase that "simplifies" either half produces a knob that either
-re-announces its name on every tick, or never announces it at all. Both are
-regressions a sighted reviewer will not notice.
-
-`m_lastValueByKey` is intentionally **session-lifetime** and never pruned
-(`announcementmanager.h:246–248`). Bounded by the number of physical controls;
-do not add an eviction policy.
+Unchanged in substance from the previous verification, now extended by the
+per-control hash (issue #114, above) rather than replaced. `m_lastValueByKey`
+is still intentionally **session-lifetime** and never pruned; do not add an
+eviction policy. The new `m_pendingControls` hash is bounded the same way —
+by the number of physical controls that can be mid-debounce simultaneously,
+which is small.
 
 ## Rebase checklist for this spec
 
-1. All 48 observed CO keys still exist after engine bring-up. **No automated
-   check covers this yet** (see Invariant A). Pair the rebase with landing
-   `src/test/a11ycontrols_test.cpp`.
+1. All control keys `a11ycontrols_test.cpp` enumerates still exist after
+   engine bring-up — this now runs in CI, but the table is hand-maintained;
+   a new observer needs a new table entry, not just new observer code.
 2. `getParameter()` (not `get()`) still used for `volume`, `pregain`,
    `[Master],gain`, `[Master],headGain`.
-3. `speak()` early-return order unchanged; `--tts-log` write still first.
-4. `m_lastControlKey` clear/restore dance intact.
-5. `emitCue()` remains the sole earcon dispatch point; feedback-mode semantics
-   (`0`/`1`/`2`) unchanged.
-6. 35 `[Accessibility]` keys present with the documented defaults; especially
-   `AnnounceMixer = true`.
+3. `speak()` early-return order unchanged; `ttslog::logRequested()` still
+   called before both early returns.
+4. `m_lastControlKey` clear/restore dance intact; `m_pendingControls`
+   hash (issue #114) still keyed per-control, not a single shared slot.
+5. `emitCue()` remains the sole earcon dispatch point for transport events;
+   feedback-mode semantics (`0`/`1`/`2`) unchanged. The new `Xrun` earcon is
+   deliberately outside this system (Spec 05).
+6. 37 `[Accessibility]` keys present with the documented defaults; especially
+   `AnnounceMixer = true`. Confirm the two new keys
+   (`ControllerNavigationWithoutFocus`, `OrientationPlayed`) survive.
 7. NATO phonetic letters and "B P M" spacing preserved verbatim.
 8. `Library::announceText()` still routes through `quickPickerItemHighlighted`
    and `slotQuickPickerItemHighlighted()` stays **ungated**.
-9. `ErrorDialogHandler::errorDialogAnnouncement` still emitted **before**
-   `QMessageBox` construction (`errordialoghandler.cpp:180`), still connected
-   at `coreservices.cpp:663–666`, HTML still stripped, 300-char cap intact.
+9. `ErrorDialogHandler::errorDialogAnnouncement` still emitted before
+   `QMessageBox` construction, HTML still stripped, 300-char cap intact
+   (mechanism unchanged; re-grep for current line numbers if touched).
 10. Both shutdown guards intact.
+11. `beginSpeechBatch()`/`endSpeechBatch()` intact and still used by: Smart
+    Cue's track-load/pfl cascade, `slotSoundDevicesReady()`'s "Mixxx
+    ready"/orientation pair, and `slotAnnouncePendingControl()`'s multi-control
+    flush. This is now load-bearing production code (Spec 05, Invariant 3),
+    not a pending branch.
+12. `maybeSpeakFirstRunOrientation()` still gated by `OrientationPlayed` and
+    still called from `slotSoundDevicesReady()`, not from skin-load or any
+    earlier boot hook (it would then race ahead of a confirmed-open audio
+    device — see Spec 05).
+13. Exit-confirmation and dialog-trap speech (issues #115, #63) still fire
+    **before** their respective `QMessageBox::question()`/`exec()` calls, not
+    after — the whole point is to speak before the modal blocks input.
+14. Update `a11ycontrols_test.cpp`'s stale "`[Shoutcast],enabled` is read by
+    nothing" comment (`:625–636`) and add the key, since
+    `AccessMenuController` now reads it (Spec 07, Invariant B).
