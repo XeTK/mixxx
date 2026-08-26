@@ -67,6 +67,45 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
+## Mixer, EQ, and filter (no controller needed)
+
+Deck 1 keys listed; add `Shift` for deck 2. Each pair steps the control
+down / up; there's no fine ("small step") variant yet:
+
+- `Alt+U` / `Alt+G` — Volume down / up.
+- `Alt+H` / `Alt+D` — Trim (gain) down / up.
+- `Alt+L` / `Alt+F11` — EQ low down / up.
+- `Alt+E` / `Alt+I` — EQ mid down / up.
+- `Alt+Q` / `Alt+F10` — EQ high down / up.
+- `Alt+F` / `Alt+W` — Filter (QuickEffect knob) down / up.
+
+The existing `H` / `G` crossfader shortcuts (`Shift+H` / `Shift+G` for
+fine steps) already worked without a controller and aren't new here.
+EQ low already has a kill toggle too: `B` (deck 1) / `N` (deck 2).
+
+## Effects (no controller needed)
+
+Effect Unit 1 keys listed; add `Shift` for Effect Unit 2:
+
+- `Alt+N` — Turn the whole effect unit on/off.
+- `Alt+F9` — Cycle to the next chain preset (swaps in a
+  different bundle of effects).
+- `Ctrl+Alt+L` — Cycle which of the unit's effect slots is focused.
+- `Alt+Z` — Enable/disable the effect loaded in slot 1.
+- `Ctrl+Alt+J` / `Ctrl+Alt+X` — Select the next / previous effect in
+  slot 1.
+
+`Ctrl+Alt+L`, `Ctrl+Alt+J`, and `Ctrl+Alt+X` above are still on the
+old `Ctrl+Alt` chord (issue #56 follow-up): there wasn't enough safe
+letter-space this round to move them off `Ctrl+Alt` alongside the
+rest of this table, so they're pending a separate follow-up that
+routes them through the `[AccessMenu]` as actions ("focus next effect
+slot", "load next/previous effect") instead of dedicated keyboard
+chords — see the PR #71/#77/#81 discussion.
+
+Effect Units 3 and 4, and slots 2-4 within each unit, don't have
+keyboard shortcuts yet — use the mouse or a controller for those.
+
 ## Adding a track to a crate or playlist
 
 With a track selected in the library:
@@ -142,7 +181,13 @@ setting to get normal hot cues back; other pad modes are unaffected.
 
 Independent of that setting: pressing Shift says "Shift", and each
 pad mode button announces its layer ("Pads, hot cues", "Pads, beat
-loop", "Pads, beat jump", "Pads, sampler", plus the shifted modes).
+loop", "Pads, beat jump", "Pads, sampler"). The shifted modes
+(Keyboard, Pad FX1, Pad FX2, Key Shift) have no working pad layer
+behind them, so their announcement says so too — e.g. "Pads, keyboard
+(not yet supported)". Re-pressing the mode you're already in
+re-announces it, so you can check your current layer without cycling
+through the others.
+
 Two more settings on the same preferences page: "Disable jog wheel
 scratching" (platter touch does nothing; rotation still nudges
 pitch) and "Jog wheel sensitivity" (scales the nudge, the Shift+jog

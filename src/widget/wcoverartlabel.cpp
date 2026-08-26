@@ -1,6 +1,7 @@
 #include "widget/wcoverartlabel.h"
 
 #include <QContextMenuEvent>
+#include <QKeyEvent>
 
 #include "library/coverartutils.h"
 #include "library/dlgcoverartfullsize.h"
@@ -48,6 +49,12 @@ WCoverArtLabel::WCoverArtLabel(QWidget* pParent, WCoverArtMenu* pCoverMenu)
     setFrameShape(QFrame::Box);
     setAlignment(Qt::AlignCenter);
     setPixmapAndResize(m_defaultCover);
+    // Issue #63: cover art was mouse-only (a plain QLabel defaults to
+    // Qt::NoFocus). Only used within the track-info dialogs (DlgTrackInfo,
+    // DlgTrackInfoMulti, DlgTagFetcher), so enabling this at the class level
+    // doesn't affect anything else.
+    setFocusPolicy(Qt::StrongFocus);
+    setAccessibleName(tr("Cover art"));
 }
 
 WCoverArtLabel::~WCoverArtLabel() = default;
@@ -130,18 +137,39 @@ void WCoverArtLabel::mousePressEvent(QMouseEvent* event) {
     }
 
     if (event->button() == Qt::LeftButton) {
-        if (m_pDlgFullSize->isVisible()) {
-            m_pDlgFullSize->close();
+        activate();
+    }
+}
+
+void WCoverArtLabel::keyPressEvent(QKeyEvent* event) {
+    switch (event->key()) {
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+    case Qt::Key_Space:
+        if (m_pCoverMenu != nullptr && m_pCoverMenu->isVisible()) {
+            break;
+        }
+        activate();
+        event->accept();
+        return;
+    default:
+        break;
+    }
+    QLabel::keyPressEvent(event);
+}
+
+void WCoverArtLabel::activate() {
+    if (m_pDlgFullSize->isVisible()) {
+        m_pDlgFullSize->close();
+    } else {
+        if (m_loadedCover.isNull()) {
+            // Nothing to show
+            return;
+        } else if (!m_pLoadedTrack && !m_fullSizeCover.isNull()) {
+            m_pDlgFullSize->initFetchedCoverArt(m_fullSizeCover);
         } else {
-            if (m_loadedCover.isNull()) {
-                // Nothing to show
-                return;
-            } else if (!m_pLoadedTrack && !m_fullSizeCover.isNull()) {
-                m_pDlgFullSize->initFetchedCoverArt(m_fullSizeCover);
-            } else {
-                // Regular track cover
-                m_pDlgFullSize->init(m_pLoadedTrack);
-            }
+            // Regular track cover
+            m_pDlgFullSize->init(m_pLoadedTrack);
         }
     }
 }

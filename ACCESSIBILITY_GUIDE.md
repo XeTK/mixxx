@@ -181,6 +181,33 @@ the sound alone is just the alert.
   library's Alt plus Shift plus P/C, but for what's on the deck — so
   when a track is going down well you can file it mid-mix without
   hunting it down in the library. The add is confirmed out loud.
+- Mixer, EQ, and filter without a controller: Alt plus U and G step
+  deck 1's volume down and up, Alt plus H and D step trim (gain), Alt
+  plus L and F11 step EQ low, Alt plus E and I step EQ mid, Alt plus Q
+  and F10 step EQ high, and Alt plus F and W step the filter (the
+  QuickEffect knob); add Shift for deck 2. These are the same
+  underlying controls a DDJ-400 or any other controller would use —
+  this just gives the same access from the keyboard alone. There's no
+  fine ("small step") variant yet, only the coarse step. The
+  crossfader (H/G, Shift+H/Shift+G for a fine step) and the EQ low
+  kill toggle (B/N) already worked without a controller and aren't
+  new. (These used to be on Control plus Alt chords; they moved to
+  plain Alt because Control plus Alt collides with macOS's own
+  Command plus Option shortcuts, and with AltGr character entry on
+  non-US Windows/Linux keyboard layouts — issue #56.)
+- Effects without a controller: Alt plus N turns Effect Unit 1 on/off,
+  Alt plus F9 cycles to the next chain preset (a different bundle of
+  effects), and Alt plus Z enables/disables the effect in slot 1; add
+  Shift for Effect Unit 2. Effect Units 3 and 4, and slots 2-4 within a
+  unit, aren't wired to the keyboard yet. Cycling which of the unit's
+  slots is focused (Control plus Alt plus L) and selecting the
+  next/previous effect in slot 1 (Control plus Alt plus J / X) are
+  still on the old Control plus Alt chords — there wasn't enough safe
+  letter-space this round to move them too, so they're pending a
+  follow-up that routes them through the Accessibility menu as actions
+  ("focus next effect slot", "load next/previous effect") instead of
+  dedicated keyboard chords, since they're more setup actions than
+  moment-to-moment mixing ones (issue #56 follow-up).
 - Smart cue (on by default): loading a track into a stopped deck moves
   the headphone cue to that deck automatically — like the smart cue on
   Denon players, the thing you just loaded is what you preview next.
@@ -333,6 +360,9 @@ All settings live under Options, Preferences, Accessibility. In order:
     effects" — most with their own feedback-style combo
     (speech/sounds/both) for play, stop, end of track, headphone cue,
     back-to-start, and loop on/off
+12. "Allow controller navigation when Mixxx isn't focused" — off by
+    default; see "Controller navigation without window focus" under
+    "Controller mapping" below
 
 Smart cue (headphone cue follows the loaded track, on by default) is a
 general deck-loading behavior rather than an accessibility setting, so
@@ -380,7 +410,34 @@ mapped to buttons on a DJ controller:
   pad mode buttons; a mapping writes 1 hot cues, 2 beat loop, 3 beat
   jump, 4 sampler, 5 keyboard, 6 pad effects 1, 7 pad effects 2,
   8 key shift, 9 loop roll. Writing the value already set stays
-  silent.
+  silent — a mapping that wants a re-press to re-announce (so a
+  blind DJ can query the current layer) bounces the value through 0
+  first, which is outside the spoken vocabulary and so doesn't itself
+  announce anything.
+
+### Controller navigation without window focus
+
+Normally, controller-driven library navigation (browse/rotate,
+sidebar and track-list movement) is dropped whenever the Mixxx window
+does not have OS keyboard focus — the same as stock Mixxx. This
+becomes a real problem for a blind DJ using a controller such as the
+DDJ-400 alongside a screen reader: alt-tabbing to VoiceOver, JAWS, or
+NVDA to read something takes window focus away from Mixxx, and
+controller navigation input is silently dropped until you tab back.
+
+To keep controller navigation working in that situation, either:
+
+- Check "Allow controller navigation when Mixxx isn't focused" under
+  Preferences, Accessibility. Takes effect immediately, no restart
+  required.
+- Or start Mixxx with the `--controller-navigation-without-focus`
+  command-line flag (handy for scripting or testing). Either one is
+  enough on its own; you don't need both.
+
+This only affects library/browse navigation controls (see "Controller
+mapping" above); it does not change how deck transport, mixer, or
+effects controls behave when Mixxx is unfocused — those already work
+regardless of window focus.
 
 ### Numark Scratch (built in)
 
@@ -454,9 +511,14 @@ Two more settings live next to it on the same page:
 Independent of that setting, the mapping speaks the layer buttons
 themselves: pressing Shift says "Shift", and each pad mode button
 announces the layer it selected — "Pads, hot cues", "Pads, beat
-loop", "Pads, beat jump", "Pads, sampler", and the shifted modes
+loop", "Pads, beat jump", "Pads, sampler". The shifted modes
 ("Pads, keyboard", "Pads, pad effects 1", "Pads, pad effects 2",
-"Pads, key shift"). Pressing the mode you're already in stays silent.
+"Pads, key shift") have no pad layer behind them yet — see the "Not
+implemented" note at the top of the DDJ-400 mapping script — so their
+announcement adds "(not yet supported)"; the pads themselves stay
+dead in those four layers. Pressing the mode you're already in
+re-announces it (rather than staying silent), so you can check which
+of the eight layers you're on without cycling through the rest.
 
 ## Timecode vinyl (DVS)
 

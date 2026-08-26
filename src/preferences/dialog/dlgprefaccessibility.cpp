@@ -94,7 +94,9 @@ DlgPrefAccessibility::DlgPrefAccessibility(
           m_bAnnounceMixer(m_settings.getAnnounceMixerDefault()),
           m_bAnnounceWhileMoving(m_settings.getAnnounceWhileMovingDefault()),
           m_bDeckNumbers(m_settings.getDeckNamesAsNumbersDefault()),
-          m_bConcise(m_settings.getConciseAnnouncementsDefault()) {
+          m_bConcise(m_settings.getConciseAnnouncementsDefault()),
+          m_bControllerNavWithoutFocus(
+                  m_settings.getControllerNavigationWithoutFocusDefault()) {
     setupUi(this);
     populateRouteCombo();
     populateVoiceQualityCombo();
@@ -313,6 +315,10 @@ DlgPrefAccessibility::DlgPrefAccessibility(
             &QCheckBox::toggled,
             this,
             [this](bool checked) { m_bConcise = checked; });
+    connect(checkBoxControllerNavWithoutFocus,
+            &QCheckBox::toggled,
+            this,
+            [this](bool checked) { m_bControllerNavWithoutFocus = checked; });
 }
 
 void DlgPrefAccessibility::populateRouteCombo() {
@@ -513,6 +519,7 @@ void DlgPrefAccessibility::slotUpdate() {
     m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMoving();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbers();
     m_bConcise = m_settings.getConciseAnnouncements();
+    m_bControllerNavWithoutFocus = m_settings.getControllerNavigationWithoutFocus();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     refreshFilteredVoiceCombo();
@@ -539,6 +546,7 @@ void DlgPrefAccessibility::slotUpdate() {
     checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);
     checkBoxConcise->setChecked(m_bConcise);
+    checkBoxControllerNavWithoutFocus->setChecked(m_bControllerNavWithoutFocus);
 }
 
 void DlgPrefAccessibility::slotApply() {
@@ -577,6 +585,7 @@ void DlgPrefAccessibility::slotApply() {
     m_settings.setAnnounceWhileMoving(m_bAnnounceWhileMoving);
     m_settings.setDeckNamesAsNumbers(m_bDeckNumbers);
     m_settings.setConciseAnnouncements(m_bConcise);
+    m_settings.setControllerNavigationWithoutFocus(m_bControllerNavWithoutFocus);
     m_settings.setMixerReadoutStyle(m_mixerReadoutStyle);
     m_settings.setMixerFractionDetail(m_mixerFractionDetail);
 }
@@ -662,6 +671,8 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     m_bAnnounceWhileMoving = m_settings.getAnnounceWhileMovingDefault();
     m_bDeckNumbers = m_settings.getDeckNamesAsNumbersDefault();
     m_bConcise = m_settings.getConciseAnnouncementsDefault();
+    m_bControllerNavWithoutFocus =
+            m_settings.getControllerNavigationWithoutFocusDefault();
     comboBoxTtsRoute->setCurrentIndex(
             std::clamp(m_ttsRoute, 0, comboBoxTtsRoute->count() - 1));
     refreshFilteredVoiceCombo();
@@ -688,4 +699,5 @@ void DlgPrefAccessibility::slotResetToDefaults() {
     checkBoxAnnounceWhileMoving->setChecked(m_bAnnounceWhileMoving);
     checkBoxDeckNumbers->setChecked(m_bDeckNumbers);
     checkBoxConcise->setChecked(m_bConcise);
+    checkBoxControllerNavWithoutFocus->setChecked(m_bControllerNavWithoutFocus);
 }

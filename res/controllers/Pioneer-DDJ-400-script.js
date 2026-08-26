@@ -638,8 +638,18 @@ PioneerDDJ400.shiftPressed = function(channel, _control, value, _status, _group)
 // Accessibility: speak which pad layer a mode button selected. The hardware
 // switches the pads' MIDI notes internally, so without this a blind DJ has
 // no way to tell which of the eight layers the pads landed in. The values
-// are [Tts],pad_mode's fixed vocabulary; a repeated press of the same mode
-// stays silent (same-value CO writes don't re-announce).
+// are [Tts],pad_mode's fixed vocabulary; four of them (keyboard, pad
+// effects 1/2, key shift) have no working pad layer behind them at all
+// (see the "Not implemented" note at the top of this file) and
+// AnnouncementManager appends "(not yet supported)" to those specifically,
+// so a blind DJ isn't told a dead layer sounds the same as a working one.
+//
+// [Tts],pad_mode ignores same-value writes by design (Numark Scratch relies
+// on that to dedupe one mode press firing for both decks at once), so
+// re-pressing the mode you're already in would otherwise stay silent, with
+// no way to ask "which layer am I on?" without cycling through all eight.
+// Bounce the CO through 0 (outside the spoken vocabulary, so it doesn't
+// itself speak) before setting the real value, forcing a change every time.
 PioneerDDJ400.padModePressed = function(_channel, control, value, _status, _group) {
     if (value === 0) {
         return;
@@ -655,6 +665,7 @@ PioneerDDJ400.padModePressed = function(_channel, control, value, _status, _grou
         0x6F: 8, // key shift
     };
     if (control in spokenModes) {
+        engine.setValue("[Tts]", "pad_mode", 0);
         engine.setValue("[Tts]", "pad_mode", spokenModes[control]);
     }
 };

@@ -36,6 +36,9 @@
         <property name="uniformItemSizes">
          <bool>true</bool>
         </property>
+        <property name="accessibleName">
+         <string>Music directories</string>
+        </property>
        </widget>
       </item>
 
@@ -189,6 +192,9 @@
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
+        <property name="buddy">
+         <cstring>radioButton_dbclick_deck</cstring>
+        </property>
        </widget>
       </item>
 
@@ -232,6 +238,9 @@
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
+        <property name="buddy">
+         <cstring>spinBox_row_height</cstring>
+        </property>
        </widget>
       </item>
       <item row="7" column="1" colspan="2">
@@ -259,6 +268,9 @@
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
+        <property name="buddy">
+         <cstring>lineEdit_library_font</cstring>
+        </property>
        </widget>
       </item>
       <item row="8" column="1">
@@ -266,12 +278,18 @@
         <property name="readOnly">
          <bool>true</bool>
         </property>
+        <property name="accessibleName">
+         <string>Library font</string>
+        </property>
        </widget>
       </item>
       <item row="8" column="2">
        <widget class="QToolButton" name="btn_library_font">
         <property name="text">
          <string>...</string>
+        </property>
+        <property name="accessibleName">
+         <string>Choose library font</string>
         </property>
        </widget>
       </item>
@@ -283,6 +301,9 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+        <property name="buddy">
+         <cstring>spinbox_bpm_precision</cstring>
         </property>
        </widget>
       </item>
@@ -316,6 +337,9 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+        <property name="buddy">
+         <cstring>spinBox_search_debouncing_timeout</cstring>
         </property>
        </widget>
       </item>
@@ -392,6 +416,9 @@
         <property name="wordWrap">
          <bool>true</bool>
         </property>
+        <property name="buddy">
+         <cstring>spinbox_history_track_duplicate_distance</cstring>
+        </property>
        </widget>
       </item>
       <item row="1" column="1" colspan="2">
@@ -421,6 +448,9 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignLeft|Qt::AlignVCenter</set>
+        </property>
+        <property name="buddy">
+         <cstring>spinbox_history_min_tracks_to_keep</cstring>
         </property>
        </widget>
       </item>

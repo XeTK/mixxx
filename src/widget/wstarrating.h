@@ -26,6 +26,13 @@ class WStarRating : public WWidget {
     void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent * /*unused*/) override;
     void fillDebugTooltip(QStringList* debug) override;
+    // Issue #63: lets the rating be set from the keyboard once a caller
+    // (e.g. DlgTrackInfo) opts the widget into StrongFocus. Harmless
+    // elsewhere: skin usage explicitly sets Qt::NoFocus in setup() below, so
+    // this can never be reached there, and the default WWidget ClickFocus
+    // (e.g. the track-context-menu WStarRatingAction) only reaches it after
+    // an explicit click, which is a reasonable bonus.
+    void keyPressEvent(QKeyEvent* event) override;
 
   private:
     int m_starCount;

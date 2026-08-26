@@ -369,6 +369,7 @@ void CrateFeature::onRightClick(const QPoint& globalPos) {
     menu.addSeparator();
     menu.addAction(m_pExportAllCratesAction.get());
 #endif
+    m_pLibrary->announceMenuHover(&menu);
     menu.exec(globalPos);
 }
 
@@ -412,6 +413,7 @@ void CrateFeature::onRightClickChild(
 #ifdef __ENGINEPRIME__
     menu.addAction(m_pExportCrateAction.get());
 #endif
+    m_pLibrary->announceMenuHover(&menu);
     menu.exec(globalPos);
 }
 
