@@ -2547,19 +2547,21 @@ int AnnouncementManager::mixerFractionDenominator() const {
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {
-    m_pendingControlKey.clear();
-    m_pendingControlName.clear();
-    m_pendingControlValue.clear();
+    // Single slot, deliberately: this represents one conceptual readout
+    // (loop size, beat-jump size, effect focus, …) being stepped through
+    // several values in a row, and only the final value should be
+    // announced — an earlier pending text here is meant to be superseded,
+    // not queued alongside this one.
     m_pendingControlText = text;
     startControlDebounce();
 }
 
 void AnnouncementManager::announceControlDebounced(
         const QString& key, const QString& name, const QString& valueText) {
-    m_pendingControlText.clear();
-    m_pendingControlKey = key;
-    m_pendingControlName = name;
-    m_pendingControlValue = valueText;
+    if (!m_pendingControls.contains(key)) {
+        m_pendingControlOrder << key;
+    }
+    m_pendingControls.insert(key, {name, valueText});
 
     // Name on touch: the first movement of a control names it right away
     // ("Deck 1 volume") so the DJ knows what they grabbed; the value
@@ -2601,43 +2603,74 @@ void AnnouncementManager::startControlDebounce() {
 }
 
 void AnnouncementManager::slotAnnouncePendingControl() {
-    if (m_pendingControlKey.isEmpty()) {
-        if (!m_pendingControlText.isEmpty()) {
-            speak(m_pendingControlText);
-            m_pendingControlText.clear();
-        }
+    if (m_pendingControlText.isEmpty() && m_pendingControlOrder.isEmpty()) {
         return;
     }
-    const QString key = m_pendingControlKey;
-    const QString name = m_pendingControlName;
-    const QString value = m_pendingControlValue;
-    m_pendingControlKey.clear();
-    m_pendingControlName.clear();
-    m_pendingControlValue.clear();
 
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    const bool sameControl = key == m_lastControlKey &&
-            now - m_lastControlSpokenMs < kControlContextMs;
-    if (value == m_lastValueByKey.value(key)) {
-        // The control settled on the same readout it last announced (a
-        // jittery pot does this constantly; so does nudging a control
-        // that's already where you want it): stay quiet, but keep the
-        // context fresh so a real change still gets the short value-only
-        // announcement.
-        if (sameControl) {
+    // Two or more different keyed controls (e.g. the pitch fader and a
+    // volume knob) can each settle within the same debounce window. Wrap the
+    // whole flush in a speech batch (see beginSpeechBatch(), issue #48) so
+    // every one of them is actually heard, joined into a single utterance,
+    // instead of each speak() call's barge-in discarding the previous one
+    // mid-render.
+    beginSpeechBatch();
+
+    // Full wording ("Deck 1 volume three quarters") for every announcement
+    // flushed in this batch, even the ones where only the value was
+    // actually spoken (see below) — the repeat key restores this instead of
+    // whatever partial text was last dispatched (issue #114 follow-on: the
+    // batched dispatch's own text would otherwise clobber m_lastSpoken with
+    // just the pieces that were literally spoken this flush).
+    QStringList fullTextsForRepeat;
+
+    if (!m_pendingControlText.isEmpty()) {
+        const QString text = m_pendingControlText;
+        m_pendingControlText.clear();
+        speak(text);
+        fullTextsForRepeat << text;
+    }
+
+    if (!m_pendingControlOrder.isEmpty()) {
+        const QStringList order = m_pendingControlOrder;
+        const QHash<QString, PendingControlAnnouncement> pending = m_pendingControls;
+        m_pendingControlOrder.clear();
+        m_pendingControls.clear();
+
+        for (const QString& key : order) {
+            const PendingControlAnnouncement entry = pending.value(key);
+            const QString& name = entry.name;
+            const QString& value = entry.value;
+
+            const qint64 now = QDateTime::currentMSecsSinceEpoch();
+            const bool sameControl = key == m_lastControlKey &&
+                    now - m_lastControlSpokenMs < kControlContextMs;
+            if (value == m_lastValueByKey.value(key)) {
+                // The control settled on the same readout it last
+                // announced (a jittery pot does this constantly; so does
+                // nudging a control that's already where you want it):
+                // stay quiet, but keep the context fresh so a real change
+                // still gets the short value-only announcement.
+                if (sameControl) {
+                    m_lastControlSpokenMs = now;
+                }
+                continue;
+            }
+            const QString fullText = name + QStringLiteral(" ") + value;
+            speak(sameControl ? value : fullText);
+            fullTextsForRepeat << fullText;
+            // speak() clears the control context (any unrelated
+            // announcement invalidates it); restore it.
+            m_lastControlKey = key;
+            m_lastValueByKey.insert(key, value);
             m_lastControlSpokenMs = now;
         }
-        return;
     }
-    const QString fullText = name + QStringLiteral(" ") + value;
-    speak(sameControl ? value : fullText);
-    // speak() clears the control context (any unrelated announcement
-    // invalidates it); restore it, and let the repeat key re-speak the full
-    // text even when only the value was said.
-    m_lastSpoken = fullText;
-    m_lastControlKey = key;
-    m_lastValueByKey.insert(key, value);
-    m_lastControlSpokenMs = now;
+
+    endSpeechBatch();
+
+    if (!fullTextsForRepeat.isEmpty()) {
+        m_lastSpoken = fullTextsForRepeat.join(QStringLiteral(". "));
+    }
 }
 
 void AnnouncementManager::noteTrackChanged(const QString& group) {

@@ -1645,6 +1645,15 @@ void waitPastSyncLatchWindow() {
     QTimer::singleShot(600, &loop, &QEventLoop::quit);
     loop.exec();
 }
+
+// Spin the event loop long enough for the shared control-debounce timer
+// (400 ms, see kControlDebounceMs) to actually fire via its real QTimer
+// timeout, instead of tests calling slotAnnouncePendingControl() directly.
+void waitPastControlDebounce() {
+    QEventLoop loop;
+    QTimer::singleShot(500, &loop, &QEventLoop::quit);
+    loop.exec();
+}
 } // namespace
 
 TEST_F(AnnouncementManagerPerformanceTest, SyncShortPress_BeatSyncAnnounced) {
@@ -2018,6 +2027,74 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
     m_pManager->slotAnnouncePendingControl();
     EXPECT_EQ(2, pSpy->callCount);
     EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText);
+}
+
+// Regression test for issue #114: on real hardware the pitch fader keeps
+// moving for a bit (several rapid rate_ratio ticks, each re-arming the
+// shared debounce QTimer) before coming to rest, and only *then* does the
+// timer's real timeout fire slotAnnouncePendingControl() -- nothing in the
+// test manually invokes it. Every other debounce test in this file (see
+// TempoChange_DebouncedThenSpoken above) calls slotAnnouncePendingControl()
+// directly instead of waiting for the QTimer, which would hide a bug in the
+// timer hookup itself. This test drives the real timer via the event loop,
+// the way production actually behaves.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_RealDebounceTimerFiresValue) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.02);
+    QCoreApplication::processEvents();
+    m_pRateRatio->set(1.03);
+    QCoreApplication::processEvents();
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+
+    waitPastControlDebounce();
+    EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText)
+            << "the debounced value must follow the touch-name once the "
+               "fader settles, spoke: "
+            << pSpy->lastText.toStdString();
+}
+
+// Regression test for issue #114: "Pitch announcements appear stuck on the
+// touch-name ('Alpha pitch') and never follow up with the value". Root
+// cause: the pitch fader and any other debounced control (a volume knob
+// here) shared a single "latest pending announcement" slot. Touching the
+// second control before the first one's debounce timer fired silently
+// discarded the first control's queued value -- the touch-name was still
+// heard (that part is synchronous), but its debounced value never was.
+// Each keyed control now gets its own pending slot (see m_pendingControls),
+// and a batch of controls that settle in the same debounce window are all
+// announced, joined into a single utterance so barge-in can't eat one of
+// them either.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_InterleavedControlDoesNotOverwritePendingValue) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+
+    // Before the pitch fader's debounce settles, a second, unrelated
+    // debounced control is touched too -- e.g. the DJ reaching for a volume
+    // knob mid-blend.
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText)
+            << "name on touch for the second control";
+
+    waitPastControlDebounce();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("up 5 percent")))
+            << "pitch's debounced value must not be silently discarded by "
+               "the later volume touch, spoke: "
+            << pSpy->lastText.toStdString();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("three quarters")))
+            << "the volume's own debounced value must still be heard too, "
+               "spoke: "
+            << pSpy->lastText.toStdString();
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
