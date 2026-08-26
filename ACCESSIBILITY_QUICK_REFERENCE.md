@@ -52,10 +52,11 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
   "Skipped".
 - `Shift+F9` — Shuffle the Auto DJ queue.
 - `Ctrl+Shift+F9` — Add a random track to the Auto DJ queue.
-- `Alt+Shift+N` — What's next: on/off state, the next queued track's
+- `Alt+Shift+F12` — What's next: on/off state, the next queued track's
   artist and title, and roughly how long until the currently playing
   deck hands off (an estimate — the real crossfade can start earlier,
-  at the outro point).
+  at the outro point). Not `Alt+Shift+N` because Effect Unit 2's
+  on/off chord (issue #56) already claims that combination.
 
 ## Getting a track loaded
 
