@@ -7,6 +7,7 @@
 #include <QSemaphore>
 #include <QThread>
 #include <QThreadPool>
+#include <functional>
 
 #include "library/dao/analysisdao.h"
 #include "library/dao/cuedao.h"
@@ -31,6 +32,11 @@ class LibraryScanner : public QThread {
             mixxx::DbConnectionPoolPtr pDbConnectionPool,
             const UserSettingsPointer& pConfig);
     ~LibraryScanner() override;
+
+    // Forwarded to the progress dialog (issue #63); see
+    // LibraryScannerDlg::setAnnounceCallback for why this is injected rather
+    // than a hard Library dependency.
+    void setAnnounceCallback(std::function<void(const QString&)> callback);
 
   public slots:
     // Call from any thread to start a scan. Does nothing if a scan is already

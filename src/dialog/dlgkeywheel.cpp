@@ -56,12 +56,16 @@ DlgKeywheel::DlgKeywheel(QWidget* parent, const UserSettingsPointer& pConfig)
 
 bool DlgKeywheel::eventFilter(QObject* obj, QEvent* event) {
     if (event->type() == QEvent::KeyPress) {
-        // we handle TAB + Shift TAB to cycle through the notations
+        // Issue #63: Tab/Shift+Tab used to be swallowed here to cycle through
+        // the notations, which meant they could never move keyboard focus —
+        // the dialog's own Close button was unreachable without a mouse.
+        // Notation cycling now lives on Up/Down instead, and Tab/Shift+Tab
+        // fall through to the default QDialog handling below.
         QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-        if (keyEvent->key() == Qt::Key_Tab) {
+        if (keyEvent->key() == Qt::Key_Up) {
             switchNotation(+1);
             return true;
-        } else if (keyEvent->key() == Qt::Key_Backtab) {
+        } else if (keyEvent->key() == Qt::Key_Down) {
             switchNotation(-1);
             return true;
         }
@@ -129,6 +133,36 @@ void DlgKeywheel::switchNotation(int step) {
     m_notation = static_cast<KeyUtils::KeyNotation>(newNotation);
     // we update the SVG nodes with the new value
     updateSvg();
+    // Issue #63: the notation change is otherwise a purely visual SVG
+    // update with no announcement, so a screen-reader user cycling notations
+    // (Up/Down, or a mouse click on the wheel) gets no feedback at all.
+    emit notationChanged(notationDisplayName(m_notation));
+}
+
+// static
+QString DlgKeywheel::notationDisplayName(KeyUtils::KeyNotation notation) {
+    // Names match the labels used in the Key Notation preferences page
+    // (dlgprefkeydlg.ui) so a spoken notation matches what's written there.
+    switch (notation) {
+    case KeyUtils::KeyNotation::Custom:
+        return tr("Custom notation");
+    case KeyUtils::KeyNotation::OpenKey:
+        return tr("OpenKey notation");
+    case KeyUtils::KeyNotation::Lancelot:
+        return tr("Lancelot notation");
+    case KeyUtils::KeyNotation::Traditional:
+        return tr("Traditional notation");
+    case KeyUtils::KeyNotation::OpenKeyAndTraditional:
+        return tr("OpenKey and Traditional notation");
+    case KeyUtils::KeyNotation::LancelotAndTraditional:
+        return tr("Lancelot and Traditional notation");
+    case KeyUtils::KeyNotation::ID3v2:
+        return tr("ID3v2 notation");
+    case KeyUtils::KeyNotation::Invalid:
+    case KeyUtils::KeyNotation::NumKeyNotations:
+        break;
+    }
+    return QString();
 }
 
 void DlgKeywheel::updateSvg() {
