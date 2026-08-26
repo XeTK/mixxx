@@ -2,9 +2,9 @@
 
 **Status:** Verified current state — rebase contract (refreshed against the current PR wave)
 **Branch:** `spec-speech` — content re-verified against the merged target-state tree
-(`scratch-target-state` @ `4a9641692c`: the `accessibility-improvements-2026-06-25`
+(`scratch-target-state` @ `1ba6bee542`: the `accessibility-improvements-2026-06-25`
 tip plus all 19 other currently-open accessibility PRs merged together, with the
-cross-PR bugs that merge surfaced found and fixed). 141 commits landed on top of
+cross-PR bugs that merge surfaced found and fixed). 142 commits landed on top of
 the previous verification point, `2390edf423`.
 **Owner:** accessibility fork
 **Related:** Spec 05 (speech engine and audio path), Spec 07 (spoken menu), Spec 04 (E2E testing)

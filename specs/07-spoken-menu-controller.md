@@ -2,9 +2,9 @@
 
 **Status:** Verified current state — rebase contract (refreshed against the current PR wave)
 **Branch:** `spec-speech` — content re-verified against the merged target-state tree
-(`scratch-target-state` @ `4a9641692c`: the `accessibility-improvements-2026-06-25`
+(`scratch-target-state` @ `1ba6bee542`: the `accessibility-improvements-2026-06-25`
 tip plus all 19 other currently-open accessibility PRs merged together, with the
-cross-PR bugs that merge surfaced found and fixed). 141 commits landed on top of
+cross-PR bugs that merge surfaced found and fixed). 142 commits landed on top of
 the previous verification point, `2390edf423`.
 **Owner:** accessibility fork
 **Related:** Spec 01 (DDJ-400 interaction design + value-editor addendum), Spec 03 (DDJ-400 emulator), Spec 05 (speech engine), Spec 06 (announcement layer)
@@ -149,45 +149,19 @@ DDJ-400 mapping) and an always-on Qt shortcut calling the C++ slot directly
 (for the keyboard). Both funnel into the same state machine below; neither
 knows the other exists.
 
-### A discovered bug: four unrelated shortcuts are misfiled into `[AccessMenu]`'s kbd.cfg section
+### Forward-looking note: keep the `[Library]` group boundary intact when PR #78 and #81 land together
 
-Reading `res/keyboard/en_US.kbd.cfg:274–293` closely turns up a real, verified
-defect that is **not** part of this class but sits inside the section this
-spec documents, so it's worth flagging rather than silently working around:
-
-```
-[AccessMenu]
-...
-confirm Alt+Shift+Space
-sort_column_next Alt+Shift+s
-sort_column_prev Alt+Shift+j
-sort_order Alt+Shift+o
-show_column_menu Alt+Shift+v
-```
-
-The last four lines bind `[AccessMenu],sort_column_next` etc. — but the
-actual `ControlObject`s these are meant to drive are `[Library],sort_column_next`,
-`[Library],sort_column_prev`, `[Library],sort_order`, and
-`[Library],show_column_menu`, created by `LibraryControl`
-(`src/library/librarycontrol.cpp:387–399, 555`). `[Library]`'s own kbd.cfg
-section (`:269–272`) does **not** contain these four bindings. Nothing in
-`src/` reads `ConfigKey("[AccessMenu]", "sort_column_next")` as an
-application-wide shortcut the way the six real `[AccessMenu]` chords above
-are read — these four lines currently bind to nothing and are dead at
-runtime, most plausibly a merge artifact from library-sort-shortcut work
-(issue #59 territory) landing its kbd.cfg lines under the wrong, adjacent
-section header.
-
-This is **not caught** by any existing guard test:
-`keyboardbindings_test.cpp`'s `forkAccessibilityBindings()` list (the table
-`AccessibilityBindingsPresentInEveryLocale`/`AccessibilityChordsAreIdenticalAcrossLocales`
-check against) does not include these four keys at all, and the generic
-chord-collision test only checks for two controls sharing one chord, not for
-a chord binding to a group with no real consumer. This is genuinely Spec
-08/09's territory (library keyboard input, not the spoken menu), so it is
-noted here only as a pointer: **fix by moving the four lines under `[Library]`
-in all 12 locale files**, and add them to (or otherwise cover them in) the
-locale-parity guard.
+`res/keyboard/en_US.kbd.cfg`'s `[AccessMenu]` section (`:274–289`) sits
+immediately before a `[Library]` section (`:290–293`, `sort_column_next` /
+`sort_column_prev` / `sort_order` / `show_column_menu` — issue #59, PR #81)
+that these `ControlObject`s actually belong to
+(`src/library/librarycontrol.cpp:387–399, 555`). Both PRs #78 (this class's
+always-on chords) and #81 add their kbd.cfg lines at the same point in the
+file; naively concatenating the two diffs without re-inserting the
+`[Library]` header between them would silently rebind all four sort controls
+to dead `[AccessMenu],*` keys with no real consumer — a genuine hazard
+whoever merges #78 and #81 together should watch for, even though neither PR
+has this problem in isolation.
 
 ## State machine
 
@@ -585,10 +559,10 @@ around the section this spec documents.
 11. The `toggleKeyboardShortcuts` pre-toggle warning
     (`accessmenucontroller.cpp:474–481`) still fires before the toggle takes
     effect, from every entry path.
-12. Fix, or at minimum do not further entrench, the misfiled
-    `sort_column_next`/`sort_column_prev`/`sort_order`/`show_column_menu`
-    lines under `[AccessMenu]` in `res/keyboard/*.kbd.cfg` — they belong under
-    `[Library]` and are currently dead (see the discovered-bug callout above).
+12. When PR #78 and #81 are merged together, confirm the `[Library]` header
+    before `sort_column_next`/`sort_column_prev`/`sort_order`/`show_column_menu`
+    in `res/keyboard/*.kbd.cfg` survives the merge — see the forward-looking
+    note above.
 13. Add `[Recording],status` and (conditionally on `__BROADCAST__`)
     `[Shoutcast],enabled` to `a11ycontrols_test.cpp`'s guarded-key table, and
     fix its stale "nothing reads `[Shoutcast],enabled`" comment (Invariant B).
