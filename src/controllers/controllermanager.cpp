@@ -11,6 +11,7 @@
 #include "util/cmdlineargs.h"
 #include "util/compatibility/qmutex.h"
 #include "util/duration.h"
+#include "util/performancetimer.h"
 #include "util/thread_affinity.h"
 #include "util/time.h"
 
@@ -201,7 +202,22 @@ void ControllerManager::updateControllerList() {
 
     QList<Controller*> newDeviceList;
     for (ControllerEnumerator* pEnumerator : enumerators) {
+        // Diagnostic instrumentation for issue #27 (intermittent startup hang
+        // observed as the log freezing at "Scanning USB HID devices"): each
+        // enumerator's queryDevices() call is logged before/after with its
+        // elapsed time. If one of these calls never hangs forever, only the
+        // "Querying devices from ..." line will appear in mixxx.log with no
+        // matching "... took" line, which pinpoints which enumerator (and,
+        // by elimination, whether it is really inside the enumerator's own
+        // blocking call, e.g. hidapi's hid_enumerate()) is stuck, rather than
+        // somewhere else in startup.
+        qInfo() << "ControllerManager: Querying devices from"
+                << pEnumerator->metaObject()->className();
+        PerformanceTimer enumeratorTimer;
+        enumeratorTimer.start();
         newDeviceList.append(pEnumerator->queryDevices());
+        qInfo() << "ControllerManager:" << pEnumerator->metaObject()->className()
+                << "queryDevices() took" << enumeratorTimer.elapsed().debugMillisWithUnit();
     }
 
     locker.relock();
