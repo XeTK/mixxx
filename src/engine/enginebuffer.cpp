@@ -335,10 +335,24 @@ EngineBuffer::~EngineBuffer() {
     df.close();
 #endif
 
+    // Stop and join the CachingReaderWorker thread *before* tearing down the
+    // EngineControls (e.g. RateControl). CachingReader::~CachingReader()
+    // blocks until its worker thread has returned from run(), but a track
+    // load that is still in flight delivers its trackLoading/trackLoaded
+    // signals via a direct (i.e. same-call-stack) connection straight from
+    // that worker thread into EngineBuffer::slotTrackLoaded() ->
+    // notifyTrackLoaded(), which calls into m_pRateControl and friends. If
+    // those controls were already destroyed by qDeleteAll() below, the
+    // worker thread crashes dereferencing freed memory (e.g.
+    // RateControl::m_pScratchController). Destroying the reader first
+    // guarantees no more such callbacks can arrive once we start deleting
+    // controls.
+    delete m_pReader;
+    m_pReader = nullptr;
+
     qDeleteAll(m_engineControls.rbegin(), m_engineControls.rend());
 
     delete m_pReadAheadManager;
-    delete m_pReader;
 
     delete m_playButton;
     delete m_playStartButton;

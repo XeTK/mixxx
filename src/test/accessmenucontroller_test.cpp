@@ -120,6 +120,50 @@ TEST_F(AccessMenuControllerTest, Navigate_WrapsAround) {
     EXPECT_QSTRING_EQ("Back", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 }
 
+// Regression test for issue #106: drive [AccessMenu],navigate the way the
+// real DDJ-400 browse knob actually does -- every same-direction detent
+// writes the *identical* raw value (+1 or -1; see browseRotate() in
+// Pioneer-DDJ-400-script.js, which clamps the decoded delta to exactly
+// +/-1), not a monotonically growing magnitude. The `navigate()` helper
+// above deliberately dodges this by growing the tick magnitude so consecutive
+// same-direction ticks are never equal -- which is exactly why the tests
+// above kept passing while turning the real browse knob multiple detents in
+// the same direction did nothing past the first tick on real hardware
+// (ControlEncoder's default bIgnoreNops = true silently drops every
+// same-value write after the first).
+TEST_F(AccessMenuControllerTest, Navigate_RepeatedIdenticalTicksLikeRealHardware) {
+    press(QStringLiteral("open"));
+    clearSpy();
+
+    ControlProxy proxy(QStringLiteral("[AccessMenu]"),
+            QStringLiteral("navigate"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    // Three consecutive down-ticks, each writing the exact same value (1),
+    // exactly as the real hardware does. All three must move the selection.
+    proxy.set(1.0);
+    QCoreApplication::processEvents();
+    proxy.set(1.0);
+    QCoreApplication::processEvents();
+    proxy.set(1.0);
+    QCoreApplication::processEvents();
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 3);
+    EXPECT_QSTRING_EQ("Preferences, submenu", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("Values, submenu", m_pSpy->m_texts.at(1));
+    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(2));
+
+    // Twelve identical down-ticks wrap all the way back to the first item.
+    clearSpy();
+    for (int i = 0; i < 9; ++i) {
+        proxy.set(1.0);
+        QCoreApplication::processEvents();
+    }
+    ASSERT_GE(m_pSpy->m_texts.size(), 9);
+    EXPECT_QSTRING_EQ("Back", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
 TEST_F(AccessMenuControllerTest, Activate_DescendsIntoSubmenu) {
     press(QStringLiteral("open"));
     clearSpy();

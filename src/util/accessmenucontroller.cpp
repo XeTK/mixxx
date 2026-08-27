@@ -86,8 +86,23 @@ AccessMenuController::AccessMenuController(
             });
 
     // [AccessMenu],navigate: +1 / -1 scrolls through the current menu.
+    //
+    // bIgnoreNops must be false here (issue #106): the real DDJ-400 browse
+    // knob always reports a detent as a flat +1/-1 (see browseRotate() in
+    // Pioneer-DDJ-400-script.js, which clamps the decoded delta to exactly
+    // +/-1 before writing it), so turning the knob several ticks in the same
+    // direction writes the *same* value repeatedly. With the ControlEncoder
+    // default (bIgnoreNops = true), every write after the first same-value
+    // one is silently dropped as a no-op and slotNavigate() never runs --
+    // multi-tick navigation (and therefore wrap-around, which requires
+    // multiple same-direction ticks to reach) stops working after a single
+    // step. The unit tests below dodge this by growing the magnitude of each
+    // tick so it is never equal to the last (see the `navigate()` test
+    // helper's comment), which is why they passed while this was broken on
+    // real hardware.
     m_pNavigate = std::make_unique<ControlEncoder>(
-            ConfigKey(QStringLiteral("[AccessMenu]"), QStringLiteral("navigate")));
+            ConfigKey(QStringLiteral("[AccessMenu]"), QStringLiteral("navigate")),
+            /*bIgnoreNops=*/false);
     connect(m_pNavigate.get(),
             &ControlObject::valueChanged,
             this,

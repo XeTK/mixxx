@@ -179,6 +179,13 @@ void TrackCollectionManager::startLibraryAutoScan() {
     m_pScanner->scan(true);
 }
 
+void TrackCollectionManager::setScanAnnounceCallback(
+        std::function<void(const QString&)> callback) {
+    if (m_pScanner) {
+        m_pScanner->setAnnounceCallback(std::move(callback));
+    }
+}
+
 void TrackCollectionManager::startLibraryScan() {
     VERIFY_OR_DEBUG_ASSERT(m_pScanner) {
         return;
