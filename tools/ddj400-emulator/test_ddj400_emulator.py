@@ -291,6 +291,47 @@ class EmulatorMidiTest(unittest.TestCase):
         (_status, _data, raw_down) = self.backend.sent()[0]
         self.assertEqual(decode_twos_complement(raw_down), -1)
 
+    def test_browse_rotate_repeated_same_direction_sends_identical_bytes(self):
+        """Regression guard for issue #106.
+
+        The real DDJ-400 browse knob reports every detent in the same
+        direction as the *identical* raw CC value (0x01 for every "up" tick,
+        0x7F for every "down" tick) -- there is no growing magnitude, no
+        distinguishing sequence number, nothing that makes one same-direction
+        tick's MIDI bytes differ from the next. Pioneer-DDJ-400-script.js's
+        browseRotate() deliberately clamps its decoded delta to a flat +/-1
+        per message (see the comment there), matching this.
+
+        This mattered in practice: Mixxx's [AccessMenu],navigate control is a
+        ControlEncoder, which defaults to ignoring same-value writes
+        (bIgnoreNops=true). Multiple identical-value ticks in a row were
+        silently dropped after the first, breaking multi-step menu
+        navigation and wrap-around on real hardware even though
+        accessmenucontroller_test.cpp's own tests passed (they sidestepped
+        the bug by growing the tick magnitude so no two ticks were ever
+        equal -- see that file's `navigate()` test helper). The fix was on
+        the Mixxx C++ side (AccessMenuController now constructs the
+        ControlEncoder with bIgnoreNops=false), not here -- this test just
+        pins down that the emulator keeps sending the flat, repeat-prone
+        byte pattern that made the bug possible, so a future change to this
+        emulator can't accidentally mask the scenario that exposed it.
+        """
+        self.emu.browse_rotate(1)
+        self.emu.browse_rotate(1)
+        self.emu.browse_rotate(1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0xB6, 0x40, 0x01), (0xB6, 0x40, 0x01), (0xB6, 0x40, 0x01)],
+        )
+
+        self.backend.messages.clear()
+        self.emu.browse_rotate(-1)
+        self.emu.browse_rotate(-1)
+        self.assertEqual(
+            self.backend.sent(),
+            [(0xB6, 0x40, 0x7F), (0xB6, 0x40, 0x7F)],
+        )
+
     def test_browse_press(self):
         self.emu.browse_press()
         self.assertEqual(
