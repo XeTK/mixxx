@@ -862,6 +862,11 @@ TEST_F(AnnouncementManagerTest, FirstRunOrientation_SpokenOnFirstSoundDevicesRea
 
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
+    // Issue #125: the orientation also points new users at the AccessMenu
+    // short menu, both the keyboard chord and the DDJ-400 hold gesture.
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("accessibility short menu")));
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Alt plus Shift plus M")));
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("DDJ-400")));
     EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
             QStringLiteral("OrientationPlayed"))));
 }
