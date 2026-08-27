@@ -88,6 +88,10 @@ class AxBackend:
         """Move keyboard focus to an element."""
         raise NotImplementedError
 
+    def activate_app(self, pid):
+        """Bring the process's application to the foreground (frontmost)."""
+        raise NotImplementedError
+
     def send_key(self, keycode, modifiers):
         """Post a key press (down+up) with the given modifier names."""
         raise NotImplementedError
@@ -217,6 +221,23 @@ class MacAxBackend(AxBackend):
         self.click(*center)
         return None
 
+    def activate_app(self, pid):
+        # CGEventPost(kCGHIDEventTap, ...) below is a *system-wide* HID
+        # event injection -- it goes to whatever app currently has real OS
+        # keyboard focus, not to this pid specifically. AXUIElementSet
+        # AttributeValue(el, "AXFocused", True) (see focus() above) only
+        # moves focus *within* an already-frontmost app; it does not bring
+        # the app itself forward. On a real desktop with other windows (not
+        # a dedicated, isolated display), if anything else is frontmost when
+        # send_key() fires, the synthetic keys go to the wrong app entirely
+        # -- discovered live: Shift+F10 intended for Mixxx's track-table
+        # context menu instead landed on the system, popping the Apple menu.
+        # Explicitly activating the target app first is the standard fix
+        # (same thing every GUI-automation framework does before typing).
+        app = self.Quartz.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
+        if app is not None:
+            app.activateWithOptions_(self.Quartz.NSApplicationActivateIgnoringOtherApps)
+
     def send_key(self, keycode, modifiers):
         flags = 0
         for name in modifiers:
@@ -256,6 +277,10 @@ class AxDriver:
             raise RuntimeError("Mixxx is not running")
         self.pid = pid
         self.app = self.backend.create_app(pid)
+        # Bring Mixxx to the front now, and again before every synthetic
+        # keypress (see send_key()) -- see activate_app()'s docstring for
+        # why this isn't optional on a real desktop.
+        self.backend.activate_app(pid)
         return self
 
     # -- low-level passthroughs -------------------------------------------
@@ -313,6 +338,13 @@ class AxDriver:
 
     def send_key(self, keycode, modifiers=()):
         """Post a key press. `modifiers` is an iterable of names like 'alt'."""
+        # Re-activate before every keypress: this is a system-wide HID
+        # event, delivered to whichever app is frontmost right now, not
+        # necessarily Mixxx (another window can steal focus between
+        # scenario steps on a real, shared desktop). Cheap and idempotent
+        # when Mixxx is already frontmost.
+        if self.pid is not None:
+            self.backend.activate_app(self.pid)
         return self.backend.send_key(keycode, modifiers)
 
     def press(self, key_name, modifiers=()):
