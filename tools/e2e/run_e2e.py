@@ -123,8 +123,17 @@ def main(argv=None):
                 return 1
             print("Window appeared.")
 
-        # Let the boot speech ("Mixxx ready") settle before the scenario runs.
-        time.sleep(2.0)
+        # Let the boot speech ("Mixxx ready") settle, and the library
+        # scanner's own startup pass over the fixture directory finish,
+        # before the scenario runs. Found the hard way running this live:
+        # 2.0s was enough for "Mixxx ready" but not reliably enough for the
+        # scanner (see library_fixture.py) to finish reconciling the seeded
+        # fixture tracks, and a scenario that starts selecting/acting on
+        # them mid-scan can race it -- the same select-all-then-act steps
+        # that pass reliably by hand (where there's inevitably several
+        # seconds of human latency before the first keypress) would
+        # intermittently no-op under the orchestrator's fixed short delay.
+        time.sleep(5.0)
 
         print(f"Running scenario {args.scenario}...")
         scenario.run(driver, tts)

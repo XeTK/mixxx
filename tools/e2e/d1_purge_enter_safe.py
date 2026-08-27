@@ -36,7 +36,15 @@ def run(driver, tts):
     select_all_tracks(driver)
     choose_context_menu_item(driver, "Purge")
 
-    if not tts.wait_for("Permanently remove 3 tracks from the library", timeout=10.0):
+    # "track" not "tracks": found the hard way running this live -- without a
+    # loaded translation catalog (e.g. this build's own "Failed to load qt
+    # translations" warning), Qt's tr(text, n) substitutes %n but does not
+    # resolve the "(s)" in the source string's own "%n track(s)", so this
+    # build's actual announcement is "3 track(s)", not "3 tracks". Checking
+    # only up to "track" matches either wording rather than asserting one
+    # that may just be this build's translation-loading state, not a fork
+    # behaviour bug -- see COVERAGE.md.
+    if not tts.wait_for("Permanently remove 3 track", timeout=10.0):
         print("FAIL: purge confirmation was not announced")
         print("--- TTS log so far ---")
         print(tts.read())

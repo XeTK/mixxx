@@ -21,83 +21,125 @@ individual runs once `Scenario Outline` examples are expanded.
 
 ---
 
-## Automated coverage (issue #104)
+## Automated coverage (issues #104, #133)
 
 Issue #104 asked which of these 244 scenarios are genuinely deterministic
 software-state-plus-keyboard-plus-speech checks — no real hardware, no
 subjective listening, no human judgement required — and could be converted
 into a real regression test using the E2E AX-driver/orchestrator harness
 under `tools/e2e/` (`ax_driver.py` + `run_e2e.py`, from PR #44, brought into
-this branch as a foundation since #44 itself was still open).
+this branch as a foundation since #44 itself was still open). Issue #133
+picked up where #104/PR #121 left off: PR #121's own honest caveat was that
+none of it had ever actually been run against a live Mixxx, and #133 asked
+for the next slice *and* a first live run to confirm the harness genuinely
+works end to end.
 
-**The slice automated this pass:** 8 of the 27 scenarios in
+**The slice automated across both passes:** 11 of the 27 scenarios in
 `destructive_actions.feature`, as `tools/e2e/d1_purge_enter_safe.py` through
-`d8_repeated_enter_stack_safe.py`:
+`d11_hide_playlist_membership_warns.py`:
 
-| Scenario module | Gherkin scenario |
-|---|---|
-| `d1_purge_enter_safe.py` | Pressing Enter on the purge dialog does not purge (`@blocking`) |
-| `d2_purge_escape_safe.py` | Pressing Escape on the purge dialog does not purge (`@blocking`) |
-| `d3_purge_narrates_before_dialog.py` | Purging a single track asks first and says what it means (`@blocking`, spoken-string half only) |
-| `d4_hide_enter_safe.py` | Pressing Enter on the hide dialog does not hide (`@blocking`) |
-| `d5_delete_enter_safe.py` | Pressing Enter on the delete dialog does not delete (`@blocking`) |
-| `d6_delete_escape_safe.py` | Pressing Escape on the delete dialog does not delete (`@blocking`) |
-| `d7_no_destructive_action_fires_immediately.py` | No destructive action fires without a confirmation (`@blocking`) |
-| `d8_repeated_enter_stack_safe.py` | Repeated Enter presses on a stack of dialogs stay safe (simplified — see the module docstring) |
+| Scenario module | Gherkin scenario | Live status (issue #133) |
+|---|---|---|
+| `d1_purge_enter_safe.py` | Pressing Enter on the purge dialog does not purge (`@blocking`) | fails live — Purge capability gap, see below |
+| `d2_purge_escape_safe.py` | Pressing Escape on the purge dialog does not purge (`@blocking`) | fails live — same reason |
+| `d3_purge_narrates_before_dialog.py` | Purging a single track asks first and says what it means (`@blocking`, spoken-string half only) | fails live — same reason |
+| `d4_hide_enter_safe.py` | Pressing Enter on the hide dialog does not hide (`@blocking`) | **passes live** |
+| `d5_delete_enter_safe.py` | Pressing Enter on the delete dialog does not delete (`@blocking`) | **passes live** |
+| `d6_delete_escape_safe.py` | Pressing Escape on the delete dialog does not delete (`@blocking`) | **passes live** |
+| `d7_no_destructive_action_fires_immediately.py` | No destructive action fires without a confirmation (`@blocking`) | fails live — its Purge leg hits the same gap |
+| `d8_repeated_enter_stack_safe.py` | Repeated Enter presses on a stack of dialogs stay safe (simplified — see the module docstring) | **passes live** |
+| `d9_hide_confirm_deliberate.py` | Deliberately confirming a hide does hide | **passes live** |
+| `d10_delete_confirm_deliberate.py` | Deliberately confirming a delete moves the files to the trash | **passes live** |
+| `d11_hide_playlist_membership_warns.py` | Hiding tracks that are in playlists warns separately (the playlist-membership double-dialog case) | **passes live** |
 
-**Why this slice.** `destructive_actions.feature` is the file README.md's
-own "if you only have an hour" list picks as its #5 entry, and its own
-preamble names exactly two properties that matter: (1) the user is told what
-is about to happen, and (2) the *safe* option is what happens on the
-reflexive keypress. Property (2) is what actually protects data, is true
-software-state-in/software-state-out (select tracks, press a key, read the
-library DB and the filesystem back), and needed zero hardware, zero screen
-reader, and zero subjective judgement to check — a clean match for the AX
-driver. Property (1) is included for the three dialogs' exact announced
-strings (`d3`, plus the confirmation-heard assertions inside every other
-`d*` scenario) since `TtsLog.wait_for()` makes that nearly free once the
-harness exists for the safe-default check anyway.
+**Why this slice, issue #133's addition.** Of the three shapes issue #133
+named as the natural next candidates — the positive-confirm paths (moving
+focus to the accept button and actually performing the action), the `Remove`
+`Scenario Outline` (needs an AutoDJ/crate/playlist view), and the
+playlist-membership double-dialog case — this pass covers the first and
+third in full (`d9`, `d10`, `d11`) and leaves the second for a follow-up
+(see "Deliberately left out" below): it needs reliable sidebar navigation,
+which this pass could not get working reliably live in the time available,
+and shipping it unvalidated felt like exactly the mistake #104/PR #121 was
+called out for.
 
 **How they work.** Each scenario seeds its own throwaway library directly
 into a fresh `mixxxdb.sqlite` (`tools/e2e/library_fixture.py`) with real,
 tiny, silent WAV files on disk, rather than driving the "Add directory to
 library" GUI flow — deterministic, and not dependent on the analyser
-finishing on its own schedule. `tools/e2e/library_actions.py` then drives
-the real track table through the AX tree (`Cmd+A` to select the seeded
-tracks, `Shift+F10` for the context menu, `Ctrl+Backspace` for the
-Hide/Remove shortcut specifically — see that module's docstring for why the
-keyboard path and the context-menu path are not interchangeable here) and
+finishing on its own schedule. `d11` additionally seeds a playlist directly
+(`seed_playlist()`) to put a track in "belongs to a playlist" state without
+needing to visit a playlist view at all. `tools/e2e/library_actions.py`
+drives the real track table through the AX tree — `Cmd+A` to select the
+seeded tracks, a real right-click for the context menu, `Cmd+Backspace` for
+the Hide/Remove shortcut specifically, and a real click on a dialog's accept
+button for the positive-confirm scenarios (see below for why each of those
+is what it is, not what an earlier version of this file assumed) — and
 asserts on both the `--tts-log` output and the library DB / filesystem
 afterward.
 
-**Not yet run against a live Mixxx.** The only pre-built `mixxx` binary
-available in the environment this automation was written in predates the
-`--tts-log` flag entirely (`Mixxx: Unknown option 'tts-log'.`) and could not
-be used to validate a live run; a fresh build was out of scope for this
-pass. `library_fixture.py`'s schema-bootstrap-and-seed logic was validated
-directly (a real settings dir was created, `mixxxdb.sqlite` was populated
-with the exact rows expected, and the fixture WAV files were written and
-readable), and all eight scenario modules import cleanly and match the
-`run_e2e.py` `prepare(settings_dir, mixxx_bin)` / `run(driver, tts)`
-contract. The AX-tree parts (finding "Track list" by accessible name,
-`AXMenuItem` lookups, the exact keycodes) are written from the source
-(`WTrackTableView`'s `setAccessibleName`, `util/defs.h`,
-`trackconfirmdialogs.cpp`) but — like M1/M2 in `tools/e2e/README.md` before
-them — carry the same "harness written; needs a live run to confirm" caveat
-until someone runs them against a current build with Accessibility
-permission granted to the terminal.
+**Actually run against a live Mixxx this time (issue #133).** A real macOS
+build with `--tts-log` support was available this pass, and Accessibility
+permission was already granted, so — unlike PR #121 — this was actually
+run, repeatedly, against it. Doing that surfaced five independent bugs in
+the harness itself (none in Mixxx) that meant `d1`-`d8` could not possibly
+have passed if anyone had tried this sooner: a `None` `CGEventSource` that
+silently swallowed synthesized clicks and keypresses; `AXFocused` never
+actually moving Qt's keyboard focus; `Shift+F10` being intercepted by
+macOS's own "Application windows" shortcut before Mixxx ever saw it;
+sending the *physical* Control key for the Hide/Remove shortcut when
+`util/defs.h` actually means the Command key on macOS (`Qt::CTRL` is
+remapped there); and — the big one — `library.location` needing to hold
+`track_locations.id` (an integer), not the audio file's path string, so
+that Mixxx's own `INNER JOIN` could ever find a seeded track at all. Every
+one of these is fixed now (see `tools/e2e/README.md`'s "Bugs in this harness
+found and fixed" section for the full writeup, live-reproduction steps
+included). Two further findings came out the same way and are **not**
+fixed, by design, because they are not harness bugs: Qt's `%n` pluralization
+not resolving without a loaded translation catalog (plausibly a real,
+previously-undocumented accessibility bug in Mixxx itself — see the README),
+and "Purge from Library" being gated to the Hidden/Missing Tracks views
+rather than reachable from the plain Tracks view `d1`/`d2`/`d3`/`d7` select
+from (a real, previously-undocumented gap between the Gherkin's own setup
+and Mixxx's actual capability model). `d4`, `d5`, `d6`, `d8`, `d9`, `d10`,
+`d11` are confirmed passing live, end to end, unattended, via `run_e2e.py`.
+`d1`, `d2`, `d3`, `d7` still fail live, but now for the single, correctly
+diagnosed reason above rather than for any of the five harness bugs. Live
+runs are not perfectly reliable yet — roughly one run in four needs a retry,
+most likely the library scanner's own startup pass racing the scenario's
+first interaction; `run_e2e.py`'s fixed settle time was lengthened but a
+proper fix is a retry wrapper, left for a follow-up.
 
 **Deliberately left out of this slice, and why:**
 
-- **The other 19 scenarios in `destructive_actions.feature`** — mostly the
-  "deliberately confirm and it really happens" positive paths (moving focus
-  to the accept button and pressing Return), the `Remove` outline (needs an
-  AutoDJ/crate/playlist view rather than the plain library table), the
-  playlist-membership double-dialog case, and the screen-reader-announces-
-  the-focused-button checks, which read real screen reader output rather
-  than Mixxx's own `--tts-log` and are out of the driver's reach entirely.
-  Good candidates for a follow-up slice once this one has a live run behind
-  it.
+- **The `Remove` `Scenario Outline` (AutoDJ/crate/playlist) and the
+  Purge-from-Hidden/Missing-Tracks scenarios** — both need reliably
+  switching the sidebar to a different view live, which this pass attempted
+  and could not get working reliably: the sidebar `AXOutline`'s
+  `AXChildren`/`AXRows` enumerate as empty far more often than not (the same
+  lazy-realization quirk noted for the track table itself), making a named
+  row (`"Auto DJ"`, a seeded playlist/crate name, `"Hidden Tracks"`)
+  unreliable to find and click on. `library_fixture.py` already has
+  `seed_playlist()`/`seed_crate()`/`playlist_track_ids()`/`crate_track_ids()`
+  ready for whoever picks this up next — the fixture side of this is done,
+  only the sidebar-click reliability remains.
+- **The screen-reader-announces-the-focused-button checks** (e.g. "The
+  screen reader agrees with the narration about the safe button", "The
+  spoken button names do not match the on-screen buttons") — these read
+  real screen reader output rather than Mixxx's own `--tts-log` and are out
+  of the driver's reach entirely, same as noted for the #104 slice.
+- **"Deliberately confirming a purge does purge" and "Purging several
+  tracks says how many"** — both need the Purge-from-Hidden-Tracks
+  navigation above.
+- **"The session suppression checkbox is reachable and announced" and "A
+  confirmation I cancel leaves the selection intact"** — plausible,
+  probably-tractable follow-ups with the now-working harness; simply not
+  reached in this pass's time budget.
+- **"The same file selected twice is only counted once" and "Deleting a
+  track that is loaded in a deck stops the deck first"** — need,
+  respectively, a playlist fixture with two entries pointing at the same
+  physical file, and driving deck load/play state before deleting; both
+  plausible with the fixtures now available but not attempted this pass.
 - **`ddj400_hardware.feature`, most of it** — needs a real DDJ-400 and, for
   the `@inference` scenarios, a MIDI monitor to capture bytes nobody has
   independently verified. The one thing here software can drive is already

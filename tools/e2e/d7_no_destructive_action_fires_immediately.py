@@ -53,7 +53,11 @@ def run(driver, tts):
 
     select_all_tracks(driver)
     choose_context_menu_item(driver, "Purge")
-    _assert_confirmed_then_cancel(tts, "Permanently remove 1 track from the library", "Purge")
+    # "1 track" not "1 track from the library" -- see d1_purge_enter_safe.py's
+    # comment: without a loaded translation catalog this build announces
+    # "1 track(s) from the library", so a check spanning the "(s)" gap would
+    # never match.
+    _assert_confirmed_then_cancel(tts, "Permanently remove 1 track", "Purge")
     driver.press("escape")
     time.sleep(0.5)
     if not is_visible(_SETTINGS_DIR, track):
