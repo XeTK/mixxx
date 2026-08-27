@@ -243,21 +243,57 @@ void AccessMenuController::buildMenuTree() {
             tr("Values"),
             QString(),
             std::move(values));
+    // Toggle items carry a state descriptor (issue #57) so speakCurrentItem()
+    // can append the current on/off state, e.g. "Recording, on". They reuse
+    // the same control/config-backed ValueItem plumbing the Values submenu
+    // uses to read and format Boolean values.
     m_root.emplace_back(ItemType::Toggle,
             tr("Recording"),
-            QStringLiteral("toggleRecording"));
+            QStringLiteral("toggleRecording"),
+            ValueItem(QString(),
+                    QStringLiteral("[Recording]"),
+                    QStringLiteral("status"),
+                    0.0,
+                    2.0,
+                    1.0,
+                    ValueFormat::Boolean));
     m_root.emplace_back(ItemType::Toggle,
             tr("Broadcasting"),
-            QStringLiteral("toggleBroadcasting"));
+            QStringLiteral("toggleBroadcasting"),
+            ValueItem(QString(),
+                    QStringLiteral("[Shoutcast]"),
+                    QStringLiteral("enabled"),
+                    0.0,
+                    1.0,
+                    1.0,
+                    ValueFormat::Boolean));
     m_root.emplace_back(ItemType::Toggle,
             tr("Speech on/off"),
-            QStringLiteral("toggleTts"));
+            QStringLiteral("toggleTts"),
+            ValueItem(QString(),
+                    QStringLiteral("[Tts]"),
+                    QStringLiteral("enabled"),
+                    0.0,
+                    1.0,
+                    1.0,
+                    ValueFormat::Boolean));
+    // Fullscreen has no CO/config key; its state is pushed in from
+    // MixxxMainWindow via setFullScreenState() and read from m_fullscreenState
+    // directly in toggleStateText(), so it gets no ValueItem here.
     m_root.emplace_back(ItemType::Toggle,
             tr("Fullscreen"),
             QStringLiteral("toggleFullScreen"));
     m_root.emplace_back(ItemType::Toggle,
             tr("Keyboard shortcuts"),
-            QStringLiteral("toggleKeyboardShortcuts"));
+            QStringLiteral("toggleKeyboardShortcuts"),
+            ValueItem(QString(),
+                    QStringLiteral("[Keyboard]"),
+                    QStringLiteral("Enabled"),
+                    0.0,
+                    1.0,
+                    1.0,
+                    ValueFormat::Boolean,
+                    /*configBacked=*/true));
     m_root.emplace_back(ItemType::Action,
             tr("Reload skin"),
             QStringLiteral("reloadSkin"));
@@ -380,6 +416,18 @@ void AccessMenuController::restartTimeout() {
     m_timeout.start();
 }
 
+void AccessMenuController::slotToggle() {
+    if (m_open) {
+        closeMenu();
+    } else {
+        openMenu();
+    }
+}
+
+void AccessMenuController::setFullScreenState(bool fullscreen) {
+    m_fullscreenState = fullscreen;
+}
+
 QString AccessMenuController::currentItemText() const {
     const Item* item = currentItem();
     if (!item) {
@@ -392,6 +440,15 @@ QString AccessMenuController::currentItemText() const {
         return tr("%1, %2")
                 .arg(item->label,
                         formatItemValue(item->value, readItemValue(item->value)));
+    } else if (item->type == ItemType::Toggle) {
+        // Label and the current on/off state, e.g. "Recording, on" (issue
+        // #57), so the DJ doesn't have to already know the state or trigger
+        // it and listen for a side effect.
+        const QString state = toggleStateText(*item);
+        if (state.isEmpty()) {
+            return item->label;
+        }
+        return tr("%1, %2").arg(item->label, state);
     }
     return item->label;
 }
@@ -401,6 +458,17 @@ void AccessMenuController::speakCurrentItem() {
     if (!text.isEmpty()) {
         speak(text);
     }
+}
+
+QString AccessMenuController::toggleStateText(const Item& item) const {
+    if (item.actionId == QStringLiteral("toggleFullScreen")) {
+        return m_fullscreenState ? tr("on") : tr("off");
+    }
+    if (item.value.group.isEmpty() && !item.value.configBacked) {
+        // No known state source for this toggle; speak the label alone.
+        return QString();
+    }
+    return formatItemValue(item.value, readItemValue(item.value));
 }
 
 void AccessMenuController::activateCurrentItem() {
@@ -415,6 +483,17 @@ void AccessMenuController::activateCurrentItem() {
         speakCurrentItem();
         break;
     case ItemType::Toggle:
+        // Warn BEFORE disabling keyboard shortcuts (issue #57): once they're
+        // off, kbd.cfg-driven bindings go dead, so this is the last moment a
+        // keyboard-only DJ can hear that it's about to happen. (The
+        // AccessMenu's own keyboard chords are wired as application-wide Qt
+        // shortcuts specifically so they survive this and stay usable
+        // afterwards to turn shortcuts back on.)
+        if (item->actionId == QStringLiteral("toggleKeyboardShortcuts") &&
+                readItemValue(item->value) > 0.0) {
+            speak(tr("Keyboard shortcuts now off. Use this menu or the "
+                     "mouse to re-enable them."));
+        }
         // Stay-open: fire the action but keep the menu open.
         emit actionTriggered(item->actionId);
         break;

@@ -1,5 +1,6 @@
 #include "mixxxmainwindow.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDebug>
@@ -476,6 +477,66 @@ void MixxxMainWindow::initialize() {
             this,
             &MixxxMainWindow::slotAccessMenuAction,
             Qt::UniqueConnection);
+
+    // Fullscreen has no ControlObject/config key, so push its live state into
+    // the controller for the Fullscreen toggle item to speak (issue #57).
+    m_pAccessMenuController->setFullScreenState(isFullScreen());
+    connect(this,
+            &MixxxMainWindow::fullScreenChanged,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::setFullScreenState,
+            Qt::UniqueConnection);
+
+    // Accessibility (issue #57): keyboard bindings for the [AccessMenu]
+    // spoken popup, previously reachable only via the DDJ-400 browse-knob
+    // hold gesture. These are wired as application-wide Qt shortcuts (the
+    // same pattern the "Enable Text-to-Speech" menu item uses for
+    // Alt+Shift+A, see WMainMenuBar::initialize()) rather than only through
+    // kbd.cfg -> ControlObject bindings, so they keep working even when
+    // "Enable Keyboard Shortcuts" is turned off -- including by this very
+    // menu (AccessMenuController speaks a warning right before that toggle
+    // fires; see AccessMenuController::activateCurrentItem()). Qt's shortcut
+    // map consumes the key press before KeyboardEventFilter (and its
+    // kbd.cfg-driven bindings) ever sees it, so a keyboard-only DJ who has
+    // just disabled shortcuts from this menu can still reach it afterwards.
+    // These actions are added directly to this window (not to any menu) so
+    // they stay invisible while still being real, addAction()-registered Qt
+    // shortcuts.
+    auto pKbdConfig = m_pCoreServices->getKeyboardConfig();
+    auto makeAccessMenuAction = [this, pKbdConfig](
+                                         const QString& item,
+                                         const QString& defaultKeySequence) {
+        auto* pAction = new QAction(this);
+        pAction->setShortcut(QKeySequence(pKbdConfig->getValue(
+                ConfigKey(QStringLiteral("[AccessMenu]"), item), defaultKeySequence)));
+        pAction->setShortcutContext(Qt::ApplicationShortcut);
+        addAction(pAction);
+        return pAction;
+    };
+    connect(makeAccessMenuAction(QStringLiteral("toggle"), QStringLiteral("Alt+Shift+M")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotToggle);
+    connect(makeAccessMenuAction(QStringLiteral("navigateUp"), QStringLiteral("Alt+Shift+Up")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            [this] { m_pAccessMenuController->slotNavigate(-1.0); });
+    connect(makeAccessMenuAction(QStringLiteral("navigateDown"), QStringLiteral("Alt+Shift+Down")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            [this] { m_pAccessMenuController->slotNavigate(1.0); });
+    connect(makeAccessMenuAction(QStringLiteral("activate"), QStringLiteral("Alt+Shift+Return")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotActivate);
+    connect(makeAccessMenuAction(QStringLiteral("back"), QStringLiteral("Alt+Shift+Backspace")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotBack);
+    connect(makeAccessMenuAction(QStringLiteral("confirm"), QStringLiteral("Alt+Shift+Space")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotConfirm);
 
     QWidget* oldWidget = m_pCentralWidget;
 
