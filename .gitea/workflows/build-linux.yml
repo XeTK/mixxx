@@ -182,6 +182,16 @@ jobs:
         # failures on this runner's memory-constrained LXC container;
         # --stop-on-failure still stops the whole suite as soon as a test
         # exhausts its retries, instead of grinding through ~1400 more tests.
+        #
+        # CTEST_PARALLEL_LEVEL=1 (issue #101): deliberately left serial here.
+        # This runner is a 4 GiB LXC that has been caught OOM-killing the test
+        # step (exit -1) even at parallel level 1 already - see the
+        # std::bad_alloc comment above. Raising parallelism would run more
+        # mixxx-test processes concurrently and very likely make that worse,
+        # not better. build-macos.yml enables ctest -j because that runner
+        # has no such memory pressure; do the same here only after the OOM
+        # headroom issue is fixed (bigger LXC allocation, and/or splitting
+        # the suite across jobs instead of threads within one job).
         run: |
           cd "${STABLE_SRC}/build"
           ctest --timeout 45 --repeat until-pass:3 --stop-on-failure

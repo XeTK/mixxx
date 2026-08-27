@@ -226,7 +226,13 @@ jobs:
         shell: pwsh
         env:
           GTEST_COLOR: 1
-          # Windows tests fail randomly if run in parallel.
+          # Windows tests fail randomly if run in parallel. Re-checked for
+          # issue #101 (test suite runtime): left as-is. This VM is also
+          # persistent (not ephemeral per-run) with tight free RAM, and its
+          # Test-step failures have separately been traced to unmanaged
+          # Windows Update reboots hitting the VM mid-run - a different,
+          # unrelated failure mode, but more reason not to add concurrent
+          # test processes on top without dedicated investigation first.
           CTEST_PARALLEL_LEVEL: 1
           CTEST_OUTPUT_ON_FAILURE: 1
         # AutoDJProcessorTest is a known-broken suite on Windows (see
