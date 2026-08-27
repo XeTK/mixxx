@@ -98,14 +98,16 @@ TEST_F(AccessMenuControllerTest, Navigate_ScrollsAndSpeaksEachItem) {
     ASSERT_GE(m_pSpy->m_texts.size(), 4);
     EXPECT_QSTRING_EQ("Preferences, submenu", m_pSpy->m_texts.at(0));
     EXPECT_QSTRING_EQ("Values, submenu", m_pSpy->m_texts.at(1));
-    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(2));
-    EXPECT_QSTRING_EQ("Broadcasting", m_pSpy->m_texts.at(3));
+    // Toggle items speak their current state (issue #57); neither control
+    // exists in this test so both read as off.
+    EXPECT_QSTRING_EQ("Recording, off", m_pSpy->m_texts.at(2));
+    EXPECT_QSTRING_EQ("Broadcasting, off", m_pSpy->m_texts.at(3));
 
     // Negative scroll goes back up.
     clearSpy();
     navigate(-1.0);
     ASSERT_GE(m_pSpy->m_texts.size(), 1);
-    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("Recording, off", m_pSpy->m_texts.at(0));
 }
 
 TEST_F(AccessMenuControllerTest, Navigate_WrapsAround) {
@@ -310,6 +312,135 @@ TEST_F(AccessMenuControllerTest, NavigateWhenClosed_IsIgnored) {
     navigate(1.0);
     EXPECT_EQ(0, m_pSpy->m_texts.size());
     EXPECT_EQ(0.0, active());
+}
+
+// -- slotToggle() (issue #57) --------------------------------------------
+
+TEST_F(AccessMenuControllerTest, SlotToggle_OpensThenCloses) {
+    // Drives the always-on keyboard chord directly, bypassing the
+    // [AccessMenu] control objects (the way the app-wide QAction wiring in
+    // MixxxMainWindow does), since there's no dedicated CO for a combined
+    // open/close toggle.
+    m_pController->slotToggle();
+    EXPECT_EQ(1.0, active());
+
+    m_pController->slotToggle();
+    EXPECT_EQ(0.0, active());
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Menu closed", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+// -- Toggle items speak their state (issue #57) ---------------------------
+
+class ToggleStateTest : public AccessMenuControllerTest {
+  protected:
+    // Navigate from a freshly-opened root menu to the toggle item at
+    // `itemIndex` (3 = Recording, 4 = Broadcasting, 5 = Speech on/off,
+    // 6 = Fullscreen, 7 = Keyboard shortcuts).
+    void openRootItem(int itemIndex) {
+        press(QStringLiteral("open"));
+        clearSpy();
+        for (int i = 0; i < itemIndex; ++i) {
+            navigate(1.0);
+        }
+    }
+
+    // Make the controller speak the currently highlighted item again. A single
+    // tick always moves the selection (there is no "repeat" control), so step
+    // to the neighbouring item and back; the spy is cleared in between, so only
+    // the second announcement of the original item is recorded.
+    void respeakCurrentItem() {
+        navigate(1.0);
+        clearSpy();
+        navigate(-1.0);
+    }
+};
+
+TEST_F(ToggleStateTest, Recording_SpeaksOnState) {
+    auto pStatus = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Recording]"), QStringLiteral("status")));
+    pStatus->set(2.0); // RECORD_ON
+    openRootItem(3);
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Recording, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+TEST_F(ToggleStateTest, Tts_SpeaksOffThenOnState) {
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Tts]"), QStringLiteral("enabled")));
+    pEnabled->set(0.0);
+    openRootItem(5);
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Speech on/off, off", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+
+    // The state is read live on every announcement, so flipping the control
+    // and re-speaking the item reports the new state.
+    pEnabled->set(1.0);
+    respeakCurrentItem();
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Speech on/off, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+TEST_F(ToggleStateTest, Fullscreen_SpeaksStatePushedFromMainWindow) {
+    // No CO backs fullscreen; MixxxMainWindow pushes it via
+    // setFullScreenState() (issue #57).
+    m_pController->setFullScreenState(true);
+    openRootItem(6);
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Fullscreen, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+
+    m_pController->setFullScreenState(false);
+    respeakCurrentItem();
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Fullscreen, off", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+TEST_F(ToggleStateTest, KeyboardShortcuts_SpeaksConfigBackedState) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Keyboard]"), QStringLiteral("Enabled")), 1);
+    openRootItem(7);
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Keyboard shortcuts, on", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+// -- Keyboard-shortcuts-off warning (issue #57) ----------------------------
+
+TEST_F(ToggleStateTest, DisablingKeyboardShortcuts_SpeaksWarningBeforeToggling) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Keyboard]"), QStringLiteral("Enabled")), 1);
+    QStringList triggered;
+    QObject::connect(m_pController.get(),
+            &AccessMenuController::actionTriggered,
+            m_pController.get(),
+            [&triggered](const QString& id) { triggered.append(id); });
+
+    openRootItem(7); // Keyboard shortcuts
+    clearSpy();
+    press(QStringLiteral("confirm"));
+
+    ASSERT_EQ(1, triggered.size());
+    EXPECT_QSTRING_EQ("toggleKeyboardShortcuts", triggered.at(0));
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_TRUE(m_pSpy->m_texts.at(0).contains("Keyboard shortcuts", Qt::CaseInsensitive));
+    EXPECT_TRUE(m_pSpy->m_texts.at(0).contains("off", Qt::CaseInsensitive));
+    // The warning is spoken before the toggle is emitted, so a stranded
+    // keyboard-only DJ hears it before shortcuts actually die.
+    EXPECT_EQ(1, m_pSpy->m_texts.size());
+}
+
+TEST_F(ToggleStateTest, EnablingKeyboardShortcuts_NoWarning) {
+    // Currently off; confirming toggles it ON, which needs no warning.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Keyboard]"), QStringLiteral("Enabled")), 0);
+    openRootItem(7); // Keyboard shortcuts
+    clearSpy();
+    press(QStringLiteral("confirm"));
+
+    EXPECT_EQ(0, m_pSpy->m_texts.size());
 }
 
 // -- Value editor (issue #32) -------------------------------------------

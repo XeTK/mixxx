@@ -15,6 +15,7 @@
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
 
+class AutoDJProcessor;
 class Library;
 class PlayerManagerInterface;
 class TtsEngine;
@@ -123,6 +124,12 @@ class AnnouncementManager : public QObject {
     // forgotten mid-set. Public for tests.
     QString formatTrackName(const QString& group, int deckIndex) const;
 
+    // "What's next in Auto DJ" on demand ([AutoDJ],tts_next): whether Auto DJ
+    // is on, the next queued track's artist/title, and — when a deck is
+    // currently playing — roughly how long until it finishes. Public for
+    // tests.
+    QString formatAutoDJNext() const;
+
     // Test helpers: allow tests to wire up CO observers for a synthetic group
     // without needing a real BaseTrackPlayer.
     void connectGroupControls(const QString& group, int deckIndex = -1);
@@ -161,6 +168,18 @@ class AnnouncementManager : public QObject {
     void connectSampler(int samplerIndex);
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
+
+    // Speaks a short spoken orientation the first time a sound device is
+    // confirmed open (see slotSoundDevicesReady()), then marks it as played
+    // so it is never repeated on a later launch (issue #105: a new blind user
+    // has no other way to discover the two or three most important things to
+    // try next without sighted help or a screen reader reading the written
+    // docs). A no-op on every call after the first, and on every call at all
+    // once AccessibilitySettings::getOrientationPlayed() is true -- including
+    // across app restarts, since the flag is persisted. Routed through
+    // speak(), so it is silently skipped (but still marked played) when the
+    // user has TTS turned off.
+    void maybeSpeakFirstRunOrientation();
 
     // Sends text to the TtsEngine (voice/rate/route sync + say()). This is
     // the tail end of what speak() used to do unconditionally; it is now
@@ -260,6 +279,9 @@ class AnnouncementManager : public QObject {
     int m_currentTtsRate{0};
     int m_currentTtsRoute{-1};
     PlayerManagerInterface* m_pPlayerManager;
+    // Non-owning; null when no Library was supplied (unit tests) or before
+    // AutoDJFeature has finished constructing. See formatAutoDJNext().
+    AutoDJProcessor* m_pAutoDJProcessor{nullptr};
     QTimer m_selectionDebounce;
     TrackPointer m_pendingTrack;
     // Spoken text for a pending row selection (see slotTrackRowSelected).
@@ -299,6 +321,8 @@ class AnnouncementManager : public QObject {
     // global [Tts],repeat. Owned here; mapped from the keyboard like any CO.
     std::vector<std::unique_ptr<ControlObject>> m_pStatusButtons;
     std::unique_ptr<ControlObject> m_pRepeatButton;
+    // [AutoDJ],tts_next: on-demand "what's next in Auto DJ" readout.
+    std::unique_ptr<ControlObject> m_pAutoDJNextButton;
     // Controller feedback hooks driven by controller mappings: [Tts],shift
     // (1 while the hardware shift button is held) and [Tts],pad_mode (an
     // enumerated pad-mode id; see the pad-mode table in the .cpp).

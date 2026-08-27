@@ -42,6 +42,22 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
 - `Alt+Shift+R` — Repeat the last announcement, whatever it was
   (deck info, a library selection, a toggle confirmation).
 
+## Auto DJ
+
+- `Shift+F12` — Enable/disable Auto DJ. Says "Auto DJ on. Next:
+  Artist, Title" (or just "Auto DJ on" if the queue is empty) and
+  "Auto DJ off".
+- `Shift+F11` — Fade to the next track now. Says "Fading now".
+- `Shift+F10` — Skip the next queued track without playing it. Says
+  "Skipped".
+- `Shift+F9` — Shuffle the Auto DJ queue.
+- `Ctrl+Shift+F9` — Add a random track to the Auto DJ queue.
+- `Alt+Shift+F12` — What's next: on/off state, the next queued track's
+  artist and title, and roughly how long until the currently playing
+  deck hands off (an estimate — the real crossfade can start earlier,
+  at the outro point). Not `Alt+Shift+N` because Effect Unit 2's
+  on/off chord (issue #56) already claims that combination.
+
 ## Getting a track loaded
 
 - `Shift+Left` / `Shift+Right` — Load the highlighted library track

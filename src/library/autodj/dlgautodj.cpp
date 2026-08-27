@@ -160,12 +160,18 @@ DlgAutoDJ::DlgAutoDJ(WLibrary* parent,
     labelTransitionAppendix->setToolTip(labelTransitionTooltip);
     fadeModeCombobox->setToolTip(fadeModeTooltip);
 
-    // Prevent the interactive widgets from being focused with Tab or Shift+Tab
-    fadeModeCombobox->setFocusPolicy(Qt::ClickFocus);
-    spinBoxTransition->setFocusPolicy(Qt::ClickFocus);
+    // Make the transition-mode combo and transition-time spinbox reachable
+    // with Tab/Shift+Tab (issue #61): a blind user navigating this panel by
+    // keyboard could otherwise never reach them at all, since neither is a
+    // keyboard shortcut and both were previously mouse-only (Qt::ClickFocus).
+    // Enter/Return/Escape still move focus back to the previously focused
+    // library widget, via keyPressEvent() below, so tabbing in does not trap
+    // keyboard focus here.
+    fadeModeCombobox->setFocusPolicy(Qt::StrongFocus);
+    spinBoxTransition->setFocusPolicy(Qt::StrongFocus);
     // work around QLineEdit being protected
     QLineEdit* lineEditTransition(spinBoxTransition->findChild<QLineEdit*>());
-    lineEditTransition->setFocusPolicy(Qt::ClickFocus);
+    lineEditTransition->setFocusPolicy(Qt::StrongFocus);
     // Needed to catch Enter, Return and Escape keypresses
     lineEditTransition->installEventFilter(this);
 
