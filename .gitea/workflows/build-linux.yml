@@ -313,7 +313,13 @@ jobs:
             exit 0
           fi
           # Upload the .deb as a release asset (idempotent-ish; overwrite if present).
-          for deb in build/*.deb; do
+          # The .deb is packaged in ${STABLE_SRC}/build (see "Set up build
+          # environment"/"Package"), not this step's own working directory
+          # ($GITHUB_WORKSPACE) -- a bare "build/*.deb" glob here matched
+          # nothing, so every release got created but with zero assets
+          # attached, silently: the only failure path is inside this loop
+          # body, which the never-matching glob never let run (issue #136).
+          for deb in "${STABLE_SRC}"/build/*.deb; do
             [ -f "$deb" ] || continue
             curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
               -F "attachment=@${deb}" \
@@ -519,7 +525,9 @@ jobs:
             echo "WARN: could not determine release ID for ${TAG}"
             exit 0
           fi
-          for deb in build/*.deb; do
+          # See the x86 job's matching comment (issue #136): the .deb lives
+          # under ${STABLE_SRC}/build, not this step's own working directory.
+          for deb in "${STABLE_SRC}"/build/*.deb; do
             [ -f "$deb" ] || continue
             curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
               -F "attachment=@${deb}" \

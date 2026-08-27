@@ -154,7 +154,7 @@ TEST_F(AccessMenuControllerTest, Navigate_RepeatedIdenticalTicksLikeRealHardware
     ASSERT_GE(m_pSpy->m_texts.size(), 3);
     EXPECT_QSTRING_EQ("Preferences, submenu", m_pSpy->m_texts.at(0));
     EXPECT_QSTRING_EQ("Values, submenu", m_pSpy->m_texts.at(1));
-    EXPECT_QSTRING_EQ("Recording", m_pSpy->m_texts.at(2));
+    EXPECT_QSTRING_EQ("Recording, off", m_pSpy->m_texts.at(2));
 
     // Twelve identical down-ticks wrap all the way back to the first item.
     clearSpy();
