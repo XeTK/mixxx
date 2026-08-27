@@ -4,11 +4,143 @@
 file maps each one to the scenarios that exercise it, and then says what is
 still untested afterwards.
 
+Six more pull requests — #38, #39, #40, #41, #42 and #45, closing issues
+#30, #36, #33, #17, #14 and #32 respectively — merged before this plan
+existed and were consequently never mapped anywhere. They are covered
+below in their own section, added after the fact and verified against the
+merged source rather than against a spec, same as everything else here.
+Issue #11 (a CMake/build config fix) and the `pi-arm64-build-and-updater`
+merges are deliberately excluded from both sections: there is nothing for
+a blind user to manually test in either.
+
 The second half is the more useful half. A test plan that only lists what
 it covers invites the reader to assume the rest is fine.
 
-**Totals:** 244 scenarios as written across 9 feature files; 350 individual
-runs once `Scenario Outline` examples are expanded.
+**Totals:** 257 scenarios as written across 9 feature files; 363
+individual runs once `Scenario Outline` examples are expanded.
+
+---
+
+## Automated coverage (issue #104)
+
+Issue #104 asked which of these 244 scenarios are genuinely deterministic
+software-state-plus-keyboard-plus-speech checks — no real hardware, no
+subjective listening, no human judgement required — and could be converted
+into a real regression test using the E2E AX-driver/orchestrator harness
+under `tools/e2e/` (`ax_driver.py` + `run_e2e.py`, from PR #44, brought into
+this branch as a foundation since #44 itself was still open).
+
+**The slice automated this pass:** 8 of the 27 scenarios in
+`destructive_actions.feature`, as `tools/e2e/d1_purge_enter_safe.py` through
+`d8_repeated_enter_stack_safe.py`:
+
+| Scenario module | Gherkin scenario |
+|---|---|
+| `d1_purge_enter_safe.py` | Pressing Enter on the purge dialog does not purge (`@blocking`) |
+| `d2_purge_escape_safe.py` | Pressing Escape on the purge dialog does not purge (`@blocking`) |
+| `d3_purge_narrates_before_dialog.py` | Purging a single track asks first and says what it means (`@blocking`, spoken-string half only) |
+| `d4_hide_enter_safe.py` | Pressing Enter on the hide dialog does not hide (`@blocking`) |
+| `d5_delete_enter_safe.py` | Pressing Enter on the delete dialog does not delete (`@blocking`) |
+| `d6_delete_escape_safe.py` | Pressing Escape on the delete dialog does not delete (`@blocking`) |
+| `d7_no_destructive_action_fires_immediately.py` | No destructive action fires without a confirmation (`@blocking`) |
+| `d8_repeated_enter_stack_safe.py` | Repeated Enter presses on a stack of dialogs stay safe (simplified — see the module docstring) |
+
+**Why this slice.** `destructive_actions.feature` is the file README.md's
+own "if you only have an hour" list picks as its #5 entry, and its own
+preamble names exactly two properties that matter: (1) the user is told what
+is about to happen, and (2) the *safe* option is what happens on the
+reflexive keypress. Property (2) is what actually protects data, is true
+software-state-in/software-state-out (select tracks, press a key, read the
+library DB and the filesystem back), and needed zero hardware, zero screen
+reader, and zero subjective judgement to check — a clean match for the AX
+driver. Property (1) is included for the three dialogs' exact announced
+strings (`d3`, plus the confirmation-heard assertions inside every other
+`d*` scenario) since `TtsLog.wait_for()` makes that nearly free once the
+harness exists for the safe-default check anyway.
+
+**How they work.** Each scenario seeds its own throwaway library directly
+into a fresh `mixxxdb.sqlite` (`tools/e2e/library_fixture.py`) with real,
+tiny, silent WAV files on disk, rather than driving the "Add directory to
+library" GUI flow — deterministic, and not dependent on the analyser
+finishing on its own schedule. `tools/e2e/library_actions.py` then drives
+the real track table through the AX tree (`Cmd+A` to select the seeded
+tracks, `Shift+F10` for the context menu, `Ctrl+Backspace` for the
+Hide/Remove shortcut specifically — see that module's docstring for why the
+keyboard path and the context-menu path are not interchangeable here) and
+asserts on both the `--tts-log` output and the library DB / filesystem
+afterward.
+
+**Not yet run against a live Mixxx.** The only pre-built `mixxx` binary
+available in the environment this automation was written in predates the
+`--tts-log` flag entirely (`Mixxx: Unknown option 'tts-log'.`) and could not
+be used to validate a live run; a fresh build was out of scope for this
+pass. `library_fixture.py`'s schema-bootstrap-and-seed logic was validated
+directly (a real settings dir was created, `mixxxdb.sqlite` was populated
+with the exact rows expected, and the fixture WAV files were written and
+readable), and all eight scenario modules import cleanly and match the
+`run_e2e.py` `prepare(settings_dir, mixxx_bin)` / `run(driver, tts)`
+contract. The AX-tree parts (finding "Track list" by accessible name,
+`AXMenuItem` lookups, the exact keycodes) are written from the source
+(`WTrackTableView`'s `setAccessibleName`, `util/defs.h`,
+`trackconfirmdialogs.cpp`) but — like M1/M2 in `tools/e2e/README.md` before
+them — carry the same "harness written; needs a live run to confirm" caveat
+until someone runs them against a current build with Accessibility
+permission granted to the terminal.
+
+**Deliberately left out of this slice, and why:**
+
+- **The other 19 scenarios in `destructive_actions.feature`** — mostly the
+  "deliberately confirm and it really happens" positive paths (moving focus
+  to the accept button and pressing Return), the `Remove` outline (needs an
+  AutoDJ/crate/playlist view rather than the plain library table), the
+  playlist-membership double-dialog case, and the screen-reader-announces-
+  the-focused-button checks, which read real screen reader output rather
+  than Mixxx's own `--tts-log` and are out of the driver's reach entirely.
+  Good candidates for a follow-up slice once this one has a live run behind
+  it.
+- **`ddj400_hardware.feature`, most of it** — needs a real DDJ-400 and, for
+  the `@inference` scenarios, a MIDI monitor to capture bytes nobody has
+  independently verified. The one thing here software can drive is already
+  covered structurally by `m2_ddj400_menu.py` (PR #44), which uses the
+  emulator rather than real hardware and so cannot answer the "does the
+  hardware actually send this" question the `@inference` scenarios exist to
+  ask.
+- **`audio_path.feature`** — its own file description says it outright:
+  "Things only a listener can confirm." Earcon distinctness, ducking feel,
+  and clipping-panning-by-ear are subjective judgements about what reached
+  a human's actual ears, not what Mixxx intended to send — exactly the gap
+  the `--tts-log` audibility rework (PR #98, not yet merged into this
+  branch) was written to start closing for a handful of these, but "the
+  audio sounded right" is not something an AX tree can assert regardless.
+- **`macos_voiceover.feature` and the `@voiceover`-tagged scenarios
+  elsewhere** — genuinely automatable in principle (both VoiceOver and
+  Mixxx are software), but toggling real VoiceOver system-wide from a test
+  run changes shared machine state in a way that is risky to do
+  unattended/in CI and was judged out of scope for this pass rather than
+  attempted carelessly.
+- **`windows_screenreader.feature`** — `ax_driver.py`'s backend is
+  macOS-only (`MacAxBackend`); a Windows UIA backend does not exist yet
+  (`create_backend()` raises `NotImplementedError` on any other platform).
+  Automating this file is blocked on that backend, not on anything in this
+  file's own scenarios.
+- **`blind_dj_workflow.feature`** — its own file describes itself as "one
+  person's opinion recorded as a stopwatch time and a note about where they
+  got lost." Explicitly subjective by design; automating it would just be
+  automating a different, less honest measurement.
+- **`first_run_boot.feature` and `library_and_dialogs.feature`** — plausible
+  future candidates (mostly software-state-plus-speech, like
+  `destructive_actions.feature`), but `library_and_dialogs.feature` leans
+  heavily on the YouTube source, which depends on an external binary and an
+  external service that both change without warning — a poor fit for a
+  regression test that is supposed to fail only when Mixxx regresses. Left
+  for a future slice with those parts carved out.
+
+**CI.** `.gitea/workflows/` has no job that builds Mixxx and then runs
+`tools/e2e/run_e2e.py` against it — there was none before this pass, for
+any of the M1-M4 scenarios either. Wiring the destructive-actions slice (or
+any `tools/e2e/` scenario) into CI needs a macOS runner with Accessibility
+permission pre-granted to the CI user, which does not exist yet. That is a
+follow-up, not something this pass adds a job for.
 
 ---
 
@@ -434,6 +566,215 @@ There is a scenario that records this so it can be fixed deliberately.
 `Custom notation` mode's 24 per-key edit boxes got buddies in PR #84 but
 the interaction between editing them and the key wheel's notation cycling
 is not covered.
+
+---
+
+## Six issues merged before this plan existed
+
+PRs #38, #39, #40, #41, #42 and #45 all merged into
+`accessibility-improvements-2026-06-25` before this plan's first commit,
+closing issues #30, #36, #33, #17, #14 and #32. `README.md`'s original
+scope statement named only #47 through #67, so these six had zero manual
+scenarios until now. Covered below in PR order, verified against the
+actual merged diffs rather than assumed from the issue titles.
+
+### PR #38 — issue #30 — use-after-free crash in AnnouncementManager::speak() during shutdown
+
+| | |
+|---|---|
+| Feature file | `first_run_boot.feature` |
+| Scenarios | Quitting while an announcement is speaking does not crash |
+| Tags | `@blocking @regression @timing` |
+
+`AnnouncementManager` held a raw pointer to the `EngineTts` sink (and a
+`ControlProxy` on its `[Tts],enabled` control) that outlived the sink,
+which `EngineMixer` owns and `CoreServices::finalize()` tore down before
+the manager. A control change firing that proxy during shutdown called
+`speak()` on freed memory. Fixed by destroying the manager before the
+engine in `finalize()`, and by `EngineTts` emitting a `sinkDestroyed()`
+signal from its destructor as a defensive backstop.
+
+**Still untested:** this is a narrow race, not a workflow, and a manual
+Gherkin scenario is a blunt instrument against it — a single clean exit
+is weak evidence the fix holds, and a single crash is strong evidence it
+does not, but neither is conclusive. The 21 gtest regression tests
+(`Speak_AfterSinkDestroyed_DoesNotCrash` and friends) are the real
+guard here; this scenario exists to catch the case they cannot, which is
+the fix regressing at the integration level (e.g. a future PR
+reintroducing a raw pointer somewhere else in the shutdown path) rather
+than the unit level.
+
+### PR #39 — issue #36 — mixer knob/fader readouts default ON
+
+| | |
+|---|---|
+| Feature file | `audio_path.feature` |
+| Scenarios | A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured; Mixer readouts can still be turned off by someone who wants quiet |
+| Tags | `@blocking @firstrun` |
+
+**The highest-priority scenario in this whole addendum.** This was the
+single BLOCKING finding from the original accessibility audit: a blind
+DJ moving a channel fader or an EQ knob heard nothing at all unless they
+had already found and ticked "Announce mixer controls" in Preferences,
+Accessibility — a setting undiscoverable without sight. `AnnounceMixer`'s
+default flipped from `false` to `true`; the readout mechanism itself
+(name on touch, debounced value on settle, "announce while moving" still
+opt-in) was not otherwise changed. Every scenario elsewhere in this plan
+that exercises these controls (`keyboard_only.feature`'s EQ/volume/
+filter/crossfader scenarios) explicitly enables `AnnounceMixer` in its
+own `Background`, so none of them actually prove the *default* — this PR
+section's first scenario is the only one in the plan that does, which is
+why it needs a fresh profile (`@firstrun`).
+
+**Correction to the brief this section was written from:** the pitch/
+tempo fader is gated by a separate preference, `AnnounceTempo`, which was
+already `true` by default before this PR. It is included in the scenario
+as a sanity check, not because #36 touched it — #36's actual scope is
+volume, trim, the three EQ bands, the filter (QuickEffect super knob) and
+the crossfader, all of which share the one `AnnounceMixer` check in
+`AnnouncementManager`.
+
+**Still untested:** trim (pregain) is gated by the same `AnnounceMixer`
+flag and therefore also defaulted on by this PR, but is not re-verified
+against the fresh-profile default here — it is covered with the setting
+explicitly enabled in `keyboard_only.feature`'s "Trim is separate from
+volume and says so". Decks 3 and 4 are not touched, consistent with the
+rest of this plan.
+
+### PR #40 — issue #33 — DDJ-400 auto-configures 2 decks on init
+
+| | |
+|---|---|
+| Feature file | `ddj400_hardware.feature` |
+| Scenarios | Connecting the controller gives me two usable decks (pre-existing, undocumented until now); Deck 2 is playable straight from a fresh connection, no Preferences visit needed |
+| Tags | `@regression @blocking` |
+
+`PioneerDDJ400.init()` raises `[App],num_decks` to 2 on connect, using
+the same raise-only guard (`if (... < deckCount) { setValue(...) }`)
+already used for `num_samplers`, so a blind user's two physical decks
+work without ever finding Preferences to configure a deck count by hand.
+A scenario for this already existed in `ddj400_hardware.feature`
+("carried over from issue #33" per its own comment) but was never listed
+in this file, because it predates this plan's #47–67 scope statement.
+It proves deck 2 is announced rather than silent; the new scenario goes
+further and proves deck 2 is genuinely operable — loadable and playable
+— end to end.
+
+**Still untested:** the raise-only guard's actual purpose — that it never
+lowers a user's own higher deck count — has no scenario, because there is
+no ordinary, documented Preferences control that lets a manual tester set
+`num_decks` above 2 first in order to check it is not clobbered back
+down. Decks 3 and 4 generally are out of scope for this plan, per the
+"What this plan does not test at all" section below.
+
+### PR #41 — issue #17 — track-list sort column/order spoken feedback
+
+| | |
+|---|---|
+| Feature file | `keyboard_only.feature` |
+| Scenarios | Clicking a column header also announces the new sort |
+| Tags | none |
+
+**Mostly already covered — see the resolution below before assuming a gap.**
+`slotAnnounceSort()` is wired to `[Library],sort_column` and `sort_order`
+*changing value*, not to any specific keyboard binding. Issue #59's later
+keyboard chords (`Alt+Shift+S`, `Ctrl+Alt+Shift+S`, `Alt+Shift+O`) happen
+to change those same controls, and `keyboard_only.feature`'s existing
+"Cycling the sort column announces each one" and neighbouring scenarios
+already exercise this PR's announcement thoroughly by that route — so
+those needed no duplicate. What none of #59's scenarios checked is the
+OTHER, pre-existing trigger this PR's own commit message calls out
+explicitly: a column-header click, which predates #59 and was never a
+keyboard action to begin with. `WTrackTableView::slotSortingChanged()`
+(fired by `QHeaderView::sortIndicatorChanged`, i.e. a header click) writes
+the same `[Library],sort_column`/`sort_order` control objects directly via
+`ControlProxy::set()`, so the one new scenario added here confirms the
+announcement fires from that path too, independent of any keyboard chord.
+
+Worth noting: because the header-click path writes `sort_order` directly
+from a `Qt::SortOrder` value rather than through a push-button control, it
+is a different code path from the one behind `keyboard_only.feature`'s
+"LIKELY BUG" scenario for `Alt+Shift+O` — nothing here suggests the
+header-click path shares that double-announcement risk, though nobody has
+specifically ruled it out either.
+
+**Still untested:** whether a controller-mapped sort trigger (as opposed
+to keyboard or mouse) behaves the same way — no controller in this fork
+maps anything to the sort controls today, so it is moot for now but would
+be worth revisiting if one ever does.
+
+### PR #42 — issue #14 — translatable spoken musical key names
+
+| | |
+|---|---|
+| Feature file | `audio_path.feature` |
+| Scenarios | The on-demand key readout follows the app locale; The load announcement's key name also follows the locale; A locale with no Mixxx translation at all still falls back safely |
+| Tags | `@locale`, one also `@regression` |
+
+`keyForSpeech()` in `AnnouncementManager` wraps its 24 fully-spelled key
+names ("C Major" … "B Minor") in `tr()`, so a translated build can speak
+the key in the user's language. Only Traditional notation (and the
+"…and Traditional" variants) is affected; Open Key and Lancelot/Camelot
+codes are spoken as a digit plus a phonetic letter and were untouched by
+this PR.
+
+**Correction to the brief this section was written from:** as of this
+commit, **no shipped translation file contains a translated msgid for any
+of these 24 strings** — confirmed by grepping every `res/translations/
+mixxx_*.ts` for "Sharp Major" and "Flat Major" and finding zero matches.
+These strings are new to `tr()` as of this PR and have not yet been
+through a Transifex sync. That means switching to a non-English locale
+today will **not** produce a translated key name; Qt's `tr()` falls back
+silently to the English source string. The three scenarios here are
+written around that fact: the first two record whatever you actually
+hear (translated once a translation exists, English until then) rather
+than asserting a specific non-English string that cannot currently be
+produced, and the third scenario explicitly tests the safe-fallback case
+for a locale with no Mixxx translation at all.
+
+**Still untested:** real translated output for any of the 24 strings,
+because none exists yet — re-run once a translation lands. Interaction
+between locale and "Concise announcements" wording. Open Key and
+Lancelot/Camelot notations, which this PR did not touch and are spoken
+identically regardless of locale (only the phonetic-letter helper is
+locale-independent by construction). Plural forms and non-Latin scripts
+are called out generally in "What this plan does not test at all" below
+and apply here too.
+
+### PR #45 — issue #32 — value editor added to the spoken AccessMenu
+
+| | |
+|---|---|
+| Feature file | `ddj400_hardware.feature` |
+| Scenarios | Opening and closing the spoken menu from the DDJ-400's BROWSE knob; Holding BROWSE again while the menu is already open does nothing new; Opening the value editor from the DDJ-400's spoken menu; Adjusting two Values settings from the browse knob; Cancelling a value edit from the DDJ-400 leaves the value alone |
+| Tags | `@blocking` on two of the five |
+
+**Correction to the brief this section was written from:** by the time
+this addendum was written, a keyboard path to the value editor already
+existed and was already covered — `keyboard_only.feature`'s "Value
+editing from the keyboard" and "Cancelling a value edit leaves the value
+alone" scenarios (added later by issue #57/#78's `Alt+Shift+M` chords)
+exercise the same `AccessMenuController` value-edit mode via the
+keyboard. The brief assumed no keyboard path existed at merge time,
+which was true in isolation but stale once #78 landed. So this PR
+section is scoped to what genuinely had no coverage anywhere: driving
+the value editor from the DDJ-400's own physical controls. That also
+surfaced a real, previously undocumented quirk worth its own two
+scenarios — the DDJ-400 has no dedicated "close menu" gesture at all;
+holding BROWSE only ever calls `openMenu()`, which no-ops if already
+open, so closing requires activating "Back" or Shift+BROWSE at the root
+level (both call `goBack()`, which closes at the top of the stack), or
+waiting out the 30-second timeout.
+
+**Still untested:** the Values submenu's "Speech on/off" boolean item is
+not exercised by name here — it is redundant with the root menu's own
+"Speech on/off" toggle, which the existing `keyboard_only.feature`
+Scenario Outline already covers, so it was not duplicated. Clamping at
+the min/max of a value (covered for the keyboard path in
+`accessmenucontroller_test.cpp`'s unit tests) is not separately verified
+from the DDJ-400's physical knob. The 30-second auto-close timeout itself
+is not timed out here — it would make an already-long manual scenario
+much longer for a low-risk path.
 
 ---
 

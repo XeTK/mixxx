@@ -218,6 +218,35 @@ Feature: Cold start, first run, and device errors
     Then Mixxx exits
     And it does not leave a dialog I cannot hear
 
+  # ---------------------------------------------------------------------
+  # Shutdown crash regression — issue #30
+  #
+  # NARROW REGRESSION CHECK, not a full workflow: this guards a
+  # use-after-free where AnnouncementManager held a raw pointer to the
+  # EngineTts sink (and a ControlProxy observing its [Tts],enabled
+  # control) that outlived the sink itself. EngineMixer owns the sink and
+  # CoreServices::finalize() tore it down before the manager; a control
+  # change firing that proxy during shutdown then called speak() on freed
+  # memory, crashing intermittently. Fixed by (a) destroying the manager
+  # in finalize() before the engine, and (b) EngineTts emitting
+  # sinkDestroyed() from its destructor as a defensive backstop. The
+  # race window is narrow, so a single clean exit does not prove much —
+  # run this a handful of times and try both timings below.
+  # ---------------------------------------------------------------------
+
+  @blocking @regression @timing
+  Scenario: Quitting while an announcement is speaking does not crash
+    Given Mixxx is running with both decks playing
+    When I press "Alt+1" to trigger a long announcement
+    And I press "Ctrl+Q" while I can still hear it speaking
+    Then Mixxx exits cleanly, with no crash dialog and no hang
+    When I relaunch Mixxx
+    And I press "Alt+1" to trigger another announcement
+    And I press "Ctrl+Q" in the instant right after the announcement finishes
+    Then Mixxx exits cleanly again
+    # Repeat a few times across a session; a single pass is weak evidence
+    # against a race, and a single failure is strong evidence for one.
+
   Scenario: Settings survive a restart
     Given I have changed the speech rate and enabled the beat click
     When I quit and relaunch Mixxx

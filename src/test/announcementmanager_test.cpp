@@ -103,6 +103,14 @@ class AnnouncementManagerTest : public MixxxTest {
   protected:
     void SetUp() override {
         m_pPlayerManager = std::make_unique<StubPlayerManager>();
+        // Default the first-run orientation (issue #105) to "already played"
+        // so it does not add a surprise extra announcement to every other
+        // test in this file that calls slotSoundDevicesReady(). Tests
+        // exercising the orientation itself explicitly reset this to false.
+        config()->setValue(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("OrientationPlayed")),
+                true);
     }
 
     // Build an AnnouncementManager with a SpyTtsEngine and the current config.
@@ -838,6 +846,78 @@ TEST_F(AnnouncementManagerTest, SoundDevicesReady_FiresAgain_DoesNotReannounce) 
 }
 
 // ---------------------------------------------------------------------------
+// First-run spoken orientation (issue #105)
+// ---------------------------------------------------------------------------
+
+// A brand-new install (OrientationPlayed not yet set) hears the orientation
+// once the sound device is confirmed open, and the flag is persisted so it
+// will not be repeated.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_SpokenOnFirstSoundDevicesReady) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
+    EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
+            QStringLiteral("OrientationPlayed"))));
+}
+
+// The "Mixxx ready" announcement (queued by slotSkinLoaded() before audio is
+// confirmed running) and the first-run orientation both become due on the
+// very same slotSoundDevicesReady() call on a brand-new install. They must be
+// batched into a single utterance rather than the second speak() barging in
+// and silently discarding "Mixxx ready" before it was ever rendered.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_CombinedWithReadyAnnouncement) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Mixxx ready")));
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
+}
+
+// A second boot (OrientationPlayed already true, simulating a restart with
+// the same persisted config) must not repeat the orientation -- this is the
+// core "only once" guarantee the feature exists for; unlike "Mixxx ready" it
+// must never come back, not even once per session.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_NotRepeatedWhenAlreadyPlayed) {
+    // SetUp() already marks OrientationPlayed true; this is asserting the
+    // default fixture state means what the other tests in this file rely on.
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// Calling slotSoundDevicesReady() a second time within the same run (e.g. the
+// user reopens Preferences and reconfigures sound hardware) must not re-speak
+// the orientation either, even though the first call already both spoke it
+// and flipped the persisted flag.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_NotRepeatedOnSecondCallSameRun) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
 // Library focus announcements (slotLibraryFocusChanged / slotSidebarItemActivated)
 // ---------------------------------------------------------------------------
 
@@ -1471,6 +1551,33 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
             << "speak() was not skipped when the engine sink is user-disabled";
 }
 
+// First-run orientation (issue #105), gated behind the same [Tts],enabled
+// toggle every other announcement respects: a sighted user who has never
+// turned speech on hears nothing, even on their very first launch.
+TEST_F(AnnouncementManagerRouteSyncTest, FirstRunOrientation_SilentWhenSinkUserDisabled) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    ControlProxy enabledCO(QLatin1String(kSinkGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    enabledCO.set(0.0);
+    ASSERT_FALSE(m_pEngineTts->isUserEnabled());
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount)
+            << "orientation was spoken even though TTS is user-disabled";
+    // Still marked played: this flag tracks "the app has been run before", not
+    // "the orientation was actually heard" -- see the comment on
+    // AccessibilitySettings::OrientationPlayed.
+    EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
+            QStringLiteral("OrientationPlayed"))));
+}
+
 TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) {
     // Regression test for issue #30: when the EngineTts sink is destroyed while
     // the AnnouncementManager still holds a raw pointer to it (shutdown), the
@@ -1643,6 +1750,15 @@ namespace {
 void waitPastSyncLatchWindow() {
     QEventLoop loop;
     QTimer::singleShot(600, &loop, &QEventLoop::quit);
+    loop.exec();
+}
+
+// Spin the event loop long enough for the shared control-debounce timer
+// (400 ms, see kControlDebounceMs) to actually fire via its real QTimer
+// timeout, instead of tests calling slotAnnouncePendingControl() directly.
+void waitPastControlDebounce() {
+    QEventLoop loop;
+    QTimer::singleShot(500, &loop, &QEventLoop::quit);
     loop.exec();
 }
 } // namespace
@@ -2018,6 +2134,74 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_DebouncedThenSpoken) {
     m_pManager->slotAnnouncePendingControl();
     EXPECT_EQ(2, pSpy->callCount);
     EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText);
+}
+
+// Regression test for issue #114: on real hardware the pitch fader keeps
+// moving for a bit (several rapid rate_ratio ticks, each re-arming the
+// shared debounce QTimer) before coming to rest, and only *then* does the
+// timer's real timeout fire slotAnnouncePendingControl() -- nothing in the
+// test manually invokes it. Every other debounce test in this file (see
+// TempoChange_DebouncedThenSpoken above) calls slotAnnouncePendingControl()
+// directly instead of waiting for the QTimer, which would hide a bug in the
+// timer hookup itself. This test drives the real timer via the event loop,
+// the way production actually behaves.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_RealDebounceTimerFiresValue) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.02);
+    QCoreApplication::processEvents();
+    m_pRateRatio->set(1.03);
+    QCoreApplication::processEvents();
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+
+    waitPastControlDebounce();
+    EXPECT_QSTRING_EQ("up 5 percent", pSpy->lastText)
+            << "the debounced value must follow the touch-name once the "
+               "fader settles, spoke: "
+            << pSpy->lastText.toStdString();
+}
+
+// Regression test for issue #114: "Pitch announcements appear stuck on the
+// touch-name ('Alpha pitch') and never follow up with the value". Root
+// cause: the pitch fader and any other debounced control (a volume knob
+// here) shared a single "latest pending announcement" slot. Touching the
+// second control before the first one's debounce timer fired silently
+// discarded the first control's queued value -- the touch-name was still
+// heard (that part is synchronous), but its debounced value never was.
+// Each keyed control now gets its own pending slot (see m_pendingControls),
+// and a batch of controls that settle in the same debounce window are all
+// announced, joined into a single utterance so barge-in can't eat one of
+// them either.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_InterleavedControlDoesNotOverwritePendingValue) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.05);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+
+    // Before the pitch fader's debounce settles, a second, unrelated
+    // debounced control is touched too -- e.g. the DJ reaching for a volume
+    // knob mid-blend.
+    m_pVolume->set(0.75);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText)
+            << "name on touch for the second control";
+
+    waitPastControlDebounce();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("up 5 percent")))
+            << "pitch's debounced value must not be silently discarded by "
+               "the later volume touch, spoke: "
+            << pSpy->lastText.toStdString();
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("three quarters")))
+            << "the volume's own debounced value must still be heard too, "
+               "spoke: "
+            << pSpy->lastText.toStdString();
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
@@ -3740,6 +3924,75 @@ TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
     EXPECT_EQ(0.0, pPfl2->get());
 }
 
+// ---------------------------------------------------------------------------
+// Auto DJ (issue #61)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AutoDJEnabled_Announced) {
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    // No Library in tests, so there is no queued track to fold in.
+    EXPECT_QSTRING_EQ("Auto DJ on", pSpy->lastText);
+
+    pEnabled->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Auto DJ off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJFadeNow_Announced) {
+    auto pFadeNow = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("fade_now")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFadeNow->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Fading now", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJSkipNext_Announced) {
+    auto pSkipNext = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("skip_next")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSkipNext->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Skipped", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, FormatAutoDJNext_DisabledEmptyQueue_NoLibrary) {
+    // Tests never wire up a real Library, so m_pAutoDJProcessor is null and
+    // the queue is unreachable; the readout must still degrade gracefully
+    // rather than crash or omit the on/off state.
+    makeManager();
+    EXPECT_QSTRING_EQ("Auto DJ is off. Queue is empty.", m_pManager->formatAutoDJNext());
+}
+
+TEST_F(AnnouncementManagerTest, FormatAutoDJNext_ReflectsEnabledState) {
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    makeManager();
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Auto DJ is on. Queue is empty.", m_pManager->formatAutoDJNext());
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJNextHotkey_TriggersReadout) {
+    SpyTtsEngine* pSpy = makeManager();
+    ControlProxy nextButton(QStringLiteral("[AutoDJ]"),
+            QStringLiteral("tts_next"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    nextButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("Auto DJ is off. Queue is empty.", pSpy->lastText);
+}
+
 // Reproduces issue #48 (case 1): with Smart Cue, AnnounceTrackLoad, and
 // AnnounceCue all on by default (as they are), loading a track into a
 // stopped deck used to speak the load announcement and then have the Smart
@@ -3778,4 +4031,65 @@ TEST_F(AnnouncementManagerTest, SmartCue_LoadAnnouncementNotLostToCueBargeIn) {
     // The underlying cue behavior is unaffected by batching the speech.
     EXPECT_EQ(0.0, pPfl1->get());
     EXPECT_EQ(1.0, pPfl2->get());
+}
+
+// Regression test for issue #112: connectGroupControls() is documented (see
+// the header) to wire up a synthetic group "without needing a real
+// BaseTrackPlayer" -- every proxy it creates is expected to tolerate a
+// missing backing control except, until this fix, the "play" proxy, which
+// omitted ControlFlag::AllowMissingOrInvalid. That inconsistency is invisible
+// in an ordinary build (ControlProxy's DEBUG_ASSERT is a no-op without
+// MIXXX_DEBUG_ASSERTIONS_ENABLED, and the proxy silently falls back to the
+// shared default control), but aborts the whole process on any build with
+// debug assertions enabled -- e.g. an accessibility-focused developer/nightly
+// build, matching the reported "crash under heavy load, with no speech" (the
+// abort is instant and silent; there is no chance to announce it). This is
+// exactly the code path the SmartCue_LoadAnnouncementNotLostToCueBargeIn test
+// above and every AnnouncementManagerVinylTest case exercise: both call
+// connectGroupControls() for a group whose "play" control was never created,
+// which is why they were the tests observed crashing.
+//
+// This test cannot demonstrate the crash itself in a normal build (that is
+// the point of DEBUG_ASSERT: silent no-op unless assertions are fatal); it
+// was verified by temporarily reverting the AllowMissingOrInvalid flag and
+// rebuilding with -DDEBUG_ASSERTIONS_FATAL=ON -DSANITIZE_ADDRESS=ON, which
+// reliably aborted here with "DEBUG ASSERT: flags.testFlag(...)" in
+// ControlDoublePrivate::getControl, called from ControlProxy::ControlProxy()
+// from AnnouncementManager::connectGroupControls() -- confirming this exact
+// line is the fault site. What this test does verify, in every build: that
+// connectGroupControls() still returns and the manager keeps working
+// correctly afterward even when "play" was never created for the group.
+TEST_F(AnnouncementManagerTest, ConnectGroupControls_NoPlayControl_DoesNotAbort) {
+    auto pPfl = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    // Deliberately do not create "[Channel1]",play before wiring up the
+    // observers -- connectGroupControls() must not assume it exists.
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+
+    // The manager must still be fully functional afterward: an unrelated,
+    // present control (pfl) still announces normally.
+    pPfl->set(1.0);
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("headphone cue on")))
+            << pSpy->lastText.toStdString();
+}
+
+// Sampler counterpart of the regression test above: connectSamplerControls()
+// had the identical missing-flag bug on its own "play" proxy (see
+// connectSamplerControls() in announcementmanager.cpp).
+TEST_F(AnnouncementManagerTest, ConnectSamplerControls_NoPlayControl_DoesNotAbort) {
+    auto pEject = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Sampler1]"), QStringLiteral("eject")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setDeckHasTrack(QStringLiteral("[Sampler1]"), true);
+
+    // Deliberately do not create "[Sampler1]",play.
+    m_pManager->connectSamplerControls(QStringLiteral("[Sampler1]"), 0);
+
+    pEject->set(1.0);
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("ejected")))
+            << pSpy->lastText.toStdString();
 }

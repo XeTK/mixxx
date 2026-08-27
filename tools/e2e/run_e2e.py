@@ -12,10 +12,14 @@ Usage::
 
 The orchestrator:
   1. Creates a throwaway settings dir + a fresh ``--tts-log`` file.
-  2. Launches Mixxx with ``--settings-path`` and ``--tts-log``.
-  3. Waits for the main window to appear in the AX tree.
-  4. Runs the scenario's ``run(driver, tts)``.
-  5. Asserts the scenario did not raise, then tears down.
+  2. If the scenario module defines ``prepare(settings_dir, mixxx_bin)``, calls
+     it before Mixxx is launched -- used to seed a throwaway library (see
+     ``library_fixture.py`` and the ``d*_destructive_*`` scenarios) so the
+     scenario has known tracks to select from the moment the window appears.
+  3. Launches Mixxx with ``--settings-path`` and ``--tts-log``.
+  4. Waits for the main window to appear in the AX tree.
+  5. Runs the scenario's ``run(driver, tts)``.
+  6. Asserts the scenario did not raise, then tears down.
 """
 import argparse
 import importlib.util
@@ -90,14 +94,18 @@ def main(argv=None):
     tts_log = args.tts_log or os.path.join(workdir, "tts.log")
 
     scenario = _load_scenario(args.scenario)
+    settings_dir = os.path.join(workdir, "settings")
 
     proc = None
     if args.no_launch:
         driver = AxDriver(create_backend()).connect()
     else:
+        if hasattr(scenario, "prepare"):
+            print(f"Preparing fixture for {args.scenario}...")
+            scenario.prepare(settings_dir, args.mixxx)
         proc = MixxxProcess(
             mixxx_bin=args.mixxx,
-            settings_dir=os.path.join(workdir, "settings"),
+            settings_dir=settings_dir,
             tts_log=tts_log,
             extra_args=["--controller-navigation-without-focus"],
         )

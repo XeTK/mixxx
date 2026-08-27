@@ -2726,6 +2726,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
+    src/test/a11ycontrols_test.cpp
     src/test/accessibilitysettings_test.cpp
     src/test/accessmenucontroller_test.cpp
     src/test/announcementmanager_test.cpp
@@ -2739,6 +2740,8 @@ if(BUILD_TESTING)
     src/test/engineearcon_test.cpp
     src/test/enginetts_test.cpp
     src/test/errordialoghandler_test.cpp
+    src/test/exitdialog_speech_test.cpp
+    src/test/announcetext_guard_test.cpp
     src/test/keyboardbindings_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp

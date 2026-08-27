@@ -62,6 +62,15 @@ class MixxxMainWindow : public QMainWindow {
     static QString libraryScanSummarySpeech(const QString& htmlSummary);
     static QString directRenderingSpeech();
 
+    // Accessibility (issue #115): spoken text for the Confirm Exit dialogs
+    // shown by confirmExit(). Same pattern as the other *Speech() helpers
+    // above: pure, translatable, unit-testable without a live
+    // MixxxMainWindow/CoreServices, and always spelling out which button is
+    // the default so a stray Enter/Escape is never destructive.
+    static QString confirmExitDeckPlayingSpeech();
+    static QString confirmExitSamplerPlayingSpeech();
+    static QString confirmExitPreferencesOpenSpeech();
+
 #ifdef MIXXX_USE_QOPENGL
     void initializeQOpenGL();
 #endif

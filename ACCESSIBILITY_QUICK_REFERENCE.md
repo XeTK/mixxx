@@ -42,6 +42,22 @@ Odd numbers are deck 1 (A), even numbers are deck 2 (B):
 - `Alt+Shift+R` — Repeat the last announcement, whatever it was
   (deck info, a library selection, a toggle confirmation).
 
+## Auto DJ
+
+- `Shift+F12` — Enable/disable Auto DJ. Says "Auto DJ on. Next:
+  Artist, Title" (or just "Auto DJ on" if the queue is empty) and
+  "Auto DJ off".
+- `Shift+F11` — Fade to the next track now. Says "Fading now".
+- `Shift+F10` — Skip the next queued track without playing it. Says
+  "Skipped".
+- `Shift+F9` — Shuffle the Auto DJ queue.
+- `Ctrl+Shift+F9` — Add a random track to the Auto DJ queue.
+- `Alt+Shift+F12` — What's next: on/off state, the next queued track's
+  artist and title, and roughly how long until the currently playing
+  deck hands off (an estimate — the real crossfade can start earlier,
+  at the outro point). Not `Alt+Shift+N` because Effect Unit 2's
+  on/off chord (issue #56) already claims that combination.
+
 ## Getting a track loaded
 
 - `Shift+Left` / `Shift+Right` — Load the highlighted library track
@@ -66,6 +82,26 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
 - `Alt+F7` — Quantize on/off for deck 1 (add `Shift` for
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
+
+## Key lock and pitch (harmonic mixing)
+
+Deck 1 keys listed; add `Shift` for deck 2:
+
+- `Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
+  on"/"off"), so pitch can be adjusted for tempo without shifting
+  the musical key.
+- `Alt+Up` / `Alt+Down` (deck 1) / `Alt+Shift+F1` / `Alt+Shift+F2`
+  (deck 2) — Nudge pitch up/down one semitone. Deck 2 isn't
+  `Alt+Shift+Up` / `Alt+Shift+Down` because the always-available
+  `[AccessMenu]` navigation chords (issue #57) claim those
+  combinations fork-wide.
+- `Alt+M` (deck 1) / `Alt+Shift+F8` (deck 2) — Match key (sync to
+  the other deck's key). Deck 2 isn't `Alt+Shift+M` because the
+  always-available `[AccessMenu]` toggle chord (issue #57) claims
+  that combination fork-wide.
+- `Ctrl+Alt+R` — Reset to the track's original key. Still on the old
+  `Ctrl+Alt` chord for now (TODO issue #50 follow-up: pending
+  AccessMenu routing instead of a keyboard chord — see PR #71/#77/#81).
 
 ## Mixer, EQ, and filter (no controller needed)
 
@@ -172,12 +208,17 @@ speak deck 1, right pads deck 2:
 - Pad 8 — Beat click metronome on/off
 - `Shift+Pad 1` — Halve this deck's BPM grid
 - `Shift+Pad 2` — Double this deck's BPM grid
+- `Shift+Pad 3` — Key lock on/off
+- `Shift+Pad 4` — Pitch down one semitone
+- `Shift+Pad 5` — Pitch up one semitone
+- `Shift+Pad 6` — Reset to the track's original key
 - `Shift+Pad 7` — Per-deck split cue on/off
 - `Shift+Pad 8` — Speech on/off
 
 Hot cues are unavailable from the pads while this is on (Shift+pads
-3-6 do nothing, so nothing can be cleared by accident). Untick the
-setting to get normal hot cues back; other pad modes are unaffected.
+1-6 do something else instead, so nothing can be cleared by
+accident). Untick the setting to get normal hot cues back; other pad
+modes are unaffected.
 
 Independent of that setting: pressing Shift says "Shift", and each
 pad mode button announces its layer ("Pads, hot cues", "Pads, beat
