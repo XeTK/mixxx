@@ -924,6 +924,39 @@
             </control>
 
             <control>
+                <!-- issue #109: the physical MASTER LEVEL knob was entirely
+                     unmapped, so [Master],gain never changed and the
+                     accessibility fork's existing generic "Main volume"
+                     announcement (AnnouncementManager, wired to [Master],gain
+                     for any input source) never had anything to announce.
+                     0xB6/0x08 (MSB) + 0xB6/0x28 (LSB) follows this file's own
+                     established 0xB6-channel numbering for the other shared
+                     mixer knobs (headMix 0x0C/0x2C, headGain 0x0D/0x2D) and
+                     matches the identical Master Level binding used for the
+                     same control name on Pioneer-DDJ-SB3.midi.xml in this
+                     repo. Unverified against real DDJ-400 hardware; needs
+                     hardware confirmation. -->
+                <description>MASTER LEVEL - rotate - Main output level</description>
+                <group>[Master]</group>
+                <key>gain</key>
+                <status>0xB6</status>
+                <midino>0x28</midino>
+                <options>
+                    <fourteen-bit-lsb/>
+                </options>
+            </control>
+            <control>
+                <description>MASTER LEVEL - rotate - Main output level</description>
+                <group>[Master]</group>
+                <key>gain</key>
+                <status>0xB6</status>
+                <midino>0x08</midino>
+                <options>
+                    <fourteen-bit-msb/>
+                </options>
+            </control>
+
+            <control>
                 <description>HEADPHONES MIXING - rotate - Monitor Balance</description>
                 <group>[Master]</group>
                 <key>headMix</key>

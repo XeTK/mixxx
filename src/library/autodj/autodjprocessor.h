@@ -194,6 +194,11 @@ class AutoDJProcessor : public QObject {
         return m_pAutoDJTableModel;
     }
 
+    // The track at the head of the Auto DJ queue (the next one to be
+    // loaded), or null if the queue is empty. Used by the accessibility
+    // "what's next in Auto DJ" on-demand readout.
+    TrackPointer getNextQueuedTrack() const;
+
     bool nextTrackLoaded();
 
     void setTransitionTime(int seconds);

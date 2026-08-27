@@ -7,6 +7,7 @@
 #include "controllers/hid/hidusagetables.h"
 #include "moc_hidenumerator.cpp"
 #include "util/cmdlineargs.h"
+#include "util/performancetimer.h"
 
 namespace mixxx {
 
@@ -93,8 +94,20 @@ HidEnumerator::~HidEnumerator() {
 QList<Controller*> HidEnumerator::queryDevices() {
     qInfo() << "Scanning USB HID devices";
 
-    QStringList enumeratedDevices;
+    // Diagnostic instrumentation for issue #27 (intermittent startup hang
+    // observed as the log freezing right after "Scanning USB HID devices").
+    // hid_enumerate() is a blocking call into the platform HID backend
+    // (IOHIDManager on macOS) with no timeout of its own; if it never
+    // returns, this "took"-line will simply never appear in mixxx.log,
+    // which confirms the hang is inside hid_enumerate() itself rather than
+    // in the per-device processing below.
+    PerformanceTimer enumerateTimer;
+    enumerateTimer.start();
     hid_device_info* device_info_list = hid_enumerate(0x0, 0x0);
+    qInfo() << "HidEnumerator: hid_enumerate() took"
+            << enumerateTimer.elapsed().debugMillisWithUnit();
+
+    QStringList enumeratedDevices;
     for (const auto* device_info = device_info_list;
             device_info;
             device_info = device_info->next) {

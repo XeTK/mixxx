@@ -114,6 +114,19 @@ class AccessMenuController : public QObject {
                   label(value.label),
                   value(value) {
         }
+        // A Toggle item that also carries a state descriptor (issue #57):
+        // reusing the ValueItem's control/config plumbing lets the menu speak
+        // the toggle's current on/off state the same way Value items speak
+        // their current value, without a second read/format code path.
+        Item(ItemType type,
+                const QString& label,
+                const QString& actionId,
+                const ValueItem& stateValue)
+                : type(type),
+                  label(label),
+                  actionId(actionId),
+                  value(stateValue) {
+        }
         ItemType type;
         QString label;
         QString actionId;
@@ -143,6 +156,15 @@ class AccessMenuController : public QObject {
     void slotActivate();
     void slotBack();
     void slotConfirm();
+    // Opens the menu if closed, closes it if open. Used by the always-on
+    // keyboard chord (issue #57), which has no notion of "menu focus" to
+    // decide open vs. close the way a hardware hold-gesture does.
+    void slotToggle();
+    // Fullscreen has no ControlObject or config key backing its live state
+    // (it's tracked purely as QWidget state on MixxxMainWindow), so the main
+    // window pushes changes here for the Fullscreen toggle item to speak
+    // (issue #57).
+    void setFullScreenState(bool fullscreen);
 
   signals:
     // Emitted when a toggle/leaf action is confirmed, with a stable action id
@@ -171,6 +193,9 @@ class AccessMenuController : public QObject {
     void speakCurrentItem();
     void activateCurrentItem();
     void goBack();
+    // Formats the spoken state suffix for a Toggle item (e.g. "on"/"off"),
+    // or an empty string if the item has no known state source.
+    QString toggleStateText(const Item& item) const;
 
     // Value-edit mode (issue #32). Enter when a Value item is activated;
     // navigate steps the value, confirm/activate commits and exits,
@@ -211,6 +236,9 @@ class AccessMenuController : public QObject {
     std::vector<MenuState> m_stack;
     bool m_open{false};
     QTimer m_timeout;
+    // Live fullscreen state, pushed by MixxxMainWindow via
+    // setFullScreenState() since there is no CO/config key to read it from.
+    bool m_fullscreenState{false};
 
     // Value-edit state.
     bool m_editing{false};

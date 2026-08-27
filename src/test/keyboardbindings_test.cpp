@@ -175,33 +175,15 @@ QList<ConfigKey> engineBackedAccessibilityBindings() {
 // ---------------------------------------------------------------------------
 const QSet<QString> kKnownUpstreamCollisions = {
         // fr_FR: AZERTY swaps q and a, which moved beatloop_activate onto the
-        // 'a' that beatjump_backward already occupies, and beatlooproll_activate
-        // onto the 'Shift+a' that beatjump_1_backward occupies. Upstream's
-        // mapping bug; both controls fire on the same key.
+        // 'a' that beatjump_backward already occupies. Upstream's mapping bug;
+        // both controls fire on the same key.
         QStringLiteral("fr_FR|[Channel1],beatjump_backward+[Channel1],beatloop_activate"),
-        QStringLiteral("fr_FR|[Channel1],beatjump_1_backward+[Channel1],beatlooproll_activate"),
-        // el_GR: beatjump_forward is bound to sigma and loop_halve to final
-        // sigma. Different characters in the file, but QChar::toUpper() maps
-        // both to capital sigma, so Qt sees one key bound twice. Invisible in a
-        // raw text diff -- only the production loader exposes it.
-        QStringLiteral("el_GR|[Channel1],beatjump_forward+[Channel1],loop_halve"),
-        // ru_RU: PreviewDeck start_stop lost its Shift. en_US has
-        // LoadSelectedTrackAndPlay on 'p' and start_stop on 'Shift+p', but
-        // ru_RU has the lower- and upper-case Cyrillic 'ze', which normalize to
-        // the same key. So loading a preview track also toggles it.
-        QStringLiteral("ru_RU|[PreviewDeck1],LoadSelectedTrackAndPlay+[PreviewDeck1],start_stop"),
 };
 
 /// Bindings that upstream ships broken: the chord does not parse, so the
 /// binding is dead at runtime. Same policy as the collision allowlist --
 /// explicit, commented, and revisited on each upstream rebase.
-const QSet<QString> kKnownUnparseableChords = {
-        // el_GR: written as "Shift+ ¨" with a stray space before the diaeresis,
-        // which QKeySequence cannot parse. [Channel2],cue_gotoandstop is
-        // therefore unreachable in the Greek mapping. Pre-existing upstream
-        // typo, not an accessibility binding.
-        QStringLiteral("el_GR|[Channel2],cue_gotoandstop"),
-};
+const QSet<QString> kKnownUnparseableChords = {};
 
 /// Load a shipped keyboard mapping exactly the way CoreServices does
 /// (src/coreservices.cpp, CoreServices::initializeKeyboard): resolve the
