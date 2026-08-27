@@ -203,15 +203,40 @@ jobs:
         # --stop-on-failure still stops the whole suite as soon as a test
         # exhausts its retries, instead of grinding through ~1400 more tests.
         #
-        # CTEST_PARALLEL_LEVEL=1 (issue #101): deliberately left serial here.
-        # This runner is a 4 GiB LXC that has been caught OOM-killing the test
-        # step (exit -1) even at parallel level 1 already - see the
-        # std::bad_alloc comment above. Raising parallelism would run more
-        # mixxx-test processes concurrently and very likely make that worse,
-        # not better. build-macos.yml enables ctest -j because that runner
-        # has no such memory pressure; do the same here only after the OOM
-        # headroom issue is fixed (bigger LXC allocation, and/or splitting
-        # the suite across jobs instead of threads within one job).
+        # CTEST_PARALLEL_LEVEL=1 (issue #101, re-investigated for #124):
+        # deliberately left serial here. Investigation for #124:
+        #   - The "leftover memory from a fully-parallel Build" theory (see
+        #     the "Half of nproc" comment above, commit 7fcdec4621) was
+        #     already fixed on 2026-08-03. ci-handover/linux-x86-LXC103-105.md
+        #     shows the Test step *still* got OOM-killed on 2026-08-11 -
+        #     eight days later, well after that fix - dying at test #7
+        #     (AnalyzerSilenceTest.verifyFirstSound) with CTEST_PARALLEL_LEVEL
+        #     already at 1, i.e. with zero concurrent mixxx-test processes.
+        #     That rules out "just reduce concurrency further" as a lever:
+        #     there's no concurrency left to reduce, and this LXC is already
+        #     tight enough to OOM a single test process's worst case.
+        #   - This LXC's 4 GiB allocation is Proxmox-host config (LXC
+        #     103/105 on 10.0.3.100), not anything tracked in this repo, so
+        #     it isn't a knob this workflow can turn.
+        #   - issue #124 asked whether the MidiMappings/HidMappings
+        #     controller-mapping tests - which dominate *wall time* on macOS
+        #     (51%, see build-macos.yml) - also dominate memory, which would
+        #     make "parallelize just those" a viable middle ground. They
+        #     don't look like good OOM suspects: each just parses one small,
+        #     static XML file with no decode/buffer work, unlike
+        #     AnalyzerSilenceTest (the test that actually died here), which
+        #     does real audio analysis. The wall-time-heavy tests and the
+        #     memory-risky ones are not the same tests, so there's no
+        #     obvious safe subset to parallelize without runner-side
+        #     measurement this fork can't currently do.
+        # Net: raising parallelism here would only add concurrent
+        # mixxx-test processes on top of a ceiling that already isn't safe
+        # at zero concurrency, and very likely make it worse, not better.
+        # build-macos.yml enables ctest -j because that runner has no such
+        # memory pressure; do the same here only after the OOM headroom
+        # issue is fixed (bigger LXC allocation, and/or splitting the suite
+        # across jobs instead of threads within one job - unverified
+        # without runner access).
         run: |
           cd "${STABLE_SRC}/build"
           ctest --timeout 45 --repeat until-pass:3 --stop-on-failure

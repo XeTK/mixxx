@@ -233,6 +233,38 @@ jobs:
           # Windows Update reboots hitting the VM mid-run - a different,
           # unrelated failure mode, but more reason not to add concurrent
           # test processes on top without dedicated investigation first.
+          #
+          # Re-investigated for issue #123. Findings:
+          #   - The "fail randomly in parallel" line itself is inherited
+          #     verbatim from upstream mixxxdj/mixxx's own
+          #     .github/workflows/build.yml (this workflow's own history:
+          #     commit 0553dcb72d, its first commit, copied it as-is) - it
+          #     is real upstream project knowledge, but has never been
+          #     independently reproduced against this fork's runner/test
+          #     tree, so its current scope/cause is unverified here.
+          #   - Every *actually observed* Test-step failure on this VM
+          #     (ci-handover/windows-VM104-10.0.5.220.md) has instead been
+          #     traced conclusively to the unrelated WU-reboot cause above,
+          #     not to test concurrency - there is no local evidence of the
+          #     upstream-described parallel flakiness actually firing here.
+          #   - Auditing src/test for the fixed-shared-path pattern the
+          #     macOS #101 investigation checked for (see build-macos.yml)
+          #     found one real gap: TrackExporterTest.MungeFilename wrote a
+          #     fixed-name file straight into the shared OS temp dir
+          #     (QDir::tempPath()) instead of a per-instance QTemporaryDir
+          #     like the rest of this fixture (m_exportDir) already uses -
+          #     a genuine, if narrow, isolation bug that could collide under
+          #     concurrent ctest workers. Fixed in this change.
+          #   - That one fix doesn't amount to confidence the remaining
+          #     ~1475 tests are all safe under concurrency on Windows
+          #     specifically (COM/HID/audio-device paths this fork can't
+          #     exercise outside the real runner) - unlike macOS, this was a
+          #     source-only audit, not a live measured parallel run. Given
+          #     the WU-reboot instability already makes this VM's Test step
+          #     the flakiest of the three platforms, stacking an unverified
+          #     concurrency change on top isn't justified yet. Left at 1;
+          #     revisit once someone can watch a real -j run on this VM
+          #     (or the WU-reboot fix lands and stops confounding results).
           CTEST_PARALLEL_LEVEL: 1
           CTEST_OUTPUT_ON_FAILURE: 1
         # AutoDJProcessorTest is a known-broken suite on Windows (see
