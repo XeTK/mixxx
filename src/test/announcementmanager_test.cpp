@@ -103,6 +103,14 @@ class AnnouncementManagerTest : public MixxxTest {
   protected:
     void SetUp() override {
         m_pPlayerManager = std::make_unique<StubPlayerManager>();
+        // Default the first-run orientation (issue #105) to "already played"
+        // so it does not add a surprise extra announcement to every other
+        // test in this file that calls slotSoundDevicesReady(). Tests
+        // exercising the orientation itself explicitly reset this to false.
+        config()->setValue(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("OrientationPlayed")),
+                true);
     }
 
     // Build an AnnouncementManager with a SpyTtsEngine and the current config.
@@ -838,6 +846,78 @@ TEST_F(AnnouncementManagerTest, SoundDevicesReady_FiresAgain_DoesNotReannounce) 
 }
 
 // ---------------------------------------------------------------------------
+// First-run spoken orientation (issue #105)
+// ---------------------------------------------------------------------------
+
+// A brand-new install (OrientationPlayed not yet set) hears the orientation
+// once the sound device is confirmed open, and the flag is persisted so it
+// will not be repeated.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_SpokenOnFirstSoundDevicesReady) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
+    EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
+            QStringLiteral("OrientationPlayed"))));
+}
+
+// The "Mixxx ready" announcement (queued by slotSkinLoaded() before audio is
+// confirmed running) and the first-run orientation both become due on the
+// very same slotSoundDevicesReady() call on a brand-new install. They must be
+// batched into a single utterance rather than the second speak() barging in
+// and silently discarding "Mixxx ready" before it was ever rendered.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_CombinedWithReadyAnnouncement) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSkinLoaded();
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.startsWith(QStringLiteral("Mixxx ready")));
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
+}
+
+// A second boot (OrientationPlayed already true, simulating a restart with
+// the same persisted config) must not repeat the orientation -- this is the
+// core "only once" guarantee the feature exists for; unlike "Mixxx ready" it
+// must never come back, not even once per session.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_NotRepeatedWhenAlreadyPlayed) {
+    // SetUp() already marks OrientationPlayed true; this is asserting the
+    // default fixture state means what the other tests in this file rely on.
+    SpyTtsEngine* pSpy = makeManager();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// Calling slotSoundDevicesReady() a second time within the same run (e.g. the
+// user reopens Preferences and reconfigures sound hardware) must not re-speak
+// the orientation either, even though the first call already both spoke it
+// and flipped the persisted flag.
+TEST_F(AnnouncementManagerTest, FirstRunOrientation_NotRepeatedOnSecondCallSameRun) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->slotSoundDevicesReady();
+    pSpy->callCount = 0;
+    pSpy->lastText.clear();
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount);
+}
+
+// ---------------------------------------------------------------------------
 // Library focus announcements (slotLibraryFocusChanged / slotSidebarItemActivated)
 // ---------------------------------------------------------------------------
 
@@ -1469,6 +1549,33 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_SkippedWhenSinkUserDisabled) {
 
     EXPECT_EQ(0, pSpy->callCount)
             << "speak() was not skipped when the engine sink is user-disabled";
+}
+
+// First-run orientation (issue #105), gated behind the same [Tts],enabled
+// toggle every other announcement respects: a sighted user who has never
+// turned speech on hears nothing, even on their very first launch.
+TEST_F(AnnouncementManagerRouteSyncTest, FirstRunOrientation_SilentWhenSinkUserDisabled) {
+    config()->setValue(ConfigKey(QStringLiteral("[Accessibility]"),
+                               QStringLiteral("OrientationPlayed")),
+            false);
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+
+    ControlProxy enabledCO(QLatin1String(kSinkGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    enabledCO.set(0.0);
+    ASSERT_FALSE(m_pEngineTts->isUserEnabled());
+
+    m_pManager->slotSoundDevicesReady();
+
+    EXPECT_EQ(0, pSpy->callCount)
+            << "orientation was spoken even though TTS is user-disabled";
+    // Still marked played: this flag tracks "the app has been run before", not
+    // "the orientation was actually heard" -- see the comment on
+    // AccessibilitySettings::OrientationPlayed.
+    EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
+            QStringLiteral("OrientationPlayed"))));
 }
 
 TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) {

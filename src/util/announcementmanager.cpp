@@ -2124,10 +2124,35 @@ void AnnouncementManager::slotSkinLoaded() {
 void AnnouncementManager::slotSoundDevicesReady() {
     const bool wasReady = m_audioEngineReady;
     m_audioEngineReady = true;
+    // Both announcements below can fire in the same call (first-ever boot
+    // with AnnounceStartup on): without batching, the second speak() would
+    // barge-in and discard the first before it ever rendered (the same
+    // barge-in-vs-same-event-side-effect problem as issue #48), silencing
+    // "Mixxx ready" entirely. Batching joins them into one utterance instead.
+    beginSpeechBatch();
     if (!wasReady && m_pendingReadyAnnouncement) {
         m_pendingReadyAnnouncement = false;
         speak(tr("Mixxx ready"));
     }
+    maybeSpeakFirstRunOrientation();
+    endSpeechBatch();
+}
+
+void AnnouncementManager::maybeSpeakFirstRunOrientation() {
+    if (m_settings.getOrientationPlayed()) {
+        return;
+    }
+    // Mark played before speaking (not after): this is a one-shot-per-install
+    // flag, not a "was it actually heard" flag, so it must not be left false
+    // (and liable to fire on every subsequent boot) if speak() below happens
+    // to no-op because the user has TTS off right now.
+    m_settings.setOrientationPlayed(true);
+    speak(tr("Welcome to Mixxx. "
+             "Press Alt plus Shift plus A at any time to turn speech on or off. "
+             "Press Alt plus 1 or Alt plus 2 to hear the full status of deck 1 or deck 2. "
+             "Press Alt plus Shift plus R to repeat the last thing spoken. "
+             "The Accessibility Guide and Quick Reference that shipped with Mixxx list "
+             "every shortcut."));
 }
 
 void AnnouncementManager::slotSidebarItemActivated(const QString& title,

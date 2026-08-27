@@ -15,7 +15,18 @@ for a one-page cheat sheet.
 ## Quick start
 
 1. Start Mixxx. When the interface has loaded you will hear
-   "Mixxx ready."
+   "Mixxx ready." The very first time Mixxx is ever launched, a short
+   spoken orientation follows once a sound device is confirmed open:
+   the speech toggle (Alt plus Shift plus A), the full deck status
+   readouts (Alt plus 1 / Alt plus 2), how to repeat the last thing
+   spoken (Alt plus Shift plus R), and a pointer to this guide and the
+   quick reference for everything else. It plays once ever, not on
+   every launch — there is no menu item or shortcut to replay it
+   deliberately yet, so come back to this guide or the quick reference
+   if you want to hear it described again. If speech is off at that
+   first launch, nothing is spoken, but the one-time flag is still
+   marked as done — this is a first-run nudge, not a nag that follows
+   you around after you've started using Mixxx sighted.
 2. Press Tab or use your screen reader to reach the library search
    box, type part of a track name, then press Escape to move to the
    track list.
@@ -597,6 +608,9 @@ unlimited pre-roll like stock Mixxx.
 
 ## Known limitations
 
+- The first-run spoken orientation (see "Quick start" above) plays
+  exactly once and cannot yet be replayed on demand from a menu item
+  or shortcut; this guide and the quick reference are the fallback.
 - Announcements are English only for now.
 - The first-run sound hardware dialog appears before Mixxx's speech
   can produce audio; use your screen reader for initial setup.

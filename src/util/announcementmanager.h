@@ -169,6 +169,18 @@ class AnnouncementManager : public QObject {
     void init(Library* pLibrary, PlayerManagerInterface* pPlayerManager);
     void speak(const QString& text);
 
+    // Speaks a short spoken orientation the first time a sound device is
+    // confirmed open (see slotSoundDevicesReady()), then marks it as played
+    // so it is never repeated on a later launch (issue #105: a new blind user
+    // has no other way to discover the two or three most important things to
+    // try next without sighted help or a screen reader reading the written
+    // docs). A no-op on every call after the first, and on every call at all
+    // once AccessibilitySettings::getOrientationPlayed() is true -- including
+    // across app restarts, since the flag is persisted. Routed through
+    // speak(), so it is silently skipped (but still marked played) when the
+    // user has TTS turned off.
+    void maybeSpeakFirstRunOrientation();
+
     // Sends text to the TtsEngine (voice/rate/route sync + say()). This is
     // the tail end of what speak() used to do unconditionally; it is now
     // also the flush point for a speech batch (see beginSpeechBatch below).
