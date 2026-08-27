@@ -66,12 +66,36 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
     /// Used by the accessibility menu (issue #3) to jump to a specific page.
     void switchToPageByTitle(const QString& pageTitle);
 
+    /// Pulls `pTree`'s current item back in sync with its selection, if they
+    /// differ. Some interactions -- notably an assistive-technology
+    /// "press"/activate on a tree cell, which macOS VoiceOver maps to
+    /// QAccessibleTableCell's toggle action -- change a QTreeWidget's
+    /// *selection* without moving its *current item*, so
+    /// QTreeWidget::currentItemChanged never fires for them. Calling this
+    /// from a QTreeWidget::itemSelectionChanged handler (see
+    /// slotTreeItemSelectionChanged()) closes that gap for any selection
+    /// change, regardless of whether it originated from a mouse click,
+    /// keyboard navigation, or the accessibility API. It is a no-op when the
+    /// current item already matches the selection (the ordinary mouse-click
+    /// and keyboard-arrow cases), so it does not cause page switches to be
+    /// triggered twice.
+    ///
+    /// Exposed as a static helper on an arbitrary QTreeWidget (rather than
+    /// only as a private slot) so this fix (issue #127) can be unit-tested
+    /// without constructing a full DlgPreferences, which requires live
+    /// SoundManager/ControllerManager/EffectsManager/etc. instances.
+    static void syncCurrentItemToSelection(QTreeWidget* pTree);
+
   public slots:
     void changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPrevious);
     void showSoundHardwarePage(
             std::optional<mixxx::preferences::SoundHardwareTab> tab =
                     std::nullopt);
     void slotButtonPressed(QAbstractButton* pButton);
+    /// Handles contentsTreeWidget::itemSelectionChanged by delegating to
+    /// syncCurrentItemToSelection() (see its docstring for why this is
+    /// needed).
+    void slotTreeItemSelectionChanged();
   signals:
     void closeDlg();
     void showDlg();

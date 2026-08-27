@@ -2734,6 +2734,7 @@ if(BUILD_TESTING)
     src/test/cmdlineargs_test.cpp
     src/test/controllermappingtablemodel_test.cpp
     src/test/dlgkeywheel_speech_test.cpp
+    src/test/dlgpreferences_treesync_test.cpp
     src/test/dlgprefsounditem_test.cpp
     src/test/ttsengine_integration_test.cpp
     src/test/enginebeatclick_test.cpp
