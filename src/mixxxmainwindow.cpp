@@ -1530,6 +1530,14 @@ void MixxxMainWindow::slotShowKeywheel(bool toggle) {
                 &DlgKeywheel::finished,
                 m_pMenuBar,
                 &WMainMenuBar::onKeywheelChange);
+        // Speak notation changes (issue #63): switching notation only
+        // redraws the SVG, which a screen-reader user can't see.
+        connect(m_pKeywheel.get(),
+                &DlgKeywheel::notationChanged,
+                this,
+                [this](const QString& notationName) {
+                    m_pCoreServices->getLibrary()->announceText(notationName);
+                });
     }
     if (toggle) {
         m_pKeywheel->show();

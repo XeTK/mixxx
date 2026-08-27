@@ -181,6 +181,33 @@ the sound alone is just the alert.
   library's Alt plus Shift plus P/C, but for what's on the deck — so
   when a track is going down well you can file it mid-mix without
   hunting it down in the library. The add is confirmed out loud.
+- Mixer, EQ, and filter without a controller: Alt plus U and G step
+  deck 1's volume down and up, Alt plus H and D step trim (gain), Alt
+  plus L and F11 step EQ low, Alt plus E and I step EQ mid, Alt plus Q
+  and F10 step EQ high, and Alt plus F and W step the filter (the
+  QuickEffect knob); add Shift for deck 2. These are the same
+  underlying controls a DDJ-400 or any other controller would use —
+  this just gives the same access from the keyboard alone. There's no
+  fine ("small step") variant yet, only the coarse step. The
+  crossfader (H/G, Shift+H/Shift+G for a fine step) and the EQ low
+  kill toggle (B/N) already worked without a controller and aren't
+  new. (These used to be on Control plus Alt chords; they moved to
+  plain Alt because Control plus Alt collides with macOS's own
+  Command plus Option shortcuts, and with AltGr character entry on
+  non-US Windows/Linux keyboard layouts — issue #56.)
+- Effects without a controller: Alt plus N turns Effect Unit 1 on/off,
+  Alt plus F9 cycles to the next chain preset (a different bundle of
+  effects), and Alt plus Z enables/disables the effect in slot 1; add
+  Shift for Effect Unit 2. Effect Units 3 and 4, and slots 2-4 within a
+  unit, aren't wired to the keyboard yet. Cycling which of the unit's
+  slots is focused (Control plus Alt plus L) and selecting the
+  next/previous effect in slot 1 (Control plus Alt plus J / X) are
+  still on the old Control plus Alt chords — there wasn't enough safe
+  letter-space this round to move them too, so they're pending a
+  follow-up that routes them through the Accessibility menu as actions
+  ("focus next effect slot", "load next/previous effect") instead of
+  dedicated keyboard chords, since they're more setup actions than
+  moment-to-moment mixing ones (issue #56 follow-up).
 - Smart cue (on by default): loading a track into a stopped deck moves
   the headphone cue to that deck automatically — like the smart cue on
   Denon players, the thing you just loaded is what you preview next.
