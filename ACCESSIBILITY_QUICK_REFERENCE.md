@@ -83,6 +83,26 @@ their real tempo. Deck 1 keys listed; add `Shift` for deck 2:
   deck 2). Spoken both ways; the state is remembered per deck across
   restarts.
 
+## Key lock and pitch (harmonic mixing)
+
+Deck 1 keys listed; add `Shift` for deck 2:
+
+- `Alt+K` — Key lock on/off. Spoken both ways ("Deck 1 key lock
+  on"/"off"), so pitch can be adjusted for tempo without shifting
+  the musical key.
+- `Alt+Up` / `Alt+Down` (deck 1) / `Alt+Shift+F1` / `Alt+Shift+F2`
+  (deck 2) — Nudge pitch up/down one semitone. Deck 2 isn't
+  `Alt+Shift+Up` / `Alt+Shift+Down` because the always-available
+  `[AccessMenu]` navigation chords (issue #57) claim those
+  combinations fork-wide.
+- `Alt+M` (deck 1) / `Alt+Shift+F8` (deck 2) — Match key (sync to
+  the other deck's key). Deck 2 isn't `Alt+Shift+M` because the
+  always-available `[AccessMenu]` toggle chord (issue #57) claims
+  that combination fork-wide.
+- `Ctrl+Alt+R` — Reset to the track's original key. Still on the old
+  `Ctrl+Alt` chord for now (TODO issue #50 follow-up: pending
+  AccessMenu routing instead of a keyboard chord — see PR #71/#77/#81).
+
 ## Mixer, EQ, and filter (no controller needed)
 
 Deck 1 keys listed; add `Shift` for deck 2. Each pair steps the control
@@ -188,12 +208,17 @@ speak deck 1, right pads deck 2:
 - Pad 8 — Beat click metronome on/off
 - `Shift+Pad 1` — Halve this deck's BPM grid
 - `Shift+Pad 2` — Double this deck's BPM grid
+- `Shift+Pad 3` — Key lock on/off
+- `Shift+Pad 4` — Pitch down one semitone
+- `Shift+Pad 5` — Pitch up one semitone
+- `Shift+Pad 6` — Reset to the track's original key
 - `Shift+Pad 7` — Per-deck split cue on/off
 - `Shift+Pad 8` — Speech on/off
 
 Hot cues are unavailable from the pads while this is on (Shift+pads
-3-6 do nothing, so nothing can be cleared by accident). Untick the
-setting to get normal hot cues back; other pad modes are unaffected.
+1-6 do something else instead, so nothing can be cleared by
+accident). Untick the setting to get normal hot cues back; other pad
+modes are unaffected.
 
 Independent of that setting: pressing Shift says "Shift", and each
 pad mode button announces its layer ("Pads, hot cues", "Pads, beat
