@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Mixxx with JAWS and NVDA — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html' aria-current='page'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>Reading Mixxx with JAWS and NVDA</h1>
+<p class='file-name'>File: <code>features/windows_screenreader.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li><li class="tag">@windows</li></ul>
+<p>Mixxx's own speech covers the performance surfaces — decks, mixer, effects — because a screen reader cannot see inside a skin. Everything else is the screen reader's job: menus, preferences, dialogs, the search box, the sidebar, the track table. That division only works if the widgets carry accessible names, and for a long stretch of the preferences they did not. Issue #84 added label buddies and accessible names across ten preferences pages. Issue #88 did the same for the track info dialog and gave the star rating a keyboard. Issue #72 exposed the track table's rows and cells as accessible text. A note on what a failure looks like here: a screen reader announcing "edit", "combo box", "blank" or a raw symbol instead of a name means the control is anonymous. That is the defect. Announcing the WRONG name is worse and rarer — two of those existed in Live Broadcasting before #84 and are specifically checked below. The maintainer uses NVDA and VoiceOver, not JAWS. JAWS scenarios are included for completeness but are lower priority; if you only have time for one, run NVDA.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (30 scenarios)</h2>
+<ol>
+<li><a href='#windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name'>Scenario Outline: Every control on a preferences page announces a useful name</a></li>
+<li><a href='#windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names'>Scenario: Live Broadcasting no longer announces the wrong field names</a></li>
+<li><a href='#windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start'>Scenario: Decks no longer announces the wrong field for intro start</a></li>
+<li><a href='#windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain'>Scenario: Controls that were unreachable by Tab are now in the chain</a></li>
+<li><a href='#windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do'>Scenario: The Effects page glyph buttons say what they do</a></li>
+<li><a href='#windows_screenreader-s6-the-effects-page-tables-are-named'>Scenario: The Effects page tables are named</a></li>
+<li><a href='#windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number'>Scenario: Vinyl Control names each deck's controls by deck number</a></li>
+<li><a href='#windows_screenreader-s8-key-detection-has-a-tab-order-at-all'>Scenario: Key Detection has a tab order at all</a></li>
+<li><a href='#windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named'>Scenario: Unlabelled sliders and spin boxes are named</a></li>
+<li><a href='#windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls'>Scenario: The Library page names its list and its font controls</a></li>
+<li><a href='#windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws'>Scenario: The same preferences pages read correctly under JAWS</a></li>
+<li><a href='#windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label'>Scenario: Every field in the track info dialog announces its label</a></li>
+<li><a href='#windows_screenreader-s13-the-colour-picker-is-named'>Scenario: The colour picker is named</a></li>
+<li><a href='#windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard'>Scenario: The star rating can be set from the keyboard</a></li>
+<li><a href='#windows_screenreader-s15-up-and-down-also-change-the-star-rating'>Scenario: Up and Down also change the star rating</a></li>
+<li><a href='#windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value'>Scenario: The star rating does not announce its new value</a></li>
+<li><a href='#windows_screenreader-s17-the-cover-art-is-reachable-and-operable'>Scenario: The cover art is reachable and operable</a></li>
+<li><a href='#windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled'>Scenario: The multi-track info dialog is also labelled</a></li>
+<li><a href='#windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel'>Scenario: Tab is no longer trapped in the key wheel</a></li>
+<li><a href='#windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it'>Scenario Outline: Up and Down cycle the notation and speak it</a></li>
+<li><a href='#windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog'>Scenario: The notation choice sticks after closing the dialog</a></li>
+<li><a href='#windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name'>Scenario: Selecting a track speaks its full state, not just its name</a></li>
+<li><a href='#windows_screenreader-s23-rating-is-spoken-correctly-at-every-value'>Scenario Outline: Rating is spoken correctly at every value</a></li>
+<li><a href='#windows_screenreader-s24-played-state-is-spoken-correctly'>Scenario Outline: Played state is spoken correctly</a></li>
+<li><a href='#windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name'>Scenario: Track colour is read as a hex code, not a colour name</a></li>
+<li><a href='#windows_screenreader-s26-a-single-row-table-omits-the-position'>Scenario: A single-row table omits the position</a></li>
+<li><a href='#windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus'>Scenario: The row readout only fires when the track table has focus</a></li>
+<li><a href='#windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text'>Scenario: Navigating cell by cell reads each cell's accessible text</a></li>
+<li><a href='#windows_screenreader-s29-the-track-table-reads-under-jaws-as-well'>Scenario: The track table reads under JAWS as well</a></li>
+<li><a href='#windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience'>Scenario: The screen reader does not speak to the audience</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Windows with a build of this fork</li><li><span class='keyword'>And</span> a screen reader is running</li><li><span class='keyword'>And</span> the screen reader's speech is routed to a device I can hear</li><li><span class='keyword'>And</span> Mixxx is running with tracks in the library</li></ol>
+</section>
+<section aria-labelledby='windows_screenreader-section-preferences-pages-issue-84'>
+<h2 id='windows_screenreader-section-preferences-pages-issue-84'>Preferences pages — issue #84</h2>
+<p>None of this is C++; it is all declarative metadata in the .ui files. So there is nothing to trigger — just tab through and listen. A page passes when every control you land on announces something that tells you what it does.</p>
+<article class='scenario' id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name' data-tags='@nvda @blocking'>
+<h3>Scenario Outline: Every control on a preferences page announces a useful name</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences and select "&lt;page&gt;"</li><li><span class='keyword'>And</span> I press "Tab" through every control on the page until focus wraps</li><li><span class='keyword'>Then</span> each control is announced with a name that describes what it does</li><li><span class='keyword'>And</span> no control is announced as only its type, such as "edit" or "combo box"</li><li><span class='keyword'>And</span> no control is announced as "blank"</li><li><span class='keyword'>And</span> I could configure this page without sighted help</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">page</th></tr></thead>
+<tbody>
+<tr><td>Library</td></tr>
+<tr><td>Vinyl Control</td></tr>
+<tr><td>Interface</td></tr>
+<tr><td>Waveforms</td></tr>
+<tr><td>Colors</td></tr>
+<tr><td>Decks</td></tr>
+<tr><td>Effects</td></tr>
+<tr><td>Live Broadcasting</td></tr>
+<tr><td>Key Detection</td></tr>
+<tr><td>Modplug Decoder</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Every control on a preferences page announces a useful name&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-pass' name='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name::result'><label for='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-fail' name='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name::result'><label for='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-skip' name='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name::result'><label for='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-not-tested' name='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name::result' checked><label for='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-notes'>Notes for &ldquo;Every control on a preferences page announces a useful name&rdquo;</label>
+<textarea id='windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name-notes' data-persist-key='windows_screenreader::windows_screenreader-s1-every-control-on-a-preferences-page-announces-a-useful-name::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names' data-tags='@nvda @blocking @regression'>
+<h3>Scenario: Live Broadcasting no longer announces the wrong field names</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li><li class="tag">@regression</li></ul>
+<p class="step-note">Note: Two buddies pointed at the wrong widgets before #84: the "Stream name" label named the server-type combo, and "Website" named the mount point. A screen reader user filling this in was told they were editing a different field from the one they were in.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Live Broadcasting</li><li><span class='keyword'>And</span> I tab to the stream name field</li><li><span class='keyword'>Then</span> my screen reader announces it as the stream name</li><li><span class='keyword'>And</span> it does not announce it as a server type</li><li><span class='keyword'>When</span> I tab to the website field</li><li><span class='keyword'>Then</span> my screen reader announces it as the website</li><li><span class='keyword'>And</span> it does not announce it as a mount point</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Live Broadcasting no longer announces the wrong field names&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-pass' name='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names::result'><label for='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-fail' name='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names::result'><label for='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-skip' name='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names::result'><label for='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-not-tested' name='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names::result' checked><label for='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-notes'>Notes for &ldquo;Live Broadcasting no longer announces the wrong field names&rdquo;</label>
+<textarea id='windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names-notes' data-persist-key='windows_screenreader::windows_screenreader-s2-live-broadcasting-no-longer-announces-the-wrong-field-names::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start' data-tags='@nvda @regression'>
+<h3>Scenario: Decks no longer announces the wrong field for intro start</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@regression</li></ul>
+<p class="step-note">Note: The "Intro start" label previously named the cue mode combo.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Decks</li><li><span class='keyword'>And</span> I tab to the intro start control</li><li><span class='keyword'>Then</span> my screen reader announces it as the intro start setting</li><li><span class='keyword'>And</span> it does not announce it as a cue mode</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Decks no longer announces the wrong field for intro start&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-pass' name='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start::result'><label for='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-fail' name='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start::result'><label for='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-skip' name='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start::result'><label for='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-not-tested' name='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start::result' checked><label for='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-notes'>Notes for &ldquo;Decks no longer announces the wrong field for intro start&rdquo;</label>
+<textarea id='windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start-notes' data-persist-key='windows_screenreader::windows_screenreader-s3-decks-no-longer-announces-the-wrong-field-for-intro-start::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain' data-tags='@nvda @blocking'>
+<h3>Scenario: Controls that were unreachable by Tab are now in the chain</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: Several of these were mouse-only, which for a blind user means they did not exist. Confirm each is now reachable.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I tab through the pages listed below</li><li><span class='keyword'>Then</span> I reach every one of these controls<table>
+<thead><tr><th scope="col">page</th><th scope="col">control</th></tr></thead>
+<tbody>
+<tr><td>Live Broadcasting</td><td>the keychain password storage radio button</td></tr>
+<tr><td>Decks</td><td>the Smart cue checkbox</td></tr>
+<tr><td>Decks</td><td>the BPM lock radio button</td></tr>
+<tr><td>Interface</td><td>the screen saver combo box</td></tr>
+<tr><td>Colors</td><td>the loop default colour combo box</td></tr>
+<tr><td>Colors</td><td>the key palette combo box</td></tr>
+<tr><td>Vinyl Control</td><td>the deck 1 pitch estimator combo box</td></tr>
+<tr><td>Vinyl Control</td><td>the deck 2 pitch estimator combo box</td></tr>
+<tr><td>Vinyl Control</td><td>the deck 3 pitch estimator combo box</td></tr>
+<tr><td>Vinyl Control</td><td>the deck 4 pitch estimator combo box</td></tr>
+<tr><td>Vinyl Control</td><td>the signal quality checkbox</td></tr>
+<tr><td>Waveforms</td><td>the stem opacity spin box</td></tr>
+<tr><td>Waveforms</td><td>the stem outline opacity spin box</td></tr>
+</tbody></table></li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Controls that were unreachable by Tab are now in the chain&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-pass' name='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain::result'><label for='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-fail' name='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain::result'><label for='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-skip' name='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain::result'><label for='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-not-tested' name='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain::result' checked><label for='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-notes'>Notes for &ldquo;Controls that were unreachable by Tab are now in the chain&rdquo;</label>
+<textarea id='windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain-notes' data-persist-key='windows_screenreader::windows_screenreader-s4-controls-that-were-unreachable-by-tab-are-now-in-the-chain::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do' data-tags='@nvda'>
+<h3>Scenario: The Effects page glyph buttons say what they do</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<p class="step-note">Note: Their on-screen text is a single arrow character, which a screen reader reads as nothing useful or as the codepoint.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Effects</li><li><span class='keyword'>And</span> I tab to the button that hides the selected effect</li><li><span class='keyword'>Then</span> my screen reader announces "Hide effect"</li><li><span class='keyword'>When</span> I tab to the button that unhides the selected effect</li><li><span class='keyword'>Then</span> my screen reader announces "Unhide effect"</li><li><span class='keyword'>And</span> neither is announced as an arrow symbol or as unlabelled</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The Effects page glyph buttons say what they do&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-pass' name='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do::result'><label for='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-fail' name='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do::result'><label for='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-skip' name='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do::result'><label for='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-not-tested' name='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do::result' checked><label for='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-notes'>Notes for &ldquo;The Effects page glyph buttons say what they do&rdquo;</label>
+<textarea id='windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do-notes' data-persist-key='windows_screenreader::windows_screenreader-s5-the-effects-page-glyph-buttons-say-what-they-do::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s6-the-effects-page-tables-are-named' data-tags='@nvda'>
+<h3>Scenario: The Effects page tables are named</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Effects</li><li><span class='keyword'>Then</span> my screen reader announces the visible effects table as "Visible effects"</li><li><span class='keyword'>And</span> it announces the hidden effects table as "Hidden effects"</li><li><span class='keyword'>And</span> it announces the quick effect chain presets list as "Quick effect chain presets"</li><li><span class='keyword'>And</span> it announces the effect chain presets list as "Effect chain presets"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The Effects page tables are named&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s6-the-effects-page-tables-are-named-pass' name='windows_screenreader-s6-the-effects-page-tables-are-named-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s6-the-effects-page-tables-are-named::result'><label for='windows_screenreader-s6-the-effects-page-tables-are-named-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s6-the-effects-page-tables-are-named-fail' name='windows_screenreader-s6-the-effects-page-tables-are-named-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s6-the-effects-page-tables-are-named::result'><label for='windows_screenreader-s6-the-effects-page-tables-are-named-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s6-the-effects-page-tables-are-named-skip' name='windows_screenreader-s6-the-effects-page-tables-are-named-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s6-the-effects-page-tables-are-named::result'><label for='windows_screenreader-s6-the-effects-page-tables-are-named-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s6-the-effects-page-tables-are-named-not-tested' name='windows_screenreader-s6-the-effects-page-tables-are-named-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s6-the-effects-page-tables-are-named::result' checked><label for='windows_screenreader-s6-the-effects-page-tables-are-named-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s6-the-effects-page-tables-are-named-notes'>Notes for &ldquo;The Effects page tables are named&rdquo;</label>
+<textarea id='windows_screenreader-s6-the-effects-page-tables-are-named-notes' data-persist-key='windows_screenreader::windows_screenreader-s6-the-effects-page-tables-are-named::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number' data-tags='@nvda'>
+<h3>Scenario: Vinyl Control names each deck's controls by deck number</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<p class="step-note">Note: Four decks' worth of identical-looking sliders and combos. Without the deck number in the name they are indistinguishable.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Vinyl Control</li><li><span class='keyword'>And</span> I tab through the page</li><li><span class='keyword'>Then</span> I hear "Deck 1 vinyl speed", "Deck 2 vinyl speed", "Deck 3 vinyl speed" and "Deck 4 vinyl speed"</li><li><span class='keyword'>And</span> I hear "Deck 1 lead-in", "Deck 2 lead-in", "Deck 3 lead-in" and "Deck 4 lead-in"</li><li><span class='keyword'>And</span> I hear "Deck 1 pitch estimator", "Deck 2 pitch estimator", "Deck 3 pitch estimator" and "Deck 4 pitch estimator"</li><li><span class='keyword'>And</span> I always know which deck I am configuring</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Vinyl Control names each deck's controls by deck number&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-pass' name='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number::result'><label for='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-fail' name='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number::result'><label for='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-skip' name='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number::result'><label for='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-not-tested' name='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number::result' checked><label for='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-notes'>Notes for &ldquo;Vinyl Control names each deck's controls by deck number&rdquo;</label>
+<textarea id='windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number-notes' data-persist-key='windows_screenreader::windows_screenreader-s7-vinyl-control-names-each-deck-s-controls-by-deck-number::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all' data-tags='@nvda @blocking'>
+<h3>Scenario: Key Detection has a tab order at all</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: This page had no tab order defined whatsoever before #84 — focus moved in whatever order the widgets happened to be created in.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Key Detection</li><li><span class='keyword'>And</span> I press "Tab" repeatedly from the top of the page</li><li><span class='keyword'>Then</span> focus moves in a sensible order down the page</li><li><span class='keyword'>And</span> I reach the analyser combo box, announced as "Key detection analyzer"</li><li><span class='keyword'>And</span> I reach all six notation radio buttons</li><li><span class='keyword'>And</span> I then reach all 24 custom key notation edit boxes</li><li><span class='keyword'>And</span> each key edit box is announced with the key it belongs to, such as A major or F sharp minor</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Key Detection has a tab order at all&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-pass' name='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s8-key-detection-has-a-tab-order-at-all::result'><label for='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-fail' name='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s8-key-detection-has-a-tab-order-at-all::result'><label for='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-skip' name='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s8-key-detection-has-a-tab-order-at-all::result'><label for='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-not-tested' name='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s8-key-detection-has-a-tab-order-at-all::result' checked><label for='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-notes'>Notes for &ldquo;Key Detection has a tab order at all&rdquo;</label>
+<textarea id='windows_screenreader-s8-key-detection-has-a-tab-order-at-all-notes' data-persist-key='windows_screenreader::windows_screenreader-s8-key-detection-has-a-tab-order-at-all::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named' data-tags='@nvda'>
+<h3>Scenario: Unlabelled sliders and spin boxes are named</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Modplug Decoder</li><li><span class='keyword'>Then</span> my screen reader announces controls named "Bass expansion depth", "Reverb depth" and "Surround depth"</li><li><span class='keyword'>And</span> it distinguishes "Memory limit for single track" from "Memory limit for single track value"</li><li><span class='keyword'>When</span> I open Preferences, Waveforms</li><li><span class='keyword'>Then</span> my screen reader announces "Frame rate value", "End of track warning value" and "Beat grid opacity value"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Unlabelled sliders and spin boxes are named&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-pass' name='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named::result'><label for='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-fail' name='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named::result'><label for='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-skip' name='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named::result'><label for='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-not-tested' name='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named::result' checked><label for='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-notes'>Notes for &ldquo;Unlabelled sliders and spin boxes are named&rdquo;</label>
+<textarea id='windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named-notes' data-persist-key='windows_screenreader::windows_screenreader-s9-unlabelled-sliders-and-spin-boxes-are-named::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls' data-tags='@nvda'>
+<h3>Scenario: The Library page names its list and its font controls</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I open Preferences, Library</li><li><span class='keyword'>Then</span> my screen reader announces the music directories list as "Music directories"</li><li><span class='keyword'>And</span> it announces the font field as "Library font"</li><li><span class='keyword'>And</span> it announces the browse button as "Choose library font", not as three dots</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The Library page names its list and its font controls&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-pass' name='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls::result'><label for='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-fail' name='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls::result'><label for='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-skip' name='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls::result'><label for='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-not-tested' name='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls::result' checked><label for='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-notes'>Notes for &ldquo;The Library page names its list and its font controls&rdquo;</label>
+<textarea id='windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls-notes' data-persist-key='windows_screenreader::windows_screenreader-s10-the-library-page-names-its-list-and-its-font-controls::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws' data-tags='@jaws'>
+<h3>Scenario: The same preferences pages read correctly under JAWS</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@jaws</li></ul>
+<p class="step-note">Note: Lower priority — the maintainer does not use JAWS. Run it if JAWS is available, and record any place JAWS differs from NVDA rather than treating a JAWS-only oddity as a Mixxx bug without checking NVDA too.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I repeat the preferences page walkthrough with JAWS running</li><li><span class='keyword'>Then</span> every control announces a useful name</li><li><span class='keyword'>And</span> I note any control where JAWS and NVDA disagree</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The same preferences pages read correctly under JAWS&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-pass' name='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws::result'><label for='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-fail' name='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws::result'><label for='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-skip' name='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws::result'><label for='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-not-tested' name='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws::result' checked><label for='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-notes'>Notes for &ldquo;The same preferences pages read correctly under JAWS&rdquo;</label>
+<textarea id='windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws-notes' data-persist-key='windows_screenreader::windows_screenreader-s11-the-same-preferences-pages-read-correctly-under-jaws::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='windows_screenreader-section-the-track-info-dialog-issue-88'>
+<h2 id='windows_screenreader-section-the-track-info-dialog-issue-88'>The track info dialog — issue #88</h2>
+
+<article class='scenario' id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label' data-tags='@nvda @blocking'>
+<h3>Scenario: Every field in the track info dialog announces its label</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a track is selected in the library</li><li><span class='keyword'>When</span> I open the track info dialog</li><li><span class='keyword'>And</span> I tab through every field</li><li><span class='keyword'>Then</span> each field is announced with its label</li><li><span class='keyword'>And</span> I hear title, artist, album, album artist, composer, year, genre, key, grouping, track number and comment each named</li><li><span class='keyword'>And</span> I hear duration, type, BPM, bitrate, date added, sample rate, replay gain and location each named</li><li><span class='keyword'>And</span> no field is announced as only "edit"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Every field in the track info dialog announces its label&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-pass' name='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label::result'><label for='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-fail' name='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label::result'><label for='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-skip' name='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label::result'><label for='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-not-tested' name='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label::result' checked><label for='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-notes'>Notes for &ldquo;Every field in the track info dialog announces its label&rdquo;</label>
+<textarea id='windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label-notes' data-persist-key='windows_screenreader::windows_screenreader-s12-every-field-in-the-track-info-dialog-announces-its-label::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s13-the-colour-picker-is-named' data-tags='@nvda'>
+<h3>Scenario: The colour picker is named</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the track info dialog is open</li><li><span class='keyword'>When</span> I tab to the colour button</li><li><span class='keyword'>Then</span> my screen reader announces it with a name describing colour</li><li><span class='keyword'>And</span> I can operate it with the keyboard</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The colour picker is named&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s13-the-colour-picker-is-named-pass' name='windows_screenreader-s13-the-colour-picker-is-named-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s13-the-colour-picker-is-named::result'><label for='windows_screenreader-s13-the-colour-picker-is-named-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s13-the-colour-picker-is-named-fail' name='windows_screenreader-s13-the-colour-picker-is-named-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s13-the-colour-picker-is-named::result'><label for='windows_screenreader-s13-the-colour-picker-is-named-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s13-the-colour-picker-is-named-skip' name='windows_screenreader-s13-the-colour-picker-is-named-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s13-the-colour-picker-is-named::result'><label for='windows_screenreader-s13-the-colour-picker-is-named-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s13-the-colour-picker-is-named-not-tested' name='windows_screenreader-s13-the-colour-picker-is-named-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s13-the-colour-picker-is-named::result' checked><label for='windows_screenreader-s13-the-colour-picker-is-named-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s13-the-colour-picker-is-named-notes'>Notes for &ldquo;The colour picker is named&rdquo;</label>
+<textarea id='windows_screenreader-s13-the-colour-picker-is-named-notes' data-persist-key='windows_screenreader::windows_screenreader-s13-the-colour-picker-is-named::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard' data-tags='@nvda @blocking'>
+<h3>Scenario: The star rating can be set from the keyboard</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the track info dialog is open for a track with no rating</li><li><span class='keyword'>When</span> I tab to the star rating</li><li><span class='keyword'>Then</span> my screen reader announces "Star rating"</li><li><span class='keyword'>When</span> I press "Right" three times</li><li><span class='keyword'>Then</span> the track's rating becomes 3 stars</li><li><span class='keyword'>When</span> I press "Left" once</li><li><span class='keyword'>Then</span> the rating becomes 2 stars</li><li><span class='keyword'>When</span> I press "Home"</li><li><span class='keyword'>Then</span> the rating becomes unrated</li><li><span class='keyword'>When</span> I press "End"</li><li><span class='keyword'>Then</span> the rating becomes 5 stars</li><li><span class='keyword'>When</span> I press "3"</li><li><span class='keyword'>Then</span> the rating becomes 3 stars</li><li><span class='keyword'>When</span> I press "7"</li><li><span class='keyword'>Then</span> the rating becomes 5 stars, because it clamps to the maximum</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The star rating can be set from the keyboard&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-pass' name='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard::result'><label for='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-fail' name='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard::result'><label for='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-skip' name='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard::result'><label for='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-not-tested' name='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard::result' checked><label for='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-notes'>Notes for &ldquo;The star rating can be set from the keyboard&rdquo;</label>
+<textarea id='windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard-notes' data-persist-key='windows_screenreader::windows_screenreader-s14-the-star-rating-can-be-set-from-the-keyboard::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s15-up-and-down-also-change-the-star-rating' data-tags='@nvda'>
+<h3>Scenario: Up and Down also change the star rating</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on the star rating with a rating of 2</li><li><span class='keyword'>When</span> I press "Up"</li><li><span class='keyword'>Then</span> the rating becomes 3</li><li><span class='keyword'>When</span> I press "Down"</li><li><span class='keyword'>Then</span> the rating becomes 2</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Up and Down also change the star rating&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s15-up-and-down-also-change-the-star-rating-pass' name='windows_screenreader-s15-up-and-down-also-change-the-star-rating-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s15-up-and-down-also-change-the-star-rating::result'><label for='windows_screenreader-s15-up-and-down-also-change-the-star-rating-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s15-up-and-down-also-change-the-star-rating-fail' name='windows_screenreader-s15-up-and-down-also-change-the-star-rating-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s15-up-and-down-also-change-the-star-rating::result'><label for='windows_screenreader-s15-up-and-down-also-change-the-star-rating-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s15-up-and-down-also-change-the-star-rating-skip' name='windows_screenreader-s15-up-and-down-also-change-the-star-rating-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s15-up-and-down-also-change-the-star-rating::result'><label for='windows_screenreader-s15-up-and-down-also-change-the-star-rating-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s15-up-and-down-also-change-the-star-rating-not-tested' name='windows_screenreader-s15-up-and-down-also-change-the-star-rating-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s15-up-and-down-also-change-the-star-rating::result' checked><label for='windows_screenreader-s15-up-and-down-also-change-the-star-rating-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s15-up-and-down-also-change-the-star-rating-notes'>Notes for &ldquo;Up and Down also change the star rating&rdquo;</label>
+<textarea id='windows_screenreader-s15-up-and-down-also-change-the-star-rating-notes' data-persist-key='windows_screenreader::windows_screenreader-s15-up-and-down-also-change-the-star-rating::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value' data-tags='@nvda'>
+<h3>Scenario: The star rating does not announce its new value</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<p class="step-note">Note: KNOWN GAP, not a defect to file blind. WStarRating exposes an accessible NAME but no accessible VALUE, and Mixxx's own speech is not wired to it, so changing the rating with the keyboard is silent. The value can only be confirmed by closing the dialog and hearing the row readout. Confirm the gap is real so it can be fixed deliberately.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on the star rating</li><li><span class='keyword'>When</span> I press "Right"</li><li><span class='keyword'>Then</span> I record whether anything at all was announced</li><li><span class='keyword'>When</span> I close the dialog and select the track in the library</li><li><span class='keyword'>Then</span> I hear the new rating in the row readout</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The star rating does not announce its new value&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-pass' name='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value::result'><label for='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-fail' name='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value::result'><label for='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-skip' name='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value::result'><label for='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-not-tested' name='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value::result' checked><label for='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-notes'>Notes for &ldquo;The star rating does not announce its new value&rdquo;</label>
+<textarea id='windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value-notes' data-persist-key='windows_screenreader::windows_screenreader-s16-the-star-rating-does-not-announce-its-new-value::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable' data-tags='@nvda'>
+<h3>Scenario: The cover art is reachable and operable</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the track info dialog is open</li><li><span class='keyword'>When</span> I tab to the cover art</li><li><span class='keyword'>Then</span> my screen reader announces "Cover art"</li><li><span class='keyword'>When</span> I press "Return"</li><li><span class='keyword'>Then</span> the full size cover opens</li><li><span class='keyword'>When</span> I press "Return" again</li><li><span class='keyword'>Then</span> it closes</li><li><span class='keyword'>When</span> I press "Space" on the cover art</li><li><span class='keyword'>Then</span> it behaves the same as Return</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The cover art is reachable and operable&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-pass' name='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s17-the-cover-art-is-reachable-and-operable::result'><label for='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-fail' name='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s17-the-cover-art-is-reachable-and-operable::result'><label for='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-skip' name='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s17-the-cover-art-is-reachable-and-operable::result'><label for='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-not-tested' name='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s17-the-cover-art-is-reachable-and-operable::result' checked><label for='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-notes'>Notes for &ldquo;The cover art is reachable and operable&rdquo;</label>
+<textarea id='windows_screenreader-s17-the-cover-art-is-reachable-and-operable-notes' data-persist-key='windows_screenreader::windows_screenreader-s17-the-cover-art-is-reachable-and-operable::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled' data-tags='@nvda'>
+<h3>Scenario: The multi-track info dialog is also labelled</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> 3 tracks are selected in the library</li><li><span class='keyword'>When</span> I open the track info dialog for all of them</li><li><span class='keyword'>And</span> I tab through every field</li><li><span class='keyword'>Then</span> each field is announced with its label</li><li><span class='keyword'>And</span> the star rating is announced as "Star rating"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The multi-track info dialog is also labelled&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-pass' name='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled::result'><label for='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-fail' name='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled::result'><label for='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-skip' name='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled::result'><label for='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-not-tested' name='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled::result' checked><label for='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-notes'>Notes for &ldquo;The multi-track info dialog is also labelled&rdquo;</label>
+<textarea id='windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled-notes' data-persist-key='windows_screenreader::windows_screenreader-s18-the-multi-track-info-dialog-is-also-labelled::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='windows_screenreader-section-the-key-wheel-dialog-issue-88'>
+<h2 id='windows_screenreader-section-the-key-wheel-dialog-issue-88'>The key wheel dialog — issue #88</h2>
+
+<article class='scenario' id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel' data-tags='@nvda @blocking @regression'>
+<h3>Scenario: Tab is no longer trapped in the key wheel</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li><li class="tag">@regression</li></ul>
+<p class="step-note">Note: Tab used to be swallowed by the dialog's own key handling, so once you were in there the only way out was the mouse.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open the key wheel dialog</li><li><span class='keyword'>And</span> I press "Tab"</li><li><span class='keyword'>Then</span> focus moves to a control in the dialog</li><li><span class='keyword'>And</span> I can reach the close button using Tab alone</li><li><span class='keyword'>When</span> I press "Return" on the close button</li><li><span class='keyword'>Then</span> the dialog closes</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Tab is no longer trapped in the key wheel&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-pass' name='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel::result'><label for='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-fail' name='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel::result'><label for='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-skip' name='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel::result'><label for='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-not-tested' name='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel::result' checked><label for='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-notes'>Notes for &ldquo;Tab is no longer trapped in the key wheel&rdquo;</label>
+<textarea id='windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel-notes' data-persist-key='windows_screenreader::windows_screenreader-s19-tab-is-no-longer-trapped-in-the-key-wheel::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it' data-tags='@nvda @blocking'>
+<h3>Scenario Outline: Up and Down cycle the notation and speak it</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the key wheel dialog is open</li><li><span class='keyword'>When</span> I press "&lt;key&gt;" until the notation reaches "&lt;notation&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;spoken&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">key</th><th scope="col">notation</th><th scope="col">spoken</th></tr></thead>
+<tbody>
+<tr><td>Down</td><td>Custom</td><td>Custom notation</td></tr>
+<tr><td>Down</td><td>OpenKey</td><td>OpenKey notation</td></tr>
+<tr><td>Up</td><td>Lancelot</td><td>Lancelot notation</td></tr>
+<tr><td>Up</td><td>Traditional</td><td>Traditional notation</td></tr>
+<tr><td>Up</td><td>OpenKey and Traditional</td><td>OpenKey and Traditional notation</td></tr>
+<tr><td>Up</td><td>Lancelot and Traditional</td><td>Lancelot and Traditional notation</td></tr>
+<tr><td>Up</td><td>ID3v2</td><td>ID3v2 notation</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Up and Down cycle the notation and speak it&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-pass' name='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it::result'><label for='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-fail' name='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it::result'><label for='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-skip' name='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it::result'><label for='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-not-tested' name='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it::result' checked><label for='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-notes'>Notes for &ldquo;Up and Down cycle the notation and speak it&rdquo;</label>
+<textarea id='windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it-notes' data-persist-key='windows_screenreader::windows_screenreader-s20-up-and-down-cycle-the-notation-and-speak-it::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog' data-tags='@nvda'>
+<h3>Scenario: The notation choice sticks after closing the dialog</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the key wheel dialog is open</li><li><span class='keyword'>When</span> I cycle the notation to Lancelot and hear "Lancelot notation"</li><li><span class='keyword'>And</span> I close the dialog</li><li><span class='keyword'>And</span> I press "Alt+7"</li><li><span class='keyword'>Then</span> deck 1's key is read in Lancelot notation</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The notation choice sticks after closing the dialog&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-pass' name='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog::result'><label for='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-fail' name='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog::result'><label for='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-skip' name='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog::result'><label for='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-not-tested' name='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog::result' checked><label for='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-notes'>Notes for &ldquo;The notation choice sticks after closing the dialog&rdquo;</label>
+<textarea id='windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog-notes' data-persist-key='windows_screenreader::windows_screenreader-s21-the-notation-choice-sticks-after-closing-the-dialog::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='windows_screenreader-section-the-track-table-issue-72'>
+<h2 id='windows_screenreader-section-the-track-table-issue-72'>The track table — issue #72</h2>
+<p>Two separate surfaces: the composed row readout that Mixxx speaks on selection, and the per-cell accessible text a screen reader reads when you navigate cell by cell.</p>
+<p>Row readout order is fixed: artist, title, "BPM locked" if locked, rating, colour, times played, then ", N of M".</p>
+<article class='scenario' id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name' data-tags='@nvda @blocking'>
+<h3>Scenario: Selecting a track speaks its full state, not just its name</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a track with 3 stars, a colour, marked as played, and a locked BPM</li><li><span class='keyword'>When</span> I arrow onto it in the library</li><li><span class='keyword'>Then</span> I hear its artist, then its title</li><li><span class='keyword'>And</span> I hear "BPM locked"</li><li><span class='keyword'>And</span> I hear "3 stars"</li><li><span class='keyword'>And</span> I hear its colour</li><li><span class='keyword'>And</span> I hear that it has been played</li><li><span class='keyword'>And</span> I hear its position, such as "7 of 40"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Selecting a track speaks its full state, not just its name&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-pass' name='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name::result'><label for='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-fail' name='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name::result'><label for='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-skip' name='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name::result'><label for='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-not-tested' name='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name::result' checked><label for='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-notes'>Notes for &ldquo;Selecting a track speaks its full state, not just its name&rdquo;</label>
+<textarea id='windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name-notes' data-persist-key='windows_screenreader::windows_screenreader-s22-selecting-a-track-speaks-its-full-state-not-just-its-name::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value' data-tags='@nvda'>
+<h3>Scenario Outline: Rating is spoken correctly at every value</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a track rated "&lt;rating&gt;"</li><li><span class='keyword'>When</span> I arrow onto it in the library</li><li><span class='keyword'>Then</span> I hear "&lt;spoken&gt;" in the row readout</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">rating</th><th scope="col">spoken</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>Unrated</td></tr>
+<tr><td>1</td><td>1 star</td></tr>
+<tr><td>2</td><td>2 stars</td></tr>
+<tr><td>5</td><td>5 stars</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Rating is spoken correctly at every value&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-pass' name='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s23-rating-is-spoken-correctly-at-every-value::result'><label for='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-fail' name='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s23-rating-is-spoken-correctly-at-every-value::result'><label for='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-skip' name='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s23-rating-is-spoken-correctly-at-every-value::result'><label for='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-not-tested' name='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s23-rating-is-spoken-correctly-at-every-value::result' checked><label for='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-notes'>Notes for &ldquo;Rating is spoken correctly at every value&rdquo;</label>
+<textarea id='windows_screenreader-s23-rating-is-spoken-correctly-at-every-value-notes' data-persist-key='windows_screenreader::windows_screenreader-s23-rating-is-spoken-correctly-at-every-value::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s24-played-state-is-spoken-correctly' data-tags='@nvda'>
+<h3>Scenario Outline: Played state is spoken correctly</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a track "&lt;state&gt;"</li><li><span class='keyword'>When</span> I arrow onto it in the library</li><li><span class='keyword'>Then</span> I hear "&lt;spoken&gt;" in the row readout</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">state</th><th scope="col">spoken</th></tr></thead>
+<tbody>
+<tr><td>never played</td><td>Not played</td></tr>
+<tr><td>played once</td><td>Played, 1 time</td></tr>
+<tr><td>played four times</td><td>Played, 4 times</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Played state is spoken correctly&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s24-played-state-is-spoken-correctly-pass' name='windows_screenreader-s24-played-state-is-spoken-correctly-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s24-played-state-is-spoken-correctly::result'><label for='windows_screenreader-s24-played-state-is-spoken-correctly-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s24-played-state-is-spoken-correctly-fail' name='windows_screenreader-s24-played-state-is-spoken-correctly-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s24-played-state-is-spoken-correctly::result'><label for='windows_screenreader-s24-played-state-is-spoken-correctly-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s24-played-state-is-spoken-correctly-skip' name='windows_screenreader-s24-played-state-is-spoken-correctly-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s24-played-state-is-spoken-correctly::result'><label for='windows_screenreader-s24-played-state-is-spoken-correctly-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s24-played-state-is-spoken-correctly-not-tested' name='windows_screenreader-s24-played-state-is-spoken-correctly-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s24-played-state-is-spoken-correctly::result' checked><label for='windows_screenreader-s24-played-state-is-spoken-correctly-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s24-played-state-is-spoken-correctly-notes'>Notes for &ldquo;Played state is spoken correctly&rdquo;</label>
+<textarea id='windows_screenreader-s24-played-state-is-spoken-correctly-notes' data-persist-key='windows_screenreader::windows_screenreader-s24-played-state-is-spoken-correctly::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name' data-tags='@nvda'>
+<h3>Scenario: Track colour is read as a hex code, not a colour name</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<p class="step-note">Note: KNOWN ROUGH EDGE, not a defect to file blind. The colour is spoken as its hex value, so a red track reads as "Color #ff0000" — the screen reader will spell out the hash and the digits. Confirm what it actually sounds like so a decision can be made about naming colours.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a track coloured red</li><li><span class='keyword'>When</span> I arrow onto it in the library</li><li><span class='keyword'>Then</span> I hear the colour announced</li><li><span class='keyword'>And</span> I record exactly how it was spoken</li><li><span class='keyword'>Given</span> a track with no colour set</li><li><span class='keyword'>When</span> I arrow onto it</li><li><span class='keyword'>Then</span> I hear "No color"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Track colour is read as a hex code, not a colour name&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-pass' name='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name::result'><label for='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-fail' name='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name::result'><label for='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-skip' name='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name::result'><label for='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-not-tested' name='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name::result' checked><label for='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-notes'>Notes for &ldquo;Track colour is read as a hex code, not a colour name&rdquo;</label>
+<textarea id='windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name-notes' data-persist-key='windows_screenreader::windows_screenreader-s25-track-colour-is-read-as-a-hex-code-not-a-colour-name::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s26-a-single-row-table-omits-the-position' data-tags='@nvda'>
+<h3>Scenario: A single-row table omits the position</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a search that returns exactly one track</li><li><span class='keyword'>When</span> I arrow onto it</li><li><span class='keyword'>Then</span> I hear its artist and title</li><li><span class='keyword'>And</span> I do not hear "1 of 1"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A single-row table omits the position&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s26-a-single-row-table-omits-the-position-pass' name='windows_screenreader-s26-a-single-row-table-omits-the-position-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s26-a-single-row-table-omits-the-position::result'><label for='windows_screenreader-s26-a-single-row-table-omits-the-position-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s26-a-single-row-table-omits-the-position-fail' name='windows_screenreader-s26-a-single-row-table-omits-the-position-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s26-a-single-row-table-omits-the-position::result'><label for='windows_screenreader-s26-a-single-row-table-omits-the-position-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s26-a-single-row-table-omits-the-position-skip' name='windows_screenreader-s26-a-single-row-table-omits-the-position-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s26-a-single-row-table-omits-the-position::result'><label for='windows_screenreader-s26-a-single-row-table-omits-the-position-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s26-a-single-row-table-omits-the-position-not-tested' name='windows_screenreader-s26-a-single-row-table-omits-the-position-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s26-a-single-row-table-omits-the-position::result' checked><label for='windows_screenreader-s26-a-single-row-table-omits-the-position-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s26-a-single-row-table-omits-the-position-notes'>Notes for &ldquo;A single-row table omits the position&rdquo;</label>
+<textarea id='windows_screenreader-s26-a-single-row-table-omits-the-position-notes' data-persist-key='windows_screenreader::windows_screenreader-s26-a-single-row-table-omits-the-position::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus' data-tags='@nvda'>
+<h3>Scenario: The row readout only fires when the track table has focus</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> focus is in the library sidebar</li><li><span class='keyword'>When</span> the selected track in the table changes</li><li><span class='keyword'>Then</span> I do not hear a row readout</li><li><span class='keyword'>When</span> I move focus to the track table</li><li><span class='keyword'>And</span> I arrow to another track</li><li><span class='keyword'>Then</span> I hear the full row readout</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The row readout only fires when the track table has focus&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-pass' name='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus::result'><label for='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-fail' name='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus::result'><label for='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-skip' name='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus::result'><label for='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-not-tested' name='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus::result' checked><label for='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-notes'>Notes for &ldquo;The row readout only fires when the track table has focus&rdquo;</label>
+<textarea id='windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus-notes' data-persist-key='windows_screenreader::windows_screenreader-s27-the-row-readout-only-fires-when-the-track-table-has-focus::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text' data-tags='@nvda @blocking'>
+<h3>Scenario: Navigating cell by cell reads each cell's accessible text</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the library track table has focus</li><li><span class='keyword'>When</span> I navigate across the columns of a single row with my screen reader</li><li><span class='keyword'>Then</span> the rating cell is read as its star count or "Unrated"</li><li><span class='keyword'>And</span> the colour cell is read as its colour or "No color"</li><li><span class='keyword'>And</span> the times-played cell is read as "Not played" or "Played, N times"</li><li><span class='keyword'>And</span> the BPM cell of a BPM-locked track is read as the BPM followed by "BPM locked"</li><li><span class='keyword'>And</span> every other cell is read as the text that is displayed</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Navigating cell by cell reads each cell's accessible text&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-pass' name='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text::result'><label for='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-fail' name='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text::result'><label for='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-skip' name='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text::result'><label for='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-not-tested' name='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text::result' checked><label for='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-notes'>Notes for &ldquo;Navigating cell by cell reads each cell's accessible text&rdquo;</label>
+<textarea id='windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text-notes' data-persist-key='windows_screenreader::windows_screenreader-s28-navigating-cell-by-cell-reads-each-cell-s-accessible-text::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well' data-tags='@jaws'>
+<h3>Scenario: The track table reads under JAWS as well</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@jaws</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I repeat the track table scenarios with JAWS running</li><li><span class='keyword'>Then</span> rows and cells are announced with the same information</li><li><span class='keyword'>And</span> I note any place JAWS differs from NVDA</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The track table reads under JAWS as well&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-pass' name='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s29-the-track-table-reads-under-jaws-as-well::result'><label for='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-fail' name='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s29-the-track-table-reads-under-jaws-as-well::result'><label for='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-skip' name='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s29-the-track-table-reads-under-jaws-as-well::result'><label for='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-not-tested' name='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s29-the-track-table-reads-under-jaws-as-well::result' checked><label for='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-notes'>Notes for &ldquo;The track table reads under JAWS as well&rdquo;</label>
+<textarea id='windows_screenreader-s29-the-track-table-reads-under-jaws-as-well-notes' data-persist-key='windows_screenreader::windows_screenreader-s29-the-track-table-reads-under-jaws-as-well::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='windows_screenreader-section-live-performance-safety'>
+<h2 id='windows_screenreader-section-live-performance-safety'>Live-performance safety</h2>
+
+<article class='scenario' id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience' data-tags='@nvda @audio @twodevices'>
+<h3>Scenario: The screen reader does not speak to the audience</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@nvda</li><li class="tag">@audio</li><li class="tag">@twodevices</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a separate main output feeding an audience and a headphone output</li><li><span class='keyword'>And</span> the screen reader's output device is set to something other than the performance interface</li><li><span class='keyword'>And</span> the Windows default audio device is not the performance interface</li><li><span class='keyword'>When</span> I navigate the library and the preferences with the screen reader</li><li><span class='keyword'>Then</span> nothing the screen reader says is audible on the main output</li><li><span class='keyword'>And</span> the mix is unaffected</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The screen reader does not speak to the audience&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-pass' name='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-result' value='pass' data-persist-key='windows_screenreader::windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience::result'><label for='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-fail' name='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-result' value='fail' data-persist-key='windows_screenreader::windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience::result'><label for='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-skip' name='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-result' value='skip' data-persist-key='windows_screenreader::windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience::result'><label for='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-not-tested' name='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-result' value='not-tested' data-persist-key='windows_screenreader::windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience::result' checked><label for='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-notes'>Notes for &ldquo;The screen reader does not speak to the audience&rdquo;</label>
+<textarea id='windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience-notes' data-persist-key='windows_screenreader::windows_screenreader-s30-the-screen-reader-does-not-speak-to-the-audience::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='macos_voiceover.html'>&larr; Previous file: macos_voiceover.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='audio_path.html'>Next file: audio_path.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>

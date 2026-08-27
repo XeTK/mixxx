@@ -109,6 +109,96 @@ Feature: Pioneer DDJ-400 on real hardware
     Then I hear a library track announced, not a menu item
 
   # ---------------------------------------------------------------------
+  # Opening and closing the spoken menu from the DDJ-400
+  #
+  # The DDJ-400 has no dedicated "close menu" control: PioneerDDJ400.
+  # browsePress starts a hold timer on press-down and fires
+  # [AccessMenu],open only once the hold threshold (0.4s) elapses; a
+  # release before that threshold is a short press, which sends
+  # [AccessMenu],activate when the menu is open. [AccessMenu],open just
+  # calls openMenu(), which no-ops if the menu is already open — holding
+  # BROWSE a second time does not close it. The only ways to close from
+  # the hardware are activating "Back" (the item highlighted when the
+  # menu first opens) or Shift + BROWSE at the root level, both of which
+  # call goBack(), which closes the menu once the navigation stack is
+  # back at the top; failing that, the menu auto-closes after 30 seconds
+  # of inactivity.
+  # ---------------------------------------------------------------------
+
+  @blocking
+  Scenario: Opening and closing the spoken menu from the DDJ-400's BROWSE knob
+    Given the AccessMenu is closed
+    When I hold the BROWSE knob down for at least half a second
+    Then I hear "Main menu." followed by "Back", the item highlighted on open
+    When I press Shift + BROWSE
+    Then I hear "Menu closed"
+
+  Scenario: Holding BROWSE again while the menu is already open does nothing new
+    Given the AccessMenu is open on its first item
+    When I hold the BROWSE knob down for at least half a second again
+    Then I do not hear "Main menu" spoken a second time
+    And the menu is still open on the same item
+
+  # ---------------------------------------------------------------------
+  # The value editor in the spoken menu, from the hardware — issue #32
+  #
+  # AccessMenuController's Values submenu (Speech on/off, Speech rate,
+  # Ducking strength, Beat click volume) reuses the same [AccessMenu]
+  # navigate/activate/back/confirm controls the browse knob and the
+  # BROWSE/LOAD buttons already drive, so no DDJ-400 script change was
+  # needed to reach it. What none of the existing scenarios cover is
+  # exercising it from the physical controller: keyboard_only.feature
+  # already has "Value editing from the keyboard" and "Cancelling a value
+  # edit leaves the value alone", but those chords (Alt+Shift+M and
+  # friends) were only added later by issue #57/#78 and bypass the
+  # DDJ-400 entirely.
+  #
+  # Hardware gestures used below (see PioneerDDJ400.browsePress /
+  # browseShiftPress / loadDeck1 / loadDeck2):
+  #   Hold BROWSE > 0.4s      -> [AccessMenu],open
+  #   Turn BROWSE             -> [AccessMenu],navigate (menu open)
+  #   Short press-release BROWSE -> [AccessMenu],activate
+  #   Shift + BROWSE press    -> [AccessMenu],back
+  #   LOAD (either deck)      -> [AccessMenu],confirm
+  # ---------------------------------------------------------------------
+
+  Scenario: Opening the value editor from the DDJ-400's spoken menu
+    Given the AccessMenu is closed
+    When I hold the BROWSE knob down to open the menu
+    And I turn the browse knob to reach "Values" and briefly press it to enter
+    And I turn the browse knob to reach "Speech rate" and briefly press it
+    Then I hear "Speech rate. Turn to change, confirm to set, back to cancel." followed by the current value
+
+  @blocking
+  Scenario: Adjusting two Values settings from the browse knob
+    Given the AccessMenu is closed
+    When I hold the BROWSE knob down to open the menu
+    And I turn the browse knob to reach "Values" and briefly press it to enter
+    And I turn the browse knob to reach "Ducking strength" and briefly press it
+    Then I hear "Ducking strength. Turn to change, confirm to set, back to cancel." followed by the current value
+    When I turn the browse knob one detent clockwise
+    Then I hear the new value announced as a percentage, 5 points higher than before
+    When I press LOAD on either deck
+    Then I hear "Set." followed by "Ducking strength, " and the new value
+    And the music ducks more noticeably during the next announcement
+    When I turn the browse knob to reach "Beat click volume" and briefly press it
+    Then I hear "Beat click volume. Turn to change, confirm to set, back to cancel." followed by the current value
+    When I turn the browse knob one detent counter-clockwise
+    Then I hear the new value announced as a percentage, 5 points lower than before
+    When I press LOAD on either deck
+    Then I hear "Set." followed by "Beat click volume, " and the new value
+
+  Scenario: Cancelling a value edit from the DDJ-400 leaves the value alone
+    Given the AccessMenu is closed
+    When I hold the BROWSE knob down to open the menu
+    And I turn the browse knob to reach "Values" and briefly press it to enter
+    And I turn the browse knob to reach "Speech rate" and briefly press it
+    And I turn the browse knob three detents clockwise without confirming
+    When I press Shift + BROWSE
+    Then I hear "Cancelled." followed by "Speech rate, " and the original value
+    And the speech rate is unchanged from before I started editing
+
+  # ---------------------------------------------------------------------
   # Pad-mode MIDI note numbers — long-standing issue #18
   #
   # The eight pad-mode note numbers in PioneerDDJ400.padModePressed were
@@ -382,6 +472,14 @@ Feature: Pioneer DDJ-400 on real hardware
 
   # ---------------------------------------------------------------------
   # Two decks on connect — carried over from issue #33
+  #
+  # PioneerDDJ400.init() now raises [App],num_decks to 2 on connect
+  # (a raise-only guard, the same pattern the sampler-count logic already
+  # used) so the DDJ-400's two physical decks are set up without a blind
+  # user ever having to find Preferences and configure a deck count by
+  # hand. The scenario immediately below predates this batch of work and
+  # already proves deck 2 exists and is announced; the one after it goes
+  # further and proves deck 2 is genuinely operable end-to-end.
   # ---------------------------------------------------------------------
 
   @regression
@@ -390,3 +488,16 @@ Feature: Pioneer DDJ-400 on real hardware
     When I connect the DDJ-400 and start Mixxx
     And I press Alt+2
     Then I hear deck 2's status announced rather than silence
+
+  @blocking
+  Scenario: Deck 2 is playable straight from a fresh connection, no Preferences visit needed
+    Given Mixxx is closed and the DDJ-400 is disconnected
+    And the Mixxx settings directory has been moved aside so this is a fresh profile
+    When I connect the DDJ-400 and start Mixxx
+    And I select a track in the library and press the right deck's LOAD button
+    Then I hear "Loaded deck, Bravo" followed by the track's details
+    When I press PLAY on the right deck
+    Then I hear the play earcon and deck 2 is audibly playing
+    # Proves deck 2 is not just announced (the scenario above) but
+    # genuinely usable end-to-end, without ever opening Preferences,
+    # Decks to raise the deck count by hand.

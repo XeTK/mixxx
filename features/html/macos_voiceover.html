@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keyboard chords surviving macOS VoiceOver — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html' aria-current='page'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>Keyboard chords surviving macOS VoiceOver</h1>
+<p class='file-name'>File: <code>features/macos_voiceover.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li><li class="tag">@macos</li><li class="tag">@voiceover</li></ul>
+<p>VoiceOver claims Ctrl+Option — which Qt reports as Ctrl+Alt — as its own command modifier. Every chord in that namespace was being eaten before Mixxx ever saw the key press, which meant a blind macOS user running the screen reader they need in order to use the rest of the system could not use the fork's own shortcuts. Issue #58 moved five deck-1 chords and five deck-2 chords out of that namespace. None of this is testable without VoiceOver actually running. "VoiceOver is installed" is not the same thing: the modifier is only claimed while VO is active. Turn it on with Cmd+F5 and leave it on for every scenario here. Three things need checking, and only the first is obvious: 1. the new chords work, 2. the old chords are really gone (a chord that still works is a half-applied config, and the docs now lie), 3. VoiceOver's own commands still work — moving Mixxx off Ctrl+Option is pointless if Mixxx has broken VO navigation in exchange.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (16 scenarios)</h2>
+<ol>
+<li><a href='#macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running'>Scenario Outline: Deck 1 chords reach Mixxx with VoiceOver running</a></li>
+<li><a href='#macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running'>Scenario Outline: Deck 2 chords reach Mixxx with VoiceOver running</a></li>
+<li><a href='#macos_voiceover-s3-quantize-toggles-for-both-decks'>Scenario: Quantize toggles for both decks</a></li>
+<li><a href='#macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords'>Scenario: The deck-1 filing pickers open on the new chords</a></li>
+<li><a href='#macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift'>Scenario: Deck 2's filing pickers use Ctrl+Shift, not Alt+Shift</a></li>
+<li><a href='#macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx'>Scenario Outline: Old Ctrl+Alt chords no longer do anything in Mixxx</a></li>
+<li><a href='#macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off'>Scenario: The old chords are also gone with VoiceOver switched off</a></li>
+<li><a href='#macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx'>Scenario: VoiceOver navigation still works inside Mixxx</a></li>
+<li><a href='#macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window'>Scenario: The VoiceOver rotor opens over the Mixxx window</a></li>
+<li><a href='#macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar'>Scenario: VoiceOver reads the Mixxx menu bar</a></li>
+<li><a href='#macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all'>Scenario Outline: Do the new mixer chords survive VoiceOver at all</a></li>
+<li><a href='#macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control'>Scenario: The same mixer chords with VoiceOver off, as a control</a></li>
+<li><a href='#macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover'>Scenario Outline: The AccessMenu chords are not claimed by VoiceOver</a></li>
+<li><a href='#macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover'>Scenario Outline: The library sort chords are not claimed by VoiceOver</a></li>
+<li><a href='#macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too'>Scenario: Keylock and pitch chords from issue #50 are in the eaten namespace too</a></li>
+<li><a href='#macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide'>Scenario: Mixxx speech and VoiceOver speech do not collide</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> macOS with VoiceOver running</li><li><span class='keyword'>And</span> Mixxx is running with the en_US keyboard layout</li><li><span class='keyword'>And</span> speech is on</li><li><span class='keyword'>And</span> "Speak deck names as numbers" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> tracks are loaded in deck 1 and deck 2</li><li><span class='keyword'>And</span> the Mixxx window has keyboard focus</li></ol>
+</section>
+<section aria-labelledby='macos_voiceover-section-the-new-chords-issue-58'>
+<h2 id='macos_voiceover-section-the-new-chords-issue-58'>The new chords — issue #58</h2>
+
+<article class='scenario' id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running' data-tags='@blocking'>
+<h3>Scenario Outline: Deck 1 chords reach Mixxx with VoiceOver running</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;heard&gt;"</li><li><span class='keyword'>And</span> VoiceOver does not announce a VoiceOver command instead</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">heard</th></tr></thead>
+<tbody>
+<tr><td>Alt+H</td><td>Deck 1 B P M halved</td></tr>
+<tr><td>Alt+D</td><td>Deck 1 B P M doubled</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Deck 1 chords reach Mixxx with VoiceOver running&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-pass' name='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-fail' name='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-skip' name='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-not-tested' name='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running::result' checked><label for='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-notes'>Notes for &ldquo;Deck 1 chords reach Mixxx with VoiceOver running&rdquo;</label>
+<textarea id='macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running-notes' data-persist-key='macos_voiceover::macos_voiceover-s1-deck-1-chords-reach-mixxx-with-voiceover-running::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running' data-tags='@blocking'>
+<h3>Scenario Outline: Deck 2 chords reach Mixxx with VoiceOver running</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;heard&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">heard</th></tr></thead>
+<tbody>
+<tr><td>Alt+Shift+H</td><td>Deck 2 B P M halved</td></tr>
+<tr><td>Alt+Shift+D</td><td>Deck 2 B P M doubled</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Deck 2 chords reach Mixxx with VoiceOver running&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-pass' name='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-fail' name='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-skip' name='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running::result'><label for='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-not-tested' name='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running::result' checked><label for='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-notes'>Notes for &ldquo;Deck 2 chords reach Mixxx with VoiceOver running&rdquo;</label>
+<textarea id='macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running-notes' data-persist-key='macos_voiceover::macos_voiceover-s2-deck-2-chords-reach-mixxx-with-voiceover-running::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s3-quantize-toggles-for-both-decks' data-tags='@blocking'>
+<h3>Scenario: Quantize toggles for both decks</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 quantize is on</li><li><span class='keyword'>When</span> I press "Alt+Q"</li><li><span class='keyword'>Then</span> I hear "Deck 1 quantize off"</li><li><span class='keyword'>When</span> I press "Alt+Q"</li><li><span class='keyword'>Then</span> I hear "Deck 1 quantize on"</li><li><span class='keyword'>When</span> I press "Alt+Shift+Q"</li><li><span class='keyword'>Then</span> I hear a spoken confirmation of deck 2's quantize state</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Quantize toggles for both decks&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s3-quantize-toggles-for-both-decks-pass' name='macos_voiceover-s3-quantize-toggles-for-both-decks-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s3-quantize-toggles-for-both-decks::result'><label for='macos_voiceover-s3-quantize-toggles-for-both-decks-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s3-quantize-toggles-for-both-decks-fail' name='macos_voiceover-s3-quantize-toggles-for-both-decks-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s3-quantize-toggles-for-both-decks::result'><label for='macos_voiceover-s3-quantize-toggles-for-both-decks-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s3-quantize-toggles-for-both-decks-skip' name='macos_voiceover-s3-quantize-toggles-for-both-decks-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s3-quantize-toggles-for-both-decks::result'><label for='macos_voiceover-s3-quantize-toggles-for-both-decks-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s3-quantize-toggles-for-both-decks-not-tested' name='macos_voiceover-s3-quantize-toggles-for-both-decks-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s3-quantize-toggles-for-both-decks::result' checked><label for='macos_voiceover-s3-quantize-toggles-for-both-decks-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s3-quantize-toggles-for-both-decks-notes'>Notes for &ldquo;Quantize toggles for both decks&rdquo;</label>
+<textarea id='macos_voiceover-s3-quantize-toggles-for-both-decks-notes' data-persist-key='macos_voiceover::macos_voiceover-s3-quantize-toggles-for-both-decks::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords' data-tags='@blocking'>
+<h3>Scenario: The deck-1 filing pickers open on the new chords</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> at least one crate and one playlist exist</li><li><span class='keyword'>And</span> a track is loaded in deck 1</li><li><span class='keyword'>When</span> I press "Alt+C"</li><li><span class='keyword'>Then</span> I hear the first crate name announced with its position</li><li><span class='keyword'>When</span> I press "Escape"</li><li><span class='keyword'>When</span> I press "Alt+P"</li><li><span class='keyword'>Then</span> I hear the first playlist name announced with its position</li><li><span class='keyword'>When</span> I press "Escape"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The deck-1 filing pickers open on the new chords&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-pass' name='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords::result'><label for='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-fail' name='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords::result'><label for='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-skip' name='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords::result'><label for='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-not-tested' name='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords::result' checked><label for='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-notes'>Notes for &ldquo;The deck-1 filing pickers open on the new chords&rdquo;</label>
+<textarea id='macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords-notes' data-persist-key='macos_voiceover::macos_voiceover-s4-the-deck-1-filing-pickers-open-on-the-new-chords::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift' data-tags=''>
+<h3>Scenario: Deck 2's filing pickers use Ctrl+Shift, not Alt+Shift</h3>
+
+<p class="step-note">Note: Alt+Shift+P and Alt+Shift+C were already taken by the Library's own Add to Playlist / Add to Crate, so deck 2 got Ctrl+Shift instead. That asymmetry is deliberate and worth confirming both halves of.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> at least one crate and one playlist exist</li><li><span class='keyword'>And</span> a track is loaded in deck 2</li><li><span class='keyword'>And</span> a track is selected in the library</li><li><span class='keyword'>When</span> I press "Ctrl+Shift+C"</li><li><span class='keyword'>Then</span> I hear a crate picker open for deck 2's loaded track</li><li><span class='keyword'>When</span> I press "Escape"</li><li><span class='keyword'>When</span> I press "Alt+Shift+C"</li><li><span class='keyword'>Then</span> I hear a crate picker open for the library selection, not for deck 2</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Deck 2's filing pickers use Ctrl+Shift, not Alt+Shift&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-pass' name='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift::result'><label for='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-fail' name='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift::result'><label for='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-skip' name='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift::result'><label for='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-not-tested' name='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift::result' checked><label for='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-notes'>Notes for &ldquo;Deck 2's filing pickers use Ctrl+Shift, not Alt+Shift&rdquo;</label>
+<textarea id='macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift-notes' data-persist-key='macos_voiceover::macos_voiceover-s5-deck-2-s-filing-pickers-use-ctrl-shift-not-alt-shift::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='macos_voiceover-section-the-reverse-check-the-old-chords-must-be-gone'>
+<h2 id='macos_voiceover-section-the-reverse-check-the-old-chords-must-be-gone'>The reverse check: the old chords must be gone</h2>
+
+<article class='scenario' id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx' data-tags='@blocking @regression'>
+<h3>Scenario Outline: Old Ctrl+Alt chords no longer do anything in Mixxx</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@regression</li></ul>
+<p class="step-note">Note: A chord that still fires means a stale kbd.cfg somewhere — most likely a user-modified copy in the settings directory shadowing the shipped one. Check ~/Library/Application Support/Mixxx before filing.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> Mixxx does not speak</li><li><span class='keyword'>And</span> nothing about deck 1 or deck 2 has changed</li></ol>
+<table>
+<caption>Examples: deck 1</caption>
+<thead><tr><th scope="col">chord</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+H</td></tr>
+<tr><td>Ctrl+Alt+D</td></tr>
+<tr><td>Ctrl+Alt+P</td></tr>
+<tr><td>Ctrl+Alt+C</td></tr>
+<tr><td>Ctrl+Alt+Q</td></tr>
+</tbody></table>
+<table>
+<caption>Examples: deck 2</caption>
+<thead><tr><th scope="col">chord</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+Shift+H</td></tr>
+<tr><td>Ctrl+Alt+Shift+D</td></tr>
+<tr><td>Ctrl+Alt+Shift+P</td></tr>
+<tr><td>Ctrl+Alt+Shift+C</td></tr>
+<tr><td>Ctrl+Alt+Shift+Q</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Old Ctrl+Alt chords no longer do anything in Mixxx&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-pass' name='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx::result'><label for='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-fail' name='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx::result'><label for='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-skip' name='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx::result'><label for='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-not-tested' name='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx::result' checked><label for='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-notes'>Notes for &ldquo;Old Ctrl+Alt chords no longer do anything in Mixxx&rdquo;</label>
+<textarea id='macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx-notes' data-persist-key='macos_voiceover::macos_voiceover-s6-old-ctrl-alt-chords-no-longer-do-anything-in-mixxx::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off' data-tags=''>
+<h3>Scenario: The old chords are also gone with VoiceOver switched off</h3>
+
+<p class="step-note">Note: With VO off, Ctrl+Alt reaches Mixxx normally. This distinguishes "the binding was removed" from "VoiceOver is still eating it".</p>
+<ol class='steps'><li><span class='keyword'>Given</span> VoiceOver is turned off</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+H"</li><li><span class='keyword'>Then</span> Mixxx does not speak</li><li><span class='keyword'>And</span> deck 1's BPM is unchanged</li><li><span class='keyword'>When</span> I press "Alt+H"</li><li><span class='keyword'>Then</span> I hear "Deck 1 B P M halved"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The old chords are also gone with VoiceOver switched off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-pass' name='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off::result'><label for='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-fail' name='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off::result'><label for='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-skip' name='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off::result'><label for='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-not-tested' name='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off::result' checked><label for='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-notes'>Notes for &ldquo;The old chords are also gone with VoiceOver switched off&rdquo;</label>
+<textarea id='macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off-notes' data-persist-key='macos_voiceover::macos_voiceover-s7-the-old-chords-are-also-gone-with-voiceover-switched-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='macos_voiceover-section-voiceover-s-own-commands-must-still-work'>
+<h2 id='macos_voiceover-section-voiceover-s-own-commands-must-still-work'>VoiceOver's own commands must still work</h2>
+
+<article class='scenario' id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx' data-tags='@blocking @regression'>
+<h3>Scenario: VoiceOver navigation still works inside Mixxx</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@regression</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Option+Right Arrow"</li><li><span class='keyword'>Then</span> VoiceOver moves to the next element and announces it</li><li><span class='keyword'>When</span> I press "Ctrl+Option+Left Arrow"</li><li><span class='keyword'>Then</span> VoiceOver moves back and announces the previous element</li><li><span class='keyword'>When</span> I press "Ctrl+Option+Space"</li><li><span class='keyword'>Then</span> VoiceOver activates the focused element</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;VoiceOver navigation still works inside Mixxx&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-pass' name='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx::result'><label for='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-fail' name='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx::result'><label for='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-skip' name='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx::result'><label for='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-not-tested' name='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx::result' checked><label for='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-notes'>Notes for &ldquo;VoiceOver navigation still works inside Mixxx&rdquo;</label>
+<textarea id='macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx-notes' data-persist-key='macos_voiceover::macos_voiceover-s8-voiceover-navigation-still-works-inside-mixxx::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window' data-tags=''>
+<h3>Scenario: The VoiceOver rotor opens over the Mixxx window</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Option+U"</li><li><span class='keyword'>Then</span> VoiceOver announces the rotor</li><li><span class='keyword'>When</span> I press "Escape"</li><li><span class='keyword'>Then</span> VoiceOver closes the rotor</li><li><span class='keyword'>And</span> Mixxx has not reacted to any of those presses</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The VoiceOver rotor opens over the Mixxx window&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-pass' name='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window::result'><label for='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-fail' name='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window::result'><label for='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-skip' name='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window::result'><label for='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-not-tested' name='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window::result' checked><label for='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-notes'>Notes for &ldquo;The VoiceOver rotor opens over the Mixxx window&rdquo;</label>
+<textarea id='macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window-notes' data-persist-key='macos_voiceover::macos_voiceover-s9-the-voiceover-rotor-opens-over-the-mixxx-window::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar' data-tags=''>
+<h3>Scenario: VoiceOver reads the Mixxx menu bar</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Option+M"</li><li><span class='keyword'>Then</span> VoiceOver announces the Mixxx menu bar</li><li><span class='keyword'>And</span> I can arrow through the top-level menus hearing each one</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;VoiceOver reads the Mixxx menu bar&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-pass' name='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar::result'><label for='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-fail' name='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar::result'><label for='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-skip' name='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar::result'><label for='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-not-tested' name='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar::result' checked><label for='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-notes'>Notes for &ldquo;VoiceOver reads the Mixxx menu bar&rdquo;</label>
+<textarea id='macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar-notes' data-persist-key='macos_voiceover::macos_voiceover-s10-voiceover-reads-the-mixxx-menu-bar::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='macos_voiceover-section-the-unresolved-collision-between-58-and-56'>
+<h2 id='macos_voiceover-section-the-unresolved-collision-between-58-and-56'>The unresolved collision between #58 and #56</h2>
+<p>#58 moved ten chords OUT of the Ctrl+Alt namespace because VoiceOver eats it. #56 then added roughly two dozen NEW mixer and effects chords INTO that same namespace: Ctrl+Alt+B/V/G/T/E/W/O/F/N/S/A/I/J/X/L, Ctrl+Alt+F9/F10/F11, and their Ctrl+Alt+Shift deck-2 twins.</p>
+<p>If VoiceOver eats Ctrl+Option the way #58 says it does, then the entire keyboard-only mixing and effects workflow #56 was written to enable is unusable on macOS with a screen reader running — the exact user and the exact platform this fork exists for.</p>
+<p>Neither commit mentions the other. These scenarios exist to establish the fact one way or the other, with evidence, before anyone argues about it. Run them early.</p>
+<article class='scenario' id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all' data-tags='@blocking @inference'>
+<h3>Scenario Outline: Do the new mixer chords survive VoiceOver at all</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@inference</li></ul>
+<p class="step-note">Note: VALIDATING AN ASSUMPTION — and the assumption may well be wrong. Record the result for every row even when they all behave the same.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;expected&gt;"</li></ol>
+<table>
+<caption>Examples: deck 1 mixer</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">expected</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+V</td><td>deck 1's volume announced going up</td></tr>
+<tr><td>Ctrl+Alt+B</td><td>deck 1's volume announced going down</td></tr>
+<tr><td>Ctrl+Alt+T</td><td>deck 1's trim announced going up</td></tr>
+<tr><td>Ctrl+Alt+G</td><td>deck 1's trim announced going down</td></tr>
+</tbody></table>
+<table>
+<caption>Examples: deck 1 EQ and filter</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">expected</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+E</td><td>deck 1's EQ low announced down</td></tr>
+<tr><td>Ctrl+Alt+F11</td><td>deck 1's EQ low announced up</td></tr>
+<tr><td>Ctrl+Alt+W</td><td>deck 1's EQ mid announced down</td></tr>
+<tr><td>Ctrl+Alt+O</td><td>deck 1's EQ mid announced up</td></tr>
+<tr><td>Ctrl+Alt+F</td><td>deck 1's EQ high announced down</td></tr>
+<tr><td>Ctrl+Alt+F10</td><td>deck 1's EQ high announced up</td></tr>
+<tr><td>Ctrl+Alt+N</td><td>deck 1's filter announced down</td></tr>
+<tr><td>Ctrl+Alt+S</td><td>deck 1's filter announced up</td></tr>
+</tbody></table>
+<table>
+<caption>Examples: effects</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">expected</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+A</td><td>effect unit 1 announced switching on</td></tr>
+<tr><td>Ctrl+Alt+F9</td><td>effect unit 1's next chain preset spoken</td></tr>
+<tr><td>Ctrl+Alt+L</td><td>effect unit 1's focused effect spoken</td></tr>
+<tr><td>Ctrl+Alt+I</td><td>effect slot 1 announced switching on</td></tr>
+<tr><td>Ctrl+Alt+J</td><td>the next effect in slot 1 spoken</td></tr>
+<tr><td>Ctrl+Alt+X</td><td>the previous effect in slot 1 spoken</td></tr>
+</tbody></table>
+<p class="step-note">Note: If instead VoiceOver speaks one of its own commands, or nothing happens, log it as "eaten by VoiceOver" against this row.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Do the new mixer chords survive VoiceOver at all&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-pass' name='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all::result'><label for='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-fail' name='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all::result'><label for='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-skip' name='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all::result'><label for='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-not-tested' name='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all::result' checked><label for='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-notes'>Notes for &ldquo;Do the new mixer chords survive VoiceOver at all&rdquo;</label>
+<textarea id='macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all-notes' data-persist-key='macos_voiceover::macos_voiceover-s11-do-the-new-mixer-chords-survive-voiceover-at-all::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control' data-tags='@blocking'>
+<h3>Scenario: The same mixer chords with VoiceOver off, as a control</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: If these all work with VO off and none work with VO on, the finding is unambiguous and #56 needs the same treatment #58 got.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> VoiceOver is turned off</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+V"</li><li><span class='keyword'>Then</span> I hear deck 1's volume announced going up</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+A"</li><li><span class='keyword'>Then</span> I hear effect unit 1 announced switching on</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The same mixer chords with VoiceOver off, as a control&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-pass' name='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control::result'><label for='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-fail' name='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control::result'><label for='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-skip' name='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control::result'><label for='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-not-tested' name='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control::result' checked><label for='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-notes'>Notes for &ldquo;The same mixer chords with VoiceOver off, as a control&rdquo;</label>
+<textarea id='macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control-notes' data-persist-key='macos_voiceover::macos_voiceover-s12-the-same-mixer-chords-with-voiceover-off-as-a-control::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='macos_voiceover-section-other-chords-worth-checking-against-voiceover-not-covered-by-58'>
+<h2 id='macos_voiceover-section-other-chords-worth-checking-against-voiceover-not-covered-by-58'>Other chords worth checking against VoiceOver, not covered by #58</h2>
+
+<article class='scenario' id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover' data-tags=''>
+<h3>Scenario Outline: The AccessMenu chords are not claimed by VoiceOver</h3>
+
+<p class="step-note">Note: #57's chords are in the Alt+Shift namespace, which should be clear, but they are registered as application-wide Qt shortcuts and have never been checked against VO.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> Mixxx responds as documented for that chord</li><li><span class='keyword'>And</span> VoiceOver does not announce a VoiceOver command instead</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th></tr></thead>
+<tbody>
+<tr><td>Alt+Shift+M</td></tr>
+<tr><td>Alt+Shift+Up</td></tr>
+<tr><td>Alt+Shift+Down</td></tr>
+<tr><td>Alt+Shift+Return</td></tr>
+<tr><td>Alt+Shift+Backspace</td></tr>
+<tr><td>Alt+Shift+Space</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;The AccessMenu chords are not claimed by VoiceOver&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-pass' name='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-fail' name='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-skip' name='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-not-tested' name='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover::result' checked><label for='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-notes'>Notes for &ldquo;The AccessMenu chords are not claimed by VoiceOver&rdquo;</label>
+<textarea id='macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover-notes' data-persist-key='macos_voiceover::macos_voiceover-s13-the-accessmenu-chords-are-not-claimed-by-voiceover::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover' data-tags=''>
+<h3>Scenario Outline: The library sort chords are not claimed by VoiceOver</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the library track table has focus</li><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> Mixxx responds as documented for that chord</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th></tr></thead>
+<tbody>
+<tr><td>Alt+Shift+S</td></tr>
+<tr><td>Ctrl+Alt+Shift+S</td></tr>
+<tr><td>Alt+Shift+O</td></tr>
+<tr><td>Alt+Shift+V</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;The library sort chords are not claimed by VoiceOver&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-pass' name='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-fail' name='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-skip' name='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover::result'><label for='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-not-tested' name='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover::result' checked><label for='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-notes'>Notes for &ldquo;The library sort chords are not claimed by VoiceOver&rdquo;</label>
+<textarea id='macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover-notes' data-persist-key='macos_voiceover::macos_voiceover-s14-the-library-sort-chords-are-not-claimed-by-voiceover::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too' data-tags=''>
+<h3>Scenario: Keylock and pitch chords from issue #50 are in the eaten namespace too</h3>
+
+<p class="step-note">Note: #50 put keylock on Ctrl+Alt+K and pitch on Ctrl+Alt+Up/Down — the same namespace #58 was fixing. Same question as the #56 block above.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+K"</li><li><span class='keyword'>Then</span> I hear "Deck 1 key lock on"</li></ol>
+<p class="step-note">Note: If VoiceOver takes it instead, log it alongside the #56 findings — it is the same problem and wants the same fix.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Keylock and pitch chords from issue #50 are in the eaten namespace too&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-pass' name='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too::result'><label for='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-fail' name='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too::result'><label for='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-skip' name='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too::result'><label for='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-not-tested' name='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too::result' checked><label for='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-notes'>Notes for &ldquo;Keylock and pitch chords from issue #50 are in the eaten namespace too&rdquo;</label>
+<textarea id='macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too-notes' data-persist-key='macos_voiceover::macos_voiceover-s15-keylock-and-pitch-chords-from-issue-50-are-in-the-eaten-namespace-too::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='macos_voiceover-section-macos-speech-quality-since-you-are-here'>
+<h2 id='macos_voiceover-section-macos-speech-quality-since-you-are-here'>macOS speech quality, since you are here</h2>
+
+<article class='scenario' id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide' data-tags='@audio'>
+<h3>Scenario: Mixxx speech and VoiceOver speech do not collide</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@audio</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> VoiceOver is set to output to the built-in speakers</li><li><span class='keyword'>And</span> "Speech output" in Preferences, Accessibility is set to headphones</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status in the headphones</li><li><span class='keyword'>And</span> VoiceOver's own speech stays on the built-in speakers</li><li><span class='keyword'>And</span> neither one cuts the other off mid-word</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixxx speech and VoiceOver speech do not collide&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-pass' name='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-result' value='pass' data-persist-key='macos_voiceover::macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide::result'><label for='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-fail' name='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-result' value='fail' data-persist-key='macos_voiceover::macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide::result'><label for='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-skip' name='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-result' value='skip' data-persist-key='macos_voiceover::macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide::result'><label for='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-not-tested' name='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-result' value='not-tested' data-persist-key='macos_voiceover::macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide::result' checked><label for='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-notes'>Notes for &ldquo;Mixxx speech and VoiceOver speech do not collide&rdquo;</label>
+<textarea id='macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide-notes' data-persist-key='macos_voiceover::macos_voiceover-s16-mixxx-speech-and-voiceover-speech-do-not-collide::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='ddj400_hardware.html'>&larr; Previous file: ddj400_hardware.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='windows_screenreader.html'>Next file: windows_screenreader.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>

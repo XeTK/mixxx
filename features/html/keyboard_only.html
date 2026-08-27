@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The full workflow from the keyboard alone — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html' aria-current='page'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>The full workflow from the keyboard alone</h1>
+<p class='file-name'>File: <code>features/keyboard_only.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li><li class="tag">@keyboard</li></ul>
+<p>Unplug the controller before running this file. The point is to establish that someone with no DJ hardware at all — a laptop, headphones and a keyboard — can mix, EQ, apply effects, drive Auto DJ, sort the library and reach every application toggle, entirely by ear. Issue #77 added the mixer and effects bindings that made this possible at all. Issue #78 put the AccessMenu on the keyboard. Issue #81 did the same for library sorting. Issue #86 covered Auto DJ. A caution before starting: most of #77's chords live in the Ctrl+Alt namespace, which macOS VoiceOver claims for itself. If you are on macOS with VoiceOver running and none of the mixer chords work, that is not a binding bug — see features/macos_voiceover.feature, which investigates it properly. Run this file on Linux or Windows, or on macOS with VoiceOver off, to test the bindings themselves.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (48 scenarios)</h2>
+<ol>
+<li><a href='#keyboard_only-s1-deck-volume-can-be-set-by-ear'>Scenario: Deck volume can be set by ear</a></li>
+<li><a href='#keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant'>Scenario: Deck 2's volume uses the Shift variant</a></li>
+<li><a href='#keyboard_only-s3-trim-is-separate-from-volume-and-says-so'>Scenario: Trim is separate from volume and says so</a></li>
+<li><a href='#keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet'>Scenario: A control that lands back where it started stays quiet</a></li>
+<li><a href='#keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1'>Scenario Outline: Every EQ band moves in both directions on deck 1</a></li>
+<li><a href='#keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2'>Scenario Outline: Every EQ band moves in both directions on deck 2</a></li>
+<li><a href='#keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard'>Scenario: A bass swap can be performed entirely by keyboard</a></li>
+<li><a href='#keyboard_only-s8-the-filter-sweeps-in-both-directions'>Scenario: The filter sweeps in both directions</a></li>
+<li><a href='#keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off'>Scenario: Effect unit 1 can be switched on and off</a></li>
+<li><a href='#keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching'>Scenario: Holding the effect unit chord is momentary, not latching</a></li>
+<li><a href='#keyboard_only-s11-chain-presets-cycle-and-are-announced'>Scenario: Chain presets cycle and are announced</a></li>
+<li><a href='#keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one'>Scenario: Effect focus cycles through the slots and names each one</a></li>
+<li><a href='#keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed'>Scenario: An individual effect slot can be enabled and its effect changed</a></li>
+<li><a href='#keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants'>Scenario: Effect unit 2 responds on the Shift variants</a></li>
+<li><a href='#keyboard_only-s15-effect-announcements-can-be-turned-off'>Scenario: Effect announcements can be turned off</a></li>
+<li><a href='#keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard'>Scenario: The menu opens, navigates and closes from the keyboard</a></li>
+<li><a href='#keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item'>Scenario: I can walk the whole root menu and hear every item</a></li>
+<li><a href='#keyboard_only-s18-toggle-items-announce-their-current-state'>Scenario Outline: Toggle items announce their current state</a></li>
+<li><a href='#keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu'>Scenario: Fullscreen state stays correct when changed from outside the menu</a></li>
+<li><a href='#keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back'>Scenario: Disabling keyboard shortcuts warns me first and leaves me a way back</a></li>
+<li><a href='#keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning'>Scenario: Enabling keyboard shortcuts does not produce the warning</a></li>
+<li><a href='#keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice'>Scenario: The AccessMenu chords do not fire twice</a></li>
+<li><a href='#keyboard_only-s23-value-editing-from-the-keyboard'>Scenario: Value editing from the keyboard</a></li>
+<li><a href='#keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone'>Scenario: Cancelling a value edit leaves the value alone</a></li>
+<li><a href='#keyboard_only-s25-the-recording-item-reports-ready-as-on'>Scenario: The Recording item reports ready as on</a></li>
+<li><a href='#keyboard_only-s26-cycling-the-sort-column-announces-each-one'>Scenario: Cycling the sort column announces each one</a></li>
+<li><a href='#keyboard_only-s27-cycling-backwards-through-the-sort-columns'>Scenario: Cycling backwards through the sort columns</a></li>
+<li><a href='#keyboard_only-s28-sorting-the-same-column-again-flips-the-order'>Scenario: Sorting the same column again flips the order</a></li>
+<li><a href='#keyboard_only-s29-reversing-the-sort-order-without-changing-column'>Scenario: Reversing the sort order without changing column</a></li>
+<li><a href='#keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear'>Scenario: The column visibility menu opens and can be worked by ear</a></li>
+<li><a href='#keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent'>Scenario: Sorting by a column with no spoken name stays silent</a></li>
+<li><a href='#keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort'>Scenario: Clicking a column header also announces the new sort</a></li>
+<li><a href='#keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced'>Scenario: Enabling and disabling Auto DJ is announced</a></li>
+<li><a href='#keyboard_only-s34-enabling-auto-dj-with-an-empty-queue'>Scenario: Enabling Auto DJ with an empty queue</a></li>
+<li><a href='#keyboard_only-s35-auto-dj-transport-actions-are-announced'>Scenario Outline: Auto DJ transport actions are announced</a></li>
+<li><a href='#keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set'>Scenario: The next-track readout tells me everything I need mid-set</a></li>
+<li><a href='#keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued'>Scenario: The next-track readout with Auto DJ off and nothing queued</a></li>
+<li><a href='#keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing'>Scenario: The readout omits the time clause when nothing is playing</a></li>
+<li><a href='#keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix'>Scenario: The time remaining is time to end of track, not time to the mix</a></li>
+<li><a href='#keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported'>Scenario: With both decks playing only the first is reported</a></li>
+<li><a href='#keyboard_only-s41-adding-a-random-track-is-silent-but-effective'>Scenario: Adding a random track is silent but effective</a></li>
+<li><a href='#keyboard_only-s42-shuffling-the-queue-is-also-silent'>Scenario: Shuffling the queue is also silent</a></li>
+<li><a href='#keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped'>Scenario: The Auto DJ panel can be tabbed through and escaped</a></li>
+<li><a href='#keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls'>Scenario: Enter also releases focus from the transition controls</a></li>
+<li><a href='#keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named'>Scenario: The controller navigation checkbox is reachable and named</a></li>
+<li><a href='#keyboard_only-s46-the-setting-takes-effect-without-a-restart'>Scenario: The setting takes effect without a restart</a></li>
+<li><a href='#keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx'>Scenario: Navigating with no focused window does not crash Mixxx</a></li>
+<li><a href='#keyboard_only-s48-the-toggle-itself-says-nothing'>Scenario: The toggle itself says nothing</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> no DJ controller is connected</li><li><span class='keyword'>And</span> Mixxx is running with the en_US keyboard layout</li><li><span class='keyword'>And</span> speech is on</li><li><span class='keyword'>And</span> "Speak deck names as numbers" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> "Announce mixer controls" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> "Announce effects" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> tracks are loaded in deck 1 and deck 2</li></ol>
+</section>
+<section aria-labelledby='keyboard_only-section-mixer-volume-and-trim-issue-77'>
+<h2 id='keyboard_only-section-mixer-volume-and-trim-issue-77'>Mixer: volume and trim — issue #77</h2>
+<p>The mixer readout convention: the control names itself on first movement ("Deck 1 volume"), and the value follows once it settles ("three quarters"). Adjusting the same control again speaks only the new value. A control landing back on a value it already announced stays silent entirely. None of that is new here, but it is what you will hear, so it is worth knowing before deciding something is broken.</p>
+<article class='scenario' id='keyboard_only-s1-deck-volume-can-be-set-by-ear' data-tags='@blocking'>
+<h3>Scenario: Deck volume can be set by ear</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 is playing at full volume</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+B" four times</li><li><span class='keyword'>Then</span> I hear "Deck 1 volume" named on the first press</li><li><span class='keyword'>And</span> I hear a value announced once I stop pressing</li><li><span class='keyword'>And</span> deck 1 is audibly quieter</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+V" four times</li><li><span class='keyword'>Then</span> I hear a value announced</li><li><span class='keyword'>And</span> deck 1 is back at roughly its original level</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Deck volume can be set by ear&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s1-deck-volume-can-be-set-by-ear-pass' name='keyboard_only-s1-deck-volume-can-be-set-by-ear-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s1-deck-volume-can-be-set-by-ear::result'><label for='keyboard_only-s1-deck-volume-can-be-set-by-ear-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s1-deck-volume-can-be-set-by-ear-fail' name='keyboard_only-s1-deck-volume-can-be-set-by-ear-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s1-deck-volume-can-be-set-by-ear::result'><label for='keyboard_only-s1-deck-volume-can-be-set-by-ear-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s1-deck-volume-can-be-set-by-ear-skip' name='keyboard_only-s1-deck-volume-can-be-set-by-ear-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s1-deck-volume-can-be-set-by-ear::result'><label for='keyboard_only-s1-deck-volume-can-be-set-by-ear-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s1-deck-volume-can-be-set-by-ear-not-tested' name='keyboard_only-s1-deck-volume-can-be-set-by-ear-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s1-deck-volume-can-be-set-by-ear::result' checked><label for='keyboard_only-s1-deck-volume-can-be-set-by-ear-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s1-deck-volume-can-be-set-by-ear-notes'>Notes for &ldquo;Deck volume can be set by ear&rdquo;</label>
+<textarea id='keyboard_only-s1-deck-volume-can-be-set-by-ear-notes' data-persist-key='keyboard_only::keyboard_only-s1-deck-volume-can-be-set-by-ear::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant' data-tags=''>
+<h3>Scenario: Deck 2's volume uses the Shift variant</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+Shift+B"</li><li><span class='keyword'>Then</span> I hear "Deck 2 volume" named</li><li><span class='keyword'>And</span> deck 1's volume has not changed</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Deck 2's volume uses the Shift variant&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-pass' name='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant::result'><label for='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-fail' name='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant::result'><label for='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-skip' name='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant::result'><label for='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-not-tested' name='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant::result' checked><label for='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-notes'>Notes for &ldquo;Deck 2's volume uses the Shift variant&rdquo;</label>
+<textarea id='keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant-notes' data-persist-key='keyboard_only::keyboard_only-s2-deck-2-s-volume-uses-the-shift-variant::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so' data-tags=''>
+<h3>Scenario: Trim is separate from volume and says so</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+T"</li><li><span class='keyword'>Then</span> I hear deck 1's trim named, not its volume</li><li><span class='keyword'>And</span> the announcement distinguishes trim from the channel fader</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Trim is separate from volume and says so&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-pass' name='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s3-trim-is-separate-from-volume-and-says-so::result'><label for='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-fail' name='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s3-trim-is-separate-from-volume-and-says-so::result'><label for='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-skip' name='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s3-trim-is-separate-from-volume-and-says-so::result'><label for='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-not-tested' name='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s3-trim-is-separate-from-volume-and-says-so::result' checked><label for='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-notes'>Notes for &ldquo;Trim is separate from volume and says so&rdquo;</label>
+<textarea id='keyboard_only-s3-trim-is-separate-from-volume-and-says-so-notes' data-persist-key='keyboard_only::keyboard_only-s3-trim-is-separate-from-volume-and-says-so::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet' data-tags=''>
+<h3>Scenario: A control that lands back where it started stays quiet</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1's volume has just been announced at a value</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+B" once and then "Ctrl+Alt+V" once</li><li><span class='keyword'>Then</span> the final value announcement matches where I started</li><li><span class='keyword'>And</span> I am not told the same value twice in a row</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A control that lands back where it started stays quiet&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-pass' name='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet::result'><label for='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-fail' name='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet::result'><label for='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-skip' name='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet::result'><label for='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-not-tested' name='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet::result' checked><label for='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-notes'>Notes for &ldquo;A control that lands back where it started stays quiet&rdquo;</label>
+<textarea id='keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet-notes' data-persist-key='keyboard_only::keyboard_only-s4-a-control-that-lands-back-where-it-started-stays-quiet::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-eq-and-filter-issue-77'>
+<h2 id='keyboard_only-section-eq-and-filter-issue-77'>EQ and filter — issue #77</h2>
+
+<article class='scenario' id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1' data-tags='@blocking'>
+<h3>Scenario Outline: Every EQ band moves in both directions on deck 1</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear deck 1's "&lt;band&gt;" named</li><li><span class='keyword'>And</span> the sound of deck 1 changes as described by "&lt;effect&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">band</th><th scope="col">effect</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+E</td><td>EQ low</td><td>less bass</td></tr>
+<tr><td>Ctrl+Alt+F11</td><td>EQ low</td><td>more bass</td></tr>
+<tr><td>Ctrl+Alt+W</td><td>EQ mid</td><td>less midrange</td></tr>
+<tr><td>Ctrl+Alt+O</td><td>EQ mid</td><td>more midrange</td></tr>
+<tr><td>Ctrl+Alt+F</td><td>EQ high</td><td>less treble</td></tr>
+<tr><td>Ctrl+Alt+F10</td><td>EQ high</td><td>more treble</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Every EQ band moves in both directions on deck 1&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-pass' name='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1::result'><label for='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-fail' name='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1::result'><label for='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-skip' name='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1::result'><label for='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-not-tested' name='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1::result' checked><label for='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-notes'>Notes for &ldquo;Every EQ band moves in both directions on deck 1&rdquo;</label>
+<textarea id='keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1-notes' data-persist-key='keyboard_only::keyboard_only-s5-every-eq-band-moves-in-both-directions-on-deck-1::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2' data-tags=''>
+<h3>Scenario Outline: Every EQ band moves in both directions on deck 2</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear deck 2's "&lt;band&gt;" named</li><li><span class='keyword'>And</span> deck 1's EQ is unchanged</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">band</th></tr></thead>
+<tbody>
+<tr><td>Ctrl+Alt+Shift+E</td><td>EQ low</td></tr>
+<tr><td>Ctrl+Alt+Shift+F11</td><td>EQ low</td></tr>
+<tr><td>Ctrl+Alt+Shift+W</td><td>EQ mid</td></tr>
+<tr><td>Ctrl+Alt+Shift+O</td><td>EQ mid</td></tr>
+<tr><td>Ctrl+Alt+Shift+F</td><td>EQ high</td></tr>
+<tr><td>Ctrl+Alt+Shift+F10</td><td>EQ high</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Every EQ band moves in both directions on deck 2&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-pass' name='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2::result'><label for='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-fail' name='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2::result'><label for='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-skip' name='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2::result'><label for='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-not-tested' name='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2::result' checked><label for='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-notes'>Notes for &ldquo;Every EQ band moves in both directions on deck 2&rdquo;</label>
+<textarea id='keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2-notes' data-persist-key='keyboard_only::keyboard_only-s6-every-eq-band-moves-in-both-directions-on-deck-2::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard' data-tags='@blocking'>
+<h3>Scenario: A bass swap can be performed entirely by keyboard</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: The single most common blind-DJ mix move. If this works, the EQ bindings are fit for purpose.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing and beatmatched</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+E" repeatedly until deck 1's low EQ is fully down</li><li><span class='keyword'>Then</span> I hear the value reach its minimum</li><li><span class='keyword'>And</span> deck 1's bass is gone from the mix</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+Shift+F11" until deck 2's low EQ is back at centre</li><li><span class='keyword'>Then</span> deck 2's bass carries the mix on its own</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A bass swap can be performed entirely by keyboard&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-pass' name='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard::result'><label for='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-fail' name='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard::result'><label for='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-skip' name='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard::result'><label for='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-not-tested' name='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard::result' checked><label for='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-notes'>Notes for &ldquo;A bass swap can be performed entirely by keyboard&rdquo;</label>
+<textarea id='keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard-notes' data-persist-key='keyboard_only::keyboard_only-s7-a-bass-swap-can-be-performed-entirely-by-keyboard::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s8-the-filter-sweeps-in-both-directions' data-tags=''>
+<h3>Scenario: The filter sweeps in both directions</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+N" several times</li><li><span class='keyword'>Then</span> I hear deck 1's filter named and its value announced</li><li><span class='keyword'>And</span> the sound is audibly filtered</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+S" several times</li><li><span class='keyword'>Then</span> the filter returns towards centre</li><li><span class='keyword'>And</span> I hear the value announced as it goes</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The filter sweeps in both directions&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s8-the-filter-sweeps-in-both-directions-pass' name='keyboard_only-s8-the-filter-sweeps-in-both-directions-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s8-the-filter-sweeps-in-both-directions::result'><label for='keyboard_only-s8-the-filter-sweeps-in-both-directions-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s8-the-filter-sweeps-in-both-directions-fail' name='keyboard_only-s8-the-filter-sweeps-in-both-directions-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s8-the-filter-sweeps-in-both-directions::result'><label for='keyboard_only-s8-the-filter-sweeps-in-both-directions-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s8-the-filter-sweeps-in-both-directions-skip' name='keyboard_only-s8-the-filter-sweeps-in-both-directions-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s8-the-filter-sweeps-in-both-directions::result'><label for='keyboard_only-s8-the-filter-sweeps-in-both-directions-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s8-the-filter-sweeps-in-both-directions-not-tested' name='keyboard_only-s8-the-filter-sweeps-in-both-directions-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s8-the-filter-sweeps-in-both-directions::result' checked><label for='keyboard_only-s8-the-filter-sweeps-in-both-directions-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s8-the-filter-sweeps-in-both-directions-notes'>Notes for &ldquo;The filter sweeps in both directions&rdquo;</label>
+<textarea id='keyboard_only-s8-the-filter-sweeps-in-both-directions-notes' data-persist-key='keyboard_only::keyboard_only-s8-the-filter-sweeps-in-both-directions::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-effects-issue-77'>
+<h2 id='keyboard_only-section-effects-issue-77'>Effects — issue #77</h2>
+<p>Both "enabled" controls here use PowerWindow button mode: a short press latches the state, a long press is momentary and reverts on release. If holding Ctrl+Alt+A appears to switch the unit off again as soon as you let go, that is PowerWindow working, not a bug.</p>
+<article class='scenario' id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off' data-tags='@blocking'>
+<h3>Scenario: Effect unit 1 can be switched on and off</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+A" briefly</li><li><span class='keyword'>Then</span> I hear effect unit 1 announced as on</li><li><span class='keyword'>And</span> I can hear the effect in the mix</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+A" briefly again</li><li><span class='keyword'>Then</span> I hear effect unit 1 announced as off</li><li><span class='keyword'>And</span> the effect is gone from the mix</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Effect unit 1 can be switched on and off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-pass' name='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off::result'><label for='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-fail' name='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off::result'><label for='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-skip' name='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off::result'><label for='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-not-tested' name='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off::result' checked><label for='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-notes'>Notes for &ldquo;Effect unit 1 can be switched on and off&rdquo;</label>
+<textarea id='keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off-notes' data-persist-key='keyboard_only::keyboard_only-s9-effect-unit-1-can-be-switched-on-and-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching' data-tags=''>
+<h3>Scenario: Holding the effect unit chord is momentary, not latching</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press and hold "Ctrl+Alt+A" for two seconds</li><li><span class='keyword'>Then</span> the effect is audible while I hold it</li><li><span class='keyword'>When</span> I release the keys</li><li><span class='keyword'>Then</span> the effect stops</li></ol>
+<p class="step-note">Note: Expected: PowerWindow behaviour. Record it, do not file it.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Holding the effect unit chord is momentary, not latching&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-pass' name='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching::result'><label for='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-fail' name='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching::result'><label for='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-skip' name='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching::result'><label for='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-not-tested' name='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching::result' checked><label for='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-notes'>Notes for &ldquo;Holding the effect unit chord is momentary, not latching&rdquo;</label>
+<textarea id='keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching-notes' data-persist-key='keyboard_only::keyboard_only-s10-holding-the-effect-unit-chord-is-momentary-not-latching::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s11-chain-presets-cycle-and-are-announced' data-tags=''>
+<h3>Scenario: Chain presets cycle and are announced</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+F9"</li><li><span class='keyword'>Then</span> I hear effect unit 1's new chain preset announced by name</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+F9" three more times</li><li><span class='keyword'>Then</span> I hear a different preset name each time</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Chain presets cycle and are announced&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s11-chain-presets-cycle-and-are-announced-pass' name='keyboard_only-s11-chain-presets-cycle-and-are-announced-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s11-chain-presets-cycle-and-are-announced::result'><label for='keyboard_only-s11-chain-presets-cycle-and-are-announced-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s11-chain-presets-cycle-and-are-announced-fail' name='keyboard_only-s11-chain-presets-cycle-and-are-announced-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s11-chain-presets-cycle-and-are-announced::result'><label for='keyboard_only-s11-chain-presets-cycle-and-are-announced-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s11-chain-presets-cycle-and-are-announced-skip' name='keyboard_only-s11-chain-presets-cycle-and-are-announced-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s11-chain-presets-cycle-and-are-announced::result'><label for='keyboard_only-s11-chain-presets-cycle-and-are-announced-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s11-chain-presets-cycle-and-are-announced-not-tested' name='keyboard_only-s11-chain-presets-cycle-and-are-announced-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s11-chain-presets-cycle-and-are-announced::result' checked><label for='keyboard_only-s11-chain-presets-cycle-and-are-announced-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s11-chain-presets-cycle-and-are-announced-notes'>Notes for &ldquo;Chain presets cycle and are announced&rdquo;</label>
+<textarea id='keyboard_only-s11-chain-presets-cycle-and-are-announced-notes' data-persist-key='keyboard_only::keyboard_only-s11-chain-presets-cycle-and-are-announced::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one' data-tags=''>
+<h3>Scenario: Effect focus cycles through the slots and names each one</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+L"</li><li><span class='keyword'>Then</span> I hear "Unit 1: " followed by an effect name and " focused"</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+L" repeatedly</li><li><span class='keyword'>Then</span> I hear each slot in unit 1 announced in turn</li><li><span class='keyword'>And</span> an empty slot is announced as "Unit 1: effect " followed by its slot number and " focused"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Effect focus cycles through the slots and names each one&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-pass' name='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one::result'><label for='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-fail' name='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one::result'><label for='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-skip' name='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one::result'><label for='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-not-tested' name='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one::result' checked><label for='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-notes'>Notes for &ldquo;Effect focus cycles through the slots and names each one&rdquo;</label>
+<textarea id='keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one-notes' data-persist-key='keyboard_only::keyboard_only-s12-effect-focus-cycles-through-the-slots-and-names-each-one::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed' data-tags=''>
+<h3>Scenario: An individual effect slot can be enabled and its effect changed</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+I" briefly</li><li><span class='keyword'>Then</span> I hear effect slot 1 announced as on</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+J"</li><li><span class='keyword'>Then</span> I hear the name of the next effect loaded into slot 1</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+X"</li><li><span class='keyword'>Then</span> I hear the name of the previous effect, which is where I started</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;An individual effect slot can be enabled and its effect changed&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-pass' name='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed::result'><label for='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-fail' name='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed::result'><label for='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-skip' name='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed::result'><label for='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-not-tested' name='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed::result' checked><label for='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-notes'>Notes for &ldquo;An individual effect slot can be enabled and its effect changed&rdquo;</label>
+<textarea id='keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed-notes' data-persist-key='keyboard_only::keyboard_only-s13-an-individual-effect-slot-can-be-enabled-and-its-effect-changed::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants' data-tags=''>
+<h3>Scenario: Effect unit 2 responds on the Shift variants</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Ctrl+Alt+Shift+A" briefly</li><li><span class='keyword'>Then</span> I hear effect unit 2 announced as on</li><li><span class='keyword'>And</span> effect unit 1 is unchanged</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Effect unit 2 responds on the Shift variants&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-pass' name='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants::result'><label for='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-fail' name='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants::result'><label for='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-skip' name='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants::result'><label for='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-not-tested' name='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants::result' checked><label for='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-notes'>Notes for &ldquo;Effect unit 2 responds on the Shift variants&rdquo;</label>
+<textarea id='keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants-notes' data-persist-key='keyboard_only::keyboard_only-s14-effect-unit-2-responds-on-the-shift-variants::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s15-effect-announcements-can-be-turned-off' data-tags=''>
+<h3>Scenario: Effect announcements can be turned off</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce effects" is disabled in Preferences, Accessibility</li><li><span class='keyword'>When</span> I press "Ctrl+Alt+L"</li><li><span class='keyword'>Then</span> I hear nothing</li><li><span class='keyword'>And</span> the focus has still moved, confirmed by re-enabling the setting and pressing it again</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Effect announcements can be turned off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s15-effect-announcements-can-be-turned-off-pass' name='keyboard_only-s15-effect-announcements-can-be-turned-off-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s15-effect-announcements-can-be-turned-off::result'><label for='keyboard_only-s15-effect-announcements-can-be-turned-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s15-effect-announcements-can-be-turned-off-fail' name='keyboard_only-s15-effect-announcements-can-be-turned-off-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s15-effect-announcements-can-be-turned-off::result'><label for='keyboard_only-s15-effect-announcements-can-be-turned-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s15-effect-announcements-can-be-turned-off-skip' name='keyboard_only-s15-effect-announcements-can-be-turned-off-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s15-effect-announcements-can-be-turned-off::result'><label for='keyboard_only-s15-effect-announcements-can-be-turned-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s15-effect-announcements-can-be-turned-off-not-tested' name='keyboard_only-s15-effect-announcements-can-be-turned-off-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s15-effect-announcements-can-be-turned-off::result' checked><label for='keyboard_only-s15-effect-announcements-can-be-turned-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s15-effect-announcements-can-be-turned-off-notes'>Notes for &ldquo;Effect announcements can be turned off&rdquo;</label>
+<textarea id='keyboard_only-s15-effect-announcements-can-be-turned-off-notes' data-persist-key='keyboard_only::keyboard_only-s15-effect-announcements-can-be-turned-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-the-accessmenu-on-the-keyboard-issue-78'>
+<h2 id='keyboard_only-section-the-accessmenu-on-the-keyboard-issue-78'>The AccessMenu on the keyboard — issue #78</h2>
+<p>These six chords are registered as application-wide Qt shortcuts on the main window, deliberately NOT through the kbd.cfg control path. That is what lets them keep working after you disable keyboard shortcuts from inside the menu itself — otherwise disabling shortcuts would lock a keyboard-only DJ out of the only way to re-enable them.</p>
+<p>Consequence worth knowing: the key sequences are read from the keyboard config once, at startup. Rebinding them in a .kbd.cfg needs a restart.</p>
+<article class='scenario' id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard' data-tags='@blocking'>
+<h3>Scenario: The menu opens, navigates and closes from the keyboard</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>Then</span> I hear "Main menu." followed by the current item</li><li><span class='keyword'>When</span> I press "Alt+Shift+Down"</li><li><span class='keyword'>Then</span> I hear the next item announced</li><li><span class='keyword'>When</span> I press "Alt+Shift+Up"</li><li><span class='keyword'>Then</span> I hear the previous item announced</li><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>Then</span> I hear "Menu closed"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The menu opens, navigates and closes from the keyboard&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-pass' name='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard::result'><label for='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-fail' name='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard::result'><label for='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-skip' name='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard::result'><label for='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-not-tested' name='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard::result' checked><label for='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-notes'>Notes for &ldquo;The menu opens, navigates and closes from the keyboard&rdquo;</label>
+<textarea id='keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard-notes' data-persist-key='keyboard_only::keyboard_only-s16-the-menu-opens-navigates-and-closes-from-the-keyboard::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item' data-tags=''>
+<h3>Scenario: I can walk the whole root menu and hear every item</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>And</span> I press "Alt+Shift+Down" repeatedly until I return to where I started</li><li><span class='keyword'>Then</span> I hear each of these items announced in order<ol class='data-list'><li>Back</li><li>Preferences</li><li>Values</li><li>Recording</li><li>Broadcasting</li><li>Speech on/off</li><li>Fullscreen</li><li>Keyboard shortcuts</li><li>Reload skin</li><li>Rescan library</li><li>About</li><li>Quit</li></ol></li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;I can walk the whole root menu and hear every item&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-pass' name='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item::result'><label for='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-fail' name='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item::result'><label for='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-skip' name='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item::result'><label for='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-not-tested' name='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item::result' checked><label for='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-notes'>Notes for &ldquo;I can walk the whole root menu and hear every item&rdquo;</label>
+<textarea id='keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item-notes' data-persist-key='keyboard_only::keyboard_only-s17-i-can-walk-the-whole-root-menu-and-hear-every-item::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s18-toggle-items-announce-their-current-state' data-tags='@blocking'>
+<h3>Scenario Outline: Toggle items announce their current state</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: The state vocabulary is exactly "on" and "off" — never "enabled" or "disabled". Wording drift here is a real finding.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> "&lt;item&gt;" is currently off</li><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>And</span> I navigate to "&lt;item&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;item&gt;, off"</li><li><span class='keyword'>When</span> I press "Alt+Shift+Return"</li><li><span class='keyword'>And</span> I navigate back to "&lt;item&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;item&gt;, on"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">item</th></tr></thead>
+<tbody>
+<tr><td>Recording</td></tr>
+<tr><td>Speech on/off</td></tr>
+<tr><td>Fullscreen</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Toggle items announce their current state&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s18-toggle-items-announce-their-current-state-pass' name='keyboard_only-s18-toggle-items-announce-their-current-state-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s18-toggle-items-announce-their-current-state::result'><label for='keyboard_only-s18-toggle-items-announce-their-current-state-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s18-toggle-items-announce-their-current-state-fail' name='keyboard_only-s18-toggle-items-announce-their-current-state-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s18-toggle-items-announce-their-current-state::result'><label for='keyboard_only-s18-toggle-items-announce-their-current-state-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s18-toggle-items-announce-their-current-state-skip' name='keyboard_only-s18-toggle-items-announce-their-current-state-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s18-toggle-items-announce-their-current-state::result'><label for='keyboard_only-s18-toggle-items-announce-their-current-state-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s18-toggle-items-announce-their-current-state-not-tested' name='keyboard_only-s18-toggle-items-announce-their-current-state-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s18-toggle-items-announce-their-current-state::result' checked><label for='keyboard_only-s18-toggle-items-announce-their-current-state-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s18-toggle-items-announce-their-current-state-notes'>Notes for &ldquo;Toggle items announce their current state&rdquo;</label>
+<textarea id='keyboard_only-s18-toggle-items-announce-their-current-state-notes' data-persist-key='keyboard_only::keyboard_only-s18-toggle-items-announce-their-current-state::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu' data-tags=''>
+<h3>Scenario: Fullscreen state stays correct when changed from outside the menu</h3>
+
+<p class="step-note">Note: The menu has no control object for fullscreen; the main window pushes the state to it. If that push is missed, the menu will lie.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is not fullscreen</li><li><span class='keyword'>When</span> I toggle fullscreen using the View menu rather than the AccessMenu</li><li><span class='keyword'>And</span> I press "Alt+Shift+M"</li><li><span class='keyword'>And</span> I navigate to "Fullscreen"</li><li><span class='keyword'>Then</span> I hear "Fullscreen, on"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Fullscreen state stays correct when changed from outside the menu&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-pass' name='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu::result'><label for='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-fail' name='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu::result'><label for='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-skip' name='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu::result'><label for='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-not-tested' name='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu::result' checked><label for='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-notes'>Notes for &ldquo;Fullscreen state stays correct when changed from outside the menu&rdquo;</label>
+<textarea id='keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu-notes' data-persist-key='keyboard_only::keyboard_only-s19-fullscreen-state-stays-correct-when-changed-from-outside-the-menu::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back' data-tags='@blocking'>
+<h3>Scenario: Disabling keyboard shortcuts warns me first and leaves me a way back</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: The whole reason the AccessMenu chords bypass the kbd.cfg path.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> keyboard shortcuts are enabled</li><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>And</span> I navigate to "Keyboard shortcuts"</li><li><span class='keyword'>Then</span> I hear "Keyboard shortcuts, on"</li><li><span class='keyword'>When</span> I press "Alt+Shift+Return"</li><li><span class='keyword'>Then</span> I hear "Keyboard shortcuts now off. Use this menu or the mouse to re-enable them."</li><li><span class='keyword'>And</span> I hear the warning before anything else</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear nothing, because ordinary shortcuts are now off</li><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>Then</span> I hear "Main menu." followed by the current item</li><li><span class='keyword'>When</span> I navigate to "Keyboard shortcuts" and press "Alt+Shift+Return"</li><li><span class='keyword'>Then</span> I hear "Keyboard shortcuts, off" announced when I navigate back to it</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status again</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Disabling keyboard shortcuts warns me first and leaves me a way back&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-pass' name='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back::result'><label for='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-fail' name='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back::result'><label for='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-skip' name='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back::result'><label for='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-not-tested' name='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back::result' checked><label for='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-notes'>Notes for &ldquo;Disabling keyboard shortcuts warns me first and leaves me a way back&rdquo;</label>
+<textarea id='keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back-notes' data-persist-key='keyboard_only::keyboard_only-s20-disabling-keyboard-shortcuts-warns-me-first-and-leaves-me-a-way-back::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning' data-tags=''>
+<h3>Scenario: Enabling keyboard shortcuts does not produce the warning</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> keyboard shortcuts are disabled</li><li><span class='keyword'>When</span> I enable them from the AccessMenu</li><li><span class='keyword'>Then</span> I do not hear "Keyboard shortcuts now off. Use this menu or the mouse to re-enable them."</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Enabling keyboard shortcuts does not produce the warning&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-pass' name='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning::result'><label for='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-fail' name='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning::result'><label for='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-skip' name='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning::result'><label for='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-not-tested' name='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning::result' checked><label for='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-notes'>Notes for &ldquo;Enabling keyboard shortcuts does not produce the warning&rdquo;</label>
+<textarea id='keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning-notes' data-persist-key='keyboard_only::keyboard_only-s21-enabling-keyboard-shortcuts-does-not-produce-the-warning::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice' data-tags='@regression'>
+<h3>Scenario: The AccessMenu chords do not fire twice</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@regression</li></ul>
+<p class="step-note">Note: Three of the six chord names — activate, back, confirm — match real control objects as well as the Qt shortcuts, so with keyboard shortcuts enabled there are two paths that could both fire. Qt is expected to consume the press first. A doubled announcement means it did not.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> keyboard shortcuts are enabled</li><li><span class='keyword'>And</span> the AccessMenu is open on a submenu item</li><li><span class='keyword'>When</span> I press "Alt+Shift+Return"</li><li><span class='keyword'>Then</span> I hear one announcement</li><li><span class='keyword'>And</span> I do not hear the same announcement twice</li><li><span class='keyword'>When</span> I press "Alt+Shift+Backspace"</li><li><span class='keyword'>Then</span> I hear one announcement</li><li><span class='keyword'>When</span> I press "Alt+Shift+Space"</li><li><span class='keyword'>Then</span> I hear one announcement</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The AccessMenu chords do not fire twice&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-pass' name='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice::result'><label for='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-fail' name='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice::result'><label for='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-skip' name='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice::result'><label for='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-not-tested' name='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice::result' checked><label for='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-notes'>Notes for &ldquo;The AccessMenu chords do not fire twice&rdquo;</label>
+<textarea id='keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice-notes' data-persist-key='keyboard_only::keyboard_only-s22-the-accessmenu-chords-do-not-fire-twice::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s23-value-editing-from-the-keyboard' data-tags=''>
+<h3>Scenario: Value editing from the keyboard</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I press "Alt+Shift+M"</li><li><span class='keyword'>And</span> I navigate to "Values" and press "Alt+Shift+Return"</li><li><span class='keyword'>And</span> I navigate to "Speech rate" and press "Alt+Shift+Return"</li><li><span class='keyword'>Then</span> I hear "Speech rate. Turn to change, confirm to set, back to cancel." followed by the current value</li><li><span class='keyword'>When</span> I press "Alt+Shift+Down"</li><li><span class='keyword'>Then</span> I hear the new value announced</li><li><span class='keyword'>When</span> I press "Alt+Shift+Space"</li><li><span class='keyword'>Then</span> I hear "Set." followed by "Speech rate, " and the new value</li><li><span class='keyword'>And</span> subsequent speech is at the new rate</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Value editing from the keyboard&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s23-value-editing-from-the-keyboard-pass' name='keyboard_only-s23-value-editing-from-the-keyboard-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s23-value-editing-from-the-keyboard::result'><label for='keyboard_only-s23-value-editing-from-the-keyboard-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s23-value-editing-from-the-keyboard-fail' name='keyboard_only-s23-value-editing-from-the-keyboard-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s23-value-editing-from-the-keyboard::result'><label for='keyboard_only-s23-value-editing-from-the-keyboard-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s23-value-editing-from-the-keyboard-skip' name='keyboard_only-s23-value-editing-from-the-keyboard-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s23-value-editing-from-the-keyboard::result'><label for='keyboard_only-s23-value-editing-from-the-keyboard-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s23-value-editing-from-the-keyboard-not-tested' name='keyboard_only-s23-value-editing-from-the-keyboard-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s23-value-editing-from-the-keyboard::result' checked><label for='keyboard_only-s23-value-editing-from-the-keyboard-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s23-value-editing-from-the-keyboard-notes'>Notes for &ldquo;Value editing from the keyboard&rdquo;</label>
+<textarea id='keyboard_only-s23-value-editing-from-the-keyboard-notes' data-persist-key='keyboard_only::keyboard_only-s23-value-editing-from-the-keyboard::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone' data-tags=''>
+<h3>Scenario: Cancelling a value edit leaves the value alone</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> I am editing "Ducking strength" in the AccessMenu</li><li><span class='keyword'>And</span> I have changed the value without confirming</li><li><span class='keyword'>When</span> I press "Alt+Shift+Backspace"</li><li><span class='keyword'>Then</span> I hear "Cancelled." followed by "Ducking strength, " and the original value</li><li><span class='keyword'>And</span> the ducking behaviour is unchanged</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Cancelling a value edit leaves the value alone&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-pass' name='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone::result'><label for='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-fail' name='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone::result'><label for='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-skip' name='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone::result'><label for='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-not-tested' name='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone::result' checked><label for='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-notes'>Notes for &ldquo;Cancelling a value edit leaves the value alone&rdquo;</label>
+<textarea id='keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone-notes' data-persist-key='keyboard_only::keyboard_only-s24-cancelling-a-value-edit-leaves-the-value-alone::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s25-the-recording-item-reports-ready-as-on' data-tags=''>
+<h3>Scenario: The Recording item reports ready as on</h3>
+
+<p class="step-note">Note: KNOWN QUIRK: the recording status control has three states, and both "ready" and "recording" read as "on". Confirm rather than file.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> recording is armed but not yet writing</li><li><span class='keyword'>When</span> I navigate to "Recording" in the AccessMenu</li><li><span class='keyword'>Then</span> I hear "Recording, on"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The Recording item reports ready as on&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s25-the-recording-item-reports-ready-as-on-pass' name='keyboard_only-s25-the-recording-item-reports-ready-as-on-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s25-the-recording-item-reports-ready-as-on::result'><label for='keyboard_only-s25-the-recording-item-reports-ready-as-on-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s25-the-recording-item-reports-ready-as-on-fail' name='keyboard_only-s25-the-recording-item-reports-ready-as-on-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s25-the-recording-item-reports-ready-as-on::result'><label for='keyboard_only-s25-the-recording-item-reports-ready-as-on-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s25-the-recording-item-reports-ready-as-on-skip' name='keyboard_only-s25-the-recording-item-reports-ready-as-on-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s25-the-recording-item-reports-ready-as-on::result'><label for='keyboard_only-s25-the-recording-item-reports-ready-as-on-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s25-the-recording-item-reports-ready-as-on-not-tested' name='keyboard_only-s25-the-recording-item-reports-ready-as-on-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s25-the-recording-item-reports-ready-as-on::result' checked><label for='keyboard_only-s25-the-recording-item-reports-ready-as-on-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s25-the-recording-item-reports-ready-as-on-notes'>Notes for &ldquo;The Recording item reports ready as on&rdquo;</label>
+<textarea id='keyboard_only-s25-the-recording-item-reports-ready-as-on-notes' data-persist-key='keyboard_only::keyboard_only-s25-the-recording-item-reports-ready-as-on::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-library-sorting-from-the-keyboard-issue-81'>
+<h2 id='keyboard_only-section-library-sorting-from-the-keyboard-issue-81'>Library sorting from the keyboard — issue #81</h2>
+
+<article class='scenario' id='keyboard_only-s26-cycling-the-sort-column-announces-each-one' data-tags='@blocking'>
+<h3>Scenario: Cycling the sort column announces each one</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the library track table has focus and contains tracks</li><li><span class='keyword'>When</span> I press "Alt+Shift+S"</li><li><span class='keyword'>Then</span> I hear "Sorting by " followed by a column name and " ascending"</li><li><span class='keyword'>When</span> I press "Alt+Shift+S" three more times</li><li><span class='keyword'>Then</span> I hear a different column name each time</li><li><span class='keyword'>And</span> each is announced as ascending, because moving to a new column resets the order</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Cycling the sort column announces each one&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s26-cycling-the-sort-column-announces-each-one-pass' name='keyboard_only-s26-cycling-the-sort-column-announces-each-one-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s26-cycling-the-sort-column-announces-each-one::result'><label for='keyboard_only-s26-cycling-the-sort-column-announces-each-one-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s26-cycling-the-sort-column-announces-each-one-fail' name='keyboard_only-s26-cycling-the-sort-column-announces-each-one-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s26-cycling-the-sort-column-announces-each-one::result'><label for='keyboard_only-s26-cycling-the-sort-column-announces-each-one-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s26-cycling-the-sort-column-announces-each-one-skip' name='keyboard_only-s26-cycling-the-sort-column-announces-each-one-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s26-cycling-the-sort-column-announces-each-one::result'><label for='keyboard_only-s26-cycling-the-sort-column-announces-each-one-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s26-cycling-the-sort-column-announces-each-one-not-tested' name='keyboard_only-s26-cycling-the-sort-column-announces-each-one-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s26-cycling-the-sort-column-announces-each-one::result' checked><label for='keyboard_only-s26-cycling-the-sort-column-announces-each-one-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s26-cycling-the-sort-column-announces-each-one-notes'>Notes for &ldquo;Cycling the sort column announces each one&rdquo;</label>
+<textarea id='keyboard_only-s26-cycling-the-sort-column-announces-each-one-notes' data-persist-key='keyboard_only::keyboard_only-s26-cycling-the-sort-column-announces-each-one::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s27-cycling-backwards-through-the-sort-columns' data-tags=''>
+<h3>Scenario: Cycling backwards through the sort columns</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the library track table has focus</li><li><span class='keyword'>When</span> I press "Alt+Shift+S" twice and note the column</li><li><span class='keyword'>And</span> I press "Ctrl+Alt+Shift+S"</li><li><span class='keyword'>Then</span> I hear the previous column announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Cycling backwards through the sort columns&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s27-cycling-backwards-through-the-sort-columns-pass' name='keyboard_only-s27-cycling-backwards-through-the-sort-columns-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s27-cycling-backwards-through-the-sort-columns::result'><label for='keyboard_only-s27-cycling-backwards-through-the-sort-columns-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s27-cycling-backwards-through-the-sort-columns-fail' name='keyboard_only-s27-cycling-backwards-through-the-sort-columns-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s27-cycling-backwards-through-the-sort-columns::result'><label for='keyboard_only-s27-cycling-backwards-through-the-sort-columns-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s27-cycling-backwards-through-the-sort-columns-skip' name='keyboard_only-s27-cycling-backwards-through-the-sort-columns-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s27-cycling-backwards-through-the-sort-columns::result'><label for='keyboard_only-s27-cycling-backwards-through-the-sort-columns-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s27-cycling-backwards-through-the-sort-columns-not-tested' name='keyboard_only-s27-cycling-backwards-through-the-sort-columns-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s27-cycling-backwards-through-the-sort-columns::result' checked><label for='keyboard_only-s27-cycling-backwards-through-the-sort-columns-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s27-cycling-backwards-through-the-sort-columns-notes'>Notes for &ldquo;Cycling backwards through the sort columns&rdquo;</label>
+<textarea id='keyboard_only-s27-cycling-backwards-through-the-sort-columns-notes' data-persist-key='keyboard_only::keyboard_only-s27-cycling-backwards-through-the-sort-columns::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order' data-tags=''>
+<h3>Scenario: Sorting the same column again flips the order</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the library is sorted by title ascending</li><li><span class='keyword'>When</span> I press "Alt+Shift+S" until it lands on title again</li><li><span class='keyword'>Then</span> I hear "Sorting by title descending"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Sorting the same column again flips the order&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-pass' name='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s28-sorting-the-same-column-again-flips-the-order::result'><label for='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-fail' name='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s28-sorting-the-same-column-again-flips-the-order::result'><label for='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-skip' name='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s28-sorting-the-same-column-again-flips-the-order::result'><label for='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-not-tested' name='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s28-sorting-the-same-column-again-flips-the-order::result' checked><label for='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-notes'>Notes for &ldquo;Sorting the same column again flips the order&rdquo;</label>
+<textarea id='keyboard_only-s28-sorting-the-same-column-again-flips-the-order-notes' data-persist-key='keyboard_only::keyboard_only-s28-sorting-the-same-column-again-flips-the-order::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s29-reversing-the-sort-order-without-changing-column' data-tags='@blocking'>
+<h3>Scenario: Reversing the sort order without changing column</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: LIKELY BUG — read this before recording a result. The sort_order control is a plain push button whose VALUE is the sort direction, with nothing connected to interpret a press as a toggle. Key-down sends 1 (descending) and key-up sends 0 (ascending), so the documented behaviour ("reverse the current sort order") is probably not what happens: expect the list to flip to descending while the key is held and snap back to ascending on release, with TWO sort announcements per press.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the library is sorted by title ascending</li><li><span class='keyword'>When</span> I press and release "Alt+Shift+O"</li><li><span class='keyword'>Then</span> I hear how many sort announcements occurred and what each said</li><li><span class='keyword'>And</span> I record the sort order the list is left in</li></ol>
+<p class="step-note">Note: Pass = one announcement, "Sorting by title descending", and the list stays descending. Anything else, log exactly what you heard.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Reversing the sort order without changing column&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s29-reversing-the-sort-order-without-changing-column-pass' name='keyboard_only-s29-reversing-the-sort-order-without-changing-column-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s29-reversing-the-sort-order-without-changing-column::result'><label for='keyboard_only-s29-reversing-the-sort-order-without-changing-column-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s29-reversing-the-sort-order-without-changing-column-fail' name='keyboard_only-s29-reversing-the-sort-order-without-changing-column-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s29-reversing-the-sort-order-without-changing-column::result'><label for='keyboard_only-s29-reversing-the-sort-order-without-changing-column-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s29-reversing-the-sort-order-without-changing-column-skip' name='keyboard_only-s29-reversing-the-sort-order-without-changing-column-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s29-reversing-the-sort-order-without-changing-column::result'><label for='keyboard_only-s29-reversing-the-sort-order-without-changing-column-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s29-reversing-the-sort-order-without-changing-column-not-tested' name='keyboard_only-s29-reversing-the-sort-order-without-changing-column-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s29-reversing-the-sort-order-without-changing-column::result' checked><label for='keyboard_only-s29-reversing-the-sort-order-without-changing-column-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s29-reversing-the-sort-order-without-changing-column-notes'>Notes for &ldquo;Reversing the sort order without changing column&rdquo;</label>
+<textarea id='keyboard_only-s29-reversing-the-sort-order-without-changing-column-notes' data-persist-key='keyboard_only::keyboard_only-s29-reversing-the-sort-order-without-changing-column::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear' data-tags=''>
+<h3>Scenario: The column visibility menu opens and can be worked by ear</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the library track table has focus</li><li><span class='keyword'>When</span> I press "Alt+Shift+V"</li><li><span class='keyword'>Then</span> my screen reader announces a menu titled "Show or hide columns."</li><li><span class='keyword'>And</span> I can arrow through the column names hearing each one and whether it is ticked</li><li><span class='keyword'>When</span> I press "Space" on one of them</li><li><span class='keyword'>Then</span> that column's tick state changes</li><li><span class='keyword'>When</span> I press "Escape"</li><li><span class='keyword'>Then</span> the menu closes</li></ol>
+<p class="step-note">Note: NOTE: Mixxx's own speech says nothing here — the menu items are read by the platform screen reader. Without one running this scenario cannot be completed, which is itself worth recording.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;The column visibility menu opens and can be worked by ear&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-pass' name='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear::result'><label for='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-fail' name='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear::result'><label for='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-skip' name='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear::result'><label for='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-not-tested' name='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear::result' checked><label for='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-notes'>Notes for &ldquo;The column visibility menu opens and can be worked by ear&rdquo;</label>
+<textarea id='keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear-notes' data-persist-key='keyboard_only::keyboard_only-s30-the-column-visibility-menu-opens-and-can-be-worked-by-ear::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent' data-tags=''>
+<h3>Scenario: Sorting by a column with no spoken name stays silent</h3>
+
+<p class="step-note">Note: Some columns have no entry in the spoken vocabulary and are skipped entirely rather than announced blankly. Expected behaviour.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I cycle the sort column onto a column with no spoken name</li><li><span class='keyword'>Then</span> I hear nothing for that step</li><li><span class='keyword'>And</span> pressing "Alt+Shift+S" again moves on and announces normally</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Sorting by a column with no spoken name stays silent&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-pass' name='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent::result'><label for='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-fail' name='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent::result'><label for='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-skip' name='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent::result'><label for='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-not-tested' name='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent::result' checked><label for='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-notes'>Notes for &ldquo;Sorting by a column with no spoken name stays silent&rdquo;</label>
+<textarea id='keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent-notes' data-persist-key='keyboard_only::keyboard_only-s31-sorting-by-a-column-with-no-spoken-name-stays-silent::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-sort-feedback-also-fires-from-outside-the-keyboard-issue-17'>
+<h2 id='keyboard_only-section-sort-feedback-also-fires-from-outside-the-keyboard-issue-17'>Sort feedback also fires from outside the keyboard — issue #17</h2>
+<p>slotAnnounceSort() is wired to [Library],sort_column and sort_order changing value, not to the sort_column_toggle keyboard binding specifically. Issue #17 (the announcement itself) predates issue #59's keyboard chords by a separate PR and never required a keyboard trigger to fire — every scenario above just happens to exercise it via the keyboard because that is this file's whole premise. This one is out of place in a "keyboard only" file on purpose: it exists to confirm the OTHER, pre-existing, non-keyboard trigger — clicking a column header, which #59's own scenarios never touched — also announces. A sighted assistant can do the clicking; only the listening needs to be done blind.</p>
+<article class='scenario' id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort' data-tags=''>
+<h3>Scenario: Clicking a column header also announces the new sort</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the library is sorted by artist ascending</li><li><span class='keyword'>When</span> a column header other than the current sort column is clicked</li><li><span class='keyword'>Then</span> I hear "Sorting by " followed by that column's name and " ascending"</li><li><span class='keyword'>When</span> the same column header is clicked again</li><li><span class='keyword'>Then</span> I hear "Sorting by " followed by the column's name and " descending"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Clicking a column header also announces the new sort&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-pass' name='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort::result'><label for='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-fail' name='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort::result'><label for='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-skip' name='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort::result'><label for='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-not-tested' name='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort::result' checked><label for='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-notes'>Notes for &ldquo;Clicking a column header also announces the new sort&rdquo;</label>
+<textarea id='keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort-notes' data-persist-key='keyboard_only::keyboard_only-s32-clicking-a-column-header-also-announces-the-new-sort::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-auto-dj-from-the-keyboard-issue-86'>
+<h2 id='keyboard_only-section-auto-dj-from-the-keyboard-issue-86'>Auto DJ from the keyboard — issue #86</h2>
+
+<article class='scenario' id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced' data-tags='@blocking'>
+<h3>Scenario: Enabling and disabling Auto DJ is announced</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the Auto DJ queue contains several tracks</li><li><span class='keyword'>When</span> I press "Shift+F12"</li><li><span class='keyword'>Then</span> I hear "Auto DJ on. Next: " followed by the next track's artist and title</li><li><span class='keyword'>When</span> I press "Shift+F12"</li><li><span class='keyword'>Then</span> I hear "Auto DJ off"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Enabling and disabling Auto DJ is announced&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-pass' name='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced::result'><label for='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-fail' name='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced::result'><label for='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-skip' name='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced::result'><label for='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-not-tested' name='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced::result' checked><label for='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-notes'>Notes for &ldquo;Enabling and disabling Auto DJ is announced&rdquo;</label>
+<textarea id='keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced-notes' data-persist-key='keyboard_only::keyboard_only-s33-enabling-and-disabling-auto-dj-is-announced::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue' data-tags=''>
+<h3>Scenario: Enabling Auto DJ with an empty queue</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the Auto DJ queue is empty</li><li><span class='keyword'>When</span> I press "Shift+F12"</li><li><span class='keyword'>Then</span> I hear "Auto DJ on"</li><li><span class='keyword'>And</span> I do not hear a track name</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Enabling Auto DJ with an empty queue&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-pass' name='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s34-enabling-auto-dj-with-an-empty-queue::result'><label for='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-fail' name='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s34-enabling-auto-dj-with-an-empty-queue::result'><label for='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-skip' name='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s34-enabling-auto-dj-with-an-empty-queue::result'><label for='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-not-tested' name='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s34-enabling-auto-dj-with-an-empty-queue::result' checked><label for='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-notes'>Notes for &ldquo;Enabling Auto DJ with an empty queue&rdquo;</label>
+<textarea id='keyboard_only-s34-enabling-auto-dj-with-an-empty-queue-notes' data-persist-key='keyboard_only::keyboard_only-s34-enabling-auto-dj-with-an-empty-queue::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s35-auto-dj-transport-actions-are-announced' data-tags=''>
+<h3>Scenario Outline: Auto DJ transport actions are announced</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on with tracks queued</li><li><span class='keyword'>When</span> I press "&lt;chord&gt;"</li><li><span class='keyword'>Then</span> I hear "&lt;heard&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">chord</th><th scope="col">heard</th></tr></thead>
+<tbody>
+<tr><td>Shift+F11</td><td>Fading now</td></tr>
+<tr><td>Shift+F10</td><td>Skipped</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Auto DJ transport actions are announced&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s35-auto-dj-transport-actions-are-announced-pass' name='keyboard_only-s35-auto-dj-transport-actions-are-announced-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s35-auto-dj-transport-actions-are-announced::result'><label for='keyboard_only-s35-auto-dj-transport-actions-are-announced-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s35-auto-dj-transport-actions-are-announced-fail' name='keyboard_only-s35-auto-dj-transport-actions-are-announced-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s35-auto-dj-transport-actions-are-announced::result'><label for='keyboard_only-s35-auto-dj-transport-actions-are-announced-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s35-auto-dj-transport-actions-are-announced-skip' name='keyboard_only-s35-auto-dj-transport-actions-are-announced-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s35-auto-dj-transport-actions-are-announced::result'><label for='keyboard_only-s35-auto-dj-transport-actions-are-announced-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s35-auto-dj-transport-actions-are-announced-not-tested' name='keyboard_only-s35-auto-dj-transport-actions-are-announced-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s35-auto-dj-transport-actions-are-announced::result' checked><label for='keyboard_only-s35-auto-dj-transport-actions-are-announced-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s35-auto-dj-transport-actions-are-announced-notes'>Notes for &ldquo;Auto DJ transport actions are announced&rdquo;</label>
+<textarea id='keyboard_only-s35-auto-dj-transport-actions-are-announced-notes' data-persist-key='keyboard_only::keyboard_only-s35-auto-dj-transport-actions-are-announced::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set' data-tags='@blocking'>
+<h3>Scenario: The next-track readout tells me everything I need mid-set</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: Note the wording difference from the toggle announcements: the on-demand readout says "Auto DJ is on", the toggle says "Auto DJ on". That asymmetry is deliberate. Transcribe carefully.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on</li><li><span class='keyword'>And</span> the queue has at least one track</li><li><span class='keyword'>And</span> deck 1 is playing</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear "Auto DJ is on."</li><li><span class='keyword'>And</span> I hear "Next: " followed by the queued track's artist and title</li><li><span class='keyword'>And</span> I hear "About " followed by a time remaining and " on Deck 1."</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The next-track readout tells me everything I need mid-set&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-pass' name='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set::result'><label for='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-fail' name='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set::result'><label for='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-skip' name='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set::result'><label for='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-not-tested' name='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set::result' checked><label for='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-notes'>Notes for &ldquo;The next-track readout tells me everything I need mid-set&rdquo;</label>
+<textarea id='keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set-notes' data-persist-key='keyboard_only::keyboard_only-s36-the-next-track-readout-tells-me-everything-i-need-mid-set::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued' data-tags=''>
+<h3>Scenario: The next-track readout with Auto DJ off and nothing queued</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is off</li><li><span class='keyword'>And</span> the queue is empty</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear "Auto DJ is off. Queue is empty."</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The next-track readout with Auto DJ off and nothing queued&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-pass' name='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued::result'><label for='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-fail' name='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued::result'><label for='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-skip' name='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued::result'><label for='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-not-tested' name='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued::result' checked><label for='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-notes'>Notes for &ldquo;The next-track readout with Auto DJ off and nothing queued&rdquo;</label>
+<textarea id='keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued-notes' data-persist-key='keyboard_only::keyboard_only-s37-the-next-track-readout-with-auto-dj-off-and-nothing-queued::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing' data-tags=''>
+<h3>Scenario: The readout omits the time clause when nothing is playing</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on with a track queued</li><li><span class='keyword'>And</span> neither deck is playing</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear "Auto DJ is on." and the next track</li><li><span class='keyword'>And</span> I do not hear a time remaining</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The readout omits the time clause when nothing is playing&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-pass' name='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing::result'><label for='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-fail' name='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing::result'><label for='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-skip' name='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing::result'><label for='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-not-tested' name='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing::result' checked><label for='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-notes'>Notes for &ldquo;The readout omits the time clause when nothing is playing&rdquo;</label>
+<textarea id='keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing-notes' data-persist-key='keyboard_only::keyboard_only-s38-the-readout-omits-the-time-clause-when-nothing-is-playing::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix' data-tags=''>
+<h3>Scenario: The time remaining is time to end of track, not time to the mix</h3>
+
+<p class="step-note">Note: DOCUMENTED CAVEAT, not a defect. The real transition normally starts earlier, at the outro point or per the fade mode. Confirm the number matches the end of the track so the caveat can stay accurate.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on and deck 1 is playing a track with 90 seconds left</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear approximately "1 minute 30 seconds remaining"</li><li><span class='keyword'>And</span> the actual crossfade begins earlier than that</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The time remaining is time to end of track, not time to the mix&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-pass' name='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix::result'><label for='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-fail' name='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix::result'><label for='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-skip' name='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix::result'><label for='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-not-tested' name='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix::result' checked><label for='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-notes'>Notes for &ldquo;The time remaining is time to end of track, not time to the mix&rdquo;</label>
+<textarea id='keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix-notes' data-persist-key='keyboard_only::keyboard_only-s39-the-time-remaining-is-time-to-end-of-track-not-time-to-the-mix::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported' data-tags=''>
+<h3>Scenario: With both decks playing only the first is reported</h3>
+
+<p class="step-note">Note: The readout breaks on the first playing deck. Expected.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on and both decks are playing</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear a time remaining for deck 1 only</li><li><span class='keyword'>And</span> I do not hear anything about deck 2</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;With both decks playing only the first is reported&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-pass' name='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported::result'><label for='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-fail' name='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported::result'><label for='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-skip' name='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported::result'><label for='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-not-tested' name='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported::result' checked><label for='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-notes'>Notes for &ldquo;With both decks playing only the first is reported&rdquo;</label>
+<textarea id='keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported-notes' data-persist-key='keyboard_only::keyboard_only-s40-with-both-decks-playing-only-the-first-is-reported::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective' data-tags=''>
+<h3>Scenario: Adding a random track is silent but effective</h3>
+
+<p class="step-note">Note: There is deliberately no spoken confirmation. The way to verify is the readout. Do not file the silence as a bug.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Auto DJ is on and the queue is empty</li><li><span class='keyword'>When</span> I press "Ctrl+Shift+F9"</li><li><span class='keyword'>Then</span> I hear nothing</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear "Next: " followed by a track's artist and title</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Adding a random track is silent but effective&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-pass' name='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s41-adding-a-random-track-is-silent-but-effective::result'><label for='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-fail' name='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s41-adding-a-random-track-is-silent-but-effective::result'><label for='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-skip' name='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s41-adding-a-random-track-is-silent-but-effective::result'><label for='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-not-tested' name='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s41-adding-a-random-track-is-silent-but-effective::result' checked><label for='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-notes'>Notes for &ldquo;Adding a random track is silent but effective&rdquo;</label>
+<textarea id='keyboard_only-s41-adding-a-random-track-is-silent-but-effective-notes' data-persist-key='keyboard_only::keyboard_only-s41-adding-a-random-track-is-silent-but-effective::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s42-shuffling-the-queue-is-also-silent' data-tags=''>
+<h3>Scenario: Shuffling the queue is also silent</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the Auto DJ queue contains several tracks</li><li><span class='keyword'>When</span> I press "Shift+F9"</li><li><span class='keyword'>Then</span> I hear nothing</li><li><span class='keyword'>When</span> I press "Alt+Shift+N"</li><li><span class='keyword'>Then</span> I hear the next track, which may now be a different one</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Shuffling the queue is also silent&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s42-shuffling-the-queue-is-also-silent-pass' name='keyboard_only-s42-shuffling-the-queue-is-also-silent-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s42-shuffling-the-queue-is-also-silent::result'><label for='keyboard_only-s42-shuffling-the-queue-is-also-silent-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s42-shuffling-the-queue-is-also-silent-fail' name='keyboard_only-s42-shuffling-the-queue-is-also-silent-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s42-shuffling-the-queue-is-also-silent::result'><label for='keyboard_only-s42-shuffling-the-queue-is-also-silent-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s42-shuffling-the-queue-is-also-silent-skip' name='keyboard_only-s42-shuffling-the-queue-is-also-silent-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s42-shuffling-the-queue-is-also-silent::result'><label for='keyboard_only-s42-shuffling-the-queue-is-also-silent-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s42-shuffling-the-queue-is-also-silent-not-tested' name='keyboard_only-s42-shuffling-the-queue-is-also-silent-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s42-shuffling-the-queue-is-also-silent::result' checked><label for='keyboard_only-s42-shuffling-the-queue-is-also-silent-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s42-shuffling-the-queue-is-also-silent-notes'>Notes for &ldquo;Shuffling the queue is also silent&rdquo;</label>
+<textarea id='keyboard_only-s42-shuffling-the-queue-is-also-silent-notes' data-persist-key='keyboard_only::keyboard_only-s42-shuffling-the-queue-is-also-silent::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped' data-tags='@blocking'>
+<h3>Scenario: The Auto DJ panel can be tabbed through and escaped</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: All eight controls in this panel used to be mouse-only. The trap risk is the transition spinbox — check you can get back out.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the Auto DJ view is showing</li><li><span class='keyword'>And</span> focus is on the Auto DJ queue track table</li><li><span class='keyword'>When</span> I press "Tab" repeatedly</li><li><span class='keyword'>Then</span> I hear each of these announced in this order<ol class='data-list'><li>Auto DJ button</li><li>Fade now button</li><li>Skip next button</li><li>Transition mode combo</li><li>Transition time spinbox</li><li>Shuffle button</li><li>Add random track button</li><li>Repeat playlist button</li></ol></li><li><span class='keyword'>When</span> I press "Tab" until focus is on the transition time spinbox</li><li><span class='keyword'>And</span> I press "Escape"</li><li><span class='keyword'>Then</span> focus returns to the library widget I came from</li><li><span class='keyword'>And</span> I am not stuck inside the panel</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The Auto DJ panel can be tabbed through and escaped&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-pass' name='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped::result'><label for='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-fail' name='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped::result'><label for='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-skip' name='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped::result'><label for='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-not-tested' name='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped::result' checked><label for='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-notes'>Notes for &ldquo;The Auto DJ panel can be tabbed through and escaped&rdquo;</label>
+<textarea id='keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped-notes' data-persist-key='keyboard_only::keyboard_only-s43-the-auto-dj-panel-can-be-tabbed-through-and-escaped::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls' data-tags=''>
+<h3>Scenario: Enter also releases focus from the transition controls</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on the transition mode combo box</li><li><span class='keyword'>When</span> I press "Return"</li><li><span class='keyword'>Then</span> focus returns to the previously focused library widget</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Enter also releases focus from the transition controls&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-pass' name='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls::result'><label for='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-fail' name='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls::result'><label for='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-skip' name='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls::result'><label for='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-not-tested' name='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls::result' checked><label for='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-notes'>Notes for &ldquo;Enter also releases focus from the transition controls&rdquo;</label>
+<textarea id='keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls-notes' data-persist-key='keyboard_only::keyboard_only-s44-enter-also-releases-focus-from-the-transition-controls::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='keyboard_only-section-controller-navigation-without-focus-issue-83'>
+<h2 id='keyboard_only-section-controller-navigation-without-focus-issue-83'>Controller navigation without focus — issue #83</h2>
+
+<article class='scenario' id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named' data-tags=''>
+<h3>Scenario: The controller navigation checkbox is reachable and named</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a screen reader is running</li><li><span class='keyword'>When</span> I open Preferences, Accessibility and tab through the General group</li><li><span class='keyword'>Then</span> my screen reader announces "Allow controller navigation when Mixxx isn't focused"</li><li><span class='keyword'>And</span> it announces whether it is ticked</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The controller navigation checkbox is reachable and named&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-pass' name='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named::result'><label for='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-fail' name='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named::result'><label for='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-skip' name='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named::result'><label for='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-not-tested' name='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named::result' checked><label for='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-notes'>Notes for &ldquo;The controller navigation checkbox is reachable and named&rdquo;</label>
+<textarea id='keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named-notes' data-persist-key='keyboard_only::keyboard_only-s45-the-controller-navigation-checkbox-is-reachable-and-named::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s46-the-setting-takes-effect-without-a-restart' data-tags=''>
+<h3>Scenario: The setting takes effect without a restart</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a controller with a browse encoder is connected</li><li><span class='keyword'>And</span> "Allow controller navigation when Mixxx isn't focused" is unticked</li><li><span class='keyword'>When</span> I move focus to another application</li><li><span class='keyword'>And</span> I turn the browse encoder</li><li><span class='keyword'>Then</span> the library selection does not move</li><li><span class='keyword'>When</span> I return to Mixxx, tick the setting and press OK</li><li><span class='keyword'>And</span> I move focus to another application again</li><li><span class='keyword'>And</span> I turn the browse encoder</li><li><span class='keyword'>Then</span> I hear the library selection moving</li><li><span class='keyword'>And</span> I did not have to restart Mixxx</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The setting takes effect without a restart&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s46-the-setting-takes-effect-without-a-restart-pass' name='keyboard_only-s46-the-setting-takes-effect-without-a-restart-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s46-the-setting-takes-effect-without-a-restart::result'><label for='keyboard_only-s46-the-setting-takes-effect-without-a-restart-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s46-the-setting-takes-effect-without-a-restart-fail' name='keyboard_only-s46-the-setting-takes-effect-without-a-restart-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s46-the-setting-takes-effect-without-a-restart::result'><label for='keyboard_only-s46-the-setting-takes-effect-without-a-restart-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s46-the-setting-takes-effect-without-a-restart-skip' name='keyboard_only-s46-the-setting-takes-effect-without-a-restart-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s46-the-setting-takes-effect-without-a-restart::result'><label for='keyboard_only-s46-the-setting-takes-effect-without-a-restart-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s46-the-setting-takes-effect-without-a-restart-not-tested' name='keyboard_only-s46-the-setting-takes-effect-without-a-restart-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s46-the-setting-takes-effect-without-a-restart::result' checked><label for='keyboard_only-s46-the-setting-takes-effect-without-a-restart-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s46-the-setting-takes-effect-without-a-restart-notes'>Notes for &ldquo;The setting takes effect without a restart&rdquo;</label>
+<textarea id='keyboard_only-s46-the-setting-takes-effect-without-a-restart-notes' data-persist-key='keyboard_only::keyboard_only-s46-the-setting-takes-effect-without-a-restart::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx' data-tags='@blocking'>
+<h3>Scenario: Navigating with no focused window does not crash Mixxx</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: This path previously dereferenced a null focus window. It is now guarded, but a crash here loses a whole set, so check it deliberately.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> "Allow controller navigation when Mixxx isn't focused" is ticked</li><li><span class='keyword'>And</span> a controller with a browse encoder is connected</li><li><span class='keyword'>When</span> I switch to another application so Mixxx has no focus at all</li><li><span class='keyword'>And</span> I turn the browse encoder several times</li><li><span class='keyword'>Then</span> Mixxx is still running</li><li><span class='keyword'>And</span> I hear the library selection moving</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Navigating with no focused window does not crash Mixxx&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-pass' name='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx::result'><label for='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-fail' name='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx::result'><label for='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-skip' name='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx::result'><label for='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-not-tested' name='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx::result' checked><label for='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-notes'>Notes for &ldquo;Navigating with no focused window does not crash Mixxx&rdquo;</label>
+<textarea id='keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx-notes' data-persist-key='keyboard_only::keyboard_only-s47-navigating-with-no-focused-window-does-not-crash-mixxx::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='keyboard_only-s48-the-toggle-itself-says-nothing' data-tags=''>
+<h3>Scenario: The toggle itself says nothing</h3>
+
+<p class="step-note">Note: EXPECTED: this is a silent preference with no spoken confirmation.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I tick or untick the controller navigation checkbox and press OK</li><li><span class='keyword'>Then</span> Mixxx does not speak a confirmation</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The toggle itself says nothing&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='keyboard_only-s48-the-toggle-itself-says-nothing-pass' name='keyboard_only-s48-the-toggle-itself-says-nothing-result' value='pass' data-persist-key='keyboard_only::keyboard_only-s48-the-toggle-itself-says-nothing::result'><label for='keyboard_only-s48-the-toggle-itself-says-nothing-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s48-the-toggle-itself-says-nothing-fail' name='keyboard_only-s48-the-toggle-itself-says-nothing-result' value='fail' data-persist-key='keyboard_only::keyboard_only-s48-the-toggle-itself-says-nothing::result'><label for='keyboard_only-s48-the-toggle-itself-says-nothing-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s48-the-toggle-itself-says-nothing-skip' name='keyboard_only-s48-the-toggle-itself-says-nothing-result' value='skip' data-persist-key='keyboard_only::keyboard_only-s48-the-toggle-itself-says-nothing::result'><label for='keyboard_only-s48-the-toggle-itself-says-nothing-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='keyboard_only-s48-the-toggle-itself-says-nothing-not-tested' name='keyboard_only-s48-the-toggle-itself-says-nothing-result' value='not-tested' data-persist-key='keyboard_only::keyboard_only-s48-the-toggle-itself-says-nothing::result' checked><label for='keyboard_only-s48-the-toggle-itself-says-nothing-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='keyboard_only-s48-the-toggle-itself-says-nothing-notes'>Notes for &ldquo;The toggle itself says nothing&rdquo;</label>
+<textarea id='keyboard_only-s48-the-toggle-itself-says-nothing-notes' data-persist-key='keyboard_only::keyboard_only-s48-the-toggle-itself-says-nothing::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='first_run_boot.html'>&larr; Previous file: first_run_boot.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='destructive_actions.html'>Next file: destructive_actions.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>

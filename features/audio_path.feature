@@ -102,6 +102,120 @@ Feature: The audio path — things only a listener can confirm
     Then I hear "Cancelled." followed by the item and its unchanged value
 
   # ---------------------------------------------------------------------
+  # Mixer readouts on by default — issue #36
+  #
+  # This was the single BLOCKING finding from the original accessibility
+  # audit: a blind DJ moving a channel fader or an EQ knob heard nothing
+  # at all unless they had already found and ticked "Announce mixer
+  # controls" in Preferences, Accessibility — a setting they could not
+  # discover without already being able to see the dialog.
+  #
+  # AnnounceMixer's default flipped from false to true; nothing else
+  # about the readout changed. It covers volume, trim, the three EQ
+  # bands, the filter (QuickEffect super knob) and the crossfader — every
+  # one of those observers in AnnouncementManager checks the same
+  # AnnounceMixer setting. It still names the control on first touch and
+  # speaks the settled value once you stop moving it (debounced), and
+  # "announce while moving" remains a separate, still-opt-in setting, so
+  # this is not chatty mid-mix. Every scenario elsewhere in this plan that
+  # exercises these controls (e.g. keyboard_only.feature's EQ/volume/
+  # filter/crossfader scenarios) explicitly enables AnnounceMixer in its
+  # own Background, so none of them actually prove the DEFAULT — this is
+  # the only scenario in the plan that does.
+  #
+  # AnnounceTempo (the pitch/tempo fader) is a SEPARATE preference and was
+  # already on by default before this PR; it is included below only as a
+  # sanity check that raising AnnounceMixer's default did not disturb it,
+  # not because #36 touched it.
+  # ---------------------------------------------------------------------
+
+  @blocking @firstrun
+  Scenario: A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured
+    Given the Mixxx settings directory has been moved aside so this is a fresh profile
+    And Mixxx is running with a working audio device
+    And I have not opened Preferences, Accessibility at all
+    And deck 1 is playing
+    When I move deck 1's low EQ knob and let it settle
+    Then I hear "Deck 1 E Q low" named on the first move
+    And I hear a value announced once it settles
+    When I move deck 1's filter knob and let it settle
+    Then I hear "Deck 1 filter" named
+    And I hear a value announced once it settles
+    When I move deck 1's volume fader and let it settle
+    Then I hear "Deck 1 volume" named
+    And I hear a value announced once it settles
+    When I move the crossfader and let it settle
+    Then I hear "Crossfader" named
+    And I hear a value announced once it settles
+    When I move deck 1's pitch/tempo fader and let it settle
+    Then I hear a pitch value announced
+    # The tempo fader was already spoken by default before #36 (a
+    # different setting, AnnounceTempo); included here only to confirm
+    # the mixer change did not silence it as a side effect.
+
+  Scenario: Mixer readouts can still be turned off by someone who wants quiet
+    Given "Announce mixer controls" is disabled in Preferences, Accessibility
+    And deck 1 is playing
+    When I move deck 1's volume fader and let it settle
+    Then I hear nothing
+
+  # ---------------------------------------------------------------------
+  # Musical key names respect the locale — issue #14
+  #
+  # keyForSpeech() in AnnouncementManager now wraps its 24 fully-spelled
+  # key names ("C Major", "F Sharp Major", ... "B Minor") in tr(), so a
+  # translated build speaks the key in the user's language instead of
+  # always English. This only affects Traditional notation (and the
+  # "...and Traditional" variants); Open Key and Lancelot/Camelot codes
+  # are spoken as a digit plus a phonetic letter and were not touched.
+  #
+  # CORRECTION AT TIME OF WRITING: none of the shipped translation files
+  # (res/translations/mixxx_*.ts) contain a translated msgid for any of
+  # these 24 strings — they are new to tr() as of this commit and have
+  # not yet been through a Transifex sync. So switching the locale today
+  # will NOT produce a translated key name; Qt's tr() falls back to the
+  # English source string when no translation exists. What these
+  # scenarios can actually prove until a translation lands is that
+  # switching locale does not break the announcement — not that a
+  # translated word comes out. Re-run them and update the expected
+  # string once a translation is available.
+  #
+  # The locale is set from Preferences, Interface ("Locale" combo box,
+  # default "System") and is only read at startup, so it needs a
+  # restart to take effect.
+  # ---------------------------------------------------------------------
+
+  @locale
+  Scenario: The on-demand key readout follows the app locale
+    Given "Locale" in Preferences, Interface is set to a non-English language with a Mixxx translation installed
+    And I have restarted Mixxx so the new locale is loaded
+    And "Key Notation" in Preferences, Key Detection is set to Traditional
+    And a track with a known musical key is loaded in deck 1
+    When I press "Alt+7"
+    Then I hear the key name in that language, not in English
+    # If no translation exists yet for the key names (see the correction
+    # above), you will hear the English name instead — that is the
+    # current expected state, not a fail. Record which one you heard.
+
+  @locale
+  Scenario: The load announcement's key name also follows the locale
+    Given "Locale" in Preferences, Interface is set to a non-English language with a Mixxx translation installed
+    And I have restarted Mixxx so the new locale is loaded
+    And "Key Notation" in Preferences, Key Detection is set to Traditional
+    When I load a track with a known musical key into deck 1
+    Then I hear the key name spoken in the same language as the rest of the load announcement
+    # Same correction as above applies.
+
+  @locale @regression
+  Scenario: A locale with no Mixxx translation at all still falls back safely
+    Given "Locale" in Preferences, Interface is set to a language that has no Mixxx translation installed
+    And I have restarted Mixxx
+    And a track with a known musical key is loaded in deck 1
+    When I press "Alt+7"
+    Then I still hear a recognisable key name, spoken in English
+    And Mixxx does not crash and does not announce an empty string
+
+  # ---------------------------------------------------------------------
   # Earcons — the full set, including the new xrun tone from issue #87
   #
   # Reference for describing what you heard:
