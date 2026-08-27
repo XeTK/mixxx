@@ -15,7 +15,18 @@ for a one-page cheat sheet.
 ## Quick start
 
 1. Start Mixxx. When the interface has loaded you will hear
-   "Mixxx ready."
+   "Mixxx ready." The very first time Mixxx is ever launched, a short
+   spoken orientation follows once a sound device is confirmed open:
+   the speech toggle (Alt plus Shift plus A), the full deck status
+   readouts (Alt plus 1 / Alt plus 2), how to repeat the last thing
+   spoken (Alt plus Shift plus R), and a pointer to this guide and the
+   quick reference for everything else. It plays once ever, not on
+   every launch — there is no menu item or shortcut to replay it
+   deliberately yet, so come back to this guide or the quick reference
+   if you want to hear it described again. If speech is off at that
+   first launch, nothing is spoken, but the one-time flag is still
+   marked as done — this is a first-run nudge, not a nag that follows
+   you around after you've started using Mixxx sighted.
 2. Press Tab or use your screen reader to reach the library search
    box, type part of a track name, then press Escape to move to the
    track list.
@@ -218,6 +229,30 @@ the sound alone is just the alert.
   behavior, not accessibility-specific, so it's not tucked away on the
   Accessibility page — turn it off with the "Smart cue" checkbox in
   Preferences, Decks, next to "Loading a track, when deck is playing".
+
+## Auto DJ
+
+- Enable/disable: Shift plus F12. Both states are always spoken;
+  enabling also speaks the next queued track ("Auto DJ on. Next:
+  Artist, Title"), or just "Auto DJ on" if the queue is empty.
+- Fade now: Shift plus F11 crossfades to the next track immediately.
+  Says "Fading now"; the resulting track load still gets its own
+  separate load announcement (artist, title, BPM, key) once it lands.
+- Skip next: Shift plus F10 drops the queued track without playing
+  it. Says "Skipped".
+- Shuffle the queue: Shift plus F9.
+- Add a random track to the queue: Control plus Shift plus F9.
+- What's next, on demand: Alt plus Shift plus N speaks whether Auto
+  DJ is on, the next queued track's artist and title (or "Queue is
+  empty"), and — if a deck is currently playing — roughly how long
+  until it hands off, for example "About 1 minute 30 seconds
+  remaining on Deck, Alpha." This last part is an estimate: the real
+  crossfade can start earlier than the track's end, depending on the
+  outro point and fade mode, so treat it as a rough warning rather
+  than an exact countdown.
+- The Auto DJ panel's transition-time spinbox, fade-mode combo, and
+  the enable/fade/skip/shuffle/add-random/repeat buttons are all
+  reachable with Tab — they used to be mouse-only.
 
 ## What gets announced automatically
 
@@ -573,6 +608,9 @@ unlimited pre-roll like stock Mixxx.
 
 ## Known limitations
 
+- The first-run spoken orientation (see "Quick start" above) plays
+  exactly once and cannot yet be replayed on demand from a menu item
+  or shortcut; this guide and the quick reference are the fallback.
 - Announcements are English only for now.
 - The first-run sound hardware dialog appears before Mixxx's speech
   can produce audio; use your screen reader for initial setup.

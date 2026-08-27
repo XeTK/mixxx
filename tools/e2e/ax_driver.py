@@ -35,6 +35,23 @@ _MODIFIER_FLAGS = {
     "command": 0x00100000,  # kCGEventFlagMaskCommand
 }
 
+# macOS virtual keycodes (Carbon HIToolbox kVK_* constants) for the handful of
+# non-alphanumeric keys scenarios press by name. Kept here, next to the
+# modifier flags, so a scenario never has to hardcode a "magic number" keycode
+# without a name attached to it.
+KEYCODES = {
+    "return": 0x24,     # kVK_Return
+    "escape": 0x35,     # kVK_Escape
+    "backspace": 0x33,  # kVK_Delete (labelled "delete" on a Mac keyboard; this
+                         # is the key kHideRemoveShortcutKey/util/defs.h binds
+                         # Hide/Remove to on macOS, as Ctrl+Backspace)
+    "tab": 0x30,        # kVK_Tab
+    "a": 0x00,          # kVK_ANSI_A -- used for Cmd+A (select all)
+    "f10": 0x6D,        # kVK_F10 -- Shift+F10 is Qt's cross-platform "open
+                         # the context menu from the keyboard" shortcut, for
+                         # keyboards (most Mac ones) with no dedicated Menu key
+}
+
 
 class AxBackend:
     """Abstract interface for driving an OS accessibility tree.
@@ -186,6 +203,13 @@ class AxDriver:
 
     def send_key(self, keycode, modifiers=()):
         """Post a key press. `modifiers` is an iterable of names like 'alt'."""
+        return self.backend.send_key(keycode, modifiers)
+
+    def press(self, key_name, modifiers=()):
+        """Post a key press by name, e.g. ``press("return")`` or
+        ``press("backspace", ["control"])``. See ``KEYCODES`` for the names
+        that are defined."""
+        keycode = KEYCODES[key_name]
         return self.backend.send_key(keycode, modifiers)
 
     # -- tree walking ------------------------------------------------------

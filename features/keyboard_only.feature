@@ -369,6 +369,29 @@ Feature: The full workflow from the keyboard alone
     And pressing "Alt+Shift+S" again moves on and announces normally
 
   # ---------------------------------------------------------------------
+  # Sort feedback also fires from outside the keyboard — issue #17
+  #
+  # slotAnnounceSort() is wired to [Library],sort_column and sort_order
+  # changing value, not to the sort_column_toggle keyboard binding
+  # specifically. Issue #17 (the announcement itself) predates issue
+  # #59's keyboard chords by a separate PR and never required a keyboard
+  # trigger to fire — every scenario above just happens to exercise it
+  # via the keyboard because that is this file's whole premise. This one
+  # is out of place in a "keyboard only" file on purpose: it exists to
+  # confirm the OTHER, pre-existing, non-keyboard trigger — clicking a
+  # column header, which #59's own scenarios never touched — also
+  # announces. A sighted assistant can do the clicking; only the
+  # listening needs to be done blind.
+  # ---------------------------------------------------------------------
+
+  Scenario: Clicking a column header also announces the new sort
+    Given the library is sorted by artist ascending
+    When a column header other than the current sort column is clicked
+    Then I hear "Sorting by " followed by that column's name and " ascending"
+    When the same column header is clicked again
+    Then I hear "Sorting by " followed by the column's name and " descending"
+
+  # ---------------------------------------------------------------------
   # Auto DJ from the keyboard — issue #86
   # ---------------------------------------------------------------------
 

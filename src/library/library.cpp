@@ -76,6 +76,7 @@ Library::Library(
           m_pLibraryControl(make_parented<LibraryControl>(this, pConfig)),
           m_pLibraryWidget(nullptr),
           m_pMixxxLibraryFeature(nullptr),
+          m_pAutoDJFeature(nullptr),
           m_pPlaylistFeature(nullptr),
           m_pCrateFeature(nullptr),
           m_pAnalysisFeature(nullptr) {
@@ -142,7 +143,8 @@ Library::Library(
             Qt::DirectConnection /* signal-to-signal */);
 #endif
 
-    addFeature(new AutoDJFeature(this, m_pConfig, pPlayerManager));
+    m_pAutoDJFeature = new AutoDJFeature(this, m_pConfig, pPlayerManager);
+    addFeature(m_pAutoDJFeature);
 
     m_pPlaylistFeature = new PlaylistFeature(this, UserSettingsPointer(m_pConfig));
     addFeature(m_pPlaylistFeature);
@@ -491,6 +493,10 @@ void Library::announceText(const QString& text) {
 
 void Library::announceSearchResultCount(int count) {
     emit searchResultCountChanged(count);
+}
+
+AutoDJProcessor* Library::getAutoDJProcessor() const {
+    return m_pAutoDJFeature ? m_pAutoDJFeature->getAutoDJProcessor() : nullptr;
 }
 
 void Library::announceMenuHover(QMenu* pMenu) {

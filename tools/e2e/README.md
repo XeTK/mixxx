@@ -14,7 +14,24 @@ m1_boot_speech.py     M1: assert "Mixxx ready" is spoken and the window appears
 m2_ddj400_menu.py     M2: DDJ-400 menu open/navigate/activate/back via emulator + TTS log
 m3_accessible_names.py M3: open Preferences via AX tree, assert pages are exposed
 m4_keyboard_readout.py M3: Alt+1 -> assert new speech in the TTS log
+
+library_fixture.py    shared: seed a throwaway mixxxdb.sqlite with fixture tracks
+library_actions.py    shared: focus/select the track table, drive its context menu
+d1_purge_enter_safe.py               issue #104: Return on the purge dialog purges nothing
+d2_purge_escape_safe.py              issue #104: Escape on the purge dialog purges nothing
+d3_purge_narrates_before_dialog.py   issue #104: purge announces itself verbatim first
+d4_hide_enter_safe.py                issue #104: Return on the hide dialog hides nothing
+d5_delete_enter_safe.py              issue #104: Return on the delete dialog deletes nothing
+d6_delete_escape_safe.py             issue #104: Escape on the delete dialog deletes nothing
+d7_no_destructive_action_fires_immediately.py  issue #104: Purge/Hide/Delete all confirm first
+d8_repeated_enter_stack_safe.py      issue #104: 3 rapid Returns on a hide dialog stay safe
 ```
+
+The `d*` scenarios automate a slice of `features/destructive_actions.feature`
+(the manual Gherkin test plan) as real regression tests. See
+`features/COVERAGE.md`'s "Automated coverage (issue #104)" section for which
+scenarios from that file are covered this way, and which remain manual-only
+and why.
 
 `ax_driver.py` abstracts the OS accessibility backend behind `AxBackend`. The
 macOS backend (`MacAxBackend`, PyObjC `Quartz`/`ApplicationServices`) is
@@ -41,6 +58,12 @@ python3 tools/e2e/run_e2e.py --scenario m4_keyboard_readout
 
 # M2 needs the DDJ-400 mapping assigned; point at a custom port if needed
 DDJ400_PORT="My Port" python3 tools/e2e/run_e2e.py --scenario m2_ddj400_menu
+
+# Destructive-actions slice (issue #104) -- each seeds its own throwaway
+# library via a `prepare(settings_dir, mixxx_bin)` hook before Mixxx launches
+python3 tools/e2e/run_e2e.py --scenario d1_purge_enter_safe
+python3 tools/e2e/run_e2e.py --scenario d4_hide_enter_safe
+python3 tools/e2e/run_e2e.py --scenario d5_delete_enter_safe
 ```
 
 Each run uses a throwaway settings dir and a fresh `--tts-log`, then tears down.
