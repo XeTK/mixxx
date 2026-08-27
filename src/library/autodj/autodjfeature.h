@@ -49,6 +49,13 @@ class AutoDJFeature : public LibraryFeature {
         return true;
     }
 
+    // Non-owning access to the processor for the accessibility layer (the
+    // "what's next in Auto DJ" on-demand readout). May be null before the
+    // feature has finished constructing.
+    AutoDJProcessor* getAutoDJProcessor() const {
+        return m_pAutoDJProcessor;
+    }
+
   public slots:
     void activate() override;
 

@@ -1815,6 +1815,13 @@ DeckAttributes* AutoDJProcessor::getFromDeck() {
     return nullptr;
 }
 
+TrackPointer AutoDJProcessor::getNextQueuedTrack() const {
+    if (!m_pAutoDJTableModel || m_pAutoDJTableModel->rowCount() == 0) {
+        return TrackPointer();
+    }
+    return m_pAutoDJTableModel->getTrack(m_pAutoDJTableModel->index(0, 0));
+}
+
 bool AutoDJProcessor::nextTrackLoaded() {
     if (m_eState == ADJ_DISABLED) {
         // AutoDJ always loads the top track (again) if enabled

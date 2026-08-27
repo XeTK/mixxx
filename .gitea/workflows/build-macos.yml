@@ -37,10 +37,35 @@ jobs:
         run: git fetch origin --force --tags
 
       - name: "Install build tools"
-        run: brew install cmake ninja ccache
+        # zstd is included so actions/cache can archive/restore the ccache
+        # directory with it instead of falling back to gzip - see the
+        # equivalent step in build-linux.yml for why that matters for cache
+        # transfer speed on both restore and save.
+        run: brew install cmake ninja ccache zstd
 
       - name: "Get build environment name"
+        # Exports BUILDENV_NAME (e.g. mixxx-deps-2.6-arm64-osx-rel-f46c645)
+        # via GITHUB_ENV - it already embeds platform, arch, and the
+        # dependency-zip hash, so it doubles as a stable-but-correctly-
+        # invalidating cache key for the "Restore/Save buildenv cache" steps
+        # below.
         run: tools/macos_release_buildenv.sh name
+
+      - name: "Restore buildenv cache"
+        # CMakeLists.txt (not this workflow) is what actually downloads and
+        # extracts the multi-GB dependency zip from downloads.mixxx.org,
+        # during the "Configure" step below - it does so into
+        # <checkout>/buildenv (BUILDENV_BASEPATH) whenever that directory
+        # doesn't already exist. Nothing previously cached that directory
+        # between runs, so every single run re-downloaded and re-extracted
+        # the full archive. Restoring it here before Configure lets CMake see
+        # the already-extracted dependency directory and skip the download
+        # entirely.
+        id: restore-buildenv
+        uses: actions/cache/restore@v4
+        with:
+          path: buildenv
+          key: buildenv-macos-${{ env.BUILDENV_NAME }}
 
       - name: "Set up build environment"
         # Downloads Mixxx's prebuilt vcpkg dependency bundle (matching this
@@ -54,7 +79,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/Library/Caches/ccache
-          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
           restore-keys: |
             macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
             macos-ccache-${{ runner.arch }}-
@@ -70,7 +95,13 @@ jobs:
           CCACHE_SLOPPINESS: file_macro,file_stat_matches,include_file_ctime,include_file_mtime,pch_defines,time_macros
         run: |
           ccache --zero-stats
-          ccache --max-size=40G
+          # 12G + compression, matching the Linux jobs. 40G is far past what
+          # the runner can archive: the save step tars *and* gzips the cache,
+          # and an oversized cache is what yields "no space left on device"
+          # and cache-upload 500s. Compression preserves most of the effective
+          # capacity at a fraction of the on-disk size.
+          ccache --max-size=12G
+          ccache --set-config=compression=true 2>/dev/null || true
           # On macOS the ccache config file may be root-owned and unwritable;
           # the env vars above already take effect for this job, but try to
           # persist them anyway so other invocations see them too.
@@ -106,27 +137,45 @@ jobs:
           -DVINYLCONTROL=ON
           ..
 
+      - name: "Save buildenv cache"
+        # The Configure step above is what actually populated (or confirmed)
+        # buildenv/ - only re-archive it when the restore above was not an
+        # exact hit, so an unchanged multi-GB dependency zip isn't
+        # re-uploaded to the cache on every single run.
+        if: always() && steps.restore-buildenv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: buildenv
+          key: buildenv-macos-${{ env.BUILDENV_NAME }}
+
       - name: "Build"
         working-directory: build
         run: cmake --build . --config RelWithDebInfo -- -j"$(sysctl -n hw.ncpu)"
 
       - name: "Print ccache stats"
+        # -v breaks "Hits" down into direct vs. preprocessed mode - see the
+        # equivalent step in build-linux.yml.
         run: |
-          ccache --show-stats
+          ccache --show-stats -v
           ccache --cleanup
 
       - name: "Save ccache"
-        if: always()
+        # No run_number in the key: with it, every run wrote a NEW cache
+        # entry instead of overwriting, accumulating one cache per run
+        # until the disk filled. The Linux jobs already use a stable
+        # branch-only key for this reason; macOS was missed.
+        # Only save on push/dispatch -- archiving is expensive and PR
+        # runs only need to *restore*.
+        if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           path: ~/Library/Caches/ccache
-          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}-${{ github.run_number }}
+          key: macos-ccache-${{ runner.arch }}-${{ github.ref_name }}
 
       - name: "Test"
         working-directory: build
         env:
           GTEST_COLOR: 1
-          CTEST_PARALLEL_LEVEL: 1
           CTEST_OUTPUT_ON_FAILURE: 1
         # DirectoryDAOTest.relocateDirectory is a known-broken test on macOS
         # (see .github/workflows/build.yml). The others are pre-existing gaps
@@ -145,8 +194,45 @@ jobs:
         # --repeat until-pass tolerates other occasional transient failures;
         # --stop-on-failure still stops the whole suite once a test exhausts
         # its retries.
+        #
+        # -j/--parallel (issue #101): CTEST_PARALLEL_LEVEL was hardcoded to 1
+        # here with no comment explaining why - git blame traces it back to
+        # this workflow's very first commit, so it reads like a conservative
+        # default that was never revisited rather than a deliberate fix for a
+        # real failure (contrast with build-windows.yml, which *does* have a
+        # comment: "Windows tests fail randomly if run in parallel"). Verified
+        # safe to parallelize here specifically:
+        #   - gtest_discover_tests(... DISCOVERY_MODE PRE_TEST ...) in the top
+        #     level CMakeLists.txt registers one ctest entry per TEST/TEST_F,
+        #     and ctest invokes a fresh mixxx-test process per entry (via
+        #     --gtest_filter), so parallel ctest workers are separate OS
+        #     processes, not threads sharing state.
+        #   - MixxxTest (src/test/mixxxtest.h/.cpp) roots every test's config
+        #     file and DB path inside a per-instance QTemporaryDir, and no
+        #     test outside that helper writes to a fixed shared path (audited
+        #     src/test for QDir::tempPath()/QSettings( usage) - so concurrent
+        #     processes cannot collide on config/DB files.
+        #   - This runner (macmini-runner) has no documented memory pressure,
+        #     unlike linux-x86 (4 GiB LXC, historically OOMs even at
+        #     parallel level 1 - see build-linux.yml) and windows-runner
+        #     (tight RAM plus the parallel-test flakiness above) - so it is
+        #     left untouched there and only enabled here.
+        # A live run (job 2389, run 1546) measured "Total Test time (real) =
+        # 1637.44 sec" sequentially for 1503 tests, of which 833.73s (51%)
+        # across 288 tests is MidiMappings/MappingTestFixture.* alone (plus
+        # another 98.59s/34 tests for HidMappings) - each just loads and
+        # validates one static, read-only controller mapping XML file, with
+        # no shared state between them, i.e. closer to embarrassingly
+        # parallel than anything requiring serialization.
+        # 45s (this repo's prior sequential-era default) was too tight once
+        # -j actually saturates every core: SoundSourceProxyTest.skipAndRead
+        # does real audio-codec decode/seek I/O and timed out under CPU/disk
+        # contention with all cores busy, surviving all 3 --repeat
+        # until-pass attempts. 90s gives I/O-bound tests headroom without
+        # masking a real hang (a genuinely stuck test still trips it).
         run: >-
-          ctest --timeout 45
+          ctest --timeout 90
+          -j"$(sysctl -n hw.ncpu)"
           --exclude-regex "DirectoryDAOTest\.relocateDirectory|SoundSourceProxyTest\.firstSoundTest|HidMappings.*Dummy_Device_Screen|TtsEngineIntegrationTest\..*"
           --repeat until-pass:3
           --stop-on-failure

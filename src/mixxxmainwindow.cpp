@@ -1,5 +1,6 @@
 #include "mixxxmainwindow.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDebug>
@@ -169,6 +170,25 @@ QString MixxxMainWindow::directRenderingSpeech() {
               "rendering, or disable the waveform displays in the Mixxx "
               "preferences by selecting Empty as the waveform display in the "
               "Interface section.");
+}
+
+QString MixxxMainWindow::confirmExitDeckPlayingSpeech() {
+    return tr("Confirm Exit dialog. A deck is currently playing. Exit Mixxx? "
+              "No is selected by default; press Escape or Enter for no, or "
+              "move to Yes and press Enter to exit.");
+}
+
+QString MixxxMainWindow::confirmExitSamplerPlayingSpeech() {
+    return tr("Confirm Exit dialog. A sampler is currently playing. Exit "
+              "Mixxx? No is selected by default; press Escape or Enter for "
+              "no, or move to Yes and press Enter to exit.");
+}
+
+QString MixxxMainWindow::confirmExitPreferencesOpenSpeech() {
+    return tr("Confirm Exit dialog. The preferences window is still open. "
+              "Discard any changes and exit Mixxx? No is selected by "
+              "default; press Escape or Enter for no, or move to Yes and "
+              "press Enter to discard changes and exit.");
 }
 
 MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServices)
@@ -457,6 +477,66 @@ void MixxxMainWindow::initialize() {
             this,
             &MixxxMainWindow::slotAccessMenuAction,
             Qt::UniqueConnection);
+
+    // Fullscreen has no ControlObject/config key, so push its live state into
+    // the controller for the Fullscreen toggle item to speak (issue #57).
+    m_pAccessMenuController->setFullScreenState(isFullScreen());
+    connect(this,
+            &MixxxMainWindow::fullScreenChanged,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::setFullScreenState,
+            Qt::UniqueConnection);
+
+    // Accessibility (issue #57): keyboard bindings for the [AccessMenu]
+    // spoken popup, previously reachable only via the DDJ-400 browse-knob
+    // hold gesture. These are wired as application-wide Qt shortcuts (the
+    // same pattern the "Enable Text-to-Speech" menu item uses for
+    // Alt+Shift+A, see WMainMenuBar::initialize()) rather than only through
+    // kbd.cfg -> ControlObject bindings, so they keep working even when
+    // "Enable Keyboard Shortcuts" is turned off -- including by this very
+    // menu (AccessMenuController speaks a warning right before that toggle
+    // fires; see AccessMenuController::activateCurrentItem()). Qt's shortcut
+    // map consumes the key press before KeyboardEventFilter (and its
+    // kbd.cfg-driven bindings) ever sees it, so a keyboard-only DJ who has
+    // just disabled shortcuts from this menu can still reach it afterwards.
+    // These actions are added directly to this window (not to any menu) so
+    // they stay invisible while still being real, addAction()-registered Qt
+    // shortcuts.
+    auto pKbdConfig = m_pCoreServices->getKeyboardConfig();
+    auto makeAccessMenuAction = [this, pKbdConfig](
+                                         const QString& item,
+                                         const QString& defaultKeySequence) {
+        auto* pAction = new QAction(this);
+        pAction->setShortcut(QKeySequence(pKbdConfig->getValue(
+                ConfigKey(QStringLiteral("[AccessMenu]"), item), defaultKeySequence)));
+        pAction->setShortcutContext(Qt::ApplicationShortcut);
+        addAction(pAction);
+        return pAction;
+    };
+    connect(makeAccessMenuAction(QStringLiteral("toggle"), QStringLiteral("Alt+Shift+M")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotToggle);
+    connect(makeAccessMenuAction(QStringLiteral("navigateUp"), QStringLiteral("Alt+Shift+Up")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            [this] { m_pAccessMenuController->slotNavigate(-1.0); });
+    connect(makeAccessMenuAction(QStringLiteral("navigateDown"), QStringLiteral("Alt+Shift+Down")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            [this] { m_pAccessMenuController->slotNavigate(1.0); });
+    connect(makeAccessMenuAction(QStringLiteral("activate"), QStringLiteral("Alt+Shift+Return")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotActivate);
+    connect(makeAccessMenuAction(QStringLiteral("back"), QStringLiteral("Alt+Shift+Backspace")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotBack);
+    connect(makeAccessMenuAction(QStringLiteral("confirm"), QStringLiteral("Alt+Shift+Space")),
+            &QAction::triggered,
+            m_pAccessMenuController.get(),
+            &AccessMenuController::slotConfirm);
 
     QWidget* oldWidget = m_pCentralWidget;
 
@@ -1469,6 +1549,14 @@ void MixxxMainWindow::slotShowKeywheel(bool toggle) {
                 &DlgKeywheel::finished,
                 m_pMenuBar,
                 &WMainMenuBar::onKeywheelChange);
+        // Speak notation changes (issue #63): switching notation only
+        // redraws the SVG, which a screen-reader user can't see.
+        connect(m_pKeywheel.get(),
+                &DlgKeywheel::notationChanged,
+                this,
+                [this](const QString& notationName) {
+                    m_pCoreServices->getLibrary()->announceText(notationName);
+                });
     }
     if (toggle) {
         m_pKeywheel->show();
@@ -1846,6 +1934,12 @@ bool MixxxMainWindow::confirmExit() {
         }
     }
     if (playing) {
+        // Accessibility (issue #115): this QMessageBox was never wired into
+        // the fork's speech system, so a blind user got no indication the
+        // dialog had even appeared. Speak it the same way the other
+        // confirm-style dialogs do, before the (still blocking) dialog is
+        // shown.
+        m_pCoreServices->getLibrary()->announceText(confirmExitDeckPlayingSpeech());
         QMessageBox::StandardButton btn = QMessageBox::question(this,
             tr("Confirm Exit"),
             tr("A deck is currently playing. Exit Mixxx?"),
@@ -1854,6 +1948,7 @@ bool MixxxMainWindow::confirmExit() {
             return false;
         }
     } else if (playingSampler) {
+        m_pCoreServices->getLibrary()->announceText(confirmExitSamplerPlayingSpeech());
         QMessageBox::StandardButton btn = QMessageBox::question(this,
             tr("Confirm Exit"),
             tr("A sampler is currently playing. Exit Mixxx?"),
@@ -1863,6 +1958,7 @@ bool MixxxMainWindow::confirmExit() {
         }
     }
     if (m_pPrefDlg && m_pPrefDlg->isVisible()) {
+        m_pCoreServices->getLibrary()->announceText(confirmExitPreferencesOpenSpeech());
         QMessageBox::StandardButton btn = QMessageBox::question(
             this, tr("Confirm Exit"),
             tr("The preferences window is still open.") + "<br>" +

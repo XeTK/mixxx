@@ -158,6 +158,17 @@ PioneerDDJ400.toggleLight = function(midiIn, active) {
 
 PioneerDDJ400.init = function() {
     engine.setValue("[EffectRack1_EffectUnit1]", "show_focus", 1);
+    // Issue #110: EffectChain's focused_effect control (C++) defaults to 0 on
+    // a fresh profile (no persisted value yet), which is not a valid slot --
+    // valid slots are 1..3. Until the DJ presses BEAT LEFT/RIGHT at least
+    // once, focusedFxGroup() below would compute
+    // "[EffectRack1_EffectUnit1_Effect0]", a group that does not exist, so
+    // BEAT FX ON/OFF would silently target nothing on first use. Only set
+    // this if it is not already a valid slot, so a value restored from a
+    // previous session (focused_effect is persisted) is left alone.
+    if (engine.getValue("[EffectRack1_EffectUnit1]", "focused_effect") < 1) {
+        engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
+    }
 
     engine.makeUnbufferedConnection("[Channel1]", "vu_meter", PioneerDDJ400.vuMeterUpdate);
     engine.makeUnbufferedConnection("[Channel2]", "vu_meter", PioneerDDJ400.vuMeterUpdate);
@@ -271,13 +282,30 @@ PioneerDDJ400.browsePress = function(_channel, _control, value) {
     // Press-down: start the hold-to-open timer.
     PioneerDDJ400.browseHeld = true;
     PioneerDDJ400.browseHoldFired = false;
+    // oneShot=true is required (issue #106): engine.beginTimer()'s oneShot
+    // parameter defaults to false (repeating). Without it explicitly set
+    // here, this timer never stopped itself -- it kept firing every
+    // browseHoldThreshold interval forever after the first hold, including
+    // long after the button was released, repeatedly calling
+    // "[AccessMenu],open" and reopening the menu right after it had been
+    // closed (no way to back out) or while navigating elsewhere.
     PioneerDDJ400.timers.browseHold = engine.beginTimer(
         Math.round(PioneerDDJ400.browseHoldThreshold * 1000),
         () => {
             PioneerDDJ400.browseHeld = false;
             PioneerDDJ400.browseHoldFired = true;
-            engine.setValue("[AccessMenu]", "open", 1);
-        }
+            // Toggle: hold-to-open when closed, hold-to-exit-to-the-main-
+            // application when already open (issue #106, symptom 4/5) --
+            // previously this always sent "open", which is a no-op while the
+            // menu is already open (openMenu() early-returns), leaving no
+            // hold gesture to back all the way out.
+            if (PioneerDDJ400.browseMenuActive()) {
+                engine.setValue("[AccessMenu]", "close", 1);
+            } else {
+                engine.setValue("[AccessMenu]", "open", 1);
+            }
+        },
+        true
     );
 };
 
@@ -824,6 +852,12 @@ PioneerDDJ400.quickJumpBack = function(_channel, _control, value, _status, group
 //   Pads 1-6: deck status, time remaining, BPM, key, bar position, track name
 //   Pad 7:    repeat the last announcement
 //   Pad 8:    beat click metronome on/off
+//   Shift+1:  halve detected BPM (fix a fast-genre half-tempo misanalysis)
+//   Shift+2:  double detected BPM
+//   Shift+3:  keylock on/off (issue #50 - lock key while adjusting tempo)
+//   Shift+4:  pitch down one semitone (issue #50)
+//   Shift+5:  pitch up one semitone (issue #50)
+//   Shift+6:  reset key to the track's original key (issue #50)
 //   Shift+7:  per-deck split cue on/off
 //   Shift+8:  speech on/off
 // Every action confirms itself out loud, so no LED feedback is needed.
@@ -877,13 +911,23 @@ PioneerDDJ400.hotcuePadShift = function(_channel, control, value, _status, group
         engine.setValue(group, "beats_set_halve", 1);
     } else if (control === 0x01) {
         engine.setValue(group, "beats_set_double", 1);
+    } else if (control === 0x02) {
+        // Key Shift pad mode (Shift+Sampler) has no confirmed hardware note
+        // layout in this codebase (see the "Not implemented" note at the top
+        // of this file), so keylock/pitch controls live here instead, next
+        // to the other per-deck accessibility pads (issue #50).
+        script.toggleControl(group, "keylock");
+    } else if (control === 0x03) {
+        engine.setValue(group, "pitch_down", 1);
+    } else if (control === 0x04) {
+        engine.setValue(group, "pitch_up", 1);
+    } else if (control === 0x05) {
+        engine.setValue(group, "reset_key", 1);
     } else if (control === 0x06) {
         script.toggleControl("[Master]", "headSplitDecks");
     } else if (control === 0x07) {
         script.toggleControl("[Tts]", "enabled");
     }
-    // Shift + pads 3-6 deliberately do nothing in accessibility mode, so a
-    // stray press can't clear stored hotcues the DJ can't see.
 };
 
 //

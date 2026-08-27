@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cold start, first run, and device errors — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html' aria-current='page'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>Cold start, first run, and device errors</h1>
+<p class='file-name'>File: <code>features/first_run_boot.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li><li class="tag">@firstrun</li></ul>
+<p>Startup is where a blind user is most exposed. There is no speech until the audio engine exists, the screen reader is the only thing talking, and if the sound device does not open there is no obvious way to find that out without sight. Two changes are under test here. Issue #69 stops "Mixxx ready" being spoken into an audio engine that cannot render it — it is now held until SoundManager confirms the devices actually opened. Issue #70 makes error dialogs speak their own title and message instead of relying entirely on a screen reader that may not be running. Every scenario tagged @firstrun needs a clean settings directory. Move your real one aside first — see features/README.md. Testing "first run" against an existing profile proves nothing, because the thing being tested is what happens when none of the config exists yet.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (22 scenarios)</h2>
+<ol>
+<li><a href='#first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it'>Scenario: Mixxx says it is ready, once, and I can hear it</a></li>
+<li><a href='#first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before'>Scenario: Mixxx ready arrives after the audio device is open, not before</a></li>
+<li><a href='#first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off'>Scenario: Mixxx ready is not spoken when the setting is off</a></li>
+<li><a href='#first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured'>Scenario: Mixxx ready is not repeated when sound hardware is reconfigured</a></li>
+<li><a href='#first_run_boot-s5-reloading-the-skin-while-running-says-ready-again'>Scenario: Reloading the skin while running says ready again</a></li>
+<li><a href='#first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness'>Scenario: A sound device that never opens does not falsely claim readiness</a></li>
+<li><a href='#first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement'>Scenario: Fixing the device afterwards releases the queued announcement</a></li>
+<li><a href='#first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight'>Scenario: First launch with no configuration at all can be completed without sight</a></li>
+<li><a href='#first_run_boot-s9-the-library-scan-on-first-run-announces-itself'>Scenario: The library scan on first run announces itself</a></li>
+<li><a href='#first_run_boot-s10-a-later-rescan-announces-again'>Scenario: A later rescan announces again</a></li>
+<li><a href='#first_run_boot-s11-speech-defaults-are-usable-without-configuration'>Scenario: Speech defaults are usable without configuration</a></li>
+<li><a href='#first_run_boot-s12-a-broadcasting-connection-error-speaks-itself'>Scenario: A broadcasting connection error speaks itself</a></li>
+<li><a href='#first_run_boot-s13-a-recording-disk-space-warning-speaks-itself'>Scenario: A recording disk-space warning speaks itself</a></li>
+<li><a href='#first_run_boot-s14-a-recording-file-failure-speaks-itself'>Scenario: A recording file failure speaks itself</a></li>
+<li><a href='#first_run_boot-s15-a-controller-mapping-error-speaks-itself'>Scenario: A controller mapping error speaks itself</a></li>
+<li><a href='#first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever'>Scenario: A long error message is truncated rather than read forever</a></li>
+<li><a href='#first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup'>Scenario: Markup in an error message is not read out as markup</a></li>
+<li><a href='#first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading'>Scenario: Error speech does not replace the screen reader's own reading</a></li>
+<li><a href='#first_run_boot-s19-errors-during-startup-before-speech-is-wired-up'>Scenario: Errors during startup, before speech is wired up</a></li>
+<li><a href='#first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang'>Scenario: Quitting works from the keyboard and does not hang</a></li>
+<li><a href='#first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash'>Scenario: Quitting while an announcement is speaking does not crash</a></li>
+<li><a href='#first_run_boot-s22-settings-survive-a-restart'>Scenario: Settings survive a restart</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a build of this fork installed and launchable</li></ol>
+</section>
+<section aria-labelledby='first_run_boot-section-mixxx-ready-timing-issue-69'>
+<h2 id='first_run_boot-section-mixxx-ready-timing-issue-69'>"Mixxx ready" timing — issue #69</h2>
+<p>The ordering that made this necessary: loadConfiguredSkin() runs, and with it the skin-loaded announcement, BEFORE the setupDevices() retry loop in MixxxMainWindow::initialize(). Speech in this fork is mixed into Mixxx's own engine output, so a "Mixxx ready" spoken at skin-load time had nothing to render into and was simply never heard.</p>
+<p>It is now queued and flushed on SoundManager::devicesSetup, which only fires on the success path.</p>
+<article class='scenario' id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it' data-tags='@blocking'>
+<h3>Scenario: Mixxx says it is ready, once, and I can hear it</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a working sound device is configured</li><li><span class='keyword'>When</span> I launch Mixxx</li><li><span class='keyword'>Then</span> I hear "Mixxx ready"</li><li><span class='keyword'>And</span> I hear it clearly and from the beginning, not clipped at the front</li><li><span class='keyword'>And</span> I hear it exactly once</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixxx says it is ready, once, and I can hear it&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-pass' name='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it::result'><label for='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-fail' name='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it::result'><label for='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-skip' name='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it::result'><label for='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-not-tested' name='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it::result' checked><label for='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-notes'>Notes for &ldquo;Mixxx says it is ready, once, and I can hear it&rdquo;</label>
+<textarea id='first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it-notes' data-persist-key='first_run_boot::first_run_boot-s1-mixxx-says-it-is-ready-once-and-i-can-hear-it::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before' data-tags='@blocking @timing'>
+<h3>Scenario: Mixxx ready arrives after the audio device is open, not before</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@timing</li></ul>
+<p class="step-note">Note: The observable consequence: the announcement should come late enough that other speech works immediately afterwards. If "Mixxx ready" is audible but the next announcement is silent, the gating is wrong in the other direction.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a working sound device is configured</li><li><span class='keyword'>When</span> I launch Mixxx</li><li><span class='keyword'>And</span> I hear "Mixxx ready"</li><li><span class='keyword'>And</span> I immediately press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status announced</li><li><span class='keyword'>And</span> that announcement is also audible from the beginning</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixxx ready arrives after the audio device is open, not before&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-pass' name='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before::result'><label for='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-fail' name='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before::result'><label for='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-skip' name='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before::result'><label for='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-not-tested' name='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before::result' checked><label for='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-notes'>Notes for &ldquo;Mixxx ready arrives after the audio device is open, not before&rdquo;</label>
+<textarea id='first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before-notes' data-persist-key='first_run_boot::first_run_boot-s2-mixxx-ready-arrives-after-the-audio-device-is-open-not-before::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off' data-tags=''>
+<h3>Scenario: Mixxx ready is not spoken when the setting is off</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce Mixxx ready at startup" is disabled in Preferences, Accessibility</li><li><span class='keyword'>When</span> I restart Mixxx</li><li><span class='keyword'>Then</span> I do not hear "Mixxx ready" at any point</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status, so speech is working</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixxx ready is not spoken when the setting is off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-pass' name='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off::result'><label for='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-fail' name='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off::result'><label for='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-skip' name='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off::result'><label for='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-not-tested' name='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off::result' checked><label for='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-notes'>Notes for &ldquo;Mixxx ready is not spoken when the setting is off&rdquo;</label>
+<textarea id='first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off-notes' data-persist-key='first_run_boot::first_run_boot-s3-mixxx-ready-is-not-spoken-when-the-setting-is-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured' data-tags=''>
+<h3>Scenario: Mixxx ready is not repeated when sound hardware is reconfigured</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running and has already said "Mixxx ready"</li><li><span class='keyword'>When</span> I open Preferences, Sound Hardware and press Apply without changing anything</li><li><span class='keyword'>Then</span> I do not hear "Mixxx ready" again</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixxx ready is not repeated when sound hardware is reconfigured&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-pass' name='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured::result'><label for='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-fail' name='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured::result'><label for='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-skip' name='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured::result'><label for='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-not-tested' name='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured::result' checked><label for='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-notes'>Notes for &ldquo;Mixxx ready is not repeated when sound hardware is reconfigured&rdquo;</label>
+<textarea id='first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured-notes' data-persist-key='first_run_boot::first_run_boot-s4-mixxx-ready-is-not-repeated-when-sound-hardware-is-reconfigured::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again' data-tags=''>
+<h3>Scenario: Reloading the skin while running says ready again</h3>
+
+<p class="step-note">Note: Once the engine is up, the announcement fires immediately rather than being queued, so a skin reload genuinely re-announces. Confirm that is what happens rather than silence.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running with a working sound device</li><li><span class='keyword'>When</span> I reload the skin</li><li><span class='keyword'>Then</span> I hear "Mixxx ready"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Reloading the skin while running says ready again&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-pass' name='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s5-reloading-the-skin-while-running-says-ready-again::result'><label for='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-fail' name='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s5-reloading-the-skin-while-running-says-ready-again::result'><label for='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-skip' name='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s5-reloading-the-skin-while-running-says-ready-again::result'><label for='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-not-tested' name='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s5-reloading-the-skin-while-running-says-ready-again::result' checked><label for='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-notes'>Notes for &ldquo;Reloading the skin while running says ready again&rdquo;</label>
+<textarea id='first_run_boot-s5-reloading-the-skin-while-running-says-ready-again-notes' data-persist-key='first_run_boot::first_run_boot-s5-reloading-the-skin-while-running-says-ready-again::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness' data-tags='@blocking'>
+<h3>Scenario: A sound device that never opens does not falsely claim readiness</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: KNOWN AND INTENDED: with no device, "Mixxx ready" is never spoken — there is no timeout and no fallback, because there is no audio path to speak it through. The failure must be discoverable another way.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the configured sound device is unavailable, for example unplugged or claimed by another application</li><li><span class='keyword'>When</span> I launch Mixxx</li><li><span class='keyword'>Then</span> I do not hear "Mixxx ready"</li><li><span class='keyword'>And</span> my screen reader announces the sound device error dialog</li><li><span class='keyword'>And</span> I can reach and operate that dialog's buttons with the keyboard alone</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A sound device that never opens does not falsely claim readiness&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-pass' name='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness::result'><label for='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-fail' name='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness::result'><label for='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-skip' name='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness::result'><label for='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-not-tested' name='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness::result' checked><label for='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-notes'>Notes for &ldquo;A sound device that never opens does not falsely claim readiness&rdquo;</label>
+<textarea id='first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness-notes' data-persist-key='first_run_boot::first_run_boot-s6-a-sound-device-that-never-opens-does-not-falsely-claim-readiness::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement' data-tags=''>
+<h3>Scenario: Fixing the device afterwards releases the queued announcement</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx launched with no working sound device and did not say it was ready</li><li><span class='keyword'>When</span> I open Preferences, Sound Hardware, select a working device and press OK</li><li><span class='keyword'>Then</span> I hear "Mixxx ready"</li><li><span class='keyword'>And</span> speech works from that point on</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Fixing the device afterwards releases the queued announcement&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-pass' name='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement::result'><label for='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-fail' name='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement::result'><label for='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-skip' name='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement::result'><label for='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-not-tested' name='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement::result' checked><label for='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-notes'>Notes for &ldquo;Fixing the device afterwards releases the queued announcement&rdquo;</label>
+<textarea id='first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement-notes' data-persist-key='first_run_boot::first_run_boot-s7-fixing-the-device-afterwards-releases-the-queued-announcement::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='first_run_boot-section-the-genuinely-fresh-install'>
+<h2 id='first_run_boot-section-the-genuinely-fresh-install'>The genuinely fresh install</h2>
+
+<article class='scenario' id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight' data-tags='@blocking'>
+<h3>Scenario: First launch with no configuration at all can be completed without sight</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: KNOWN LIMITATION, documented in ACCESSIBILITY_GUIDE.md: the first-run sound hardware dialog appears before Mixxx's speech can produce audio, so the screen reader is the only thing talking here. What is being tested is whether that is SUFFICIENT — whether a blind user can get from a fresh install to a working setup unaided.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the Mixxx settings directory has been moved aside</li><li><span class='keyword'>And</span> a screen reader is running</li><li><span class='keyword'>When</span> I launch Mixxx</li><li><span class='keyword'>Then</span> my screen reader announces the first-run dialog</li><li><span class='keyword'>And</span> I can choose a music directory using only the keyboard</li><li><span class='keyword'>And</span> I can choose an output device using only the keyboard</li><li><span class='keyword'>And</span> every control I need is announced with a name that tells me what it does</li><li><span class='keyword'>And</span> I reach a running Mixxx without needing anyone to read the screen to me</li><li><span class='keyword'>And</span> I then hear "Mixxx ready"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;First launch with no configuration at all can be completed without sight&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-pass' name='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight::result'><label for='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-fail' name='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight::result'><label for='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-skip' name='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight::result'><label for='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-not-tested' name='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight::result' checked><label for='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-notes'>Notes for &ldquo;First launch with no configuration at all can be completed without sight&rdquo;</label>
+<textarea id='first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight-notes' data-persist-key='first_run_boot::first_run_boot-s8-first-launch-with-no-configuration-at-all-can-be-completed-without-sight::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself' data-tags=''>
+<h3>Scenario: The library scan on first run announces itself</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a fresh profile and a music folder containing at least 200 tracks</li><li><span class='keyword'>When</span> I complete first-run setup and the library scan begins</li><li><span class='keyword'>Then</span> I hear "Scanning library"</li><li><span class='keyword'>And</span> I hear it once, not repeatedly as the scan progresses</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The library scan on first run announces itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-pass' name='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s9-the-library-scan-on-first-run-announces-itself::result'><label for='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-fail' name='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s9-the-library-scan-on-first-run-announces-itself::result'><label for='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-skip' name='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s9-the-library-scan-on-first-run-announces-itself::result'><label for='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-not-tested' name='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s9-the-library-scan-on-first-run-announces-itself::result' checked><label for='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-notes'>Notes for &ldquo;The library scan on first run announces itself&rdquo;</label>
+<textarea id='first_run_boot-s9-the-library-scan-on-first-run-announces-itself-notes' data-persist-key='first_run_boot::first_run_boot-s9-the-library-scan-on-first-run-announces-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s10-a-later-rescan-announces-again' data-tags=''>
+<h3>Scenario: A later rescan announces again</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx has already completed one library scan this session</li><li><span class='keyword'>When</span> I trigger a rescan from the Library menu</li><li><span class='keyword'>Then</span> I hear "Scanning library"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A later rescan announces again&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s10-a-later-rescan-announces-again-pass' name='first_run_boot-s10-a-later-rescan-announces-again-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s10-a-later-rescan-announces-again::result'><label for='first_run_boot-s10-a-later-rescan-announces-again-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s10-a-later-rescan-announces-again-fail' name='first_run_boot-s10-a-later-rescan-announces-again-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s10-a-later-rescan-announces-again::result'><label for='first_run_boot-s10-a-later-rescan-announces-again-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s10-a-later-rescan-announces-again-skip' name='first_run_boot-s10-a-later-rescan-announces-again-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s10-a-later-rescan-announces-again::result'><label for='first_run_boot-s10-a-later-rescan-announces-again-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s10-a-later-rescan-announces-again-not-tested' name='first_run_boot-s10-a-later-rescan-announces-again-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s10-a-later-rescan-announces-again::result' checked><label for='first_run_boot-s10-a-later-rescan-announces-again-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s10-a-later-rescan-announces-again-notes'>Notes for &ldquo;A later rescan announces again&rdquo;</label>
+<textarea id='first_run_boot-s10-a-later-rescan-announces-again-notes' data-persist-key='first_run_boot::first_run_boot-s10-a-later-rescan-announces-again::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s11-speech-defaults-are-usable-without-configuration' data-tags=''>
+<h3>Scenario: Speech defaults are usable without configuration</h3>
+
+<p class="step-note">Note: A fresh install with nothing configured is the state a new blind user meets first. If they have to configure speech before they can hear anything, the fork has failed at step one.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a fresh profile</li><li><span class='keyword'>When</span> I complete first-run setup</li><li><span class='keyword'>And</span> I arrow through the library track list</li><li><span class='keyword'>Then</span> I hear tracks announced without having enabled anything</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status</li><li><span class='keyword'>And</span> the default voice and rate are intelligible</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Speech defaults are usable without configuration&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s11-speech-defaults-are-usable-without-configuration-pass' name='first_run_boot-s11-speech-defaults-are-usable-without-configuration-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s11-speech-defaults-are-usable-without-configuration::result'><label for='first_run_boot-s11-speech-defaults-are-usable-without-configuration-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s11-speech-defaults-are-usable-without-configuration-fail' name='first_run_boot-s11-speech-defaults-are-usable-without-configuration-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s11-speech-defaults-are-usable-without-configuration::result'><label for='first_run_boot-s11-speech-defaults-are-usable-without-configuration-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s11-speech-defaults-are-usable-without-configuration-skip' name='first_run_boot-s11-speech-defaults-are-usable-without-configuration-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s11-speech-defaults-are-usable-without-configuration::result'><label for='first_run_boot-s11-speech-defaults-are-usable-without-configuration-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s11-speech-defaults-are-usable-without-configuration-not-tested' name='first_run_boot-s11-speech-defaults-are-usable-without-configuration-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s11-speech-defaults-are-usable-without-configuration::result' checked><label for='first_run_boot-s11-speech-defaults-are-usable-without-configuration-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s11-speech-defaults-are-usable-without-configuration-notes'>Notes for &ldquo;Speech defaults are usable without configuration&rdquo;</label>
+<textarea id='first_run_boot-s11-speech-defaults-are-usable-without-configuration-notes' data-persist-key='first_run_boot::first_run_boot-s11-speech-defaults-are-usable-without-configuration::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='first_run_boot-section-error-dialogs-speaking-for-themselves-issue-70'>
+<h2 id='first_run_boot-section-error-dialogs-speaking-for-themselves-issue-70'>Error dialogs speaking for themselves — issue #70</h2>
+<p>ErrorDialogHandler now speaks "&lt;title&gt;. &lt;message&gt;" through Mixxx's own speech before the dialog is shown. The message is HTML-stripped, whitespace-collapsed, and truncated at 300 characters with an ellipsis.</p>
+<p>Two things it deliberately does NOT speak: the "Show Details" section, and the informative-text block. That matters for the controller mapping error in particular, which puts most of its useful content in the informative text — so expect title plus one sentence and no more.</p>
+<p>Dialogs raised before CoreServices::initialize() wires the connection are not spoken at all.</p>
+<article class='scenario' id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself' data-tags='@blocking'>
+<h3>Scenario: A broadcasting connection error speaks itself</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a Live Broadcasting profile pointing at a server that will refuse the connection</li><li><span class='keyword'>When</span> I enable Live Broadcasting</li><li><span class='keyword'>Then</span> I hear "Connection error." followed by the connection's error text</li><li><span class='keyword'>And</span> I hear which profile it refers to</li><li><span class='keyword'>And</span> I can dismiss the dialog with the keyboard alone</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A broadcasting connection error speaks itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-pass' name='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s12-a-broadcasting-connection-error-speaks-itself::result'><label for='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-fail' name='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s12-a-broadcasting-connection-error-speaks-itself::result'><label for='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-skip' name='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s12-a-broadcasting-connection-error-speaks-itself::result'><label for='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-not-tested' name='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s12-a-broadcasting-connection-error-speaks-itself::result' checked><label for='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-notes'>Notes for &ldquo;A broadcasting connection error speaks itself&rdquo;</label>
+<textarea id='first_run_boot-s12-a-broadcasting-connection-error-speaks-itself-notes' data-persist-key='first_run_boot::first_run_boot-s12-a-broadcasting-connection-error-speaks-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself' data-tags=''>
+<h3>Scenario: A recording disk-space warning speaks itself</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the recording folder is on a volume with less than 1 GiB free</li><li><span class='keyword'>When</span> I start recording</li><li><span class='keyword'>Then</span> I hear "Low Disk Space Warning. There is less than 1 GiB of usable space in the recording folder"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A recording disk-space warning speaks itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-pass' name='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s13-a-recording-disk-space-warning-speaks-itself::result'><label for='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-fail' name='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s13-a-recording-disk-space-warning-speaks-itself::result'><label for='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-skip' name='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s13-a-recording-disk-space-warning-speaks-itself::result'><label for='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-not-tested' name='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s13-a-recording-disk-space-warning-speaks-itself::result' checked><label for='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-notes'>Notes for &ldquo;A recording disk-space warning speaks itself&rdquo;</label>
+<textarea id='first_run_boot-s13-a-recording-disk-space-warning-speaks-itself-notes' data-persist-key='first_run_boot::first_run_boot-s13-a-recording-disk-space-warning-speaks-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s14-a-recording-file-failure-speaks-itself' data-tags=''>
+<h3>Scenario: A recording file failure speaks itself</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the recording folder is set to a location I cannot write to</li><li><span class='keyword'>When</span> I start recording</li><li><span class='keyword'>Then</span> I hear "Recording." followed by the message about not being able to create the audio file</li><li><span class='keyword'>And</span> the spoken text mentions free disk space and write permission</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A recording file failure speaks itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s14-a-recording-file-failure-speaks-itself-pass' name='first_run_boot-s14-a-recording-file-failure-speaks-itself-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s14-a-recording-file-failure-speaks-itself::result'><label for='first_run_boot-s14-a-recording-file-failure-speaks-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s14-a-recording-file-failure-speaks-itself-fail' name='first_run_boot-s14-a-recording-file-failure-speaks-itself-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s14-a-recording-file-failure-speaks-itself::result'><label for='first_run_boot-s14-a-recording-file-failure-speaks-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s14-a-recording-file-failure-speaks-itself-skip' name='first_run_boot-s14-a-recording-file-failure-speaks-itself-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s14-a-recording-file-failure-speaks-itself::result'><label for='first_run_boot-s14-a-recording-file-failure-speaks-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s14-a-recording-file-failure-speaks-itself-not-tested' name='first_run_boot-s14-a-recording-file-failure-speaks-itself-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s14-a-recording-file-failure-speaks-itself::result' checked><label for='first_run_boot-s14-a-recording-file-failure-speaks-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s14-a-recording-file-failure-speaks-itself-notes'>Notes for &ldquo;A recording file failure speaks itself&rdquo;</label>
+<textarea id='first_run_boot-s14-a-recording-file-failure-speaks-itself-notes' data-persist-key='first_run_boot::first_run_boot-s14-a-recording-file-failure-speaks-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s15-a-controller-mapping-error-speaks-itself' data-tags=''>
+<h3>Scenario: A controller mapping error speaks itself</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a controller mapping containing a deliberate script error</li><li><span class='keyword'>When</span> I enable that controller in Preferences, Controllers</li><li><span class='keyword'>Then</span> I hear "Controller Mapping Error." followed by the name of the controller and that its mapping is not working properly</li></ol>
+<p class="step-note">Note: EXPECTED GAP: the detail of what is wrong lives in the dialog's informative text, which is not spoken. You will need the screen reader or the log for the actual script error.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;A controller mapping error speaks itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s15-a-controller-mapping-error-speaks-itself-pass' name='first_run_boot-s15-a-controller-mapping-error-speaks-itself-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s15-a-controller-mapping-error-speaks-itself::result'><label for='first_run_boot-s15-a-controller-mapping-error-speaks-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s15-a-controller-mapping-error-speaks-itself-fail' name='first_run_boot-s15-a-controller-mapping-error-speaks-itself-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s15-a-controller-mapping-error-speaks-itself::result'><label for='first_run_boot-s15-a-controller-mapping-error-speaks-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s15-a-controller-mapping-error-speaks-itself-skip' name='first_run_boot-s15-a-controller-mapping-error-speaks-itself-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s15-a-controller-mapping-error-speaks-itself::result'><label for='first_run_boot-s15-a-controller-mapping-error-speaks-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s15-a-controller-mapping-error-speaks-itself-not-tested' name='first_run_boot-s15-a-controller-mapping-error-speaks-itself-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s15-a-controller-mapping-error-speaks-itself::result' checked><label for='first_run_boot-s15-a-controller-mapping-error-speaks-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s15-a-controller-mapping-error-speaks-itself-notes'>Notes for &ldquo;A controller mapping error speaks itself&rdquo;</label>
+<textarea id='first_run_boot-s15-a-controller-mapping-error-speaks-itself-notes' data-persist-key='first_run_boot::first_run_boot-s15-a-controller-mapping-error-speaks-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever' data-tags=''>
+<h3>Scenario: A long error message is truncated rather than read forever</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> an error whose message text is longer than 300 characters</li><li><span class='keyword'>When</span> the error dialog is raised</li><li><span class='keyword'>Then</span> I hear roughly the first 300 characters</li><li><span class='keyword'>And</span> I hear it end in a trailing-off rather than stopping mid-word with no signal</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A long error message is truncated rather than read forever&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-pass' name='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever::result'><label for='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-fail' name='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever::result'><label for='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-skip' name='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever::result'><label for='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-not-tested' name='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever::result' checked><label for='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-notes'>Notes for &ldquo;A long error message is truncated rather than read forever&rdquo;</label>
+<textarea id='first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever-notes' data-persist-key='first_run_boot::first_run_boot-s16-a-long-error-message-is-truncated-rather-than-read-forever::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup' data-tags=''>
+<h3>Scenario: Markup in an error message is not read out as markup</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> an error whose message contains HTML formatting</li><li><span class='keyword'>When</span> the error dialog is raised</li><li><span class='keyword'>Then</span> I hear the plain words</li><li><span class='keyword'>And</span> I do not hear tag names or angle brackets read aloud</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Markup in an error message is not read out as markup&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-pass' name='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup::result'><label for='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-fail' name='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup::result'><label for='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-skip' name='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup::result'><label for='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-not-tested' name='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup::result' checked><label for='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-notes'>Notes for &ldquo;Markup in an error message is not read out as markup&rdquo;</label>
+<textarea id='first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup-notes' data-persist-key='first_run_boot::first_run_boot-s17-markup-in-an-error-message-is-not-read-out-as-markup::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading' data-tags='@regression'>
+<h3>Scenario: Error speech does not replace the screen reader's own reading</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@regression</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a screen reader is running</li><li><span class='keyword'>When</span> an error dialog is raised</li><li><span class='keyword'>Then</span> I hear Mixxx speak the title and message</li><li><span class='keyword'>And</span> my screen reader also announces the dialog and its buttons</li><li><span class='keyword'>And</span> I can tell which button has focus before I press Enter</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Error speech does not replace the screen reader's own reading&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-pass' name='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading::result'><label for='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-fail' name='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading::result'><label for='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-skip' name='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading::result'><label for='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-not-tested' name='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading::result' checked><label for='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-notes'>Notes for &ldquo;Error speech does not replace the screen reader's own reading&rdquo;</label>
+<textarea id='first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading-notes' data-persist-key='first_run_boot::first_run_boot-s18-error-speech-does-not-replace-the-screen-reader-s-own-reading::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up' data-tags=''>
+<h3>Scenario: Errors during startup, before speech is wired up</h3>
+
+<p class="step-note">Note: EXPECTED BEHAVIOUR, not a defect: a dialog raised before CoreServices::initialize() connects the handler will not be spoken by Mixxx. The screen reader is the fallback. Confirm the fallback works.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a configuration that will fail during early startup</li><li><span class='keyword'>And</span> a screen reader is running</li><li><span class='keyword'>When</span> I launch Mixxx</li><li><span class='keyword'>Then</span> my screen reader announces the dialog</li><li><span class='keyword'>And</span> I can act on it with the keyboard alone</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Errors during startup, before speech is wired up&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-pass' name='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s19-errors-during-startup-before-speech-is-wired-up::result'><label for='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-fail' name='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s19-errors-during-startup-before-speech-is-wired-up::result'><label for='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-skip' name='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s19-errors-during-startup-before-speech-is-wired-up::result'><label for='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-not-tested' name='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s19-errors-during-startup-before-speech-is-wired-up::result' checked><label for='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-notes'>Notes for &ldquo;Errors during startup, before speech is wired up&rdquo;</label>
+<textarea id='first_run_boot-s19-errors-during-startup-before-speech-is-wired-up-notes' data-persist-key='first_run_boot::first_run_boot-s19-errors-during-startup-before-speech-is-wired-up::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='first_run_boot-section-getting-back-out'>
+<h2 id='first_run_boot-section-getting-back-out'>Getting back out</h2>
+
+<article class='scenario' id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang' data-tags=''>
+<h3>Scenario: Quitting works from the keyboard and does not hang</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running with both decks playing</li><li><span class='keyword'>When</span> I press "Ctrl+Q"</li><li><span class='keyword'>Then</span> Mixxx exits</li><li><span class='keyword'>And</span> it does not leave a dialog I cannot hear</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Quitting works from the keyboard and does not hang&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-pass' name='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang::result'><label for='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-fail' name='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang::result'><label for='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-skip' name='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang::result'><label for='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-not-tested' name='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang::result' checked><label for='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-notes'>Notes for &ldquo;Quitting works from the keyboard and does not hang&rdquo;</label>
+<textarea id='first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang-notes' data-persist-key='first_run_boot::first_run_boot-s20-quitting-works-from-the-keyboard-and-does-not-hang::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='first_run_boot-section-shutdown-crash-regression-issue-30'>
+<h2 id='first_run_boot-section-shutdown-crash-regression-issue-30'>Shutdown crash regression — issue #30</h2>
+<p>NARROW REGRESSION CHECK, not a full workflow: this guards a use-after-free where AnnouncementManager held a raw pointer to the EngineTts sink (and a ControlProxy observing its [Tts],enabled control) that outlived the sink itself. EngineMixer owns the sink and CoreServices::finalize() tore it down before the manager; a control change firing that proxy during shutdown then called speak() on freed memory, crashing intermittently. Fixed by (a) destroying the manager in finalize() before the engine, and (b) EngineTts emitting sinkDestroyed() from its destructor as a defensive backstop. The race window is narrow, so a single clean exit does not prove much — run this a handful of times and try both timings below.</p>
+<article class='scenario' id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash' data-tags='@blocking @regression @timing'>
+<h3>Scenario: Quitting while an announcement is speaking does not crash</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@regression</li><li class="tag">@timing</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running with both decks playing</li><li><span class='keyword'>When</span> I press "Alt+1" to trigger a long announcement</li><li><span class='keyword'>And</span> I press "Ctrl+Q" while I can still hear it speaking</li><li><span class='keyword'>Then</span> Mixxx exits cleanly, with no crash dialog and no hang</li><li><span class='keyword'>When</span> I relaunch Mixxx</li><li><span class='keyword'>And</span> I press "Alt+1" to trigger another announcement</li><li><span class='keyword'>And</span> I press "Ctrl+Q" in the instant right after the announcement finishes</li><li><span class='keyword'>Then</span> Mixxx exits cleanly again</li></ol>
+<p class="step-note">Note: Repeat a few times across a session; a single pass is weak evidence against a race, and a single failure is strong evidence for one.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Quitting while an announcement is speaking does not crash&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-pass' name='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash::result'><label for='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-fail' name='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash::result'><label for='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-skip' name='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash::result'><label for='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-not-tested' name='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash::result' checked><label for='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-notes'>Notes for &ldquo;Quitting while an announcement is speaking does not crash&rdquo;</label>
+<textarea id='first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash-notes' data-persist-key='first_run_boot::first_run_boot-s21-quitting-while-an-announcement-is-speaking-does-not-crash::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='first_run_boot-s22-settings-survive-a-restart' data-tags=''>
+<h3>Scenario: Settings survive a restart</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> I have changed the speech rate and enabled the beat click</li><li><span class='keyword'>When</span> I quit and relaunch Mixxx</li><li><span class='keyword'>Then</span> I hear "Mixxx ready" at my chosen speech rate</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> the announcement is at the same rate</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Settings survive a restart&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='first_run_boot-s22-settings-survive-a-restart-pass' name='first_run_boot-s22-settings-survive-a-restart-result' value='pass' data-persist-key='first_run_boot::first_run_boot-s22-settings-survive-a-restart::result'><label for='first_run_boot-s22-settings-survive-a-restart-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s22-settings-survive-a-restart-fail' name='first_run_boot-s22-settings-survive-a-restart-result' value='fail' data-persist-key='first_run_boot::first_run_boot-s22-settings-survive-a-restart::result'><label for='first_run_boot-s22-settings-survive-a-restart-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s22-settings-survive-a-restart-skip' name='first_run_boot-s22-settings-survive-a-restart-result' value='skip' data-persist-key='first_run_boot::first_run_boot-s22-settings-survive-a-restart::result'><label for='first_run_boot-s22-settings-survive-a-restart-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='first_run_boot-s22-settings-survive-a-restart-not-tested' name='first_run_boot-s22-settings-survive-a-restart-result' value='not-tested' data-persist-key='first_run_boot::first_run_boot-s22-settings-survive-a-restart::result' checked><label for='first_run_boot-s22-settings-survive-a-restart-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='first_run_boot-s22-settings-survive-a-restart-notes'>Notes for &ldquo;Settings survive a restart&rdquo;</label>
+<textarea id='first_run_boot-s22-settings-survive-a-restart-notes' data-persist-key='first_run_boot::first_run_boot-s22-settings-survive-a-restart::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='audio_path.html'>&larr; Previous file: audio_path.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='keyboard_only.html'>Next file: keyboard_only.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library navigation, menus and the YouTube source — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html' aria-current='page'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>Library navigation, menus and the YouTube source</h1>
+<p class='file-name'>File: <code>features/library_and_dialogs.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li></ul>
+<p>Menus were the last large silent surface. A context menu is a list of things you cannot see, opened over a widget you cannot see, and until issue #80 arrowing through one told you nothing at all. This file also covers the YouTube library source from issue #85 — the only place in the fork where a long-running network operation reports progress by ear — and the library scanner dialog from issue #88. Some scenarios need a screen reader and say so. The menu-hover narration itself is Mixxx's own speech, so most of this file can be run without one.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (37 scenarios)</h2>
+<ol>
+<li><a href='#library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item'>Scenario: Arrowing through the track context menu speaks every item</a></li>
+<li><a href='#library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents'>Scenario Outline: Every submenu of the track menu narrates its contents</a></li>
+<li><a href='#library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate'>Scenario: The find-on-web submenu and its per-service submenus narrate</a></li>
+<li><a href='#library_and_dialogs-s4-the-search-related-tracks-submenu-narrates'>Scenario: The search-related-tracks submenu narrates</a></li>
+<li><a href='#library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written'>Scenario: Playlist and crate names are spoken as written</a></li>
+<li><a href='#library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones'>Scenario: The sampler submenus narrate, including the paged ones</a></li>
+<li><a href='#library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated'>Scenario: The same item hovered twice is not repeated</a></li>
+<li><a href='#library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list'>Scenario: Menu items are not given a position in the list</a></li>
+<li><a href='#library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates'>Scenario: The sidebar playlist context menu narrates</a></li>
+<li><a href='#library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates'>Scenario: The sidebar crate context menu narrates</a></li>
+<li><a href='#library_and_dialogs-s11-the-sidebar-root-context-menus-narrate'>Scenario: The sidebar root context menus narrate</a></li>
+<li><a href='#library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears'>Scenario: The scanner announces itself when it appears</a></li>
+<li><a href='#library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan'>Scenario: The scanner announcement does not repeat during one scan</a></li>
+<li><a href='#library_and_dialogs-s14-a-second-scan-announces-again'>Scenario: A second scan announces again</a></li>
+<li><a href='#library_and_dialogs-s15-per-file-progress-is-not-read-out'>Scenario: Per-file progress is not read out</a></li>
+<li><a href='#library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am'>Scenario: Arrowing through a playlist tells me where I am</a></li>
+<li><a href='#library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has'>Scenario: A track with no artist announces what it has</a></li>
+<li><a href='#library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech'>Scenario: Holding the arrow key does not produce a burst of speech</a></li>
+<li><a href='#library_and_dialogs-s19-row-readouts-can-be-turned-off'>Scenario: Row readouts can be turned off</a></li>
+<li><a href='#library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself'>Scenario: The YouTube source is in the sidebar and explains itself</a></li>
+<li><a href='#library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found'>Scenario: A search reports that it started, and what it found</a></li>
+<li><a href='#library_and_dialogs-s22-a-search-with-one-result-uses-the-singular'>Scenario: A search with one result uses the singular</a></li>
+<li><a href='#library_and_dialogs-s23-a-search-with-no-results-says-so'>Scenario: A search with no results says so</a></li>
+<li><a href='#library_and_dialogs-s24-clearing-the-search-box-says-nothing'>Scenario: Clearing the search box says nothing</a></li>
+<li><a href='#library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce'>Scenario: Repeating the same search does not re-announce</a></li>
+<li><a href='#library_and_dialogs-s26-search-results-are-readable-by-ear'>Scenario: Search results are readable by ear</a></li>
+<li><a href='#library_and_dialogs-s27-an-already-downloaded-result-says-so'>Scenario: An already-downloaded result says so</a></li>
+<li><a href='#library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only'>Scenario: A short result is announced in seconds only</a></li>
+<li><a href='#library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion'>Scenario: Downloading a track reports start and progress but not completion</a></li>
+<li><a href='#library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards'>Scenario: Progress milestones do not repeat or go backwards</a></li>
+<li><a href='#library_and_dialogs-s31-a-very-fast-download-may-skip-milestones'>Scenario: A very fast download may skip milestones</a></li>
+<li><a href='#library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully'>Scenario Outline: Download and search failures are spoken usefully</a></li>
+<li><a href='#library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed'>Scenario: A yt-dlp error message is read rather than swallowed</a></li>
+<li><a href='#library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment'>Scenario: The downloaded track carries its source in the comment</a></li>
+<li><a href='#library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken'>Scenario: The on-screen download progress is not spoken</a></li>
+<li><a href='#library_and_dialogs-s36-the-youtube-source-can-be-hidden'>Scenario: The YouTube source can be hidden</a></li>
+<li><a href='#library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown'>Scenario: Loading a track does not announce cues for decks that are not shown</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running with a library containing at least 40 tracks</li><li><span class='keyword'>And</span> speech is on</li><li><span class='keyword'>And</span> "Speak deck names as numbers" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> at least two crates and two playlists exist</li></ol>
+</section>
+<section aria-labelledby='library_and_dialogs-section-track-menu-narration-issue-80'>
+<h2 id='library_and_dialogs-section-track-menu-narration-issue-80'>Track menu narration — issue #80</h2>
+<p>The spoken text is the menu item's own label. Items with dynamic names carry the raw name separately so that a crate called "R&amp;B" is spoken as "R and B" rather than having its ampersand mangled into a mnemonic.</p>
+<p>Hover does not bubble from submenus to their parent, so every submenu had to be wired up individually. That is the failure mode to hunt for: a submenu somewhere that stayed silent because it was missed.</p>
+<article class='scenario' id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item' data-tags='@blocking'>
+<h3>Scenario: Arrowing through the track context menu speaks every item</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a track is selected in the library</li><li><span class='keyword'>When</span> I open the track context menu</li><li><span class='keyword'>And</span> I arrow down through every item to the bottom</li><li><span class='keyword'>Then</span> I hear each item announced as I land on it</li><li><span class='keyword'>And</span> no item passes in silence</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Arrowing through the track context menu speaks every item&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-pass' name='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item::result'><label for='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-fail' name='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item::result'><label for='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-skip' name='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item::result'><label for='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-not-tested' name='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item::result' checked><label for='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-notes'>Notes for &ldquo;Arrowing through the track context menu speaks every item&rdquo;</label>
+<textarea id='library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s1-arrowing-through-the-track-context-menu-speaks-every-item::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents' data-tags='@blocking'>
+<h3>Scenario Outline: Every submenu of the track menu narrates its contents</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: Walk into each one and back out. A silent submenu means a missed connection, and there were many to make.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a track is selected in the library</li><li><span class='keyword'>And</span> the track context menu is open</li><li><span class='keyword'>When</span> I arrow to "&lt;submenu&gt;" and open it</li><li><span class='keyword'>And</span> I arrow through its items</li><li><span class='keyword'>Then</span> I hear each item announced</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">submenu</th></tr></thead>
+<tbody>
+<tr><td>Load to</td></tr>
+<tr><td>Deck</td></tr>
+<tr><td>Sampler</td></tr>
+<tr><td>Add to Playlist</td></tr>
+<tr><td>Crates</td></tr>
+<tr><td>Metadata</td></tr>
+<tr><td>Update external collections</td></tr>
+<tr><td>Cover Art</td></tr>
+<tr><td>Adjust BPM</td></tr>
+<tr><td>Select Color</td></tr>
+<tr><td>Hotcues</td></tr>
+<tr><td>Clear</td></tr>
+<tr><td>Analyze</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Every submenu of the track menu narrates its contents&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-pass' name='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents::result'><label for='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-fail' name='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents::result'><label for='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-skip' name='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents::result'><label for='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-not-tested' name='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents::result' checked><label for='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-notes'>Notes for &ldquo;Every submenu of the track menu narrates its contents&rdquo;</label>
+<textarea id='library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s2-every-submenu-of-the-track-menu-narrates-its-contents::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate' data-tags=''>
+<h3>Scenario: The find-on-web submenu and its per-service submenus narrate</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the track context menu is open</li><li><span class='keyword'>When</span> I arrow to the find on web submenu and open it</li><li><span class='keyword'>Then</span> I hear each service announced</li><li><span class='keyword'>When</span> I open one of the service submenus</li><li><span class='keyword'>Then</span> I hear each item inside it announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The find-on-web submenu and its per-service submenus narrate&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-pass' name='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate::result'><label for='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-fail' name='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate::result'><label for='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-skip' name='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate::result'><label for='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-not-tested' name='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate::result' checked><label for='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-notes'>Notes for &ldquo;The find-on-web submenu and its per-service submenus narrate&rdquo;</label>
+<textarea id='library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s3-the-find-on-web-submenu-and-its-per-service-submenus-narrate::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates' data-tags=''>
+<h3>Scenario: The search-related-tracks submenu narrates</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the track context menu is open</li><li><span class='keyword'>When</span> I arrow to the search related tracks submenu and open it</li><li><span class='keyword'>Then</span> I hear each item announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The search-related-tracks submenu narrates&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-pass' name='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s4-the-search-related-tracks-submenu-narrates::result'><label for='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-fail' name='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s4-the-search-related-tracks-submenu-narrates::result'><label for='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-skip' name='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s4-the-search-related-tracks-submenu-narrates::result'><label for='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-not-tested' name='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s4-the-search-related-tracks-submenu-narrates::result' checked><label for='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-notes'>Notes for &ldquo;The search-related-tracks submenu narrates&rdquo;</label>
+<textarea id='library_and_dialogs-s4-the-search-related-tracks-submenu-narrates-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s4-the-search-related-tracks-submenu-narrates::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written' data-tags=''>
+<h3>Scenario: Playlist and crate names are spoken as written</h3>
+
+<p class="step-note">Note: These carry their raw name separately so mnemonic markers do not corrupt them. A crate named with an ampersand is the test case.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a crate exists named "Drum &amp; Bass"</li><li><span class='keyword'>And</span> a playlist exists named "Warm &amp; Up"</li><li><span class='keyword'>And</span> a track is selected in the library</li><li><span class='keyword'>When</span> I open the track context menu and enter the Crates submenu</li><li><span class='keyword'>Then</span> I hear "Drum and Bass" spoken as a normal name</li><li><span class='keyword'>And</span> I do not hear a doubled ampersand or a mangled name</li><li><span class='keyword'>When</span> I go back and enter the Add to Playlist submenu</li><li><span class='keyword'>Then</span> I hear "Warm and Up" spoken as a normal name</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Playlist and crate names are spoken as written&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-pass' name='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written::result'><label for='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-fail' name='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written::result'><label for='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-skip' name='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written::result'><label for='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-not-tested' name='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written::result' checked><label for='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-notes'>Notes for &ldquo;Playlist and crate names are spoken as written&rdquo;</label>
+<textarea id='library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s5-playlist-and-crate-names-are-spoken-as-written::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones' data-tags=''>
+<h3>Scenario: The sampler submenus narrate, including the paged ones</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the track context menu is open</li><li><span class='keyword'>When</span> I arrow into the Sampler submenu</li><li><span class='keyword'>Then</span> I hear each sampler entry announced</li><li><span class='keyword'>When</span> I open one of the paged sampler submenus</li><li><span class='keyword'>Then</span> I hear each entry inside it announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The sampler submenus narrate, including the paged ones&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-pass' name='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones::result'><label for='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-fail' name='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones::result'><label for='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-skip' name='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones::result'><label for='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-not-tested' name='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones::result' checked><label for='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-notes'>Notes for &ldquo;The sampler submenus narrate, including the paged ones&rdquo;</label>
+<textarea id='library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s6-the-sampler-submenus-narrate-including-the-paged-ones::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated' data-tags=''>
+<h3>Scenario: The same item hovered twice is not repeated</h3>
+
+<p class="step-note">Note: Deliberate deduplication — arrowing off an item and back onto it via a mouse jiggle should not stutter.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the track context menu is open</li><li><span class='keyword'>When</span> I land on an item and stay there</li><li><span class='keyword'>Then</span> I hear it announced once</li><li><span class='keyword'>And</span> I do not hear it repeated while focus stays put</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The same item hovered twice is not repeated&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-pass' name='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated::result'><label for='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-fail' name='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated::result'><label for='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-skip' name='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated::result'><label for='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-not-tested' name='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated::result' checked><label for='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-notes'>Notes for &ldquo;The same item hovered twice is not repeated&rdquo;</label>
+<textarea id='library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s7-the-same-item-hovered-twice-is-not-repeated::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list' data-tags=''>
+<h3>Scenario: Menu items are not given a position in the list</h3>
+
+<p class="step-note">Note: Unlike the spoken crate and playlist pickers, menu hover deliberately does not append "N of M". Confirm, so nobody adds it by accident and nobody files its absence.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the track context menu is open</li><li><span class='keyword'>When</span> I arrow through several items</li><li><span class='keyword'>Then</span> I hear each item's name alone</li><li><span class='keyword'>And</span> I do not hear "1 of" or any position count</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Menu items are not given a position in the list&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-pass' name='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list::result'><label for='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-fail' name='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list::result'><label for='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-skip' name='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list::result'><label for='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-not-tested' name='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list::result' checked><label for='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-notes'>Notes for &ldquo;Menu items are not given a position in the list&rdquo;</label>
+<textarea id='library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s8-menu-items-are-not-given-a-position-in-the-list::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates' data-tags='@blocking'>
+<h3>Scenario: The sidebar playlist context menu narrates</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on a playlist in the sidebar</li><li><span class='keyword'>When</span> I open its context menu</li><li><span class='keyword'>And</span> I arrow through the items</li><li><span class='keyword'>Then</span> I hear each item announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The sidebar playlist context menu narrates&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-pass' name='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates::result'><label for='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-fail' name='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates::result'><label for='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-skip' name='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates::result'><label for='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-not-tested' name='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates::result' checked><label for='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-notes'>Notes for &ldquo;The sidebar playlist context menu narrates&rdquo;</label>
+<textarea id='library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s9-the-sidebar-playlist-context-menu-narrates::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates' data-tags='@blocking'>
+<h3>Scenario: The sidebar crate context menu narrates</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on a crate in the sidebar</li><li><span class='keyword'>When</span> I open its context menu</li><li><span class='keyword'>And</span> I arrow through the items</li><li><span class='keyword'>Then</span> I hear each item announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The sidebar crate context menu narrates&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-pass' name='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates::result'><label for='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-fail' name='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates::result'><label for='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-skip' name='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates::result'><label for='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-not-tested' name='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates::result' checked><label for='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-notes'>Notes for &ldquo;The sidebar crate context menu narrates&rdquo;</label>
+<textarea id='library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s10-the-sidebar-crate-context-menu-narrates::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate' data-tags=''>
+<h3>Scenario: The sidebar root context menus narrate</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> focus is on the Playlists root in the sidebar</li><li><span class='keyword'>When</span> I open its context menu and arrow through it</li><li><span class='keyword'>Then</span> I hear each item announced</li><li><span class='keyword'>Given</span> focus is on the Crates root in the sidebar</li><li><span class='keyword'>When</span> I open its context menu and arrow through it</li><li><span class='keyword'>Then</span> I hear each item announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The sidebar root context menus narrate&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-pass' name='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s11-the-sidebar-root-context-menus-narrate::result'><label for='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-fail' name='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s11-the-sidebar-root-context-menus-narrate::result'><label for='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-skip' name='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s11-the-sidebar-root-context-menus-narrate::result'><label for='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-not-tested' name='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s11-the-sidebar-root-context-menus-narrate::result' checked><label for='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-notes'>Notes for &ldquo;The sidebar root context menus narrate&rdquo;</label>
+<textarea id='library_and_dialogs-s11-the-sidebar-root-context-menus-narrate-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s11-the-sidebar-root-context-menus-narrate::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='library_and_dialogs-section-the-library-scanner-dialog-issue-88'>
+<h2 id='library_and_dialogs-section-the-library-scanner-dialog-issue-88'>The library scanner dialog — issue #88</h2>
+
+<article class='scenario' id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears' data-tags=''>
+<h3>Scenario: The scanner announces itself when it appears</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a music directory containing enough tracks that scanning takes a few seconds</li><li><span class='keyword'>When</span> a library scan starts</li><li><span class='keyword'>Then</span> I hear "Scanning library"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The scanner announces itself when it appears&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-pass' name='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears::result'><label for='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-fail' name='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears::result'><label for='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-skip' name='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears::result'><label for='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-not-tested' name='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears::result' checked><label for='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-notes'>Notes for &ldquo;The scanner announces itself when it appears&rdquo;</label>
+<textarea id='library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s12-the-scanner-announces-itself-when-it-appears::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan' data-tags=''>
+<h3>Scenario: The scanner announcement does not repeat during one scan</h3>
+
+<p class="step-note">Note: The dialog can show and hide repeatedly within a single scan.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a library scan is in progress and I have heard "Scanning library"</li><li><span class='keyword'>When</span> the scan continues for another 30 seconds</li><li><span class='keyword'>Then</span> I do not hear "Scanning library" again</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The scanner announcement does not repeat during one scan&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-pass' name='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan::result'><label for='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-fail' name='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan::result'><label for='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-skip' name='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan::result'><label for='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-not-tested' name='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan::result' checked><label for='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-notes'>Notes for &ldquo;The scanner announcement does not repeat during one scan&rdquo;</label>
+<textarea id='library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s13-the-scanner-announcement-does-not-repeat-during-one-scan::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s14-a-second-scan-announces-again' data-tags=''>
+<h3>Scenario: A second scan announces again</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> one library scan has completed</li><li><span class='keyword'>When</span> I start another scan</li><li><span class='keyword'>Then</span> I hear "Scanning library"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A second scan announces again&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s14-a-second-scan-announces-again-pass' name='library_and_dialogs-s14-a-second-scan-announces-again-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s14-a-second-scan-announces-again::result'><label for='library_and_dialogs-s14-a-second-scan-announces-again-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s14-a-second-scan-announces-again-fail' name='library_and_dialogs-s14-a-second-scan-announces-again-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s14-a-second-scan-announces-again::result'><label for='library_and_dialogs-s14-a-second-scan-announces-again-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s14-a-second-scan-announces-again-skip' name='library_and_dialogs-s14-a-second-scan-announces-again-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s14-a-second-scan-announces-again::result'><label for='library_and_dialogs-s14-a-second-scan-announces-again-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s14-a-second-scan-announces-again-not-tested' name='library_and_dialogs-s14-a-second-scan-announces-again-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s14-a-second-scan-announces-again::result' checked><label for='library_and_dialogs-s14-a-second-scan-announces-again-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s14-a-second-scan-announces-again-notes'>Notes for &ldquo;A second scan announces again&rdquo;</label>
+<textarea id='library_and_dialogs-s14-a-second-scan-announces-again-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s14-a-second-scan-announces-again::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s15-per-file-progress-is-not-read-out' data-tags=''>
+<h3>Scenario: Per-file progress is not read out</h3>
+
+<p class="step-note">Note: EXPECTED: only the one announcement. Reading every filename would be unusable. Confirm the silence is the intended silence.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a library scan is in progress</li><li><span class='keyword'>Then</span> I do not hear individual file names announced</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Per-file progress is not read out&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s15-per-file-progress-is-not-read-out-pass' name='library_and_dialogs-s15-per-file-progress-is-not-read-out-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s15-per-file-progress-is-not-read-out::result'><label for='library_and_dialogs-s15-per-file-progress-is-not-read-out-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s15-per-file-progress-is-not-read-out-fail' name='library_and_dialogs-s15-per-file-progress-is-not-read-out-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s15-per-file-progress-is-not-read-out::result'><label for='library_and_dialogs-s15-per-file-progress-is-not-read-out-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s15-per-file-progress-is-not-read-out-skip' name='library_and_dialogs-s15-per-file-progress-is-not-read-out-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s15-per-file-progress-is-not-read-out::result'><label for='library_and_dialogs-s15-per-file-progress-is-not-read-out-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s15-per-file-progress-is-not-read-out-not-tested' name='library_and_dialogs-s15-per-file-progress-is-not-read-out-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s15-per-file-progress-is-not-read-out::result' checked><label for='library_and_dialogs-s15-per-file-progress-is-not-read-out-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s15-per-file-progress-is-not-read-out-notes'>Notes for &ldquo;Per-file progress is not read out&rdquo;</label>
+<textarea id='library_and_dialogs-s15-per-file-progress-is-not-read-out-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s15-per-file-progress-is-not-read-out::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='library_and_dialogs-section-the-track-row-readout-in-ordinary-use-issue-72'>
+<h2 id='library_and_dialogs-section-the-track-row-readout-in-ordinary-use-issue-72'>The track row readout in ordinary use — issue #72</h2>
+
+<article class='scenario' id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am' data-tags='@blocking'>
+<h3>Scenario: Arrowing through a playlist tells me where I am</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a playlist containing 40 tracks is showing</li><li><span class='keyword'>And</span> the track table has focus</li><li><span class='keyword'>When</span> I arrow down through several tracks</li><li><span class='keyword'>Then</span> I hear each track's artist and title</li><li><span class='keyword'>And</span> I hear its position, counting up as I go</li><li><span class='keyword'>And</span> the total matches the number of tracks in the playlist</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Arrowing through a playlist tells me where I am&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-pass' name='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am::result'><label for='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-fail' name='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am::result'><label for='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-skip' name='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am::result'><label for='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-not-tested' name='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am::result' checked><label for='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-notes'>Notes for &ldquo;Arrowing through a playlist tells me where I am&rdquo;</label>
+<textarea id='library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s16-arrowing-through-a-playlist-tells-me-where-i-am::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has' data-tags=''>
+<h3>Scenario: A track with no artist announces what it has</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a track with a title but no artist</li><li><span class='keyword'>When</span> I arrow onto it</li><li><span class='keyword'>Then</span> I hear the title</li><li><span class='keyword'>And</span> I do not hear an empty pause where the artist would be</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A track with no artist announces what it has&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-pass' name='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has::result'><label for='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-fail' name='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has::result'><label for='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-skip' name='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has::result'><label for='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-not-tested' name='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has::result' checked><label for='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-notes'>Notes for &ldquo;A track with no artist announces what it has&rdquo;</label>
+<textarea id='library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s17-a-track-with-no-artist-announces-what-it-has::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech' data-tags=''>
+<h3>Scenario: Holding the arrow key does not produce a burst of speech</h3>
+
+<p class="step-note">Note: Selection is debounced. Scrolling fast should land on one readout, not queue forty.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> the track table has focus at the top of a long list</li><li><span class='keyword'>When</span> I hold the down arrow for two seconds and release</li><li><span class='keyword'>Then</span> I hear one readout, for the track I landed on</li><li><span class='keyword'>And</span> I do not hear a backlog of earlier tracks</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Holding the arrow key does not produce a burst of speech&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-pass' name='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech::result'><label for='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-fail' name='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech::result'><label for='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-skip' name='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech::result'><label for='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-not-tested' name='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech::result' checked><label for='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-notes'>Notes for &ldquo;Holding the arrow key does not produce a burst of speech&rdquo;</label>
+<textarea id='library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s18-holding-the-arrow-key-does-not-produce-a-burst-of-speech::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s19-row-readouts-can-be-turned-off' data-tags=''>
+<h3>Scenario: Row readouts can be turned off</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce track selection" is disabled in Preferences, Accessibility</li><li><span class='keyword'>When</span> I arrow through the track table</li><li><span class='keyword'>Then</span> I hear nothing</li><li><span class='keyword'>And</span> re-enabling the setting restores the readouts</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Row readouts can be turned off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s19-row-readouts-can-be-turned-off-pass' name='library_and_dialogs-s19-row-readouts-can-be-turned-off-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s19-row-readouts-can-be-turned-off::result'><label for='library_and_dialogs-s19-row-readouts-can-be-turned-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s19-row-readouts-can-be-turned-off-fail' name='library_and_dialogs-s19-row-readouts-can-be-turned-off-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s19-row-readouts-can-be-turned-off::result'><label for='library_and_dialogs-s19-row-readouts-can-be-turned-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s19-row-readouts-can-be-turned-off-skip' name='library_and_dialogs-s19-row-readouts-can-be-turned-off-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s19-row-readouts-can-be-turned-off::result'><label for='library_and_dialogs-s19-row-readouts-can-be-turned-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s19-row-readouts-can-be-turned-off-not-tested' name='library_and_dialogs-s19-row-readouts-can-be-turned-off-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s19-row-readouts-can-be-turned-off::result' checked><label for='library_and_dialogs-s19-row-readouts-can-be-turned-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s19-row-readouts-can-be-turned-off-notes'>Notes for &ldquo;Row readouts can be turned off&rdquo;</label>
+<textarea id='library_and_dialogs-s19-row-readouts-can-be-turned-off-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s19-row-readouts-can-be-turned-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='library_and_dialogs-section-youtube-source-issue-85'>
+<h2 id='library_and_dialogs-section-youtube-source-issue-85'>YouTube source — issue #85</h2>
+<p>This is the only place in the fork where a network operation of unknown duration reports back by ear. The progress design is deliberately sparse: exactly three utterances, "25%", "50%" and "75%", each the bare number and a percent sign. 0% and 100% are never spoken.</p>
+<p>It shells out to yt-dlp, so a machine without yt-dlp installed will exercise the failure paths instead — which are worth testing too.</p>
+<article class='scenario' id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself' data-tags=''>
+<h3>Scenario: The YouTube source is in the sidebar and explains itself</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "ShowYouTubeLibrary" is enabled</li><li><span class='keyword'>When</span> I arrow to "YouTube" in the sidebar and select it</li><li><span class='keyword'>Then</span> I hear "YouTube search. Type in the search box to find tracks."</li><li><span class='keyword'>When</span> I expand it</li><li><span class='keyword'>Then</span> I hear a child item called "Downloaded"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The YouTube source is in the sidebar and explains itself&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-pass' name='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself::result'><label for='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-fail' name='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself::result'><label for='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-skip' name='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself::result'><label for='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-not-tested' name='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself::result' checked><label for='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-notes'>Notes for &ldquo;The YouTube source is in the sidebar and explains itself&rdquo;</label>
+<textarea id='library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s20-the-youtube-source-is-in-the-sidebar-and-explains-itself::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found' data-tags='@blocking'>
+<h3>Scenario: A search reports that it started, and what it found</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> yt-dlp is installed and on the PATH</li><li><span class='keyword'>And</span> the YouTube source is selected</li><li><span class='keyword'>When</span> I type "aphex twin" into the search box</li><li><span class='keyword'>Then</span> I hear "Searching YouTube for" followed by the query</li><li><span class='keyword'>And</span> when the results arrive I hear a count, such as "12 results"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A search reports that it started, and what it found&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-pass' name='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found::result'><label for='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-fail' name='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found::result'><label for='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-skip' name='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found::result'><label for='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-not-tested' name='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found::result' checked><label for='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-notes'>Notes for &ldquo;A search reports that it started, and what it found&rdquo;</label>
+<textarea id='library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s21-a-search-reports-that-it-started-and-what-it-found::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular' data-tags=''>
+<h3>Scenario: A search with one result uses the singular</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I run a YouTube search that returns exactly one result</li><li><span class='keyword'>Then</span> I hear "1 result"</li><li><span class='keyword'>And</span> I do not hear "1 results"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A search with one result uses the singular&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-pass' name='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s22-a-search-with-one-result-uses-the-singular::result'><label for='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-fail' name='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s22-a-search-with-one-result-uses-the-singular::result'><label for='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-skip' name='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s22-a-search-with-one-result-uses-the-singular::result'><label for='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-not-tested' name='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s22-a-search-with-one-result-uses-the-singular::result' checked><label for='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-notes'>Notes for &ldquo;A search with one result uses the singular&rdquo;</label>
+<textarea id='library_and_dialogs-s22-a-search-with-one-result-uses-the-singular-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s22-a-search-with-one-result-uses-the-singular::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s23-a-search-with-no-results-says-so' data-tags=''>
+<h3>Scenario: A search with no results says so</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I run a YouTube search for a nonsense string that returns nothing</li><li><span class='keyword'>Then</span> I hear "No results found."</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A search with no results says so&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s23-a-search-with-no-results-says-so-pass' name='library_and_dialogs-s23-a-search-with-no-results-says-so-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s23-a-search-with-no-results-says-so::result'><label for='library_and_dialogs-s23-a-search-with-no-results-says-so-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s23-a-search-with-no-results-says-so-fail' name='library_and_dialogs-s23-a-search-with-no-results-says-so-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s23-a-search-with-no-results-says-so::result'><label for='library_and_dialogs-s23-a-search-with-no-results-says-so-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s23-a-search-with-no-results-says-so-skip' name='library_and_dialogs-s23-a-search-with-no-results-says-so-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s23-a-search-with-no-results-says-so::result'><label for='library_and_dialogs-s23-a-search-with-no-results-says-so-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s23-a-search-with-no-results-says-so-not-tested' name='library_and_dialogs-s23-a-search-with-no-results-says-so-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s23-a-search-with-no-results-says-so::result' checked><label for='library_and_dialogs-s23-a-search-with-no-results-says-so-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s23-a-search-with-no-results-says-so-notes'>Notes for &ldquo;A search with no results says so&rdquo;</label>
+<textarea id='library_and_dialogs-s23-a-search-with-no-results-says-so-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s23-a-search-with-no-results-says-so::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s24-clearing-the-search-box-says-nothing' data-tags=''>
+<h3>Scenario: Clearing the search box says nothing</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a YouTube search has returned results</li><li><span class='keyword'>When</span> I clear the search box</li><li><span class='keyword'>Then</span> I hear nothing</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Clearing the search box says nothing&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s24-clearing-the-search-box-says-nothing-pass' name='library_and_dialogs-s24-clearing-the-search-box-says-nothing-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s24-clearing-the-search-box-says-nothing::result'><label for='library_and_dialogs-s24-clearing-the-search-box-says-nothing-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s24-clearing-the-search-box-says-nothing-fail' name='library_and_dialogs-s24-clearing-the-search-box-says-nothing-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s24-clearing-the-search-box-says-nothing::result'><label for='library_and_dialogs-s24-clearing-the-search-box-says-nothing-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s24-clearing-the-search-box-says-nothing-skip' name='library_and_dialogs-s24-clearing-the-search-box-says-nothing-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s24-clearing-the-search-box-says-nothing::result'><label for='library_and_dialogs-s24-clearing-the-search-box-says-nothing-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s24-clearing-the-search-box-says-nothing-not-tested' name='library_and_dialogs-s24-clearing-the-search-box-says-nothing-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s24-clearing-the-search-box-says-nothing::result' checked><label for='library_and_dialogs-s24-clearing-the-search-box-says-nothing-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s24-clearing-the-search-box-says-nothing-notes'>Notes for &ldquo;Clearing the search box says nothing&rdquo;</label>
+<textarea id='library_and_dialogs-s24-clearing-the-search-box-says-nothing-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s24-clearing-the-search-box-says-nothing::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce' data-tags=''>
+<h3>Scenario: Repeating the same search does not re-announce</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> I have just searched for "aphex twin" and heard the result count</li><li><span class='keyword'>When</span> I search for exactly "aphex twin" again</li><li><span class='keyword'>Then</span> I hear nothing</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Repeating the same search does not re-announce&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-pass' name='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce::result'><label for='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-fail' name='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce::result'><label for='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-skip' name='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce::result'><label for='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-not-tested' name='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce::result' checked><label for='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-notes'>Notes for &ldquo;Repeating the same search does not re-announce&rdquo;</label>
+<textarea id='library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s25-repeating-the-same-search-does-not-re-announce::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s26-search-results-are-readable-by-ear' data-tags='@blocking'>
+<h3>Scenario: Search results are readable by ear</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a YouTube search has returned results</li><li><span class='keyword'>When</span> I arrow through them</li><li><span class='keyword'>Then</span> I hear each result's title</li><li><span class='keyword'>And</span> I hear ", by " followed by the channel name</li><li><span class='keyword'>And</span> I hear its duration in minutes and seconds</li><li><span class='keyword'>And</span> I hear its position in the result list</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Search results are readable by ear&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s26-search-results-are-readable-by-ear-pass' name='library_and_dialogs-s26-search-results-are-readable-by-ear-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s26-search-results-are-readable-by-ear::result'><label for='library_and_dialogs-s26-search-results-are-readable-by-ear-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s26-search-results-are-readable-by-ear-fail' name='library_and_dialogs-s26-search-results-are-readable-by-ear-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s26-search-results-are-readable-by-ear::result'><label for='library_and_dialogs-s26-search-results-are-readable-by-ear-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s26-search-results-are-readable-by-ear-skip' name='library_and_dialogs-s26-search-results-are-readable-by-ear-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s26-search-results-are-readable-by-ear::result'><label for='library_and_dialogs-s26-search-results-are-readable-by-ear-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s26-search-results-are-readable-by-ear-not-tested' name='library_and_dialogs-s26-search-results-are-readable-by-ear-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s26-search-results-are-readable-by-ear::result' checked><label for='library_and_dialogs-s26-search-results-are-readable-by-ear-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s26-search-results-are-readable-by-ear-notes'>Notes for &ldquo;Search results are readable by ear&rdquo;</label>
+<textarea id='library_and_dialogs-s26-search-results-are-readable-by-ear-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s26-search-results-are-readable-by-ear::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s27-an-already-downloaded-result-says-so' data-tags=''>
+<h3>Scenario: An already-downloaded result says so</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a YouTube search whose results include a track I have already downloaded</li><li><span class='keyword'>When</span> I arrow onto that result</li><li><span class='keyword'>Then</span> I hear ", downloaded" at the end of the readout</li><li><span class='keyword'>And</span> I can tell it apart from a result I have not fetched</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;An already-downloaded result says so&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s27-an-already-downloaded-result-says-so-pass' name='library_and_dialogs-s27-an-already-downloaded-result-says-so-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s27-an-already-downloaded-result-says-so::result'><label for='library_and_dialogs-s27-an-already-downloaded-result-says-so-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s27-an-already-downloaded-result-says-so-fail' name='library_and_dialogs-s27-an-already-downloaded-result-says-so-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s27-an-already-downloaded-result-says-so::result'><label for='library_and_dialogs-s27-an-already-downloaded-result-says-so-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s27-an-already-downloaded-result-says-so-skip' name='library_and_dialogs-s27-an-already-downloaded-result-says-so-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s27-an-already-downloaded-result-says-so::result'><label for='library_and_dialogs-s27-an-already-downloaded-result-says-so-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s27-an-already-downloaded-result-says-so-not-tested' name='library_and_dialogs-s27-an-already-downloaded-result-says-so-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s27-an-already-downloaded-result-says-so::result' checked><label for='library_and_dialogs-s27-an-already-downloaded-result-says-so-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s27-an-already-downloaded-result-says-so-notes'>Notes for &ldquo;An already-downloaded result says so&rdquo;</label>
+<textarea id='library_and_dialogs-s27-an-already-downloaded-result-says-so-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s27-an-already-downloaded-result-says-so::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only' data-tags=''>
+<h3>Scenario: A short result is announced in seconds only</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a search result shorter than one minute</li><li><span class='keyword'>When</span> I arrow onto it</li><li><span class='keyword'>Then</span> I hear its duration in seconds</li><li><span class='keyword'>And</span> I do not hear "0 minutes"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A short result is announced in seconds only&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-pass' name='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only::result'><label for='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-fail' name='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only::result'><label for='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-skip' name='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only::result'><label for='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-not-tested' name='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only::result' checked><label for='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-notes'>Notes for &ldquo;A short result is announced in seconds only&rdquo;</label>
+<textarea id='library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s28-a-short-result-is-announced-in-seconds-only::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion' data-tags='@blocking'>
+<h3>Scenario: Downloading a track reports start and progress but not completion</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> yt-dlp is installed and a download directory is configured</li><li><span class='keyword'>And</span> a YouTube search result is selected that I have not downloaded</li><li><span class='keyword'>When</span> I press "Return" to load it</li><li><span class='keyword'>Then</span> I hear "Downloading " followed by the track title</li><li><span class='keyword'>And</span> as it proceeds I hear "25%"</li><li><span class='keyword'>And</span> then "50%"</li><li><span class='keyword'>And</span> then "75%"</li><li><span class='keyword'>And</span> I do not hear "0%"</li><li><span class='keyword'>And</span> I do not hear "100%"</li><li><span class='keyword'>And</span> when it finishes the track simply loads, with no completion announcement</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Downloading a track reports start and progress but not completion&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-pass' name='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion::result'><label for='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-fail' name='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion::result'><label for='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-skip' name='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion::result'><label for='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-not-tested' name='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion::result' checked><label for='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-notes'>Notes for &ldquo;Downloading a track reports start and progress but not completion&rdquo;</label>
+<textarea id='library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s29-downloading-a-track-reports-start-and-progress-but-not-completion::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards' data-tags=''>
+<h3>Scenario: Progress milestones do not repeat or go backwards</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a download is in progress and I have heard "50%"</li><li><span class='keyword'>When</span> yt-dlp reports a percentage that maps back below 50</li><li><span class='keyword'>Then</span> I do not hear "25%" or "50%" again</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Progress milestones do not repeat or go backwards&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-pass' name='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards::result'><label for='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-fail' name='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards::result'><label for='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-skip' name='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards::result'><label for='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-not-tested' name='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards::result' checked><label for='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-notes'>Notes for &ldquo;Progress milestones do not repeat or go backwards&rdquo;</label>
+<textarea id='library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s30-progress-milestones-do-not-repeat-or-go-backwards::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones' data-tags=''>
+<h3>Scenario: A very fast download may skip milestones</h3>
+
+<p class="step-note">Note: EXPECTED: a small file can jump straight past 25 and 50. Not a bug.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a very short track is downloaded quickly</li><li><span class='keyword'>When</span> the download completes</li><li><span class='keyword'>Then</span> I may hear only some of the milestones, or none</li><li><span class='keyword'>And</span> the track still loads</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A very fast download may skip milestones&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-pass' name='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s31-a-very-fast-download-may-skip-milestones::result'><label for='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-fail' name='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s31-a-very-fast-download-may-skip-milestones::result'><label for='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-skip' name='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s31-a-very-fast-download-may-skip-milestones::result'><label for='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-not-tested' name='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s31-a-very-fast-download-may-skip-milestones::result' checked><label for='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-notes'>Notes for &ldquo;A very fast download may skip milestones&rdquo;</label>
+<textarea id='library_and_dialogs-s31-a-very-fast-download-may-skip-milestones-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s31-a-very-fast-download-may-skip-milestones::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully' data-tags=''>
+<h3>Scenario Outline: Download and search failures are spoken usefully</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "&lt;situation&gt;"</li><li><span class='keyword'>When</span> I "&lt;action&gt;"</li><li><span class='keyword'>Then</span> I hear a spoken message containing "&lt;fragment&gt;"</li><li><span class='keyword'>And</span> the message tells me enough to know what to fix</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">situation</th><th scope="col">action</th><th scope="col">fragment</th></tr></thead>
+<tbody>
+<tr><td>yt-dlp is not installed or not on PATH</td><td>run a YouTube search</td><td>Is it installed</td></tr>
+<tr><td>yt-dlp is not installed or not on PATH</td><td>download a search result</td><td>Download failed</td></tr>
+<tr><td>no download directory is configured</td><td>download a search result</td><td>No download directory</td></tr>
+<tr><td>a download is already running</td><td>start a second download</td><td>already in progress</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Download and search failures are spoken usefully&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-pass' name='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully::result'><label for='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-fail' name='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully::result'><label for='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-skip' name='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully::result'><label for='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-not-tested' name='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully::result' checked><label for='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-notes'>Notes for &ldquo;Download and search failures are spoken usefully&rdquo;</label>
+<textarea id='library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s32-download-and-search-failures-are-spoken-usefully::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed' data-tags=''>
+<h3>Scenario: A yt-dlp error message is read rather than swallowed</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a search that will make yt-dlp fail with a message on its error output</li><li><span class='keyword'>When</span> I run the search</li><li><span class='keyword'>Then</span> I hear yt-dlp's own message spoken</li><li><span class='keyword'>And</span> I am not left with silence</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A yt-dlp error message is read rather than swallowed&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-pass' name='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed::result'><label for='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-fail' name='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed::result'><label for='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-skip' name='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed::result'><label for='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-not-tested' name='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed::result' checked><label for='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-notes'>Notes for &ldquo;A yt-dlp error message is read rather than swallowed&rdquo;</label>
+<textarea id='library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s33-a-yt-dlp-error-message-is-read-rather-than-swallowed::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment' data-tags=''>
+<h3>Scenario: The downloaded track carries its source in the comment</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> a YouTube track has been downloaded successfully</li><li><span class='keyword'>When</span> I open its track info dialog</li><li><span class='keyword'>Then</span> the comment field contains the source URL, the uploader and the licence</li><li><span class='keyword'>And</span> my screen reader can read it</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The downloaded track carries its source in the comment&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-pass' name='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment::result'><label for='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-fail' name='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment::result'><label for='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-skip' name='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment::result'><label for='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-not-tested' name='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment::result' checked><label for='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-notes'>Notes for &ldquo;The downloaded track carries its source in the comment&rdquo;</label>
+<textarea id='library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s34-the-downloaded-track-carries-its-source-in-the-comment::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken' data-tags=''>
+<h3>Scenario: The on-screen download progress is not spoken</h3>
+
+<p class="step-note">Note: EXPECTED: the overview widget paints a progress readout that is deliberately visual only. The spoken milestones are the accessible equivalent. Confirm they do not double up.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a download is in progress on deck 1</li><li><span class='keyword'>Then</span> I hear only the milestone announcements</li><li><span class='keyword'>And</span> I do not hear a continuous stream of percentages</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The on-screen download progress is not spoken&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-pass' name='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken::result'><label for='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-fail' name='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken::result'><label for='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-skip' name='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken::result'><label for='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-not-tested' name='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken::result' checked><label for='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-notes'>Notes for &ldquo;The on-screen download progress is not spoken&rdquo;</label>
+<textarea id='library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s35-the-on-screen-download-progress-is-not-spoken::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='library_and_dialogs-s36-the-youtube-source-can-be-hidden' data-tags=''>
+<h3>Scenario: The YouTube source can be hidden</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "ShowYouTubeLibrary" is disabled</li><li><span class='keyword'>When</span> I arrow through the sidebar</li><li><span class='keyword'>Then</span> I do not find a "YouTube" item</li><li><span class='keyword'>And</span> nothing else in the sidebar is disturbed</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The YouTube source can be hidden&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s36-the-youtube-source-can-be-hidden-pass' name='library_and_dialogs-s36-the-youtube-source-can-be-hidden-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s36-the-youtube-source-can-be-hidden::result'><label for='library_and_dialogs-s36-the-youtube-source-can-be-hidden-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s36-the-youtube-source-can-be-hidden-fail' name='library_and_dialogs-s36-the-youtube-source-can-be-hidden-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s36-the-youtube-source-can-be-hidden::result'><label for='library_and_dialogs-s36-the-youtube-source-can-be-hidden-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s36-the-youtube-source-can-be-hidden-skip' name='library_and_dialogs-s36-the-youtube-source-can-be-hidden-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s36-the-youtube-source-can-be-hidden::result'><label for='library_and_dialogs-s36-the-youtube-source-can-be-hidden-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s36-the-youtube-source-can-be-hidden-not-tested' name='library_and_dialogs-s36-the-youtube-source-can-be-hidden-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s36-the-youtube-source-can-be-hidden::result' checked><label for='library_and_dialogs-s36-the-youtube-source-can-be-hidden-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s36-the-youtube-source-can-be-hidden-notes'>Notes for &ldquo;The YouTube source can be hidden&rdquo;</label>
+<textarea id='library_and_dialogs-s36-the-youtube-source-can-be-hidden-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s36-the-youtube-source-can-be-hidden::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='library_and_dialogs-section-regression-the-spurious-cue-announcements-fix-that-rode-along-with-85'>
+<h2 id='library_and_dialogs-section-regression-the-spurious-cue-announcements-fix-that-rode-along-with-85'>Regression: the spurious cue announcements fix that rode along with #85</h2>
+
+<article class='scenario' id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown' data-tags='@regression'>
+<h3>Scenario: Loading a track does not announce cues for decks that are not shown</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@regression</li></ul>
+<p class="step-note">Note: A bug fixed alongside the YouTube port: the headphone cue was being written unconditionally on load, so decks the skin does not show announced themselves. If you hear a deck number that is not on screen, this has come back.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> a skin showing only two decks</li><li><span class='keyword'>When</span> I load a track into deck 1</li><li><span class='keyword'>Then</span> I hear at most announcements about decks 1 and 2</li><li><span class='keyword'>And</span> I do not hear anything about deck 3 or deck 4</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Loading a track does not announce cues for decks that are not shown&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-pass' name='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-result' value='pass' data-persist-key='library_and_dialogs::library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown::result'><label for='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-fail' name='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-result' value='fail' data-persist-key='library_and_dialogs::library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown::result'><label for='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-skip' name='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-result' value='skip' data-persist-key='library_and_dialogs::library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown::result'><label for='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-not-tested' name='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-result' value='not-tested' data-persist-key='library_and_dialogs::library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown::result' checked><label for='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-notes'>Notes for &ldquo;Loading a track does not announce cues for decks that are not shown&rdquo;</label>
+<textarea id='library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown-notes' data-persist-key='library_and_dialogs::library_and_dialogs-s37-loading-a-track-does-not-announce-cues-for-decks-that-are-not-shown::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='destructive_actions.html'>&larr; Previous file: destructive_actions.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='blind_dj_workflow.html'>Next file: blind_dj_workflow.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>

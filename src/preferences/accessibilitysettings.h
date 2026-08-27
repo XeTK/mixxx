@@ -259,6 +259,22 @@ class AccessibilitySettings {
             "TtsVoiceQualityFilter",
             0);
 
+    // One-shot flag (issue #105): true once the spoken first-run orientation
+    // has been given, so it is never repeated on later launches. Not exposed
+    // in Preferences -- there is nothing for a user to configure here, it is
+    // simply "has this already happened". Set unconditionally the first time
+    // AnnouncementManager checks it, regardless of whether speech happened to
+    // be enabled at that exact moment: this flag tracks "the app has been run
+    // before", not "the orientation was actually heard", so a user who starts
+    // out sighted and later turns speech on will not be surprised by the
+    // tutorial mid-set months later. The written guide remains the reference
+    // for that case (see ACCESSIBILITY_GUIDE.md).
+    DEFINE_PREFERENCE_HELPERS(OrientationPlayed,
+            bool,
+            "[Accessibility]",
+            "OrientationPlayed",
+            false);
+
   private:
     UserSettingsPointer m_pConfig;
 };

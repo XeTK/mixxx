@@ -12,6 +12,7 @@
 #include "control/controlpushbutton.h"
 #include "engine/engineearcon.h"
 #include "engine/enginetts.h"
+#include "library/autodj/autodjprocessor.h"
 #include "library/library.h"
 #include "library/library_decl.h"
 #include "library/trackmodel.h"
@@ -435,6 +436,7 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
                 &Library::searchResultCountChanged,
                 this,
                 &AnnouncementManager::slotSearchResultCount);
+        m_pAutoDJProcessor = pLibrary->getAutoDJProcessor();
     }
 
     // Track-list sort column/order feedback. [Library],sort_column holds the
@@ -761,6 +763,66 @@ void AnnouncementManager::init(Library* pLibrary, PlayerManagerInterface* pPlaye
     pBeatClick->connectValueChanged(this, [this](double value) {
         speak(value > 0.0 ? tr("Beat click on") : tr("Beat click off"));
     });
+
+    // Auto DJ enable/disable (Shift+F12): always confirmed audibly, and folds
+    // in what's queued next so enabling Auto DJ tells you what's about to
+    // happen instead of leaving that to a separate lookup.
+    auto pAutoDJEnabled = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("enabled"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJEnabled->connectValueChanged(this, [this](double value) {
+        if (value <= 0.0) {
+            speak(tr("Auto DJ off"));
+            return;
+        }
+        TrackPointer pNext = m_pAutoDJProcessor ? m_pAutoDJProcessor->getNextQueuedTrack()
+                                                 : TrackPointer();
+        speak(pNext ? tr("Auto DJ on. Next: %1").arg(formatForBrowsing(pNext))
+                    : tr("Auto DJ on"));
+    });
+
+    // Fade now (Shift+F11): a direct user action mid-set, so it is always
+    // confirmed even though the resulting track load gets its own
+    // announcement moments later.
+    auto pAutoDJFadeNow = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("fade_now"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJFadeNow->connectValueChanged(this, [this](double value) {
+        if (value > 0.0) {
+            speak(tr("Fading now"));
+        }
+    });
+
+    // Skip next (Shift+F10): drops the head of the queue without loading it.
+    // The track that becomes current next is spoken separately once it
+    // actually loads, same as any other track load.
+    auto pAutoDJSkipNext = make_parented<ControlProxy>(
+            QStringLiteral("[AutoDJ]"),
+            QStringLiteral("skip_next"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
+    pAutoDJSkipNext->connectValueChanged(this, [this](double value) {
+        if (value > 0.0) {
+            speak(tr("Skipped"));
+        }
+    });
+
+    // On-demand "what's next in Auto DJ" readout (Alt+Shift+N): whether Auto
+    // DJ is on, the next queued track, and roughly how long until the
+    // currently playing deck hands off. Trigger mode so every press fires.
+    auto pAutoDJNext = std::make_unique<ControlPushButton>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("tts_next")));
+    pAutoDJNext->setButtonMode(mixxx::control::ButtonMode::Trigger);
+    connect(pAutoDJNext.get(), &ControlObject::valueChanged, this, [this](double value) {
+        if (value > 0.0) {
+            speak(formatAutoDJNext());
+        }
+    });
+    m_pAutoDJNextButton = std::move(pAutoDJNext);
 
     // Jog wheel touch lock (Alt+J): disables click-and-drag scratching on the
     // on-screen waveform and vinyl widgets for both decks, so an accidental
@@ -1144,7 +1206,19 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         m_pStatusButtons.push_back(std::move(pButton));
     }
 
-    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    // AllowMissingOrInvalid: connectGroupControls() is explicitly documented
+    // (see the header) to work for a synthetic group without a real
+    // BaseTrackPlayer -- every other proxy in this function already tolerates
+    // a missing backing control. This one didn't, so any group whose "play"
+    // control isn't registered yet (e.g. connectGroupControls() called before
+    // the deck finishes constructing its controls under heavy startup load,
+    // or a test wiring up observers without a full deck) tripped
+    // ControlProxy's DEBUG_ASSERT(flags & AllowMissingOrInvalid) -- fatal on
+    // any build with debug assertions enabled (issue #112).
+    auto pPlay = make_parented<ControlProxy>(group,
+            QStringLiteral("play"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
     pPlay->connectValueChanged(this, [this, group, deckIndex](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
@@ -1858,7 +1932,11 @@ void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
 }
 
 void AnnouncementManager::connectSamplerControls(const QString& group, int samplerIndex) {
-    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    // AllowMissingOrInvalid: see the matching comment in connectGroupControls().
+    auto pPlay = make_parented<ControlProxy>(group,
+            QStringLiteral("play"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
     pPlay->connectValueChanged(this, [this, group, samplerIndex](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
@@ -2062,10 +2140,35 @@ void AnnouncementManager::slotSkinLoaded() {
 void AnnouncementManager::slotSoundDevicesReady() {
     const bool wasReady = m_audioEngineReady;
     m_audioEngineReady = true;
+    // Both announcements below can fire in the same call (first-ever boot
+    // with AnnounceStartup on): without batching, the second speak() would
+    // barge-in and discard the first before it ever rendered (the same
+    // barge-in-vs-same-event-side-effect problem as issue #48), silencing
+    // "Mixxx ready" entirely. Batching joins them into one utterance instead.
+    beginSpeechBatch();
     if (!wasReady && m_pendingReadyAnnouncement) {
         m_pendingReadyAnnouncement = false;
         speak(tr("Mixxx ready"));
     }
+    maybeSpeakFirstRunOrientation();
+    endSpeechBatch();
+}
+
+void AnnouncementManager::maybeSpeakFirstRunOrientation() {
+    if (m_settings.getOrientationPlayed()) {
+        return;
+    }
+    // Mark played before speaking (not after): this is a one-shot-per-install
+    // flag, not a "was it actually heard" flag, so it must not be left false
+    // (and liable to fire on every subsequent boot) if speak() below happens
+    // to no-op because the user has TTS off right now.
+    m_settings.setOrientationPlayed(true);
+    speak(tr("Welcome to Mixxx. "
+             "Press Alt plus Shift plus A at any time to turn speech on or off. "
+             "Press Alt plus 1 or Alt plus 2 to hear the full status of deck 1 or deck 2. "
+             "Press Alt plus Shift plus R to repeat the last thing spoken. "
+             "The Accessibility Guide and Quick Reference that shipped with Mixxx list "
+             "every shortcut."));
 }
 
 void AnnouncementManager::slotSidebarItemActivated(const QString& title,
@@ -2500,6 +2603,42 @@ QString AnnouncementManager::formatTrackName(const QString& group, int deckIndex
     return deck + QStringLiteral(". ") + trackText + QStringLiteral(".");
 }
 
+QString AnnouncementManager::formatAutoDJNext() const {
+    QStringList parts;
+    const bool enabled = readGroupControl(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")) > 0.0;
+    parts << (enabled ? tr("Auto DJ is on") : tr("Auto DJ is off"));
+
+    const TrackPointer pNext = m_pAutoDJProcessor ? m_pAutoDJProcessor->getNextQueuedTrack()
+                                                   : TrackPointer();
+    parts << (pNext ? tr("Next: %1").arg(formatForBrowsing(pNext)) : tr("Queue is empty"));
+
+    // Roughly how long until the currently playing deck hands off: the
+    // remaining time on whichever connected deck is playing. This is an
+    // approximation of the time until transition (the actual crossfade can
+    // start earlier, at the outro point), not an exact countdown.
+    for (int i = 0; i < m_connectedDecks && m_pPlayerManager; ++i) {
+        BaseTrackPlayer* pDeck = m_pPlayerManager->getDeckBase(i);
+        if (!pDeck) {
+            continue;
+        }
+        const QString group = pDeck->getGroup();
+        if (!m_deckIsPlaying.value(group, false)) {
+            continue;
+        }
+        const double duration = readGroupControl(group, QStringLiteral("duration"));
+        if (duration <= 0.0) {
+            continue;
+        }
+        const double playPos = readGroupControl(group, QStringLiteral("playposition"));
+        parts << tr("About %1 on %2")
+                             .arg(remainingText(static_cast<int>(
+                                          std::lround(duration * (1.0 - playPos)))),
+                                     deckName(group, i));
+        break;
+    }
+    return parts.join(QStringLiteral(". ")) + QStringLiteral(".");
+}
+
 QString AnnouncementManager::deckName(const QString& group, int deckIndex) const {
     if (deckIndex < 0) {
         return group;
@@ -2547,19 +2686,21 @@ int AnnouncementManager::mixerFractionDenominator() const {
 }
 
 void AnnouncementManager::announceControlDebounced(const QString& text) {
-    m_pendingControlKey.clear();
-    m_pendingControlName.clear();
-    m_pendingControlValue.clear();
+    // Single slot, deliberately: this represents one conceptual readout
+    // (loop size, beat-jump size, effect focus, …) being stepped through
+    // several values in a row, and only the final value should be
+    // announced — an earlier pending text here is meant to be superseded,
+    // not queued alongside this one.
     m_pendingControlText = text;
     startControlDebounce();
 }
 
 void AnnouncementManager::announceControlDebounced(
         const QString& key, const QString& name, const QString& valueText) {
-    m_pendingControlText.clear();
-    m_pendingControlKey = key;
-    m_pendingControlName = name;
-    m_pendingControlValue = valueText;
+    if (!m_pendingControls.contains(key)) {
+        m_pendingControlOrder << key;
+    }
+    m_pendingControls.insert(key, {name, valueText});
 
     // Name on touch: the first movement of a control names it right away
     // ("Deck 1 volume") so the DJ knows what they grabbed; the value
@@ -2601,43 +2742,74 @@ void AnnouncementManager::startControlDebounce() {
 }
 
 void AnnouncementManager::slotAnnouncePendingControl() {
-    if (m_pendingControlKey.isEmpty()) {
-        if (!m_pendingControlText.isEmpty()) {
-            speak(m_pendingControlText);
-            m_pendingControlText.clear();
-        }
+    if (m_pendingControlText.isEmpty() && m_pendingControlOrder.isEmpty()) {
         return;
     }
-    const QString key = m_pendingControlKey;
-    const QString name = m_pendingControlName;
-    const QString value = m_pendingControlValue;
-    m_pendingControlKey.clear();
-    m_pendingControlName.clear();
-    m_pendingControlValue.clear();
 
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    const bool sameControl = key == m_lastControlKey &&
-            now - m_lastControlSpokenMs < kControlContextMs;
-    if (value == m_lastValueByKey.value(key)) {
-        // The control settled on the same readout it last announced (a
-        // jittery pot does this constantly; so does nudging a control
-        // that's already where you want it): stay quiet, but keep the
-        // context fresh so a real change still gets the short value-only
-        // announcement.
-        if (sameControl) {
+    // Two or more different keyed controls (e.g. the pitch fader and a
+    // volume knob) can each settle within the same debounce window. Wrap the
+    // whole flush in a speech batch (see beginSpeechBatch(), issue #48) so
+    // every one of them is actually heard, joined into a single utterance,
+    // instead of each speak() call's barge-in discarding the previous one
+    // mid-render.
+    beginSpeechBatch();
+
+    // Full wording ("Deck 1 volume three quarters") for every announcement
+    // flushed in this batch, even the ones where only the value was
+    // actually spoken (see below) — the repeat key restores this instead of
+    // whatever partial text was last dispatched (issue #114 follow-on: the
+    // batched dispatch's own text would otherwise clobber m_lastSpoken with
+    // just the pieces that were literally spoken this flush).
+    QStringList fullTextsForRepeat;
+
+    if (!m_pendingControlText.isEmpty()) {
+        const QString text = m_pendingControlText;
+        m_pendingControlText.clear();
+        speak(text);
+        fullTextsForRepeat << text;
+    }
+
+    if (!m_pendingControlOrder.isEmpty()) {
+        const QStringList order = m_pendingControlOrder;
+        const QHash<QString, PendingControlAnnouncement> pending = m_pendingControls;
+        m_pendingControlOrder.clear();
+        m_pendingControls.clear();
+
+        for (const QString& key : order) {
+            const PendingControlAnnouncement entry = pending.value(key);
+            const QString& name = entry.name;
+            const QString& value = entry.value;
+
+            const qint64 now = QDateTime::currentMSecsSinceEpoch();
+            const bool sameControl = key == m_lastControlKey &&
+                    now - m_lastControlSpokenMs < kControlContextMs;
+            if (value == m_lastValueByKey.value(key)) {
+                // The control settled on the same readout it last
+                // announced (a jittery pot does this constantly; so does
+                // nudging a control that's already where you want it):
+                // stay quiet, but keep the context fresh so a real change
+                // still gets the short value-only announcement.
+                if (sameControl) {
+                    m_lastControlSpokenMs = now;
+                }
+                continue;
+            }
+            const QString fullText = name + QStringLiteral(" ") + value;
+            speak(sameControl ? value : fullText);
+            fullTextsForRepeat << fullText;
+            // speak() clears the control context (any unrelated
+            // announcement invalidates it); restore it.
+            m_lastControlKey = key;
+            m_lastValueByKey.insert(key, value);
             m_lastControlSpokenMs = now;
         }
-        return;
     }
-    const QString fullText = name + QStringLiteral(" ") + value;
-    speak(sameControl ? value : fullText);
-    // speak() clears the control context (any unrelated announcement
-    // invalidates it); restore it, and let the repeat key re-speak the full
-    // text even when only the value was said.
-    m_lastSpoken = fullText;
-    m_lastControlKey = key;
-    m_lastValueByKey.insert(key, value);
-    m_lastControlSpokenMs = now;
+
+    endSpeechBatch();
+
+    if (!fullTextsForRepeat.isEmpty()) {
+        m_lastSpoken = fullTextsForRepeat.join(QStringLiteral(". "));
+    }
 }
 
 void AnnouncementManager::noteTrackChanged(const QString& group) {

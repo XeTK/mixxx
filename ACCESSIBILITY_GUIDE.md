@@ -15,7 +15,18 @@ for a one-page cheat sheet.
 ## Quick start
 
 1. Start Mixxx. When the interface has loaded you will hear
-   "Mixxx ready."
+   "Mixxx ready." The very first time Mixxx is ever launched, a short
+   spoken orientation follows once a sound device is confirmed open:
+   the speech toggle (Alt plus Shift plus A), the full deck status
+   readouts (Alt plus 1 / Alt plus 2), how to repeat the last thing
+   spoken (Alt plus Shift plus R), and a pointer to this guide and the
+   quick reference for everything else. It plays once ever, not on
+   every launch — there is no menu item or shortcut to replay it
+   deliberately yet, so come back to this guide or the quick reference
+   if you want to hear it described again. If speech is off at that
+   first launch, nothing is spoken, but the one-time flag is still
+   marked as done — this is a first-run nudge, not a nag that follows
+   you around after you've started using Mixxx sighted.
 2. Press Tab or use your screen reader to reach the library search
    box, type part of a track name, then press Escape to move to the
    track list.
@@ -175,12 +186,50 @@ the sound alone is just the alert.
   grid; it's on by default and remembered per deck across restarts, so
   if it ever ends up off this is the way back on. Both states are
   spoken ("Deck 1 quantize on").
+- Key lock and pitch, for harmonic mixing without a mouse: Alt plus K
+  toggles key lock for deck 1 (add Shift for deck 2), so the track's
+  key stays put while its tempo is adjusted — both states are spoken
+  ("Deck 1 key lock on"). Alt plus Up and Alt plus Down nudge the
+  pitch up or down one semitone (add Shift for deck 2). Alt plus M
+  matches this deck's key to the other deck's. Reset is the exception:
+  Control plus Alt plus R resets it back to the track's original key,
+  still on its old chord — there wasn't enough free letter-space
+  across the sibling PRs to move it this round, so it's deliberately
+  left on Ctrl+Alt pending a follow-up that routes it through the
+  AccessMenu value editor instead (issue #50 follow-up).
 - Filing the playing track: Control plus Alt plus P opens the playlist
   picker for the track loaded in deck 1, Control plus Alt plus C the
   crate picker; add Shift for deck 2. It's the same spoken menu as the
   library's Alt plus Shift plus P/C, but for what's on the deck — so
   when a track is going down well you can file it mid-mix without
   hunting it down in the library. The add is confirmed out loud.
+- Mixer, EQ, and filter without a controller: Alt plus U and G step
+  deck 1's volume down and up, Alt plus H and D step trim (gain), Alt
+  plus L and F11 step EQ low, Alt plus E and I step EQ mid, Alt plus Q
+  and F10 step EQ high, and Alt plus F and W step the filter (the
+  QuickEffect knob); add Shift for deck 2. These are the same
+  underlying controls a DDJ-400 or any other controller would use —
+  this just gives the same access from the keyboard alone. There's no
+  fine ("small step") variant yet, only the coarse step. The
+  crossfader (H/G, Shift+H/Shift+G for a fine step) and the EQ low
+  kill toggle (B/N) already worked without a controller and aren't
+  new. (These used to be on Control plus Alt chords; they moved to
+  plain Alt because Control plus Alt collides with macOS's own
+  Command plus Option shortcuts, and with AltGr character entry on
+  non-US Windows/Linux keyboard layouts — issue #56.)
+- Effects without a controller: Alt plus N turns Effect Unit 1 on/off,
+  Alt plus F9 cycles to the next chain preset (a different bundle of
+  effects), and Alt plus Z enables/disables the effect in slot 1; add
+  Shift for Effect Unit 2. Effect Units 3 and 4, and slots 2-4 within a
+  unit, aren't wired to the keyboard yet. Cycling which of the unit's
+  slots is focused (Control plus Alt plus L) and selecting the
+  next/previous effect in slot 1 (Control plus Alt plus J / X) are
+  still on the old Control plus Alt chords — there wasn't enough safe
+  letter-space this round to move them too, so they're pending a
+  follow-up that routes them through the Accessibility menu as actions
+  ("focus next effect slot", "load next/previous effect") instead of
+  dedicated keyboard chords, since they're more setup actions than
+  moment-to-moment mixing ones (issue #56 follow-up).
 - Smart cue (on by default): loading a track into a stopped deck moves
   the headphone cue to that deck automatically — like the smart cue on
   Denon players, the thing you just loaded is what you preview next.
@@ -191,6 +240,30 @@ the sound alone is just the alert.
   behavior, not accessibility-specific, so it's not tucked away on the
   Accessibility page — turn it off with the "Smart cue" checkbox in
   Preferences, Decks, next to "Loading a track, when deck is playing".
+
+## Auto DJ
+
+- Enable/disable: Shift plus F12. Both states are always spoken;
+  enabling also speaks the next queued track ("Auto DJ on. Next:
+  Artist, Title"), or just "Auto DJ on" if the queue is empty.
+- Fade now: Shift plus F11 crossfades to the next track immediately.
+  Says "Fading now"; the resulting track load still gets its own
+  separate load announcement (artist, title, BPM, key) once it lands.
+- Skip next: Shift plus F10 drops the queued track without playing
+  it. Says "Skipped".
+- Shuffle the queue: Shift plus F9.
+- Add a random track to the queue: Control plus Shift plus F9.
+- What's next, on demand: Alt plus Shift plus N speaks whether Auto
+  DJ is on, the next queued track's artist and title (or "Queue is
+  empty"), and — if a deck is currently playing — roughly how long
+  until it hands off, for example "About 1 minute 30 seconds
+  remaining on Deck, Alpha." This last part is an estimate: the real
+  crossfade can start earlier than the track's end, depending on the
+  outro point and fade mode, so treat it as a rough warning rather
+  than an exact countdown.
+- The Auto DJ panel's transition-time spinbox, fade-mode combo, and
+  the enable/fade/skip/shuffle/add-random/repeat buttons are all
+  reachable with Tab — they used to be mouse-only.
 
 ## What gets announced automatically
 
@@ -458,14 +531,21 @@ Hot Cue pad mode speaks instead of triggering hotcues:
 - Shift plus pad 2 — double this deck's BPM grid (the pad-sized
   version of Control plus Alt plus H/D, for fixing a half-tempo
   analysis by ear — confirmed out loud)
+- Shift plus pad 3 — key lock on/off, so pitch can be adjusted for
+  tempo without shifting the musical key (the pad-sized version of
+  Alt plus K)
+- Shift plus pad 4 — pitch down one semitone
+- Shift plus pad 5 — pitch up one semitone
+- Shift plus pad 6 — reset to the track's original key
 - Shift plus pad 7 — per-deck split cue on/off
 - Shift plus pad 8 — speech on/off
 
 Pads speak about and act on their own deck (left pads deck 1, right
-pads deck 2). Shift plus pads 3 to 6 deliberately do nothing, so a
-stray press can't clear stored hotcues. The other pad modes (Beat
-Loop, Beat Jump, Sampler) are unaffected. Untick the setting to get
-normal hot cues back.
+pads deck 2). The Key Shift pad mode (Shift plus Sampler) has no
+confirmed hardware pad layout to build on, so keylock and pitch
+control live here instead, alongside the other per-deck accessibility
+pads. The other pad modes (Beat Loop, Beat Jump, Sampler) are
+unaffected. Untick the setting to get normal hot cues back.
 
 Two more settings live next to it on the same page:
 
@@ -546,6 +626,9 @@ unlimited pre-roll like stock Mixxx.
 
 ## Known limitations
 
+- The first-run spoken orientation (see "Quick start" above) plays
+  exactly once and cannot yet be replayed on demand from a menu item
+  or shortcut; this guide and the quick reference are the fallback.
 - Announcements are English only for now.
 - The first-run sound hardware dialog appears before Mixxx's speech
   can produce audio; use your screen reader for initial setup.

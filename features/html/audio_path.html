@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The audio path — things only a listener can confirm — Mixxx accessibility test plan</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header>
+<p class="site-title"><a href="index.html">Mixxx accessibility manual test plan</a></p>
+<nav aria-label='Test plan navigation'><ul><li><a href='index.html'>Overview &amp; tag legend</a></li><li><a href='coverage.html'>Coverage (what is NOT tested)</a></li><li><a href='ddj400_hardware.html'>ddj400_hardware.feature</a></li><li><a href='macos_voiceover.html'>macos_voiceover.feature</a></li><li><a href='windows_screenreader.html'>windows_screenreader.feature</a></li><li><a href='audio_path.html' aria-current='page'>audio_path.feature</a></li><li><a href='first_run_boot.html'>first_run_boot.feature</a></li><li><a href='keyboard_only.html'>keyboard_only.feature</a></li><li><a href='destructive_actions.html'>destructive_actions.feature</a></li><li><a href='library_and_dialogs.html'>library_and_dialogs.feature</a></li><li><a href='blind_dj_workflow.html'>blind_dj_workflow.feature</a></li></ul></nav>
+</header>
+<main id="main">
+<h1>The audio path — things only a listener can confirm</h1>
+<p class='file-name'>File: <code>features/audio_path.feature</code></p>
+<ul class="tags" aria-label="Tags"><li class="tag">@manual</li><li class="tag">@audio</li></ul>
+<p>Unit tests can assert that a string was produced. They cannot assert that a human heard it. Everything in this file is about the difference: speech that was generated but flushed before it reached the speakers, earcons that are technically distinct but sound the same at gig volume, ducking that either does not duck or ducks so hard the mix disappears. All earcons in this fork are synthesised at runtime from sine grains, not loaded from sound files. There is nothing to install. The frequencies and durations are given below so a tester can describe what they actually heard rather than guessing at a name. Run these somewhere quiet, on headphones, with the mix at a realistic level rather than at zero. An earcon that is only distinguishable in silence has not passed.</p>
+<nav aria-label='Scenarios in this file'>
+<h2>Contents (39 scenarios)</h2>
+<ol>
+<li><a href='#audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move'>Scenario: Loading a track with Smart Cue speaks the load AND the cue move</a></li>
+<li><a href='#audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck'>Scenario: The load announcement is not lost when the cue moves away from a deck</a></li>
+<li><a href='#audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech'>Scenario: Loading into a playing deck does not disturb the cue or the speech</a></li>
+<li><a href='#audio_path-s4-load-announcements-survive-back-to-back-loads'>Scenario: Load announcements survive back-to-back loads</a></li>
+<li><a href='#audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two'>Scenario: The AccessMenu speaks one utterance per action, not two</a></li>
+<li><a href='#audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured'>Scenario: A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured</a></li>
+<li><a href='#audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet'>Scenario: Mixer readouts can still be turned off by someone who wants quiet</a></li>
+<li><a href='#audio_path-s8-the-on-demand-key-readout-follows-the-app-locale'>Scenario: The on-demand key readout follows the app locale</a></li>
+<li><a href='#audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale'>Scenario: The load announcement's key name also follows the locale</a></li>
+<li><a href='#audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely'>Scenario: A locale with no Mixxx translation at all still falls back safely</a></li>
+<li><a href='#audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon'>Scenario: The xrun earcon cannot be mistaken for the clipping earcon</a></li>
+<li><a href='#audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference'>Scenario: The xrun announcement obeys the clipping preference</a></li>
+<li><a href='#audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too'>Scenario Outline: The clipping feedback style applies to the xrun tone too</a></li>
+<li><a href='#audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm'>Scenario: Repeated dropouts do not turn into a continuous alarm</a></li>
+<li><a href='#audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping'>Scenario: Channel clipping is panned to the deck that is clipping</a></li>
+<li><a href='#audio_path-s16-main-output-clipping-is-still-centred-and-unnamed'>Scenario: Main output clipping is still centred and unnamed</a></li>
+<li><a href='#audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning'>Scenario: One deck clipping does not silence the other deck's warning</a></li>
+<li><a href='#audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience'>Scenario: Speech goes to the headphones and not to the audience</a></li>
+<li><a href='#audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want'>Scenario: Speech can be routed to the main output when that is what I want</a></li>
+<li><a href='#audio_path-s20-the-beat-click-follows-the-speech-route'>Scenario: The beat click follows the speech route</a></li>
+<li><a href='#audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar'>Scenario: The beat click pans by deck and marks the bar</a></li>
+<li><a href='#audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level'>Scenario: The beat click volume slider actually changes the click level</a></li>
+<li><a href='#audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far'>Scenario Outline: Ducking lowers the music enough to hear speech, but not too far</a></li>
+<li><a href='#audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement'>Scenario: Ducking recovers cleanly after a barged-in announcement</a></li>
+<li><a href='#audio_path-s25-split-cue-puts-one-deck-in-each-ear'>Scenario: Split cue puts one deck in each ear</a></li>
+<li><a href='#audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode'>Scenario: The headphone mix knob still works in split mode</a></li>
+<li><a href='#audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear'>Scenario: Beat click and split cue together give one deck and one grid per ear</a></li>
+<li><a href='#audio_path-s28-the-microphone-toggle-is-always-spoken'>Scenario: The microphone toggle is always spoken</a></li>
+<li><a href='#audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down'>Scenario: The microphone toggle is spoken even with announcements turned down</a></li>
+<li><a href='#audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud'>Scenario: Ejecting a playing deck is refused out loud</a></li>
+<li><a href='#audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off'>Scenario: The eject refusal is spoken even with track-load announcements off</a></li>
+<li><a href='#audio_path-s32-ejecting-a-stopped-deck-is-confirmed'>Scenario: Ejecting a stopped deck is confirmed</a></li>
+<li><a href='#audio_path-s33-ejecting-an-empty-deck-says-nothing'>Scenario: Ejecting an empty deck says nothing</a></li>
+<li><a href='#audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly'>Scenario: Double-pressing eject reloads and announces confusingly</a></li>
+<li><a href='#audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track'>Scenario: Loading a sampler is announced with its number and the track</a></li>
+<li><a href='#audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has'>Scenario: A sampler with no metadata announces only what it has</a></li>
+<li><a href='#audio_path-s37-sampler-transport-is-announced'>Scenario Outline: Sampler transport is announced</a></li>
+<li><a href='#audio_path-s38-ejecting-a-playing-sampler-stays-silent'>Scenario: Ejecting a playing sampler stays silent</a></li>
+<li><a href='#audio_path-s39-samplers-do-not-steal-the-headphone-cue'>Scenario: Samplers do not steal the headphone cue</a></li>
+</ol>
+</nav>
+<section aria-labelledby='background-heading'>
+<h2 id='background-heading'>Background</h2>
+<p>Every scenario below assumes these steps have already been done.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> Mixxx is running with a working audio device</li><li><span class='keyword'>And</span> speech is on</li><li><span class='keyword'>And</span> "Speak deck names as numbers" is enabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> I am listening on headphones</li><li><span class='keyword'>And</span> the earcon volume is at its default</li></ol>
+</section>
+<section aria-labelledby='audio_path-section-speech-batching-issue-48'>
+<h2 id='audio_path-section-speech-batching-issue-48'>Speech batching — issue #48</h2>
+<p>This is the highest-value scenario in the file. The bug it fixes was invisible to every test that checked "was the right string generated", because the string WAS generated — and then thrown away.</p>
+<p>The mechanism: TtsEngine::say() barges in on whatever is currently speaking. It bumps a generation counter and flushes the audio sink, and the synthesiser worker abandons any render whose generation is stale. Loading a track spoke the load announcement, then — synchronously, in the same call stack — Smart Cue moved the headphone cue, whose observer called say() again. The load announcement had not been synthesised yet, so it was discarded outright and the DJ heard only the cue message.</p>
+<p>The fix wraps the whole of slotNewTrackLoaded() in a speech batch: every speak() inside appends to a list instead of dispatching, and the batch end joins them with ". " and says the lot in one utterance. One generation bump, nothing to barge in on.</p>
+<p>So the observable pass condition is not just "I heard both" — it is "I heard both AS ONE CONTINUOUS UTTERANCE with no gap or cut".</p>
+<article class='scenario' id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move' data-tags='@blocking @timing'>
+<h3>Scenario: Loading a track with Smart Cue speaks the load AND the cue move</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@timing</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Smart cue" is enabled in Preferences, Decks</li><li><span class='keyword'>And</span> deck 2 is stopped and empty</li><li><span class='keyword'>And</span> deck 1 currently has the headphone cue</li><li><span class='keyword'>And</span> a track with a known artist, title, BPM and key is selected in the library</li><li><span class='keyword'>When</span> I press "Shift+Right" to load it into deck 2</li><li><span class='keyword'>Then</span> I hear the announcement begin with "Loaded deck, Bravo"</li><li><span class='keyword'>And</span> I hear the artist, then the title, then the BPM, then the key</li><li><span class='keyword'>And</span> I hear "headphone cue on" in the same breath, without a pause or a cut</li><li><span class='keyword'>And</span> the load announcement is not cut off part way through</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Loading a track with Smart Cue speaks the load AND the cue move&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-pass' name='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-result' value='pass' data-persist-key='audio_path::audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move::result'><label for='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-fail' name='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-result' value='fail' data-persist-key='audio_path::audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move::result'><label for='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-skip' name='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-result' value='skip' data-persist-key='audio_path::audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move::result'><label for='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-not-tested' name='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-result' value='not-tested' data-persist-key='audio_path::audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move::result' checked><label for='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-notes'>Notes for &ldquo;Loading a track with Smart Cue speaks the load AND the cue move&rdquo;</label>
+<textarea id='audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move-notes' data-persist-key='audio_path::audio_path-s1-loading-a-track-with-smart-cue-speaks-the-load-and-the-cue-move::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck' data-tags='@blocking @timing'>
+<h3>Scenario: The load announcement is not lost when the cue moves away from a deck</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@timing</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Smart cue" is enabled in Preferences, Decks</li><li><span class='keyword'>And</span> deck 1 has the headphone cue and is stopped</li><li><span class='keyword'>And</span> deck 2 is stopped</li><li><span class='keyword'>When</span> I load a track into deck 2</li><li><span class='keyword'>Then</span> I hear the full load announcement for deck 2</li><li><span class='keyword'>And</span> I hear the cue moving to deck 2 announced</li><li><span class='keyword'>And</span> I hear a single utterance, not two utterances where the first is truncated</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The load announcement is not lost when the cue moves away from a deck&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-pass' name='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-result' value='pass' data-persist-key='audio_path::audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck::result'><label for='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-fail' name='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-result' value='fail' data-persist-key='audio_path::audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck::result'><label for='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-skip' name='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-result' value='skip' data-persist-key='audio_path::audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck::result'><label for='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-not-tested' name='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-result' value='not-tested' data-persist-key='audio_path::audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck::result' checked><label for='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-notes'>Notes for &ldquo;The load announcement is not lost when the cue moves away from a deck&rdquo;</label>
+<textarea id='audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck-notes' data-persist-key='audio_path::audio_path-s2-the-load-announcement-is-not-lost-when-the-cue-moves-away-from-a-deck::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech' data-tags='@timing'>
+<h3>Scenario: Loading into a playing deck does not disturb the cue or the speech</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@timing</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 is playing</li><li><span class='keyword'>And</span> "Loading a track, when deck is playing" is not set to Reject</li><li><span class='keyword'>When</span> I load a track into deck 1</li><li><span class='keyword'>Then</span> I hear the full load announcement</li><li><span class='keyword'>And</span> the headphone cue has not moved</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Loading into a playing deck does not disturb the cue or the speech&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-pass' name='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-result' value='pass' data-persist-key='audio_path::audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech::result'><label for='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-fail' name='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-result' value='fail' data-persist-key='audio_path::audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech::result'><label for='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-skip' name='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-result' value='skip' data-persist-key='audio_path::audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech::result'><label for='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-not-tested' name='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-result' value='not-tested' data-persist-key='audio_path::audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech::result' checked><label for='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-notes'>Notes for &ldquo;Loading into a playing deck does not disturb the cue or the speech&rdquo;</label>
+<textarea id='audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech-notes' data-persist-key='audio_path::audio_path-s3-loading-into-a-playing-deck-does-not-disturb-the-cue-or-the-speech::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s4-load-announcements-survive-back-to-back-loads' data-tags='@timing'>
+<h3>Scenario: Load announcements survive back-to-back loads</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@timing</li></ul>
+<p class="step-note">Note: Two loads in quick succession is a normal thing to do while digging. The second load legitimately barges in on the first; what must not happen is the second load's own announcement being eaten.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I load a track into deck 1</li><li><span class='keyword'>And</span> I immediately load a different track into deck 2</li><li><span class='keyword'>Then</span> I hear the deck 2 load announcement in full</li></ol>
+<p class="step-note">Note: The deck 1 announcement being cut short here is expected behaviour.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;Load announcements survive back-to-back loads&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s4-load-announcements-survive-back-to-back-loads-pass' name='audio_path-s4-load-announcements-survive-back-to-back-loads-result' value='pass' data-persist-key='audio_path::audio_path-s4-load-announcements-survive-back-to-back-loads::result'><label for='audio_path-s4-load-announcements-survive-back-to-back-loads-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s4-load-announcements-survive-back-to-back-loads-fail' name='audio_path-s4-load-announcements-survive-back-to-back-loads-result' value='fail' data-persist-key='audio_path::audio_path-s4-load-announcements-survive-back-to-back-loads::result'><label for='audio_path-s4-load-announcements-survive-back-to-back-loads-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s4-load-announcements-survive-back-to-back-loads-skip' name='audio_path-s4-load-announcements-survive-back-to-back-loads-result' value='skip' data-persist-key='audio_path::audio_path-s4-load-announcements-survive-back-to-back-loads::result'><label for='audio_path-s4-load-announcements-survive-back-to-back-loads-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s4-load-announcements-survive-back-to-back-loads-not-tested' name='audio_path-s4-load-announcements-survive-back-to-back-loads-result' value='not-tested' data-persist-key='audio_path::audio_path-s4-load-announcements-survive-back-to-back-loads::result' checked><label for='audio_path-s4-load-announcements-survive-back-to-back-loads-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s4-load-announcements-survive-back-to-back-loads-notes'>Notes for &ldquo;Load announcements survive back-to-back loads&rdquo;</label>
+<textarea id='audio_path-s4-load-announcements-survive-back-to-back-loads-notes' data-persist-key='audio_path::audio_path-s4-load-announcements-survive-back-to-back-loads::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two' data-tags='@timing'>
+<h3>Scenario: The AccessMenu speaks one utterance per action, not two</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@timing</li></ul>
+<p class="step-note">Note: #48 also merged the menu's two-utterance patterns into single strings, for the same barge-in reason.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I open the AccessMenu</li><li><span class='keyword'>Then</span> I hear "Main menu." followed immediately by the current item, as one utterance</li><li><span class='keyword'>When</span> I navigate to a value item and enter value-edit mode</li><li><span class='keyword'>Then</span> I hear the item label, then "Turn to change, confirm to set, back to cancel.", then the current value</li><li><span class='keyword'>And</span> I hear all of it, with no part cut off</li><li><span class='keyword'>When</span> I change the value and confirm it</li><li><span class='keyword'>Then</span> I hear "Set." followed by the item and its new value, as one utterance</li><li><span class='keyword'>When</span> I enter value-edit mode again and cancel</li><li><span class='keyword'>Then</span> I hear "Cancelled." followed by the item and its unchanged value</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The AccessMenu speaks one utterance per action, not two&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-pass' name='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-result' value='pass' data-persist-key='audio_path::audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two::result'><label for='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-fail' name='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-result' value='fail' data-persist-key='audio_path::audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two::result'><label for='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-skip' name='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-result' value='skip' data-persist-key='audio_path::audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two::result'><label for='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-not-tested' name='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-result' value='not-tested' data-persist-key='audio_path::audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two::result' checked><label for='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-notes'>Notes for &ldquo;The AccessMenu speaks one utterance per action, not two&rdquo;</label>
+<textarea id='audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two-notes' data-persist-key='audio_path::audio_path-s5-the-accessmenu-speaks-one-utterance-per-action-not-two::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-mixer-readouts-on-by-default-issue-36'>
+<h2 id='audio_path-section-mixer-readouts-on-by-default-issue-36'>Mixer readouts on by default — issue #36</h2>
+<p>This was the single BLOCKING finding from the original accessibility audit: a blind DJ moving a channel fader or an EQ knob heard nothing at all unless they had already found and ticked "Announce mixer controls" in Preferences, Accessibility — a setting they could not discover without already being able to see the dialog.</p>
+<p>AnnounceMixer's default flipped from false to true; nothing else about the readout changed. It covers volume, trim, the three EQ bands, the filter (QuickEffect super knob) and the crossfader — every one of those observers in AnnouncementManager checks the same AnnounceMixer setting. It still names the control on first touch and speaks the settled value once you stop moving it (debounced), and "announce while moving" remains a separate, still-opt-in setting, so this is not chatty mid-mix. Every scenario elsewhere in this plan that exercises these controls (e.g. keyboard_only.feature's EQ/volume/ filter/crossfader scenarios) explicitly enables AnnounceMixer in its own Background, so none of them actually prove the DEFAULT — this is the only scenario in the plan that does.</p>
+<p>AnnounceTempo (the pitch/tempo fader) is a SEPARATE preference and was already on by default before this PR; it is included below only as a sanity check that raising AnnounceMixer's default did not disturb it, not because #36 touched it.</p>
+<article class='scenario' id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured' data-tags='@blocking @firstrun'>
+<h3>Scenario: A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@firstrun</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> the Mixxx settings directory has been moved aside so this is a fresh profile</li><li><span class='keyword'>And</span> Mixxx is running with a working audio device</li><li><span class='keyword'>And</span> I have not opened Preferences, Accessibility at all</li><li><span class='keyword'>And</span> deck 1 is playing</li><li><span class='keyword'>When</span> I move deck 1's low EQ knob and let it settle</li><li><span class='keyword'>Then</span> I hear "Deck 1 E Q low" named on the first move</li><li><span class='keyword'>And</span> I hear a value announced once it settles</li><li><span class='keyword'>When</span> I move deck 1's filter knob and let it settle</li><li><span class='keyword'>Then</span> I hear "Deck 1 filter" named</li><li><span class='keyword'>And</span> I hear a value announced once it settles</li><li><span class='keyword'>When</span> I move deck 1's volume fader and let it settle</li><li><span class='keyword'>Then</span> I hear "Deck 1 volume" named</li><li><span class='keyword'>And</span> I hear a value announced once it settles</li><li><span class='keyword'>When</span> I move the crossfader and let it settle</li><li><span class='keyword'>Then</span> I hear "Crossfader" named</li><li><span class='keyword'>And</span> I hear a value announced once it settles</li><li><span class='keyword'>When</span> I move deck 1's pitch/tempo fader and let it settle</li><li><span class='keyword'>Then</span> I hear a pitch value announced</li></ol>
+<p class="step-note">Note: The tempo fader was already spoken by default before #36 (a different setting, AnnounceTempo); included here only to confirm the mixer change did not silence it as a side effect.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-pass' name='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-result' value='pass' data-persist-key='audio_path::audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured::result'><label for='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-fail' name='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-result' value='fail' data-persist-key='audio_path::audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured::result'><label for='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-skip' name='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-result' value='skip' data-persist-key='audio_path::audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured::result'><label for='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-not-tested' name='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-result' value='not-tested' data-persist-key='audio_path::audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured::result' checked><label for='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-notes'>Notes for &ldquo;A fresh profile speaks EQ, filter, volume and the crossfader with nothing configured&rdquo;</label>
+<textarea id='audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured-notes' data-persist-key='audio_path::audio_path-s6-a-fresh-profile-speaks-eq-filter-volume-and-the-crossfader-with-nothing-configured::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet' data-tags=''>
+<h3>Scenario: Mixer readouts can still be turned off by someone who wants quiet</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce mixer controls" is disabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> deck 1 is playing</li><li><span class='keyword'>When</span> I move deck 1's volume fader and let it settle</li><li><span class='keyword'>Then</span> I hear nothing</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Mixer readouts can still be turned off by someone who wants quiet&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-pass' name='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-result' value='pass' data-persist-key='audio_path::audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet::result'><label for='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-fail' name='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-result' value='fail' data-persist-key='audio_path::audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet::result'><label for='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-skip' name='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-result' value='skip' data-persist-key='audio_path::audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet::result'><label for='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-not-tested' name='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-result' value='not-tested' data-persist-key='audio_path::audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet::result' checked><label for='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-notes'>Notes for &ldquo;Mixer readouts can still be turned off by someone who wants quiet&rdquo;</label>
+<textarea id='audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet-notes' data-persist-key='audio_path::audio_path-s7-mixer-readouts-can-still-be-turned-off-by-someone-who-wants-quiet::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-musical-key-names-respect-the-locale-issue-14'>
+<h2 id='audio_path-section-musical-key-names-respect-the-locale-issue-14'>Musical key names respect the locale — issue #14</h2>
+<p>keyForSpeech() in AnnouncementManager now wraps its 24 fully-spelled key names ("C Major", "F Sharp Major", ... "B Minor") in tr(), so a translated build speaks the key in the user's language instead of always English. This only affects Traditional notation (and the "...and Traditional" variants); Open Key and Lancelot/Camelot codes are spoken as a digit plus a phonetic letter and were not touched.</p>
+<p>CORRECTION AT TIME OF WRITING: none of the shipped translation files (res/translations/mixxx_*.ts) contain a translated msgid for any of these 24 strings — they are new to tr() as of this commit and have not yet been through a Transifex sync. So switching the locale today will NOT produce a translated key name; Qt's tr() falls back to the English source string when no translation exists. What these scenarios can actually prove until a translation lands is that switching locale does not break the announcement — not that a translated word comes out. Re-run them and update the expected string once a translation is available.</p>
+<p>The locale is set from Preferences, Interface ("Locale" combo box, default "System") and is only read at startup, so it needs a restart to take effect.</p>
+<article class='scenario' id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale' data-tags='@locale'>
+<h3>Scenario: The on-demand key readout follows the app locale</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@locale</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Locale" in Preferences, Interface is set to a non-English language with a Mixxx translation installed</li><li><span class='keyword'>And</span> I have restarted Mixxx so the new locale is loaded</li><li><span class='keyword'>And</span> "Key Notation" in Preferences, Key Detection is set to Traditional</li><li><span class='keyword'>And</span> a track with a known musical key is loaded in deck 1</li><li><span class='keyword'>When</span> I press "Alt+7"</li><li><span class='keyword'>Then</span> I hear the key name in that language, not in English</li></ol>
+<p class="step-note">Note: If no translation exists yet for the key names (see the correction above), you will hear the English name instead — that is the current expected state, not a fail. Record which one you heard.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;The on-demand key readout follows the app locale&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-pass' name='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-result' value='pass' data-persist-key='audio_path::audio_path-s8-the-on-demand-key-readout-follows-the-app-locale::result'><label for='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-fail' name='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-result' value='fail' data-persist-key='audio_path::audio_path-s8-the-on-demand-key-readout-follows-the-app-locale::result'><label for='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-skip' name='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-result' value='skip' data-persist-key='audio_path::audio_path-s8-the-on-demand-key-readout-follows-the-app-locale::result'><label for='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-not-tested' name='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-result' value='not-tested' data-persist-key='audio_path::audio_path-s8-the-on-demand-key-readout-follows-the-app-locale::result' checked><label for='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-notes'>Notes for &ldquo;The on-demand key readout follows the app locale&rdquo;</label>
+<textarea id='audio_path-s8-the-on-demand-key-readout-follows-the-app-locale-notes' data-persist-key='audio_path::audio_path-s8-the-on-demand-key-readout-follows-the-app-locale::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale' data-tags='@locale'>
+<h3>Scenario: The load announcement's key name also follows the locale</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@locale</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Locale" in Preferences, Interface is set to a non-English language with a Mixxx translation installed</li><li><span class='keyword'>And</span> I have restarted Mixxx so the new locale is loaded</li><li><span class='keyword'>And</span> "Key Notation" in Preferences, Key Detection is set to Traditional</li><li><span class='keyword'>When</span> I load a track with a known musical key into deck 1</li><li><span class='keyword'>Then</span> I hear the key name spoken in the same language as the rest of the load announcement</li></ol>
+<p class="step-note">Note: Same correction as above applies.</p>
+<fieldset class='result'>
+<legend>Result for &ldquo;The load announcement's key name also follows the locale&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-pass' name='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-result' value='pass' data-persist-key='audio_path::audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale::result'><label for='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-fail' name='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-result' value='fail' data-persist-key='audio_path::audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale::result'><label for='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-skip' name='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-result' value='skip' data-persist-key='audio_path::audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale::result'><label for='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-not-tested' name='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-result' value='not-tested' data-persist-key='audio_path::audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale::result' checked><label for='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-notes'>Notes for &ldquo;The load announcement's key name also follows the locale&rdquo;</label>
+<textarea id='audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale-notes' data-persist-key='audio_path::audio_path-s9-the-load-announcement-s-key-name-also-follows-the-locale::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely' data-tags='@locale @regression'>
+<h3>Scenario: A locale with no Mixxx translation at all still falls back safely</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@locale</li><li class="tag">@regression</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Locale" in Preferences, Interface is set to a language that has no Mixxx translation installed</li><li><span class='keyword'>And</span> I have restarted Mixxx</li><li><span class='keyword'>And</span> a track with a known musical key is loaded in deck 1</li><li><span class='keyword'>When</span> I press "Alt+7"</li><li><span class='keyword'>Then</span> I still hear a recognisable key name, spoken in English</li><li><span class='keyword'>And</span> Mixxx does not crash and does not announce an empty string</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A locale with no Mixxx translation at all still falls back safely&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-pass' name='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-result' value='pass' data-persist-key='audio_path::audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely::result'><label for='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-fail' name='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-result' value='fail' data-persist-key='audio_path::audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely::result'><label for='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-skip' name='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-result' value='skip' data-persist-key='audio_path::audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely::result'><label for='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-not-tested' name='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-result' value='not-tested' data-persist-key='audio_path::audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely::result' checked><label for='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-notes'>Notes for &ldquo;A locale with no Mixxx translation at all still falls back safely&rdquo;</label>
+<textarea id='audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely-notes' data-persist-key='audio_path::audio_path-s10-a-locale-with-no-mixxx-translation-at-all-still-falls-back-safely::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-earcons-the-full-set-including-the-new-xrun-tone-from-issue-87'>
+<h2 id='audio_path-section-earcons-the-full-set-including-the-new-xrun-tone-from-issue-87'>Earcons — the full set, including the new xrun tone from issue #87</h2>
+<p>Reference for describing what you heard: Play        587 Hz then 880 Hz     rising pair Stop        880 Hz then 587 Hz     falling pair EndOfTrack  1175 Hz x3             three high pips, ~185 ms total CueOn       784 Hz                 one tone CueOff      523 Hz                 one lower tone Restart     659 Hz x2, 45 ms apart double tap LoopOn      698 -&gt; 1047 Hz         rising pair LoopOff     1047 -&gt; 698 Hz         falling pair Clipping    350 Hz x2, 60 ms each  low double buzz CuePreview  988 Hz, 40 ms          one very short high tick Xrun        196 Hz x3, 90 ms each  low harsh triple buzz, ~310 ms  [NEW]</p>
+<article class='scenario' id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon' data-tags='@blocking'>
+<h3>Scenario: The xrun earcon cannot be mistaken for the clipping earcon</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: This distinction carries real meaning mid-set: clipping means "turn the gain down", an xrun means "the engine glitched and there is nothing you can do about it from the mixer". Confusing them makes a DJ pull gain down for no reason.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce audio clipping" is enabled with feedback style "Sounds and speech"</li><li><span class='keyword'>When</span> I deliberately clip deck 1 by pushing its gain well past full</li><li><span class='keyword'>Then</span> I hear a low double buzz</li><li><span class='keyword'>And</span> I hear "Deck 1 clipping"</li><li><span class='keyword'>When</span> I force an audio dropout by setting the audio buffer very small and loading the CPU</li><li><span class='keyword'>Then</span> I hear a lower, longer, three-part buzz that is clearly not the clipping sound</li><li><span class='keyword'>And</span> I hear "Audio dropout"</li><li><span class='keyword'>And</span> I could tell the two apart without being told which was which</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The xrun earcon cannot be mistaken for the clipping earcon&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-pass' name='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-result' value='pass' data-persist-key='audio_path::audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon::result'><label for='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-fail' name='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-result' value='fail' data-persist-key='audio_path::audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon::result'><label for='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-skip' name='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-result' value='skip' data-persist-key='audio_path::audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon::result'><label for='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-not-tested' name='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-result' value='not-tested' data-persist-key='audio_path::audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon::result' checked><label for='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-notes'>Notes for &ldquo;The xrun earcon cannot be mistaken for the clipping earcon&rdquo;</label>
+<textarea id='audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon-notes' data-persist-key='audio_path::audio_path-s11-the-xrun-earcon-cannot-be-mistaken-for-the-clipping-earcon::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference' data-tags=''>
+<h3>Scenario: The xrun announcement obeys the clipping preference</h3>
+
+<p class="step-note">Note: There is deliberately no separate xrun setting; it rides on clipping's checkbox and feedback style. Confirm that, so nobody files it as a missing preference.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce audio clipping" is disabled</li><li><span class='keyword'>When</span> I force an audio dropout</li><li><span class='keyword'>Then</span> I hear nothing at all</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The xrun announcement obeys the clipping preference&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-pass' name='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-result' value='pass' data-persist-key='audio_path::audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference::result'><label for='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-fail' name='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-result' value='fail' data-persist-key='audio_path::audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference::result'><label for='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-skip' name='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-result' value='skip' data-persist-key='audio_path::audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference::result'><label for='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-not-tested' name='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-result' value='not-tested' data-persist-key='audio_path::audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference::result' checked><label for='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-notes'>Notes for &ldquo;The xrun announcement obeys the clipping preference&rdquo;</label>
+<textarea id='audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference-notes' data-persist-key='audio_path::audio_path-s12-the-xrun-announcement-obeys-the-clipping-preference::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too' data-tags=''>
+<h3>Scenario Outline: The clipping feedback style applies to the xrun tone too</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce audio clipping" is enabled with feedback style "&lt;style&gt;"</li><li><span class='keyword'>When</span> I force an audio dropout</li><li><span class='keyword'>Then</span> I hear "&lt;result&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">style</th><th scope="col">result</th></tr></thead>
+<tbody>
+<tr><td>Speech</td><td>only the words "Audio dropout", with no tone</td></tr>
+<tr><td>Sounds</td><td>only the low triple buzz, with no words</td></tr>
+<tr><td>Sounds and speech</td><td>both the low triple buzz and "Audio dropout"</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;The clipping feedback style applies to the xrun tone too&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-pass' name='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-result' value='pass' data-persist-key='audio_path::audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too::result'><label for='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-fail' name='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-result' value='fail' data-persist-key='audio_path::audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too::result'><label for='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-skip' name='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-result' value='skip' data-persist-key='audio_path::audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too::result'><label for='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-not-tested' name='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-result' value='not-tested' data-persist-key='audio_path::audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too::result' checked><label for='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-notes'>Notes for &ldquo;The clipping feedback style applies to the xrun tone too&rdquo;</label>
+<textarea id='audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too-notes' data-persist-key='audio_path::audio_path-s13-the-clipping-feedback-style-applies-to-the-xrun-tone-too::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm' data-tags='@timing'>
+<h3>Scenario: Repeated dropouts do not turn into a continuous alarm</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@timing</li></ul>
+<p class="step-note">Note: Throttled to one announcement per 5 seconds.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I force a sustained run of audio dropouts lasting 20 seconds</li><li><span class='keyword'>Then</span> I hear the dropout announcement roughly every 5 seconds</li><li><span class='keyword'>And</span> I do not hear it repeating continuously</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Repeated dropouts do not turn into a continuous alarm&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-pass' name='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-result' value='pass' data-persist-key='audio_path::audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm::result'><label for='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-fail' name='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-result' value='fail' data-persist-key='audio_path::audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm::result'><label for='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-skip' name='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-result' value='skip' data-persist-key='audio_path::audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm::result'><label for='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-not-tested' name='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-result' value='not-tested' data-persist-key='audio_path::audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm::result' checked><label for='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-notes'>Notes for &ldquo;Repeated dropouts do not turn into a continuous alarm&rdquo;</label>
+<textarea id='audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm-notes' data-persist-key='audio_path::audio_path-s14-repeated-dropouts-do-not-turn-into-a-continuous-alarm::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-per-channel-clipping-issue-87'>
+<h2 id='audio_path-section-per-channel-clipping-issue-87'>Per-channel clipping — issue #87</h2>
+
+<article class='scenario' id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping' data-tags='@blocking'>
+<h3>Scenario: Channel clipping is panned to the deck that is clipping</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: The main-bus warning is centred and unnamed; a channel warning names its deck and is panned to it. Both cues carry the same information, which is the point: you can act on the pan before the words arrive.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing</li><li><span class='keyword'>When</span> I clip deck 1 only</li><li><span class='keyword'>Then</span> I hear the clipping buzz in my left ear</li><li><span class='keyword'>And</span> I hear "Deck 1 clipping"</li><li><span class='keyword'>When</span> I clip deck 2 only</li><li><span class='keyword'>Then</span> I hear the clipping buzz in my right ear</li><li><span class='keyword'>And</span> I hear "Deck 2 clipping"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Channel clipping is panned to the deck that is clipping&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-pass' name='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-result' value='pass' data-persist-key='audio_path::audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping::result'><label for='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-fail' name='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-result' value='fail' data-persist-key='audio_path::audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping::result'><label for='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-skip' name='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-result' value='skip' data-persist-key='audio_path::audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping::result'><label for='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-not-tested' name='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-result' value='not-tested' data-persist-key='audio_path::audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping::result' checked><label for='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-notes'>Notes for &ldquo;Channel clipping is panned to the deck that is clipping&rdquo;</label>
+<textarea id='audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping-notes' data-persist-key='audio_path::audio_path-s15-channel-clipping-is-panned-to-the-deck-that-is-clipping::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed' data-tags=''>
+<h3>Scenario: Main output clipping is still centred and unnamed</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I clip the main output without clipping either channel</li><li><span class='keyword'>Then</span> I hear the clipping buzz centred in both ears</li><li><span class='keyword'>And</span> I hear "Clipping" with no deck name</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Main output clipping is still centred and unnamed&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-pass' name='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-result' value='pass' data-persist-key='audio_path::audio_path-s16-main-output-clipping-is-still-centred-and-unnamed::result'><label for='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-fail' name='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-result' value='fail' data-persist-key='audio_path::audio_path-s16-main-output-clipping-is-still-centred-and-unnamed::result'><label for='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-skip' name='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-result' value='skip' data-persist-key='audio_path::audio_path-s16-main-output-clipping-is-still-centred-and-unnamed::result'><label for='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-not-tested' name='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-result' value='not-tested' data-persist-key='audio_path::audio_path-s16-main-output-clipping-is-still-centred-and-unnamed::result' checked><label for='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-notes'>Notes for &ldquo;Main output clipping is still centred and unnamed&rdquo;</label>
+<textarea id='audio_path-s16-main-output-clipping-is-still-centred-and-unnamed-notes' data-persist-key='audio_path::audio_path-s16-main-output-clipping-is-still-centred-and-unnamed::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning' data-tags='@timing'>
+<h3>Scenario: One deck clipping does not silence the other deck's warning</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@timing</li></ul>
+<p class="step-note">Note: The throttle is per-deck by design, precisely so a channel that is constantly clipping cannot mask the one that just started.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 has just been announced as clipping</li><li><span class='keyword'>When</span> I clip deck 2 within the next 2 seconds</li><li><span class='keyword'>Then</span> I hear "Deck 2 clipping"</li><li><span class='keyword'>And</span> it is not suppressed by deck 1's recent warning</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;One deck clipping does not silence the other deck's warning&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-pass' name='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-result' value='pass' data-persist-key='audio_path::audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning::result'><label for='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-fail' name='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-result' value='fail' data-persist-key='audio_path::audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning::result'><label for='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-skip' name='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-result' value='skip' data-persist-key='audio_path::audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning::result'><label for='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-not-tested' name='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-result' value='not-tested' data-persist-key='audio_path::audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning::result' checked><label for='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-notes'>Notes for &ldquo;One deck clipping does not silence the other deck's warning&rdquo;</label>
+<textarea id='audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning-notes' data-persist-key='audio_path::audio_path-s17-one-deck-clipping-does-not-silence-the-other-deck-s-warning::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-speech-routing-ducking-and-the-beat-click'>
+<h2 id='audio_path-section-speech-routing-ducking-and-the-beat-click'>Speech routing, ducking and the beat click</h2>
+
+<article class='scenario' id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience' data-tags='@blocking @twodevices'>
+<h3>Scenario: Speech goes to the headphones and not to the audience</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li><li class="tag">@twodevices</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> a separate main output and headphone output are configured</li><li><span class='keyword'>And</span> "Speech output" in Preferences, Accessibility is set to headphones</li><li><span class='keyword'>And</span> both decks are playing into the main output</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status in the headphones</li><li><span class='keyword'>And</span> nothing is audible on the main output but the music</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Speech goes to the headphones and not to the audience&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-pass' name='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-result' value='pass' data-persist-key='audio_path::audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience::result'><label for='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-fail' name='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-result' value='fail' data-persist-key='audio_path::audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience::result'><label for='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-skip' name='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-result' value='skip' data-persist-key='audio_path::audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience::result'><label for='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-not-tested' name='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-result' value='not-tested' data-persist-key='audio_path::audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience::result' checked><label for='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-notes'>Notes for &ldquo;Speech goes to the headphones and not to the audience&rdquo;</label>
+<textarea id='audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience-notes' data-persist-key='audio_path::audio_path-s18-speech-goes-to-the-headphones-and-not-to-the-audience::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want' data-tags='@twodevices'>
+<h3>Scenario: Speech can be routed to the main output when that is what I want</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@twodevices</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Speech output" in Preferences, Accessibility is set to main output</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear deck 1's status on the main output</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Speech can be routed to the main output when that is what I want&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-pass' name='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-result' value='pass' data-persist-key='audio_path::audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want::result'><label for='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-fail' name='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-result' value='fail' data-persist-key='audio_path::audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want::result'><label for='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-skip' name='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-result' value='skip' data-persist-key='audio_path::audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want::result'><label for='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-not-tested' name='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-result' value='not-tested' data-persist-key='audio_path::audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want::result' checked><label for='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-notes'>Notes for &ldquo;Speech can be routed to the main output when that is what I want&rdquo;</label>
+<textarea id='audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want-notes' data-persist-key='audio_path::audio_path-s19-speech-can-be-routed-to-the-main-output-when-that-is-what-i-want::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s20-the-beat-click-follows-the-speech-route' data-tags='@twodevices'>
+<h3>Scenario: The beat click follows the speech route</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@twodevices</li></ul>
+<ol class='steps'><li><span class='keyword'>Given</span> "Speech output" is set to headphones</li><li><span class='keyword'>When</span> I press "Alt+B"</li><li><span class='keyword'>Then</span> I hear "Beat click on" in the headphones</li><li><span class='keyword'>And</span> I hear the click in the headphones only</li><li><span class='keyword'>And</span> the click is not audible on the main output</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The beat click follows the speech route&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s20-the-beat-click-follows-the-speech-route-pass' name='audio_path-s20-the-beat-click-follows-the-speech-route-result' value='pass' data-persist-key='audio_path::audio_path-s20-the-beat-click-follows-the-speech-route::result'><label for='audio_path-s20-the-beat-click-follows-the-speech-route-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s20-the-beat-click-follows-the-speech-route-fail' name='audio_path-s20-the-beat-click-follows-the-speech-route-result' value='fail' data-persist-key='audio_path::audio_path-s20-the-beat-click-follows-the-speech-route::result'><label for='audio_path-s20-the-beat-click-follows-the-speech-route-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s20-the-beat-click-follows-the-speech-route-skip' name='audio_path-s20-the-beat-click-follows-the-speech-route-result' value='skip' data-persist-key='audio_path::audio_path-s20-the-beat-click-follows-the-speech-route::result'><label for='audio_path-s20-the-beat-click-follows-the-speech-route-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s20-the-beat-click-follows-the-speech-route-not-tested' name='audio_path-s20-the-beat-click-follows-the-speech-route-result' value='not-tested' data-persist-key='audio_path::audio_path-s20-the-beat-click-follows-the-speech-route::result' checked><label for='audio_path-s20-the-beat-click-follows-the-speech-route-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s20-the-beat-click-follows-the-speech-route-notes'>Notes for &ldquo;The beat click follows the speech route&rdquo;</label>
+<textarea id='audio_path-s20-the-beat-click-follows-the-speech-route-notes' data-persist-key='audio_path::audio_path-s20-the-beat-click-follows-the-speech-route::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar' data-tags=''>
+<h3>Scenario: The beat click pans by deck and marks the bar</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing tracks with correct beat grids</li><li><span class='keyword'>When</span> I press "Alt+B"</li><li><span class='keyword'>Then</span> I hear "Beat click on"</li><li><span class='keyword'>And</span> I hear deck 1's click in my left ear</li><li><span class='keyword'>And</span> I hear deck 2's click in my right ear</li><li><span class='keyword'>And</span> every fourth click on each deck is noticeably higher pitched</li><li><span class='keyword'>When</span> I press "Alt+B"</li><li><span class='keyword'>Then</span> I hear "Beat click off"</li><li><span class='keyword'>And</span> the clicks stop</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The beat click pans by deck and marks the bar&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-pass' name='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-result' value='pass' data-persist-key='audio_path::audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar::result'><label for='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-fail' name='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-result' value='fail' data-persist-key='audio_path::audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar::result'><label for='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-skip' name='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-result' value='skip' data-persist-key='audio_path::audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar::result'><label for='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-not-tested' name='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-result' value='not-tested' data-persist-key='audio_path::audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar::result' checked><label for='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-notes'>Notes for &ldquo;The beat click pans by deck and marks the bar&rdquo;</label>
+<textarea id='audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar-notes' data-persist-key='audio_path::audio_path-s21-the-beat-click-pans-by-deck-and-marks-the-bar::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level' data-tags=''>
+<h3>Scenario: The beat click volume slider actually changes the click level</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> the beat click is on and the mix is at gig level</li><li><span class='keyword'>When</span> I raise "Beat click volume" in Preferences, Accessibility</li><li><span class='keyword'>Then</span> the clicks get louder relative to the music</li><li><span class='keyword'>And</span> I can still pick them out over a loud mix</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The beat click volume slider actually changes the click level&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-pass' name='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-result' value='pass' data-persist-key='audio_path::audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level::result'><label for='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-fail' name='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-result' value='fail' data-persist-key='audio_path::audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level::result'><label for='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-skip' name='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-result' value='skip' data-persist-key='audio_path::audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level::result'><label for='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-not-tested' name='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-result' value='not-tested' data-persist-key='audio_path::audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level::result' checked><label for='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-notes'>Notes for &ldquo;The beat click volume slider actually changes the click level&rdquo;</label>
+<textarea id='audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level-notes' data-persist-key='audio_path::audio_path-s22-the-beat-click-volume-slider-actually-changes-the-click-level::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far' data-tags=''>
+<h3>Scenario Outline: Ducking lowers the music enough to hear speech, but not too far</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing at a realistic level</li><li><span class='keyword'>And</span> "Music ducking during announcements" is set to "&lt;setting&gt;"</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> the music drops "&lt;amount&gt;" while the announcement plays</li><li><span class='keyword'>And</span> the music returns to its previous level when the announcement finishes</li><li><span class='keyword'>And</span> I can make out every word of the announcement</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">setting</th><th scope="col">amount</th></tr></thead>
+<tbody>
+<tr><td>off</td><td>not at all</td></tr>
+<tr><td>light</td><td>a little</td></tr>
+<tr><td>heavy</td><td>a lot but not to silence</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ducking lowers the music enough to hear speech, but not too far&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-pass' name='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-result' value='pass' data-persist-key='audio_path::audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far::result'><label for='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-fail' name='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-result' value='fail' data-persist-key='audio_path::audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far::result'><label for='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-skip' name='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-result' value='skip' data-persist-key='audio_path::audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far::result'><label for='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-not-tested' name='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-result' value='not-tested' data-persist-key='audio_path::audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far::result' checked><label for='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-notes'>Notes for &ldquo;Ducking lowers the music enough to hear speech, but not too far&rdquo;</label>
+<textarea id='audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far-notes' data-persist-key='audio_path::audio_path-s23-ducking-lowers-the-music-enough-to-hear-speech-but-not-too-far::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement' data-tags=''>
+<h3>Scenario: Ducking recovers cleanly after a barged-in announcement</h3>
+
+<p class="step-note">Note: If a second announcement interrupts the first, the duck envelope must still release. A stuck duck means a quiet mix for the rest of the set.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "Alt+1" and then immediately press "Alt+2" before the first finishes</li><li><span class='keyword'>Then</span> I hear deck 2's status</li><li><span class='keyword'>And</span> the music returns to full level once it finishes</li><li><span class='keyword'>And</span> the music is not left quiet</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ducking recovers cleanly after a barged-in announcement&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-pass' name='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-result' value='pass' data-persist-key='audio_path::audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement::result'><label for='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-fail' name='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-result' value='fail' data-persist-key='audio_path::audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement::result'><label for='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-skip' name='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-result' value='skip' data-persist-key='audio_path::audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement::result'><label for='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-not-tested' name='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-result' value='not-tested' data-persist-key='audio_path::audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement::result' checked><label for='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-notes'>Notes for &ldquo;Ducking recovers cleanly after a barged-in announcement&rdquo;</label>
+<textarea id='audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement-notes' data-persist-key='audio_path::audio_path-s24-ducking-recovers-cleanly-after-a-barged-in-announcement::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-split-cue'>
+<h2 id='audio_path-section-split-cue'>Split cue</h2>
+
+<article class='scenario' id='audio_path-s25-split-cue-puts-one-deck-in-each-ear' data-tags=''>
+<h3>Scenario: Split cue puts one deck in each ear</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing and both have the headphone cue on</li><li><span class='keyword'>When</span> I press "Alt+S"</li><li><span class='keyword'>Then</span> I hear "Split cue on. Deck 1 left, deck 2 right"</li><li><span class='keyword'>And</span> I hear only deck 1 in my left ear</li><li><span class='keyword'>And</span> I hear only deck 2 in my right ear</li><li><span class='keyword'>When</span> I press "Alt+S"</li><li><span class='keyword'>Then</span> I hear "Split cue off"</li><li><span class='keyword'>And</span> both decks are back in both ears</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Split cue puts one deck in each ear&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s25-split-cue-puts-one-deck-in-each-ear-pass' name='audio_path-s25-split-cue-puts-one-deck-in-each-ear-result' value='pass' data-persist-key='audio_path::audio_path-s25-split-cue-puts-one-deck-in-each-ear::result'><label for='audio_path-s25-split-cue-puts-one-deck-in-each-ear-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s25-split-cue-puts-one-deck-in-each-ear-fail' name='audio_path-s25-split-cue-puts-one-deck-in-each-ear-result' value='fail' data-persist-key='audio_path::audio_path-s25-split-cue-puts-one-deck-in-each-ear::result'><label for='audio_path-s25-split-cue-puts-one-deck-in-each-ear-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s25-split-cue-puts-one-deck-in-each-ear-skip' name='audio_path-s25-split-cue-puts-one-deck-in-each-ear-result' value='skip' data-persist-key='audio_path::audio_path-s25-split-cue-puts-one-deck-in-each-ear::result'><label for='audio_path-s25-split-cue-puts-one-deck-in-each-ear-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s25-split-cue-puts-one-deck-in-each-ear-not-tested' name='audio_path-s25-split-cue-puts-one-deck-in-each-ear-result' value='not-tested' data-persist-key='audio_path::audio_path-s25-split-cue-puts-one-deck-in-each-ear::result' checked><label for='audio_path-s25-split-cue-puts-one-deck-in-each-ear-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s25-split-cue-puts-one-deck-in-each-ear-notes'>Notes for &ldquo;Split cue puts one deck in each ear&rdquo;</label>
+<textarea id='audio_path-s25-split-cue-puts-one-deck-in-each-ear-notes' data-persist-key='audio_path::audio_path-s25-split-cue-puts-one-deck-in-each-ear::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode' data-tags=''>
+<h3>Scenario: The headphone mix knob still works in split mode</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> split cue is on</li><li><span class='keyword'>When</span> I turn the headphone mix knob towards main</li><li><span class='keyword'>Then</span> I hear the main mix blended into both ears</li><li><span class='keyword'>And</span> each deck is still dominant in its own ear</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The headphone mix knob still works in split mode&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-pass' name='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-result' value='pass' data-persist-key='audio_path::audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode::result'><label for='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-fail' name='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-result' value='fail' data-persist-key='audio_path::audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode::result'><label for='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-skip' name='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-result' value='skip' data-persist-key='audio_path::audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode::result'><label for='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-not-tested' name='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-result' value='not-tested' data-persist-key='audio_path::audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode::result' checked><label for='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-notes'>Notes for &ldquo;The headphone mix knob still works in split mode&rdquo;</label>
+<textarea id='audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode-notes' data-persist-key='audio_path::audio_path-s26-the-headphone-mix-knob-still-works-in-split-mode::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear' data-tags=''>
+<h3>Scenario: Beat click and split cue together give one deck and one grid per ear</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> both decks are playing</li><li><span class='keyword'>When</span> I press "Alt+S"</li><li><span class='keyword'>And</span> I press "Alt+B"</li><li><span class='keyword'>Then</span> my left ear carries deck 1's audio and deck 1's click</li><li><span class='keyword'>And</span> my right ear carries deck 2's audio and deck 2's click</li><li><span class='keyword'>And</span> I can beatmatch by ear from that alone</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Beat click and split cue together give one deck and one grid per ear&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-pass' name='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-result' value='pass' data-persist-key='audio_path::audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear::result'><label for='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-fail' name='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-result' value='fail' data-persist-key='audio_path::audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear::result'><label for='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-skip' name='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-result' value='skip' data-persist-key='audio_path::audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear::result'><label for='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-not-tested' name='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-result' value='not-tested' data-persist-key='audio_path::audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear::result' checked><label for='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-notes'>Notes for &ldquo;Beat click and split cue together give one deck and one grid per ear&rdquo;</label>
+<textarea id='audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear-notes' data-persist-key='audio_path::audio_path-s27-beat-click-and-split-cue-together-give-one-deck-and-one-grid-per-ear::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-talkover-and-eject-issue-87'>
+<h2 id='audio_path-section-talkover-and-eject-issue-87'>Talkover and eject — issue #87</h2>
+
+<article class='scenario' id='audio_path-s28-the-microphone-toggle-is-always-spoken' data-tags=''>
+<h3>Scenario: The microphone toggle is always spoken</h3>
+
+<p class="step-note">Note: No settings gate and no throttle on this one, deliberately: it is a direct user action with live consequences.</p>
+<ol class='steps'><li><span class='keyword'>When</span> I press "`"</li><li><span class='keyword'>Then</span> I hear "Microphone on"</li><li><span class='keyword'>When</span> I press "`"</li><li><span class='keyword'>Then</span> I hear "Microphone off"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The microphone toggle is always spoken&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s28-the-microphone-toggle-is-always-spoken-pass' name='audio_path-s28-the-microphone-toggle-is-always-spoken-result' value='pass' data-persist-key='audio_path::audio_path-s28-the-microphone-toggle-is-always-spoken::result'><label for='audio_path-s28-the-microphone-toggle-is-always-spoken-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s28-the-microphone-toggle-is-always-spoken-fail' name='audio_path-s28-the-microphone-toggle-is-always-spoken-result' value='fail' data-persist-key='audio_path::audio_path-s28-the-microphone-toggle-is-always-spoken::result'><label for='audio_path-s28-the-microphone-toggle-is-always-spoken-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s28-the-microphone-toggle-is-always-spoken-skip' name='audio_path-s28-the-microphone-toggle-is-always-spoken-result' value='skip' data-persist-key='audio_path::audio_path-s28-the-microphone-toggle-is-always-spoken::result'><label for='audio_path-s28-the-microphone-toggle-is-always-spoken-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s28-the-microphone-toggle-is-always-spoken-not-tested' name='audio_path-s28-the-microphone-toggle-is-always-spoken-result' value='not-tested' data-persist-key='audio_path::audio_path-s28-the-microphone-toggle-is-always-spoken::result' checked><label for='audio_path-s28-the-microphone-toggle-is-always-spoken-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s28-the-microphone-toggle-is-always-spoken-notes'>Notes for &ldquo;The microphone toggle is always spoken&rdquo;</label>
+<textarea id='audio_path-s28-the-microphone-toggle-is-always-spoken-notes' data-persist-key='audio_path::audio_path-s28-the-microphone-toggle-is-always-spoken::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down' data-tags=''>
+<h3>Scenario: The microphone toggle is spoken even with announcements turned down</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> every announcement category checkbox in Preferences, Accessibility is unticked</li><li><span class='keyword'>When</span> I press "`"</li><li><span class='keyword'>Then</span> I still hear "Microphone on"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The microphone toggle is spoken even with announcements turned down&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-pass' name='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-result' value='pass' data-persist-key='audio_path::audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down::result'><label for='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-fail' name='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-result' value='fail' data-persist-key='audio_path::audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down::result'><label for='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-skip' name='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-result' value='skip' data-persist-key='audio_path::audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down::result'><label for='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-not-tested' name='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-result' value='not-tested' data-persist-key='audio_path::audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down::result' checked><label for='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-notes'>Notes for &ldquo;The microphone toggle is spoken even with announcements turned down&rdquo;</label>
+<textarea id='audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down-notes' data-persist-key='audio_path::audio_path-s29-the-microphone-toggle-is-spoken-even-with-announcements-turned-down::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud' data-tags='@blocking'>
+<h3>Scenario: Ejecting a playing deck is refused out loud</h3>
+<ul class="tags" aria-label="Tags"><li class="tag">@blocking</li></ul>
+<p class="step-note">Note: BaseTrackPlayerImpl silently no-ops an eject on a playing deck, so before this the key press did nothing and said nothing.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 is playing</li><li><span class='keyword'>When</span> I press "Alt+Shift+Left"</li><li><span class='keyword'>Then</span> I hear "Deck 1 is playing, eject blocked. Stop the deck first."</li><li><span class='keyword'>And</span> deck 1 is still playing the same track</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ejecting a playing deck is refused out loud&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-pass' name='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-result' value='pass' data-persist-key='audio_path::audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud::result'><label for='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-fail' name='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-result' value='fail' data-persist-key='audio_path::audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud::result'><label for='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-skip' name='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-result' value='skip' data-persist-key='audio_path::audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud::result'><label for='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-not-tested' name='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-result' value='not-tested' data-persist-key='audio_path::audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud::result' checked><label for='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-notes'>Notes for &ldquo;Ejecting a playing deck is refused out loud&rdquo;</label>
+<textarea id='audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud-notes' data-persist-key='audio_path::audio_path-s30-ejecting-a-playing-deck-is-refused-out-loud::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off' data-tags=''>
+<h3>Scenario: The eject refusal is spoken even with track-load announcements off</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Announce track loads" is disabled in Preferences, Accessibility</li><li><span class='keyword'>And</span> deck 1 is playing</li><li><span class='keyword'>When</span> I press "Alt+Shift+Left"</li><li><span class='keyword'>Then</span> I hear "Deck 1 is playing, eject blocked. Stop the deck first."</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;The eject refusal is spoken even with track-load announcements off&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-pass' name='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-result' value='pass' data-persist-key='audio_path::audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off::result'><label for='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-fail' name='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-result' value='fail' data-persist-key='audio_path::audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off::result'><label for='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-skip' name='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-result' value='skip' data-persist-key='audio_path::audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off::result'><label for='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-not-tested' name='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-result' value='not-tested' data-persist-key='audio_path::audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off::result' checked><label for='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-notes'>Notes for &ldquo;The eject refusal is spoken even with track-load announcements off&rdquo;</label>
+<textarea id='audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off-notes' data-persist-key='audio_path::audio_path-s31-the-eject-refusal-is-spoken-even-with-track-load-announcements-off::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed' data-tags=''>
+<h3>Scenario: Ejecting a stopped deck is confirmed</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 has a track loaded and is stopped</li><li><span class='keyword'>When</span> I press "Alt+Shift+Left"</li><li><span class='keyword'>Then</span> I hear "Deck 1 track ejected"</li><li><span class='keyword'>When</span> I press "Alt+1"</li><li><span class='keyword'>Then</span> I hear that deck 1 has no track loaded</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ejecting a stopped deck is confirmed&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-pass' name='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-result' value='pass' data-persist-key='audio_path::audio_path-s32-ejecting-a-stopped-deck-is-confirmed::result'><label for='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-fail' name='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-result' value='fail' data-persist-key='audio_path::audio_path-s32-ejecting-a-stopped-deck-is-confirmed::result'><label for='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-skip' name='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-result' value='skip' data-persist-key='audio_path::audio_path-s32-ejecting-a-stopped-deck-is-confirmed::result'><label for='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-not-tested' name='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-result' value='not-tested' data-persist-key='audio_path::audio_path-s32-ejecting-a-stopped-deck-is-confirmed::result' checked><label for='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-notes'>Notes for &ldquo;Ejecting a stopped deck is confirmed&rdquo;</label>
+<textarea id='audio_path-s32-ejecting-a-stopped-deck-is-confirmed-notes' data-persist-key='audio_path::audio_path-s32-ejecting-a-stopped-deck-is-confirmed::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s33-ejecting-an-empty-deck-says-nothing' data-tags=''>
+<h3>Scenario: Ejecting an empty deck says nothing</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 has no track loaded</li><li><span class='keyword'>When</span> I press "Alt+Shift+Left"</li><li><span class='keyword'>Then</span> I hear nothing</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ejecting an empty deck says nothing&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s33-ejecting-an-empty-deck-says-nothing-pass' name='audio_path-s33-ejecting-an-empty-deck-says-nothing-result' value='pass' data-persist-key='audio_path::audio_path-s33-ejecting-an-empty-deck-says-nothing::result'><label for='audio_path-s33-ejecting-an-empty-deck-says-nothing-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s33-ejecting-an-empty-deck-says-nothing-fail' name='audio_path-s33-ejecting-an-empty-deck-says-nothing-result' value='fail' data-persist-key='audio_path::audio_path-s33-ejecting-an-empty-deck-says-nothing::result'><label for='audio_path-s33-ejecting-an-empty-deck-says-nothing-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s33-ejecting-an-empty-deck-says-nothing-skip' name='audio_path-s33-ejecting-an-empty-deck-says-nothing-result' value='skip' data-persist-key='audio_path::audio_path-s33-ejecting-an-empty-deck-says-nothing::result'><label for='audio_path-s33-ejecting-an-empty-deck-says-nothing-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s33-ejecting-an-empty-deck-says-nothing-not-tested' name='audio_path-s33-ejecting-an-empty-deck-says-nothing-result' value='not-tested' data-persist-key='audio_path::audio_path-s33-ejecting-an-empty-deck-says-nothing::result' checked><label for='audio_path-s33-ejecting-an-empty-deck-says-nothing-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s33-ejecting-an-empty-deck-says-nothing-notes'>Notes for &ldquo;Ejecting an empty deck says nothing&rdquo;</label>
+<textarea id='audio_path-s33-ejecting-an-empty-deck-says-nothing-notes' data-persist-key='audio_path::audio_path-s33-ejecting-an-empty-deck-says-nothing::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly' data-tags=''>
+<h3>Scenario: Double-pressing eject reloads and announces confusingly</h3>
+
+<p class="step-note">Note: KNOWN EDGE CASE, documented in the source, not a defect to file. A rapid second press within the double-click window restores the previous track instead of ejecting, but the announcement still says "ejected" before the load announcement arrives. Confirm it behaves as described so the wording can be improved deliberately later.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> deck 1 has a track loaded and is stopped</li><li><span class='keyword'>When</span> I press "Alt+Shift+Left" twice in quick succession</li><li><span class='keyword'>Then</span> I hear "Deck 1 track ejected"</li><li><span class='keyword'>And</span> I then hear a load announcement for the same track</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Double-pressing eject reloads and announces confusingly&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-pass' name='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-result' value='pass' data-persist-key='audio_path::audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly::result'><label for='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-fail' name='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-result' value='fail' data-persist-key='audio_path::audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly::result'><label for='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-skip' name='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-result' value='skip' data-persist-key='audio_path::audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly::result'><label for='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-not-tested' name='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-result' value='not-tested' data-persist-key='audio_path::audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly::result' checked><label for='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-notes'>Notes for &ldquo;Double-pressing eject reloads and announces confusingly&rdquo;</label>
+<textarea id='audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly-notes' data-persist-key='audio_path::audio_path-s34-double-pressing-eject-reloads-and-announces-confusingly::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<section aria-labelledby='audio_path-section-sampler-speech-issue-75'>
+<h2 id='audio_path-section-sampler-speech-issue-75'>Sampler speech — issue #75</h2>
+
+<article class='scenario' id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track' data-tags=''>
+<h3>Scenario: Loading a sampler is announced with its number and the track</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I load a track with a known artist, title, BPM and key into sampler 3</li><li><span class='keyword'>Then</span> I hear "Sampler 3 loaded" followed by the artist, the title, the BPM and the key</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Loading a sampler is announced with its number and the track&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-pass' name='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-result' value='pass' data-persist-key='audio_path::audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track::result'><label for='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-fail' name='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-result' value='fail' data-persist-key='audio_path::audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track::result'><label for='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-skip' name='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-result' value='skip' data-persist-key='audio_path::audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track::result'><label for='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-not-tested' name='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-result' value='not-tested' data-persist-key='audio_path::audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track::result' checked><label for='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-notes'>Notes for &ldquo;Loading a sampler is announced with its number and the track&rdquo;</label>
+<textarea id='audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track-notes' data-persist-key='audio_path::audio_path-s35-loading-a-sampler-is-announced-with-its-number-and-the-track::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has' data-tags=''>
+<h3>Scenario: A sampler with no metadata announces only what it has</h3>
+
+<ol class='steps'><li><span class='keyword'>When</span> I load a track with no artist, title, BPM or key into sampler 1</li><li><span class='keyword'>Then</span> I hear "Sampler 1 loaded"</li><li><span class='keyword'>And</span> I do not hear "B P M" or "Key"</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;A sampler with no metadata announces only what it has&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-pass' name='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-result' value='pass' data-persist-key='audio_path::audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has::result'><label for='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-fail' name='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-result' value='fail' data-persist-key='audio_path::audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has::result'><label for='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-skip' name='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-result' value='skip' data-persist-key='audio_path::audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has::result'><label for='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-not-tested' name='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-result' value='not-tested' data-persist-key='audio_path::audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has::result' checked><label for='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-notes'>Notes for &ldquo;A sampler with no metadata announces only what it has&rdquo;</label>
+<textarea id='audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has-notes' data-persist-key='audio_path::audio_path-s36-a-sampler-with-no-metadata-announces-only-what-it-has::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s37-sampler-transport-is-announced' data-tags=''>
+<h3>Scenario Outline: Sampler transport is announced</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> sampler 2 has a track loaded</li><li><span class='keyword'>When</span> I "&lt;action&gt;" sampler 2</li><li><span class='keyword'>Then</span> I hear "&lt;heard&gt;"</li></ol>
+<table>
+<caption>Examples</caption>
+<thead><tr><th scope="col">action</th><th scope="col">heard</th></tr></thead>
+<tbody>
+<tr><td>play</td><td>Sampler 2 playing</td></tr>
+<tr><td>stop</td><td>Sampler 2 stopped</td></tr>
+<tr><td>eject</td><td>Sampler 2 ejected</td></tr>
+</tbody></table>
+<fieldset class='result'>
+<legend>Result for &ldquo;Sampler transport is announced&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s37-sampler-transport-is-announced-pass' name='audio_path-s37-sampler-transport-is-announced-result' value='pass' data-persist-key='audio_path::audio_path-s37-sampler-transport-is-announced::result'><label for='audio_path-s37-sampler-transport-is-announced-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s37-sampler-transport-is-announced-fail' name='audio_path-s37-sampler-transport-is-announced-result' value='fail' data-persist-key='audio_path::audio_path-s37-sampler-transport-is-announced::result'><label for='audio_path-s37-sampler-transport-is-announced-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s37-sampler-transport-is-announced-skip' name='audio_path-s37-sampler-transport-is-announced-result' value='skip' data-persist-key='audio_path::audio_path-s37-sampler-transport-is-announced::result'><label for='audio_path-s37-sampler-transport-is-announced-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s37-sampler-transport-is-announced-not-tested' name='audio_path-s37-sampler-transport-is-announced-result' value='not-tested' data-persist-key='audio_path::audio_path-s37-sampler-transport-is-announced::result' checked><label for='audio_path-s37-sampler-transport-is-announced-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s37-sampler-transport-is-announced-notes'>Notes for &ldquo;Sampler transport is announced&rdquo;</label>
+<textarea id='audio_path-s37-sampler-transport-is-announced-notes' data-persist-key='audio_path::audio_path-s37-sampler-transport-is-announced::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s38-ejecting-a-playing-sampler-stays-silent' data-tags=''>
+<h3>Scenario: Ejecting a playing sampler stays silent</h3>
+
+<p class="step-note">Note: Eject only speaks when the sampler has a track and is not playing, because that is the only case the engine actually acts on.</p>
+<ol class='steps'><li><span class='keyword'>Given</span> sampler 2 is playing</li><li><span class='keyword'>When</span> I eject sampler 2</li><li><span class='keyword'>Then</span> I hear nothing about sampler 2 being ejected</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Ejecting a playing sampler stays silent&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s38-ejecting-a-playing-sampler-stays-silent-pass' name='audio_path-s38-ejecting-a-playing-sampler-stays-silent-result' value='pass' data-persist-key='audio_path::audio_path-s38-ejecting-a-playing-sampler-stays-silent::result'><label for='audio_path-s38-ejecting-a-playing-sampler-stays-silent-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s38-ejecting-a-playing-sampler-stays-silent-fail' name='audio_path-s38-ejecting-a-playing-sampler-stays-silent-result' value='fail' data-persist-key='audio_path::audio_path-s38-ejecting-a-playing-sampler-stays-silent::result'><label for='audio_path-s38-ejecting-a-playing-sampler-stays-silent-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s38-ejecting-a-playing-sampler-stays-silent-skip' name='audio_path-s38-ejecting-a-playing-sampler-stays-silent-result' value='skip' data-persist-key='audio_path::audio_path-s38-ejecting-a-playing-sampler-stays-silent::result'><label for='audio_path-s38-ejecting-a-playing-sampler-stays-silent-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s38-ejecting-a-playing-sampler-stays-silent-not-tested' name='audio_path-s38-ejecting-a-playing-sampler-stays-silent-result' value='not-tested' data-persist-key='audio_path::audio_path-s38-ejecting-a-playing-sampler-stays-silent::result' checked><label for='audio_path-s38-ejecting-a-playing-sampler-stays-silent-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s38-ejecting-a-playing-sampler-stays-silent-notes'>Notes for &ldquo;Ejecting a playing sampler stays silent&rdquo;</label>
+<textarea id='audio_path-s38-ejecting-a-playing-sampler-stays-silent-notes' data-persist-key='audio_path::audio_path-s38-ejecting-a-playing-sampler-stays-silent::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+<article class='scenario' id='audio_path-s39-samplers-do-not-steal-the-headphone-cue' data-tags=''>
+<h3>Scenario: Samplers do not steal the headphone cue</h3>
+
+<ol class='steps'><li><span class='keyword'>Given</span> "Smart cue" is enabled in Preferences, Decks</li><li><span class='keyword'>And</span> deck 1 has the headphone cue</li><li><span class='keyword'>When</span> I load a track into sampler 4</li><li><span class='keyword'>Then</span> I hear "Sampler 4 loaded" and the track details</li><li><span class='keyword'>And</span> I do not hear any headphone cue announcement</li><li><span class='keyword'>And</span> deck 1 still has the headphone cue</li></ol>
+<fieldset class='result'>
+<legend>Result for &ldquo;Samplers do not steal the headphone cue&rdquo;</legend>
+<span class='radio-option'><input type='radio' id='audio_path-s39-samplers-do-not-steal-the-headphone-cue-pass' name='audio_path-s39-samplers-do-not-steal-the-headphone-cue-result' value='pass' data-persist-key='audio_path::audio_path-s39-samplers-do-not-steal-the-headphone-cue::result'><label for='audio_path-s39-samplers-do-not-steal-the-headphone-cue-pass'>Pass</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s39-samplers-do-not-steal-the-headphone-cue-fail' name='audio_path-s39-samplers-do-not-steal-the-headphone-cue-result' value='fail' data-persist-key='audio_path::audio_path-s39-samplers-do-not-steal-the-headphone-cue::result'><label for='audio_path-s39-samplers-do-not-steal-the-headphone-cue-fail'>Fail</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s39-samplers-do-not-steal-the-headphone-cue-skip' name='audio_path-s39-samplers-do-not-steal-the-headphone-cue-result' value='skip' data-persist-key='audio_path::audio_path-s39-samplers-do-not-steal-the-headphone-cue::result'><label for='audio_path-s39-samplers-do-not-steal-the-headphone-cue-skip'>Skip</label></span>
+<span class='radio-option'><input type='radio' id='audio_path-s39-samplers-do-not-steal-the-headphone-cue-not-tested' name='audio_path-s39-samplers-do-not-steal-the-headphone-cue-result' value='not-tested' data-persist-key='audio_path::audio_path-s39-samplers-do-not-steal-the-headphone-cue::result' checked><label for='audio_path-s39-samplers-do-not-steal-the-headphone-cue-not-tested'>Not tested</label></span>
+<div class='notes-field'><label for='audio_path-s39-samplers-do-not-steal-the-headphone-cue-notes'>Notes for &ldquo;Samplers do not steal the headphone cue&rdquo;</label>
+<textarea id='audio_path-s39-samplers-do-not-steal-the-headphone-cue-notes' data-persist-key='audio_path::audio_path-s39-samplers-do-not-steal-the-headphone-cue::notes' rows='3'></textarea></div>
+</fieldset>
+</article>
+</section>
+<nav aria-label='Adjacent feature files'><ul class='prev-next'><li><a href='windows_screenreader.html'>&larr; Previous file: windows_screenreader.feature</a></li><li><a href='index.html'>Back to overview</a></li><li><a href='first_run_boot.html'>Next file: first_run_boot.feature &rarr;</a></li></ul></nav>
+</main>
+<footer>
+<p>Generated from the <code>.feature</code> files under <code>features/</code> by
+<code>tools/gherkin_to_html.py</code>. Do not hand-edit these HTML files — re-run the
+script after changing a <code>.feature</code> file, <code>README.md</code> or
+<code>COVERAGE.md</code>.</p>
+</footer>
+<script src="progress.js"></script>
+</body>
+</html>
