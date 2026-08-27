@@ -852,6 +852,12 @@ PioneerDDJ400.quickJumpBack = function(_channel, _control, value, _status, group
 //   Pads 1-6: deck status, time remaining, BPM, key, bar position, track name
 //   Pad 7:    repeat the last announcement
 //   Pad 8:    beat click metronome on/off
+//   Shift+1:  halve detected BPM (fix a fast-genre half-tempo misanalysis)
+//   Shift+2:  double detected BPM
+//   Shift+3:  keylock on/off (issue #50 - lock key while adjusting tempo)
+//   Shift+4:  pitch down one semitone (issue #50)
+//   Shift+5:  pitch up one semitone (issue #50)
+//   Shift+6:  reset key to the track's original key (issue #50)
 //   Shift+7:  per-deck split cue on/off
 //   Shift+8:  speech on/off
 // Every action confirms itself out loud, so no LED feedback is needed.
@@ -905,13 +911,23 @@ PioneerDDJ400.hotcuePadShift = function(_channel, control, value, _status, group
         engine.setValue(group, "beats_set_halve", 1);
     } else if (control === 0x01) {
         engine.setValue(group, "beats_set_double", 1);
+    } else if (control === 0x02) {
+        // Key Shift pad mode (Shift+Sampler) has no confirmed hardware note
+        // layout in this codebase (see the "Not implemented" note at the top
+        // of this file), so keylock/pitch controls live here instead, next
+        // to the other per-deck accessibility pads (issue #50).
+        script.toggleControl(group, "keylock");
+    } else if (control === 0x03) {
+        engine.setValue(group, "pitch_down", 1);
+    } else if (control === 0x04) {
+        engine.setValue(group, "pitch_up", 1);
+    } else if (control === 0x05) {
+        engine.setValue(group, "reset_key", 1);
     } else if (control === 0x06) {
         script.toggleControl("[Master]", "headSplitDecks");
     } else if (control === 0x07) {
         script.toggleControl("[Tts]", "enabled");
     }
-    // Shift + pads 3-6 deliberately do nothing in accessibility mode, so a
-    // stray press can't clear stored hotcues the DJ can't see.
 };
 
 //
