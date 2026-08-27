@@ -197,7 +197,7 @@ class LibraryControlSortToggleTest : public MixxxTest {
   protected:
     void SetUp() override {
         // No Library needed - the sort-toggle slots don't touch it.
-        m_pLibraryControl = std::make_unique<LibraryControl>(nullptr);
+        m_pLibraryControl = std::make_unique<LibraryControl>(nullptr, m_pConfig);
         m_pSortColumn = std::make_unique<ControlProxy>(
                 QStringLiteral("[Library]"), QStringLiteral("sort_column"));
         m_pSortOrder = std::make_unique<ControlProxy>(
