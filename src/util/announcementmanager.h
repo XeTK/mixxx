@@ -312,13 +312,32 @@ class AnnouncementManager : public QObject {
 
     // Debounced announcements for continuously-variable controls.
     QTimer m_controlDebounce;
+    // Unkeyed debounced text (loop size, beat-jump size, effect
+    // loaded/focused, …): a single slot is correct here — these represent
+    // one conceptual readout being stepped through several values in a row
+    // (e.g. CUE/LOOP CALL pressed repeatedly), and only the final value
+    // should be announced, exactly like the keyed overload collapses
+    // several ticks of the same control into one announcement.
     QString m_pendingControlText;
-    // Pending keyed control announcement (see the keyed
-    // announceControlDebounced overload); mutually exclusive with
-    // m_pendingControlText.
-    QString m_pendingControlKey;
-    QString m_pendingControlName;
-    QString m_pendingControlValue;
+    // Keyed control announcements (see the keyed announceControlDebounced
+    // overload) get their own pending slot per control key, instead of a
+    // single shared "latest wins" one — otherwise touching a second,
+    // different control (e.g. a volume knob) before the first one's
+    // debounce timer fires would silently discard the first control's
+    // queued value. This was issue #114: the pitch fader's name-on-touch
+    // was heard but the debounced value never followed, because a later
+    // touch of an unrelated control had overwritten the single shared
+    // pending slot before the shared timer fired.
+    struct PendingControlAnnouncement {
+        QString name;
+        QString value;
+    };
+    // Insertion order of m_pendingControls' keys, so a batch of several
+    // controls that settle within the same debounce window is announced in
+    // the order they were first touched rather than in unspecified hash
+    // order.
+    QStringList m_pendingControlOrder;
+    QHash<QString, PendingControlAnnouncement> m_pendingControls;
     // The keyed control last spoken (or currently moving), for the
     // name-on-touch and name-once logic. Any unrelated announcement clears
     // the key.
