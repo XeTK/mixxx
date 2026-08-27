@@ -4270,3 +4270,64 @@ TEST_F(AnnouncementManagerTest, SmartCue_LoadAnnouncementNotLostToCueBargeIn) {
     EXPECT_EQ(0.0, pPfl1->get());
     EXPECT_EQ(1.0, pPfl2->get());
 }
+
+// Regression test for issue #112: connectGroupControls() is documented (see
+// the header) to wire up a synthetic group "without needing a real
+// BaseTrackPlayer" -- every proxy it creates is expected to tolerate a
+// missing backing control except, until this fix, the "play" proxy, which
+// omitted ControlFlag::AllowMissingOrInvalid. That inconsistency is invisible
+// in an ordinary build (ControlProxy's DEBUG_ASSERT is a no-op without
+// MIXXX_DEBUG_ASSERTIONS_ENABLED, and the proxy silently falls back to the
+// shared default control), but aborts the whole process on any build with
+// debug assertions enabled -- e.g. an accessibility-focused developer/nightly
+// build, matching the reported "crash under heavy load, with no speech" (the
+// abort is instant and silent; there is no chance to announce it). This is
+// exactly the code path the SmartCue_LoadAnnouncementNotLostToCueBargeIn test
+// above and every AnnouncementManagerVinylTest case exercise: both call
+// connectGroupControls() for a group whose "play" control was never created,
+// which is why they were the tests observed crashing.
+//
+// This test cannot demonstrate the crash itself in a normal build (that is
+// the point of DEBUG_ASSERT: silent no-op unless assertions are fatal); it
+// was verified by temporarily reverting the AllowMissingOrInvalid flag and
+// rebuilding with -DDEBUG_ASSERTIONS_FATAL=ON -DSANITIZE_ADDRESS=ON, which
+// reliably aborted here with "DEBUG ASSERT: flags.testFlag(...)" in
+// ControlDoublePrivate::getControl, called from ControlProxy::ControlProxy()
+// from AnnouncementManager::connectGroupControls() -- confirming this exact
+// line is the fault site. What this test does verify, in every build: that
+// connectGroupControls() still returns and the manager keeps working
+// correctly afterward even when "play" was never created for the group.
+TEST_F(AnnouncementManagerTest, ConnectGroupControls_NoPlayControl_DoesNotAbort) {
+    auto pPfl = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    // Deliberately do not create "[Channel1]",play before wiring up the
+    // observers -- connectGroupControls() must not assume it exists.
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+
+    // The manager must still be fully functional afterward: an unrelated,
+    // present control (pfl) still announces normally.
+    pPfl->set(1.0);
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("headphone cue on")))
+            << pSpy->lastText.toStdString();
+}
+
+// Sampler counterpart of the regression test above: connectSamplerControls()
+// had the identical missing-flag bug on its own "play" proxy (see
+// connectSamplerControls() in announcementmanager.cpp).
+TEST_F(AnnouncementManagerTest, ConnectSamplerControls_NoPlayControl_DoesNotAbort) {
+    auto pEject = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Sampler1]"), QStringLiteral("eject")));
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->setDeckHasTrack(QStringLiteral("[Sampler1]"), true);
+
+    // Deliberately do not create "[Sampler1]",play.
+    m_pManager->connectSamplerControls(QStringLiteral("[Sampler1]"), 0);
+
+    pEject->set(1.0);
+    EXPECT_EQ(1, pSpy->callCount);
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("ejected")))
+            << pSpy->lastText.toStdString();
+}

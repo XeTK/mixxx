@@ -1226,7 +1226,19 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         m_pStatusButtons.push_back(std::move(pButton));
     }
 
-    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    // AllowMissingOrInvalid: connectGroupControls() is explicitly documented
+    // (see the header) to work for a synthetic group without a real
+    // BaseTrackPlayer -- every other proxy in this function already tolerates
+    // a missing backing control. This one didn't, so any group whose "play"
+    // control isn't registered yet (e.g. connectGroupControls() called before
+    // the deck finishes constructing its controls under heavy startup load,
+    // or a test wiring up observers without a full deck) tripped
+    // ControlProxy's DEBUG_ASSERT(flags & AllowMissingOrInvalid) -- fatal on
+    // any build with debug assertions enabled (issue #112).
+    auto pPlay = make_parented<ControlProxy>(group,
+            QStringLiteral("play"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
     pPlay->connectValueChanged(this, [this, group, deckIndex](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
@@ -1940,7 +1952,11 @@ void AnnouncementManager::slotNumberOfDecksChanged(int decks) {
 }
 
 void AnnouncementManager::connectSamplerControls(const QString& group, int samplerIndex) {
-    auto pPlay = make_parented<ControlProxy>(group, QStringLiteral("play"), this);
+    // AllowMissingOrInvalid: see the matching comment in connectGroupControls().
+    auto pPlay = make_parented<ControlProxy>(group,
+            QStringLiteral("play"),
+            this,
+            ControlFlag::AllowMissingOrInvalid);
     pPlay->connectValueChanged(this, [this, group, samplerIndex](double value) {
         const bool nowPlaying = value > 0.0;
         const bool wasPlaying = m_deckIsPlaying.value(group, false);
