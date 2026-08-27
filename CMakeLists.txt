@@ -2732,6 +2732,7 @@ if(BUILD_TESTING)
     src/test/bootdialog_speech_test.cpp
     src/test/cmdlineargs_test.cpp
     src/test/controllermappingtablemodel_test.cpp
+    src/test/dlgkeywheel_speech_test.cpp
     src/test/dlgprefsounditem_test.cpp
     src/test/ttsengine_integration_test.cpp
     src/test/enginebeatclick_test.cpp
@@ -2797,6 +2798,7 @@ if(BUILD_TESTING)
     src/test/lcstest.cpp
     src/test/learningutilstest.cpp
     src/test/library_test.cpp
+    src/test/libraryscannerdlg_speech_test.cpp
     src/test/libraryscannertest.cpp
     src/test/librarytest.cpp
     src/test/looping_control_test.cpp
@@ -2852,6 +2854,7 @@ if(BUILD_TESTING)
     src/test/wbatterytest.cpp
     src/test/wpushbutton_test.cpp
     src/test/wlibrarysidebar_test.cpp
+    src/test/wstarrating_test.cpp
     src/test/wwidgetstack_test.cpp
     src/util/moc_included_test.cpp
     src/test/helpers/log_test.cpp
