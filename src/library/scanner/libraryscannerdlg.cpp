@@ -1,6 +1,7 @@
 #include "library/scanner/libraryscannerdlg.h"
 
 #include <QPushButton>
+#include <QShowEvent>
 #include <QVBoxLayout>
 
 #include "defs_urls.h"
@@ -13,7 +14,8 @@ LibraryScannerDlg::LibraryScannerDlg(QWidget* pParent)
           m_bCancelled(false),
           m_tasksDone(0),
           m_tasksTotal(0),
-          m_showNoTasksQueuedWarning(true) {
+          m_showNoTasksQueuedWarning(true),
+          m_announcedThisScan(false) {
     setWindowIcon(QIcon(MIXXX_ICON_PATH));
     setWindowTitle(tr("Library Scanner"));
 
@@ -60,6 +62,19 @@ LibraryScannerDlg::LibraryScannerDlg(QWidget* pParent)
     pLayout->addWidget(m_pLabelCurrent);
     pLayout->addWidget(pCancel.get());
     setLayout(pLayout.get());
+}
+
+void LibraryScannerDlg::showEvent(QShowEvent* event) {
+    QDialog::showEvent(event);
+    // Issue #63: this dialog appears ~2s into a scan and grabs focus with no
+    // announcement, which is startling for a screen-reader user who has no
+    // idea why keyboard focus just moved. One announcement per scan is
+    // enough — the per-file progress label already updates on every file,
+    // which would be spam if spoken too.
+    if (!m_announcedThisScan && m_announceCallback) {
+        m_announcedThisScan = true;
+        m_announceCallback(tr("Scanning library"));
+    }
 }
 
 void LibraryScannerDlg::resetTaskCount() {
@@ -145,6 +160,7 @@ void LibraryScannerDlg::slotCancel() {
 
 void LibraryScannerDlg::slotScanStarted() {
     m_bCancelled = false;
+    m_announcedThisScan = false;
     m_timer.start();
 }
 
