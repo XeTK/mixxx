@@ -64,6 +64,19 @@ jobs:
           rsync -a --delete --exclude=.git --exclude=build "$GITHUB_WORKSPACE"/ "$STABLE"/
           echo "STABLE_SRC=$STABLE" >> "$GITHUB_ENV"
 
+      - name: "Install zstd for faster ccache cache transfer"
+        # actions/cache shells out to `tar` and picks the fastest compression
+        # program it can find on PATH, falling back to gzip if zstd isn't
+        # present (see actions/toolkit's getCompressionMethod()). This image
+        # doesn't ship zstd, so every restore/save of the ~/.cache/ccache
+        # archive has been going through gzip, which is markedly slower to
+        # both compress and decompress than zstd for the same payload - this
+        # is pure cache-artifact transfer time, on top of and distinct from
+        # ccache's own (already fast) object lookup on a hit. Installing zstd
+        # lets both the restore step below and the "Save ccache" step later
+        # pick it up automatically; nothing else needs to change.
+        run: apt-get install -y --no-install-recommends zstd
+
       - name: "Restore ccache"
         # actions/cache's own post-hook (which saves the cache) never runs on
         # this runner - its save/restore state doesn't propagate from the
@@ -153,8 +166,15 @@ jobs:
           cmake --build . --config RelWithDebInfo -- -j"$JOBS"
 
       - name: "Print ccache stats"
+        # -v breaks "Hits" down into direct vs. preprocessed mode and lists
+        # cache-miss reasons. Plain --show-stats collapses all of that into a
+        # single hit percentage, which is enough to know a run got cache
+        # hits but not enough to tell whether they came from the fast direct-
+        # mode path or the slower preprocessor-mode fallback - exactly the
+        # "is this actually configured efficiently" question issue #103
+        # needs profiling data for.
         run: |
-          ccache --show-stats
+          ccache --show-stats -v
           ccache --cleanup
 
       - name: "Save ccache"
@@ -317,6 +337,13 @@ jobs:
           rsync -a --delete --exclude=.git --exclude=build "$GITHUB_WORKSPACE"/ "$STABLE"/
           echo "STABLE_SRC=$STABLE" >> "$GITHUB_ENV"
 
+      - name: "Install zstd for faster ccache cache transfer"
+        # See the x86 job's equivalent step: this image has no zstd, so
+        # actions/cache falls back to gzip for the tar archive it
+        # restores/saves, which is slower than zstd for the same payload -
+        # independent of and on top of ccache's own per-object lookup speed.
+        run: apt-get install -y --no-install-recommends zstd
+
       - name: "Restore ccache"
         # Same explicit restore/save approach as the x86 job - the runner's
         # actions/cache post-hook doesn't propagate state, so we restore and
@@ -396,8 +423,15 @@ jobs:
           cmake --build . --config RelWithDebInfo -- -j"$JOBS"
 
       - name: "Print ccache stats"
+        # -v breaks "Hits" down into direct vs. preprocessed mode and lists
+        # cache-miss reasons. Plain --show-stats collapses all of that into a
+        # single hit percentage, which is enough to know a run got cache
+        # hits but not enough to tell whether they came from the fast direct-
+        # mode path or the slower preprocessor-mode fallback - exactly the
+        # "is this actually configured efficiently" question issue #103
+        # needs profiling data for.
         run: |
-          ccache --show-stats
+          ccache --show-stats -v
           ccache --cleanup
 
       - name: "Save ccache"
