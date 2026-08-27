@@ -21,6 +21,129 @@ individual runs once `Scenario Outline` examples are expanded.
 
 ---
 
+## Automated coverage (issue #104)
+
+Issue #104 asked which of these 244 scenarios are genuinely deterministic
+software-state-plus-keyboard-plus-speech checks — no real hardware, no
+subjective listening, no human judgement required — and could be converted
+into a real regression test using the E2E AX-driver/orchestrator harness
+under `tools/e2e/` (`ax_driver.py` + `run_e2e.py`, from PR #44, brought into
+this branch as a foundation since #44 itself was still open).
+
+**The slice automated this pass:** 8 of the 27 scenarios in
+`destructive_actions.feature`, as `tools/e2e/d1_purge_enter_safe.py` through
+`d8_repeated_enter_stack_safe.py`:
+
+| Scenario module | Gherkin scenario |
+|---|---|
+| `d1_purge_enter_safe.py` | Pressing Enter on the purge dialog does not purge (`@blocking`) |
+| `d2_purge_escape_safe.py` | Pressing Escape on the purge dialog does not purge (`@blocking`) |
+| `d3_purge_narrates_before_dialog.py` | Purging a single track asks first and says what it means (`@blocking`, spoken-string half only) |
+| `d4_hide_enter_safe.py` | Pressing Enter on the hide dialog does not hide (`@blocking`) |
+| `d5_delete_enter_safe.py` | Pressing Enter on the delete dialog does not delete (`@blocking`) |
+| `d6_delete_escape_safe.py` | Pressing Escape on the delete dialog does not delete (`@blocking`) |
+| `d7_no_destructive_action_fires_immediately.py` | No destructive action fires without a confirmation (`@blocking`) |
+| `d8_repeated_enter_stack_safe.py` | Repeated Enter presses on a stack of dialogs stay safe (simplified — see the module docstring) |
+
+**Why this slice.** `destructive_actions.feature` is the file README.md's
+own "if you only have an hour" list picks as its #5 entry, and its own
+preamble names exactly two properties that matter: (1) the user is told what
+is about to happen, and (2) the *safe* option is what happens on the
+reflexive keypress. Property (2) is what actually protects data, is true
+software-state-in/software-state-out (select tracks, press a key, read the
+library DB and the filesystem back), and needed zero hardware, zero screen
+reader, and zero subjective judgement to check — a clean match for the AX
+driver. Property (1) is included for the three dialogs' exact announced
+strings (`d3`, plus the confirmation-heard assertions inside every other
+`d*` scenario) since `TtsLog.wait_for()` makes that nearly free once the
+harness exists for the safe-default check anyway.
+
+**How they work.** Each scenario seeds its own throwaway library directly
+into a fresh `mixxxdb.sqlite` (`tools/e2e/library_fixture.py`) with real,
+tiny, silent WAV files on disk, rather than driving the "Add directory to
+library" GUI flow — deterministic, and not dependent on the analyser
+finishing on its own schedule. `tools/e2e/library_actions.py` then drives
+the real track table through the AX tree (`Cmd+A` to select the seeded
+tracks, `Shift+F10` for the context menu, `Ctrl+Backspace` for the
+Hide/Remove shortcut specifically — see that module's docstring for why the
+keyboard path and the context-menu path are not interchangeable here) and
+asserts on both the `--tts-log` output and the library DB / filesystem
+afterward.
+
+**Not yet run against a live Mixxx.** The only pre-built `mixxx` binary
+available in the environment this automation was written in predates the
+`--tts-log` flag entirely (`Mixxx: Unknown option 'tts-log'.`) and could not
+be used to validate a live run; a fresh build was out of scope for this
+pass. `library_fixture.py`'s schema-bootstrap-and-seed logic was validated
+directly (a real settings dir was created, `mixxxdb.sqlite` was populated
+with the exact rows expected, and the fixture WAV files were written and
+readable), and all eight scenario modules import cleanly and match the
+`run_e2e.py` `prepare(settings_dir, mixxx_bin)` / `run(driver, tts)`
+contract. The AX-tree parts (finding "Track list" by accessible name,
+`AXMenuItem` lookups, the exact keycodes) are written from the source
+(`WTrackTableView`'s `setAccessibleName`, `util/defs.h`,
+`trackconfirmdialogs.cpp`) but — like M1/M2 in `tools/e2e/README.md` before
+them — carry the same "harness written; needs a live run to confirm" caveat
+until someone runs them against a current build with Accessibility
+permission granted to the terminal.
+
+**Deliberately left out of this slice, and why:**
+
+- **The other 19 scenarios in `destructive_actions.feature`** — mostly the
+  "deliberately confirm and it really happens" positive paths (moving focus
+  to the accept button and pressing Return), the `Remove` outline (needs an
+  AutoDJ/crate/playlist view rather than the plain library table), the
+  playlist-membership double-dialog case, and the screen-reader-announces-
+  the-focused-button checks, which read real screen reader output rather
+  than Mixxx's own `--tts-log` and are out of the driver's reach entirely.
+  Good candidates for a follow-up slice once this one has a live run behind
+  it.
+- **`ddj400_hardware.feature`, most of it** — needs a real DDJ-400 and, for
+  the `@inference` scenarios, a MIDI monitor to capture bytes nobody has
+  independently verified. The one thing here software can drive is already
+  covered structurally by `m2_ddj400_menu.py` (PR #44), which uses the
+  emulator rather than real hardware and so cannot answer the "does the
+  hardware actually send this" question the `@inference` scenarios exist to
+  ask.
+- **`audio_path.feature`** — its own file description says it outright:
+  "Things only a listener can confirm." Earcon distinctness, ducking feel,
+  and clipping-panning-by-ear are subjective judgements about what reached
+  a human's actual ears, not what Mixxx intended to send — exactly the gap
+  the `--tts-log` audibility rework (PR #98, not yet merged into this
+  branch) was written to start closing for a handful of these, but "the
+  audio sounded right" is not something an AX tree can assert regardless.
+- **`macos_voiceover.feature` and the `@voiceover`-tagged scenarios
+  elsewhere** — genuinely automatable in principle (both VoiceOver and
+  Mixxx are software), but toggling real VoiceOver system-wide from a test
+  run changes shared machine state in a way that is risky to do
+  unattended/in CI and was judged out of scope for this pass rather than
+  attempted carelessly.
+- **`windows_screenreader.feature`** — `ax_driver.py`'s backend is
+  macOS-only (`MacAxBackend`); a Windows UIA backend does not exist yet
+  (`create_backend()` raises `NotImplementedError` on any other platform).
+  Automating this file is blocked on that backend, not on anything in this
+  file's own scenarios.
+- **`blind_dj_workflow.feature`** — its own file describes itself as "one
+  person's opinion recorded as a stopwatch time and a note about where they
+  got lost." Explicitly subjective by design; automating it would just be
+  automating a different, less honest measurement.
+- **`first_run_boot.feature` and `library_and_dialogs.feature`** — plausible
+  future candidates (mostly software-state-plus-speech, like
+  `destructive_actions.feature`), but `library_and_dialogs.feature` leans
+  heavily on the YouTube source, which depends on an external binary and an
+  external service that both change without warning — a poor fit for a
+  regression test that is supposed to fail only when Mixxx regresses. Left
+  for a future slice with those parts carved out.
+
+**CI.** `.gitea/workflows/` has no job that builds Mixxx and then runs
+`tools/e2e/run_e2e.py` against it — there was none before this pass, for
+any of the M1-M4 scenarios either. Wiring the destructive-actions slice (or
+any `tools/e2e/` scenario) into CI needs a macOS runner with Accessibility
+permission pre-granted to the CI user, which does not exist yet. That is a
+follow-up, not something this pass adds a job for.
+
+---
+
 ## Per-pull-request coverage
 
 ### PR #68 — issue #47 — DDJ-400 browse knob decode and clamp
