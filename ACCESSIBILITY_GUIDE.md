@@ -219,6 +219,30 @@ the sound alone is just the alert.
   Accessibility page — turn it off with the "Smart cue" checkbox in
   Preferences, Decks, next to "Loading a track, when deck is playing".
 
+## Auto DJ
+
+- Enable/disable: Shift plus F12. Both states are always spoken;
+  enabling also speaks the next queued track ("Auto DJ on. Next:
+  Artist, Title"), or just "Auto DJ on" if the queue is empty.
+- Fade now: Shift plus F11 crossfades to the next track immediately.
+  Says "Fading now"; the resulting track load still gets its own
+  separate load announcement (artist, title, BPM, key) once it lands.
+- Skip next: Shift plus F10 drops the queued track without playing
+  it. Says "Skipped".
+- Shuffle the queue: Shift plus F9.
+- Add a random track to the queue: Control plus Shift plus F9.
+- What's next, on demand: Alt plus Shift plus N speaks whether Auto
+  DJ is on, the next queued track's artist and title (or "Queue is
+  empty"), and — if a deck is currently playing — roughly how long
+  until it hands off, for example "About 1 minute 30 seconds
+  remaining on Deck, Alpha." This last part is an estimate: the real
+  crossfade can start earlier than the track's end, depending on the
+  outro point and fade mode, so treat it as a rough warning rather
+  than an exact countdown.
+- The Auto DJ panel's transition-time spinbox, fade-mode combo, and
+  the enable/fade/skip/shuffle/add-random/repeat buttons are all
+  reachable with Tab — they used to be mouse-only.
+
 ## What gets announced automatically
 
 Every category below has its own checkbox in Preferences,

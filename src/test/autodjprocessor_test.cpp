@@ -642,6 +642,24 @@ TEST_F(AutoDJProcessorTest, QueueEmpty) {
     EXPECT_EQ(AutoDJProcessor::ADJ_QUEUE_EMPTY, err);
 }
 
+// getNextQueuedTrack() backs the accessibility "what's next in Auto DJ"
+// on-demand readout (issue #61).
+TEST_F(AutoDJProcessorTest, GetNextQueuedTrack_EmptyQueue) {
+    EXPECT_FALSE(pProcessor->getNextQueuedTrack());
+}
+
+TEST_F(AutoDJProcessorTest, GetNextQueuedTrack_ReturnsHeadOfQueue) {
+    TrackId testId = addTrackToCollection(kTrackLocationTest);
+    ASSERT_TRUE(testId.isValid());
+
+    PlaylistTableModel* pAutoDJTableModel = pProcessor->getTableModel();
+    pAutoDJTableModel->appendTrack(testId);
+
+    TrackPointer pNext = pProcessor->getNextQueuedTrack();
+    ASSERT_TRUE(pNext != nullptr);
+    EXPECT_EQ(testId, pNext->getId());
+}
+
 TEST_F(AutoDJProcessorTest, EnabledSuccess_DecksStopped) {
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());

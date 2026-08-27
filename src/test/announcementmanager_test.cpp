@@ -3817,6 +3817,75 @@ TEST_F(AnnouncementManagerTest, SmartCue_DisabledPref_NoChange) {
     EXPECT_EQ(0.0, pPfl2->get());
 }
 
+// ---------------------------------------------------------------------------
+// Auto DJ (issue #61)
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerTest, AutoDJEnabled_Announced) {
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    SpyTtsEngine* pSpy = makeManager(); // proxy attaches in init()
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    // No Library in tests, so there is no queued track to fold in.
+    EXPECT_QSTRING_EQ("Auto DJ on", pSpy->lastText);
+
+    pEnabled->set(0.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Auto DJ off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJFadeNow_Announced) {
+    auto pFadeNow = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("fade_now")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pFadeNow->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Fading now", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJSkipNext_Announced) {
+    auto pSkipNext = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("skip_next")));
+    SpyTtsEngine* pSpy = makeManager();
+
+    pSkipNext->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Skipped", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerTest, FormatAutoDJNext_DisabledEmptyQueue_NoLibrary) {
+    // Tests never wire up a real Library, so m_pAutoDJProcessor is null and
+    // the queue is unreachable; the readout must still degrade gracefully
+    // rather than crash or omit the on/off state.
+    makeManager();
+    EXPECT_QSTRING_EQ("Auto DJ is off. Queue is empty.", m_pManager->formatAutoDJNext());
+}
+
+TEST_F(AnnouncementManagerTest, FormatAutoDJNext_ReflectsEnabledState) {
+    auto pEnabled = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AutoDJ]"), QStringLiteral("enabled")));
+    makeManager();
+
+    pEnabled->set(1.0);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Auto DJ is on. Queue is empty.", m_pManager->formatAutoDJNext());
+}
+
+TEST_F(AnnouncementManagerTest, AutoDJNextHotkey_TriggersReadout) {
+    SpyTtsEngine* pSpy = makeManager();
+    ControlProxy nextButton(QStringLiteral("[AutoDJ]"),
+            QStringLiteral("tts_next"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    nextButton.set(1.0);
+    QCoreApplication::processEvents();
+
+    EXPECT_QSTRING_EQ("Auto DJ is off. Queue is empty.", pSpy->lastText);
+}
+
 // Reproduces issue #48 (case 1): with Smart Cue, AnnounceTrackLoad, and
 // AnnounceCue all on by default (as they are), loading a track into a
 // stopped deck used to speak the load announcement and then have the Smart
