@@ -40,6 +40,16 @@ class AccessMenuController : public QObject {
         Boolean, // "on"/"off"
         Percent, // 0..1 -> "N percent"
         Integer, // raw integer
+        // Cycles through a fixed list of named options (issue #128), e.g.
+        // "pick one of N TTS voices". The underlying value is the option's
+        // index (0..options.size()-1, stepped like Integer); each option
+        // additionally carries the string that is actually written to the
+        // config key, since enum-shaped settings like a TTS voice ID aren't
+        // usefully numeric. Unlike Boolean/Percent/Integer, which apply to
+        // either control- or config-backed values, Options only supports
+        // config-backed values today -- there is no control-backed
+        // enum/combo setting yet to drive it.
+        Options,
     };
 
     // A value-editable setting: either a control object (group + item) or a
@@ -48,6 +58,14 @@ class AccessMenuController : public QObject {
     // these directly, so the same model can drive any numeric/boolean setting
     // that has a control or a config key.
     struct ValueItem {
+        // One named option of an Options-format ValueItem: `label` is what
+        // gets spoken, `storedValue` is what gets written to the config key
+        // (e.g. a TTS voice ID, or an empty string for "system default").
+        struct ValueOption {
+            QString storedValue;
+            QString label;
+        };
+
         ValueItem() = default;
         // Control-backed value.
         ValueItem(const QString& label,
@@ -83,6 +101,23 @@ class AccessMenuController : public QObject {
                   format(format),
                   configBacked(configBacked) {
         }
+        // Config-backed Options value (issue #128): cycles through a named
+        // list of options, writing each option's storedValue to the config
+        // key. min/max/step follow from the option list automatically.
+        ValueItem(const QString& label,
+                const QString& configGroup,
+                const QString& configItem,
+                std::vector<ValueOption> options)
+                : label(label),
+                  configGroup(configGroup),
+                  configItem(configItem),
+                  min(0.0),
+                  max(options.empty() ? 0.0 : static_cast<double>(options.size() - 1)),
+                  step(1.0),
+                  format(ValueFormat::Options),
+                  configBacked(true),
+                  options(std::move(options)) {
+        }
         QString label;
         QString group;
         QString item;
@@ -93,6 +128,7 @@ class AccessMenuController : public QObject {
         double step{1.0};
         ValueFormat format{ValueFormat::Boolean};
         bool configBacked{false};
+        std::vector<ValueOption> options;
     };
 
     // A single menu item. `actionId` is a stable identifier emitted via
@@ -134,13 +170,21 @@ class AccessMenuController : public QObject {
         std::vector<Item> children;
     };
 
+    // Supplies the option list for the "TTS voice" Values entry (issue #128).
+    // Defaults to TtsEngine::enumerateVoices() (translated into
+    // ValueItem::ValueOptions), but is overridable so unit tests can supply a
+    // fixed list instead of depending on whatever voices happen to be
+    // installed on the machine running the test.
+    using VoiceListProvider = std::function<std::vector<ValueItem::ValueOption>()>;
+
     // `speak` is called for every spoken utterance. May be empty (silent).
     // `pConfig` is optional; when provided, config-backed ValueItems (e.g.
     // TTS rate) can be read and written. Without it those items are read-only
     // at their default.
     AccessMenuController(std::function<void(const QString&)> speak,
             UserSettingsPointer pConfig = nullptr,
-            QObject* parent = nullptr);
+            QObject* parent = nullptr,
+            VoiceListProvider voiceListProvider = nullptr);
     ~AccessMenuController() override;
 
     // Override the inactivity timeout (ms). Public so tests can shorten it
@@ -221,6 +265,7 @@ class AccessMenuController : public QObject {
 
     std::function<void(const QString&)> m_speak;
     UserSettingsPointer m_pConfig;
+    VoiceListProvider m_voiceListProvider;
 
     std::unique_ptr<ControlPushButton> m_pOpen;
     std::unique_ptr<ControlPushButton> m_pClose;

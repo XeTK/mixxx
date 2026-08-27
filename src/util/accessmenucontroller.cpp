@@ -8,6 +8,7 @@
 #include "control/controlproxy.h"
 #include "control/controlpushbutton.h"
 #include "moc_accessmenucontroller.cpp"
+#include "util/ttsengine.h"
 
 namespace {
 constexpr int kDefaultTimeoutMs = 30000;
@@ -44,15 +45,30 @@ const ValueControl kValueControls[] = {
         {"[BeatClick]", "volume", 0.0, 1.0, 0.05,
                 AccessMenuController::ValueFormat::Percent},
 };
+
+// Default TTS voice list (issue #128): queries the live platform speech
+// backend, same as DlgPrefAccessibility::populateVoiceCombo(). Wrapped in a
+// VoiceListProvider so tests can inject a fixed list instead (see the header
+// comment on VoiceListProvider).
+std::vector<AccessMenuController::ValueItem::ValueOption> defaultVoiceList() {
+    std::vector<AccessMenuController::ValueItem::ValueOption> options;
+    for (const TtsEngine::Voice& voice : TtsEngine::enumerateVoices()) {
+        options.push_back({voice.id, voice.displayName});
+    }
+    return options;
+}
 } // namespace
 
 AccessMenuController::AccessMenuController(
         std::function<void(const QString&)> speak,
         UserSettingsPointer pConfig,
-        QObject* parent)
+        QObject* parent,
+        VoiceListProvider voiceListProvider)
         : QObject(parent),
           m_speak(std::move(speak)),
-          m_pConfig(std::move(pConfig)) {
+          m_pConfig(std::move(pConfig)),
+          m_voiceListProvider(voiceListProvider ? std::move(voiceListProvider)
+                                                 : &defaultVoiceList) {
     buildMenuTree();
 
     m_timeout.setSingleShot(true);
@@ -232,6 +248,25 @@ void AccessMenuController::buildMenuTree() {
     values[2].label = tr("Speech rate");
     values[3].label = tr("Ducking strength");
     values[4].label = tr("Beat click volume");
+
+    // TTS voice (issue #128): an Options-format entry, since a voice is
+    // picked by name from a platform-reported list rather than stepped
+    // through a numeric range. "Default (system voice)" always comes first
+    // (index 0, stored value ""), matching
+    // DlgPrefAccessibility::refreshFilteredVoiceCombo()'s combo box, so
+    // clamping/defaulting behaves the same way in both places.
+    std::vector<ValueItem::ValueOption> voiceOptions;
+    voiceOptions.push_back({QString(), tr("Default (system voice)")});
+    if (m_voiceListProvider) {
+        for (ValueItem::ValueOption& option : m_voiceListProvider()) {
+            voiceOptions.push_back(std::move(option));
+        }
+    }
+    values.emplace_back(ItemType::Value,
+            ValueItem(tr("TTS voice"),
+                    QStringLiteral("[Accessibility]"),
+                    QStringLiteral("TtsVoice"),
+                    std::move(voiceOptions)));
 
     // Every menu starts with a Back item.
     m_root.emplace_back(ItemType::Action, tr("Back"), QStringLiteral("back"));
@@ -624,6 +659,27 @@ void AccessMenuController::writeValue(double value) {
 }
 
 double AccessMenuController::readItemValue(const ValueItem& value) const {
+    if (value.format == ValueFormat::Options) {
+        // Options values are stored as a QString (e.g. a TTS voice ID), not
+        // a double, so they can't go through the generic getValue<double>()
+        // path below. Read the stored string and translate it back to its
+        // option's index; an unrecognized or missing string (including the
+        // empty string used for "no explicit voice chosen yet") reads as
+        // index 0, the "Default" option that's always first (issue #128).
+        if (value.options.empty()) {
+            return 0.0;
+        }
+        const QString stored = value.configBacked && m_pConfig
+                ? m_pConfig->getValue<QString>(
+                          ConfigKey(value.configGroup, value.configItem), QString())
+                : QString();
+        for (std::size_t i = 0; i < value.options.size(); ++i) {
+            if (value.options[i].storedValue == stored) {
+                return static_cast<double>(i);
+            }
+        }
+        return 0.0;
+    }
     double v;
     if (value.configBacked) {
         v = m_pConfig ? m_pConfig->getValue<double>(
@@ -643,6 +699,17 @@ double AccessMenuController::readItemValue(const ValueItem& value) const {
 }
 
 void AccessMenuController::writeItemValue(const ValueItem& value, double v) const {
+    if (value.format == ValueFormat::Options) {
+        if (value.options.empty() || !value.configBacked || !m_pConfig) {
+            return;
+        }
+        const int index = std::clamp(static_cast<int>(std::lround(v)),
+                0,
+                static_cast<int>(value.options.size()) - 1);
+        m_pConfig->setValue(ConfigKey(value.configGroup, value.configItem),
+                value.options[static_cast<std::size_t>(index)].storedValue);
+        return;
+    }
     if (value.configBacked) {
         if (m_pConfig) {
             m_pConfig->setValue(ConfigKey(value.configGroup, value.configItem), v);
@@ -668,6 +735,15 @@ QString AccessMenuController::formatItemValue(
                 static_cast<int>(std::lround(v * 100.0))));
     case ValueFormat::Integer:
         return QString::number(static_cast<int>(std::lround(v)));
+    case ValueFormat::Options: {
+        if (value.options.empty()) {
+            return QString();
+        }
+        const int index = std::clamp(static_cast<int>(std::lround(v)),
+                0,
+                static_cast<int>(value.options.size()) - 1);
+        return value.options[static_cast<std::size_t>(index)].label;
+    }
     }
     return QString();
 }
