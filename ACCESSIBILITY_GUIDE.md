@@ -462,6 +462,40 @@ mapped to buttons on a DJ controller:
   blind DJ can query the current layer) bounces the value through 0
   first, which is outside the spoken vocabulary and so doesn't itself
   announce anything.
+- `[AccessMenu],open` / `close` / `navigate` / `activate` / `back` /
+  `confirm` — the spoken popup menu described next.
+
+### The spoken accessibility menu
+
+Any controller can drive a fully spoken menu without touching a
+keyboard or screen: map a button to `[AccessMenu],open` (the DDJ-400's
+shipped mapping already does this — see below) and it speaks "Main
+menu". From there, `navigate` (a knob or encoder, +1/-1 per step)
+scrolls and speaks each item, `activate` or `confirm` opens a submenu
+or fires the highlighted item, and `back` goes up one level (or closes
+the menu at the top). The menu also closes itself after 30 seconds of
+inactivity.
+
+Some items are Value items: activating one enters value-edit mode,
+where `navigate` changes the value instead of scrolling (speaking each
+change), `activate`/`confirm` commits it, and `back` cancels and
+restores whatever it was before you started editing. The **Values**
+submenu (Main menu, Values) collects the settings reachable this way:
+
+1. Speech on/off
+2. Speech rate
+3. Ducking strength (how far music drops while speech plays)
+4. Beat click volume
+5. TTS voice — cycles through the voices your speech engine reports
+   (in the same order as the "Voice" dropdown in Preferences,
+   Accessibility), plus a leading "Default (system voice)" option.
+   Unlike the numeric settings above, this one moves through a list of
+   named choices rather than a range.
+
+Sound device selection, sample rate, and audio buffer size are not in
+the Values submenu yet — see "Known limitations" below. For everything
+else, if a setting isn't listed here, use Preferences (reachable from
+Main menu, Preferences) with the keyboard or a screen reader instead.
 
 ### Controller navigation without window focus
 
@@ -634,5 +668,14 @@ unlimited pre-roll like stock Mixxx.
 - Announcements are English only for now.
 - The first-run sound hardware dialog appears before Mixxx's speech
   can produce audio; use your screen reader for initial setup.
+- Sound device selection, sample rate, and audio buffer size — the
+  Preferences, Sound Hardware page — are not yet in the spoken
+  accessibility menu's Values submenu (issue #128 tracks this; TTS
+  voice, the other originally-requested value, is now covered). These
+  three all involve closing and reopening the live audio devices, so a
+  DDJ-400-only user with no keyboard still needs a screen reader (or a
+  sighted assist) for that one-time setup; everything else in the
+  Values submenu takes effect immediately with no interruption to
+  playing audio.
 - Error dialogs are read by your screen reader, not by Mixxx's speech.
 - The bar and beat readout assumes 4/4 time.

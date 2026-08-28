@@ -21,6 +21,16 @@ class SpeakSpy {
     QStringList m_texts;
 };
 
+// Fixed two-voice list injected via VoiceListProvider (issue #128) so the
+// "TTS voice" Values entry is deterministic in tests, independent of
+// whatever speech voices happen to be installed on the machine running them.
+std::vector<AccessMenuController::ValueItem::ValueOption> testVoiceList() {
+    return {
+            {QStringLiteral("com.test.voice.alpha"), QStringLiteral("Alpha")},
+            {QStringLiteral("com.test.voice.beta"), QStringLiteral("Beta")},
+    };
+}
+
 } // namespace
 
 class AccessMenuControllerTest : public MixxxTest {
@@ -31,7 +41,9 @@ class AccessMenuControllerTest : public MixxxTest {
         // std::function pointing at it.
         m_pController = std::make_unique<AccessMenuController>(
                 [this](const QString& text) { (*m_pSpy)(text); },
-                config());
+                config(),
+                nullptr,
+                &testVoiceList);
         m_pController->setTimeoutMs(100);
     }
 
@@ -154,6 +166,9 @@ TEST_F(AccessMenuControllerTest, Navigate_RepeatedIdenticalTicksLikeRealHardware
     ASSERT_GE(m_pSpy->m_texts.size(), 3);
     EXPECT_QSTRING_EQ("Preferences, submenu", m_pSpy->m_texts.at(0));
     EXPECT_QSTRING_EQ("Values, submenu", m_pSpy->m_texts.at(1));
+    // Toggle items speak their current state (issue #57); this assertion
+    // predates that change and was missed when the other "Recording"
+    // assertions in this file were updated for it.
     EXPECT_QSTRING_EQ("Recording, off", m_pSpy->m_texts.at(2));
 
     // Twelve identical down-ticks wrap all the way back to the first item.
@@ -465,7 +480,7 @@ class ValueEditorTest : public AccessMenuControllerTest {
 
     // Open the Values submenu and highlight the Value item at `itemIndex`
     // (0 = Back, 1 = Speech on/off, 2 = Speech rate, 3 = Ducking,
-    // 4 = Beat click).
+    // 4 = Beat click, 5 = TTS voice).
     void openValuesItem(int itemIndex) {
         press(QStringLiteral("open"));
         clearSpy();
@@ -631,4 +646,130 @@ TEST_F(ValueEditorTest, Percent_FormatsAsPercent) {
     navigate(-1.0); // back to 0.5
     EXPECT_EQ(0.5, pDuck->get());
     EXPECT_QSTRING_EQ("50 percent", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+}
+
+// -- Options format: TTS voice (issue #128) ------------------------------
+//
+// The Options ValueFormat is the "cycle through named options" extension to
+// the value editor: unlike Boolean/Percent/Integer, the underlying storage
+// is a QString written to a config key (a TTS voice ID), not a number, and
+// the spoken/stepped values come from a fixed option list (here injected via
+// testVoiceList() -- see AccessMenuControllerTest::SetUp() -- rather than
+// AccessMenuController's default of querying the live platform TTS backend).
+class OptionsValueEditorTest : public ValueEditorTest {
+  protected:
+    void setVoice(const QString& storedValue) {
+        config()->setValue(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("TtsVoice")),
+                storedValue);
+    }
+
+    QString getVoice() const {
+        return config()->getValue<QString>(
+                ConfigKey(QStringLiteral("[Accessibility]"),
+                        QStringLiteral("TtsVoice")),
+                QString());
+    }
+};
+
+TEST_F(OptionsValueEditorTest, EnterValueEditMode_SpeaksLabelAndDefaultOption) {
+    // No TtsVoice config key set yet: reads as the "Default" option, index 0.
+    openValuesItem(5); // TTS voice
+
+    press(QStringLiteral("activate"));
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ(
+            "TTS voice. Turn to change, confirm to set, back to cancel. "
+            "Default (system voice)",
+            m_pSpy->m_texts.at(0));
+}
+
+TEST_F(OptionsValueEditorTest, Navigate_CyclesThroughNamedOptionsByLabel) {
+    openValuesItem(5); // TTS voice
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // Default -> Alpha
+    navigate(1.0); // Alpha -> Beta
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 2);
+    EXPECT_QSTRING_EQ("Alpha", m_pSpy->m_texts.at(0));
+    EXPECT_QSTRING_EQ("Beta", m_pSpy->m_texts.at(1));
+    // Each step wrote the chosen option's stored value (the voice ID), not
+    // its spoken label, to the config key.
+    EXPECT_QSTRING_EQ("com.test.voice.beta", getVoice());
+}
+
+TEST_F(OptionsValueEditorTest, Navigate_ClampsAtLastOption) {
+    openValuesItem(5); // TTS voice
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    // 3 ticks up from Default (index 0) would reach index 3, but there are
+    // only 3 options (indices 0..2), so this clamps at Beta.
+    navigate(1.0);
+    navigate(1.0);
+    navigate(1.0);
+
+    ASSERT_GE(m_pSpy->m_texts.size(), 3);
+    EXPECT_QSTRING_EQ("Beta", m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+    EXPECT_QSTRING_EQ("com.test.voice.beta", getVoice());
+
+    // Ticking down clamps back at Default; the empty stored value means "use
+    // the system default voice" (AccessibilitySettings::getTtsVoice()).
+    clearSpy();
+    navigate(-1.0);
+    navigate(-1.0);
+    navigate(-1.0);
+    navigate(-1.0);
+    EXPECT_QSTRING_EQ("Default (system voice)",
+            m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
+    EXPECT_TRUE(getVoice().isEmpty());
+}
+
+TEST_F(OptionsValueEditorTest, Confirm_CommitsSelectedVoiceToConfig) {
+    openValuesItem(5); // TTS voice
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(1.0); // Alpha
+    clearSpy();
+    press(QStringLiteral("confirm"));
+
+    EXPECT_QSTRING_EQ("com.test.voice.alpha", getVoice());
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Set. TTS voice, Alpha", m_pSpy->m_texts.at(0));
+}
+
+TEST_F(OptionsValueEditorTest, Back_CancelsAndRestoresPreviousVoice) {
+    setVoice(QStringLiteral("com.test.voice.beta"));
+    openValuesItem(5); // TTS voice
+    press(QStringLiteral("activate"));
+    clearSpy();
+
+    navigate(-1.0); // Beta -> Alpha
+    clearSpy();
+    press(QStringLiteral("back"));
+
+    // The original selection is restored, not the in-progress one.
+    EXPECT_QSTRING_EQ("com.test.voice.beta", getVoice());
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ("Cancelled. TTS voice, Beta", m_pSpy->m_texts.at(0));
+}
+
+TEST_F(OptionsValueEditorTest, UnrecognizedStoredVoice_ReadsAsDefault) {
+    // A config value that doesn't match any current option (e.g. a voice
+    // that was uninstalled since it was last chosen) falls back to index 0,
+    // the "Default" option, rather than crashing or reading as garbage.
+    setVoice(QStringLiteral("com.test.voice.uninstalled"));
+    openValuesItem(5); // TTS voice
+
+    press(QStringLiteral("activate"));
+    ASSERT_GE(m_pSpy->m_texts.size(), 1);
+    EXPECT_QSTRING_EQ(
+            "TTS voice. Turn to change, confirm to set, back to cancel. "
+            "Default (system voice)",
+            m_pSpy->m_texts.at(m_pSpy->m_texts.size() - 1));
 }
