@@ -2187,6 +2187,8 @@ void AnnouncementManager::maybeSpeakFirstRunOrientation() {
              "Press Alt plus Shift plus A at any time to turn speech on or off. "
              "Press Alt plus 1 or Alt plus 2 to hear the full status of deck 1 or deck 2. "
              "Press Alt plus Shift plus R to repeat the last thing spoken. "
+             "Press Alt plus Shift plus M to open the accessibility short menu, "
+             "or hold the browse knob on a DDJ-400. "
              "The Accessibility Guide and Quick Reference that shipped with Mixxx list "
              "every shortcut."));
 }
