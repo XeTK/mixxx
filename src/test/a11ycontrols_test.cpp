@@ -443,7 +443,7 @@ TEST_F(A11yControlExistenceTest, DeckControlsObservedByAccessibilityLayerExist) 
 /// AnnouncementManager announces both recording transitions: silence here means
 /// the DJ believes they are recording a set that is not being recorded.
 TEST_F(A11yControlExistenceTest, RecordingStatusControlExists) {
-    RecordingManager recordingManager(m_pConfig, m_pEngineMixer);
+    RecordingManager recordingManager(m_pConfig, m_pEngineMixer.get());
 
     expectAllExist({
             {QStringLiteral("[Recording]"),
@@ -570,7 +570,8 @@ TEST_F(A11yControlExistenceTest, AccessMenuControlsExist) {
 /// created, and that AnnouncementManager still constructs at all against a
 /// rebased engine.
 TEST_F(A11yControlExistenceTest, AnnouncementManagerOwnedControlsExist) {
-    StubPlayerManager playerManager({m_pMixerDeck1, m_pMixerDeck2, m_pMixerDeck3});
+    StubPlayerManager playerManager(
+            {m_pMixerDeck1.get(), m_pMixerDeck2.get(), m_pMixerDeck3.get()});
     AnnouncementManager announcementManager(nullptr, // no Library needed
             &playerManager,
             m_pConfig,
