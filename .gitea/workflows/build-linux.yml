@@ -276,18 +276,27 @@ jobs:
           # forbids in ref names -- so every release since that patch landed
           # silently failed to create (see the RELEASE_ID check below).
           #
-          # github.run_number is a plain incrementing integer scoped to this
-          # workflow file, shared by every job in the same run -- so this job
-          # and the arm64 job below compute the identical tag for one push
-          # and correctly attach both .debs to the same release. No
-          # describe-chaining, no unbounded growth, nothing to truncate.
-          TAG="v${{ github.run_number }}"
+          # github.run_number is a plain incrementing integer, but it's
+          # scoped PER WORKFLOW FILE, not per push: build-linux.yml,
+          # build-macos.yml, and build-windows.yml each trigger their own
+          # separate workflow run for the same commit and get three
+          # different run_numbers (confirmed via the Actions API -- one push
+          # produced 1340/1341/1342 for the three files respectively). That
+          # still works within a single file (this job and the arm64 job
+          # below share one workflow run's run_number and correctly attach
+          # both .debs to the same release), but using it here would put
+          # Linux, macOS, and Windows on three DIFFERENT releases instead of
+          # one shared release (issue #150). The commit's short SHA is
+          # identical across all three workflow files for the same push, so
+          # tag on that instead. No describe-chaining, no unbounded growth,
+          # nothing to truncate.
+          SHORT_SHA="$(git rev-parse --short=10 HEAD)"
+          TAG="v-${SHORT_SHA}"
           # The rich, human-useful description (git describe, short sha, UTC
           # date) has none of a tag's naming restrictions, since it only goes
           # in the release title, not a git ref -- put it there instead of
           # cramming it into TAG.
           DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
-          SHORT_SHA="$(git rev-parse --short=10 HEAD)"
           BUILD_DATE="$(date -u +%Y-%m-%d)"
           RELEASE_NAME="Mixxx ${TAG} (${BUILD_DATE}, ${DESCRIBE}, ${SHORT_SHA})"
           # Create the release if it doesn't exist; ignore "already exists". Capture
@@ -496,12 +505,15 @@ jobs:
         run: |
           set -euo pipefail
           API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
-          # Same monotonic counter as the x86 job -- github.run_number is
-          # shared across jobs in one workflow run, so both jobs land on the
-          # same release and each attaches its own .deb.
-          TAG="v${{ github.run_number }}"
-          DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
+          # Same sha-based tag as the x86 job above -- see its comment for
+          # the full rationale (issue #150: github.run_number is scoped per
+          # workflow file, not per push, so it can't be used to make all
+          # three platforms' assets land on one shared release). Both jobs
+          # in this file still land on the same release either way, since
+          # they compute the identical tag for the same commit.
           SHORT_SHA="$(git rev-parse --short=10 HEAD)"
+          TAG="v-${SHORT_SHA}"
+          DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
           BUILD_DATE="$(date -u +%Y-%m-%d)"
           RELEASE_NAME="Mixxx ${TAG} (${BUILD_DATE}, ${DESCRIBE}, ${SHORT_SHA})"
           # Create the release if it doesn't exist; ignore "already exists". Capture

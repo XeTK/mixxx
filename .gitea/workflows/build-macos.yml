@@ -22,6 +22,15 @@ concurrency:
   group: build-macos-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  # The auto-injected GITHUB_TOKEN defaults to read-only on this instance,
+  # which silently breaks the "Publish release" step below (its release
+  # create/lookup calls fail, and the script's own error handling has a
+  # set -e + pipefail gotcha that skips its intended graceful fallback -
+  # see build-linux.yml's matching comment on RELEASE_ID). contents: write
+  # is what release creation and asset upload need.
+  contents: write
+
 jobs:
   build-macos:
     name: macOS Qt6 DMG
@@ -252,3 +261,71 @@ jobs:
         with:
           name: mixxx-macos-dmg
           path: build/*.dmg
+
+      - name: "Publish release"
+        # Attach the .dmg to the same Gitea release build-linux.yml's jobs
+        # create/reuse for this push. Mirrors build-linux.yml's "Publish
+        # release" step (create-or-lookup-by-tag, RELEASE_ID extraction,
+        # graceful no-op on failure) -- see its comments for the full
+        # rationale, including why TAG is sha-based rather than
+        # github.run_number (issue #150: run_number is scoped per workflow
+        # file, not per push, so Linux/macOS/Windows each get a different
+        # number for the same commit and a run_number-based tag would split
+        # them across three separate releases instead of one).
+        #
+        # Same gating as Linux: only a real push/dispatch of the
+        # accessibility integration branch mints/updates a release; PR runs
+        # and pushes to `main` (the upstream mirror) build and test only.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'accessibility-improvements-2026-06-25'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://gitea.xetk.co.uk/api/v1/repos/${GITHUB_REPOSITORY}"
+          # Sha-based tag, identical to what build-linux.yml's jobs and
+          # build-windows.yml's job compute for the same commit -- see
+          # build-linux.yml's "Publish release" comment for the full
+          # rationale.
+          SHORT_SHA="$(git rev-parse --short=10 HEAD)"
+          TAG="v-${SHORT_SHA}"
+          DESCRIBE="$(git describe --tags --always 2>/dev/null || echo unknown)"
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          RELEASE_NAME="Mixxx ${TAG} (${BUILD_DATE}, ${DESCRIBE}, ${SHORT_SHA})"
+          # Create the release if it doesn't exist yet. Race note: Linux,
+          # macOS, and Windows workflow files all trigger independently on
+          # the same push, so whichever job's "Publish release" step reaches
+          # this line first wins the create; the other two hit "tag already
+          # exists", their CREATE_RESP has no "id", and they fall through to
+          # the lookup-by-tag call below instead. Gitea enforces tag
+          # uniqueness per release, so at most one of the three creates can
+          # ever actually succeed -- this is the identical race
+          # build-linux.yml's own x86 and arm64 jobs already resolve this
+          # way for their shared run_number-based tag, just now with three
+          # jobs across three files instead of two jobs in one file.
+          CREATE_RESP="$(curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"${RELEASE_NAME}\",\"target_commitish\":\"${GITHUB_SHA}\",\"draft\":false,\"prerelease\":false}" \
+            "${API}/releases" 2>/dev/null || true)"
+          # If creation failed (e.g. release already exists), look it up by tag.
+          if [ -z "$CREATE_RESP" ] || ! echo "$CREATE_RESP" | grep -q '"id"'; then
+            CREATE_RESP="$(curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" \
+              "${API}/releases/tags/${TAG}" 2>/dev/null || true)"
+          fi
+          # `|| true` matters here: under `set -e` + `pipefail`, a CREATE_RESP
+          # with no "id" (e.g. the release calls above failed) makes grep
+          # exit 1, which would otherwise kill the script on this line and
+          # skip the graceful "-z "$RELEASE_ID"" fallback below entirely.
+          RELEASE_ID="$(printf '%s' "$CREATE_RESP" | grep -oE '"id":[0-9]+' | head -n1 | cut -d: -f2 || true)"
+          if [ -z "$RELEASE_ID" ]; then
+            echo "WARN: could not determine release ID for ${TAG}"
+            exit 0
+          fi
+          # The .dmg is packaged into ./build (see the "Package" step
+          # above), the same relative path the "Upload build artifact" step
+          # above already uses.
+          for dmg in build/*.dmg; do
+            [ -f "$dmg" ] || continue
+            curl -fsS -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
+              -F "attachment=@${dmg}" \
+              "${API}/releases/${RELEASE_ID}/assets" || echo "WARN: asset upload failed for ${dmg}"
+          done
