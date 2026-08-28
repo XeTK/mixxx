@@ -2,6 +2,7 @@
 
 #include <QList>
 #include <QString>
+#include <QtGlobal>
 #include <memory>
 
 class EngineTts;
@@ -60,6 +61,16 @@ class TtsEngine {
         m_sampleRate = sampleRate;
     }
 
+    // --tts-log instrumentation (see util/ttslog.h): identifies the utterance
+    // the next say() call carries, so the backend can report what became of it
+    // (SUPERSEDED by barge-in) and bracket its samples in the sink so the
+    // audio callback can report FLUSHED/COMPLETED. Set immediately before
+    // say() on the same thread. Zero when the hook is off, which makes every
+    // instrumentation path a no-op.
+    void setUtteranceId(quint64 utteranceId) {
+        m_utteranceId = utteranceId;
+    }
+
     static std::unique_ptr<TtsEngine> create();
     static QList<Voice> enumerateVoices();
 
@@ -70,4 +81,5 @@ class TtsEngine {
   protected:
     EngineTts* m_pSink = nullptr;
     int m_sampleRate = 44100;
+    quint64 m_utteranceId = 0;
 };

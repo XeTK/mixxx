@@ -1658,6 +1658,7 @@ add_library(
   src/util/time.cpp
   src/util/timer.cpp
   src/util/ttsengine.cpp
+  src/util/ttslog.cpp
   src/util/valuetransformer.cpp
   src/util/versionstore.cpp
   src/util/widgethelper.cpp
@@ -2741,6 +2742,7 @@ if(BUILD_TESTING)
     src/test/engineearcon_test.cpp
     src/test/enginetts_test.cpp
     src/test/errordialoghandler_test.cpp
+    src/test/ttslog_test.cpp
     src/test/exitdialog_speech_test.cpp
     src/test/announcetext_guard_test.cpp
     src/test/keyboardbindings_test.cpp

@@ -4,6 +4,9 @@
 
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QFile>
+#include <QStringList>
+#include <QTemporaryDir>
 #include <QTimer>
 
 #include "audio/types.h"
@@ -20,6 +23,7 @@
 #include "track/track.h"
 #include "util/duration.h"
 #include "util/ttsengine.h"
+#include "util/ttslog.h"
 
 namespace {
 
@@ -28,6 +32,10 @@ class SpyTtsEngine : public TtsEngine {
   public:
     void say(const QString& text) override {
         lastText = text;
+        // AnnouncementManager sets this immediately before say(); it is what
+        // lets the backend and EngineTts report the utterance's fate to the
+        // --tts-log hook (see util/ttslog.h).
+        lastUtteranceId = m_utteranceId;
         callCount++;
     }
 
@@ -42,6 +50,7 @@ class SpyTtsEngine : public TtsEngine {
     }
 
     QString lastText;
+    quint64 lastUtteranceId{0};
     int callCount{0};
     QString lastVoiceId;
     int setVoiceCount{0};
@@ -1598,6 +1607,235 @@ TEST_F(AnnouncementManagerRouteSyncTest, Speak_AfterSinkDestroyed_DoesNotCrash) 
 
     EXPECT_EQ(0, pSpy->callCount)
             << "speak() must not synthesize after the engine sink is destroyed";
+}
+
+// ---------------------------------------------------------------------------
+// --tts-log audibility records (util/ttslog.h)
+//
+// The hook used to append the requested string and nothing else, so a muted or
+// barged-in utterance was indistinguishable in the log from one the user
+// actually heard. These tests pin the distinction: every utterance gets a
+// REQUESTED record, and exactly one of SPOKEN / SUPPRESSED depending on
+// whether it reached the synthesizer.
+// ---------------------------------------------------------------------------
+
+class AnnouncementManagerTtsLogTest : public AnnouncementManagerRouteSyncTest {
+  protected:
+    void SetUp() override {
+        ASSERT_TRUE(m_tempDir.isValid());
+        m_logPath = m_tempDir.filePath(QStringLiteral("tts.log"));
+        // Enable the hook before the fixture builds its EngineTts: the sink
+        // samples ttslog::isEnabled() once, in its constructor.
+        mixxx::ttslog::setLogPath(m_logPath);
+        AnnouncementManagerRouteSyncTest::SetUp();
+    }
+
+    void TearDown() override {
+        // Leave the global hook off for every other test in the binary.
+        mixxx::ttslog::setLogPath(QString());
+        AnnouncementManagerRouteSyncTest::TearDown();
+    }
+
+    QStringList logLines() const {
+        QFile file(m_logPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            return {};
+        }
+        return QString::fromUtf8(file.readAll())
+                .split(QChar('\n'), Qt::SkipEmptyParts);
+    }
+
+    // Lines whose event name is `event` and whose quoted text field is `text`.
+    QStringList recordsFor(const QString& event, const QString& text) const {
+        const QString suffix = QStringLiteral(" text=\"%1\"").arg(text);
+        QStringList matches;
+        for (const QString& line : logLines()) {
+            // "<timestamp> EVENT id=N ..." -- the event is the second field.
+            const QStringList fields = line.split(QChar(' '));
+            if (fields.size() >= 2 && fields.at(1) == event &&
+                    line.endsWith(suffix)) {
+                matches << line;
+            }
+        }
+        return matches;
+    }
+
+    QTemporaryDir m_tempDir;
+    QString m_logPath;
+};
+
+TEST_F(AnnouncementManagerTtsLogTest, SpokenUtterance_LogsRequestedAndSpoken) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+
+    m_pManager->slotSkinLoaded(); // speaks "Mixxx ready"
+
+    ASSERT_EQ(1, pSpy->callCount);
+    const QString text = pSpy->lastText;
+    EXPECT_EQ(1, recordsFor(QStringLiteral("REQUESTED"), text).size())
+            << "the requested string must still be recorded";
+    EXPECT_EQ(1, recordsFor(QStringLiteral("SPOKEN"), text).size())
+            << "an utterance that reached the synthesizer must be logged SPOKEN";
+    EXPECT_TRUE(recordsFor(QStringLiteral("SUPPRESSED"), text).isEmpty());
+}
+
+TEST_F(AnnouncementManagerTtsLogTest, SuppressedUtterance_LogsSuppressedNotSpoken) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+
+    // The user has TTS switched off: nothing is audible.
+    ControlProxy enabledCO(QLatin1String(kSinkGroup),
+            QStringLiteral("enabled"),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+    enabledCO.set(0.0);
+    ASSERT_FALSE(m_pEngineTts->isUserEnabled());
+
+    m_pManager->slotSkinLoaded();
+
+    ASSERT_EQ(0, pSpy->callCount);
+    const QStringList requested = recordsFor(
+            QStringLiteral("REQUESTED"), QStringLiteral("Mixxx ready"));
+    ASSERT_EQ(1, requested.size())
+            << "intent must still be recorded, so tests can see what was wanted";
+    const QStringList suppressed = recordsFor(
+            QStringLiteral("SUPPRESSED"), QStringLiteral("Mixxx ready"));
+    ASSERT_EQ(1, suppressed.size())
+            << "a muted utterance must be logged SUPPRESSED";
+    EXPECT_TRUE(suppressed.first().contains(QStringLiteral("reason=tts-disabled")))
+            << suppressed.first().toStdString();
+    EXPECT_TRUE(recordsFor(QStringLiteral("SPOKEN"), QStringLiteral("Mixxx ready"))
+                        .isEmpty())
+            << "this is the bug: a muted utterance used to look identical to a "
+               "spoken one";
+}
+
+TEST_F(AnnouncementManagerTtsLogTest, SinkDestroyed_LogsSuppressedWithReason) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+    m_pEngineTts.reset(); // shutdown race (issue #30)
+
+    m_pManager->slotSkinLoaded();
+
+    ASSERT_EQ(0, pSpy->callCount);
+    const QStringList suppressed = recordsFor(
+            QStringLiteral("SUPPRESSED"), QStringLiteral("Mixxx ready"));
+    ASSERT_EQ(1, suppressed.size());
+    EXPECT_TRUE(suppressed.first().contains(QStringLiteral("reason=sink-destroyed")))
+            << suppressed.first().toStdString();
+}
+
+TEST_F(AnnouncementManagerTtsLogTest, RecordsShareOneUtteranceId) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+
+    m_pManager->slotSkinLoaded();
+
+    ASSERT_EQ(1, pSpy->callCount);
+    const QString text = pSpy->lastText;
+    const QStringList requested = recordsFor(QStringLiteral("REQUESTED"), text);
+    const QStringList spoken = recordsFor(QStringLiteral("SPOKEN"), text);
+    ASSERT_EQ(1, requested.size());
+    ASSERT_EQ(1, spoken.size());
+    // "<timestamp> EVENT id=N ..." -- the id is the third field, and the same
+    // utterance must carry one id through every record so scenario scripts can
+    // correlate an outcome with the event that caused it.
+    const QString requestedId = requested.first().split(QChar(' ')).value(2);
+    EXPECT_TRUE(requestedId.startsWith(QStringLiteral("id=")));
+    EXPECT_QSTRING_EQ(requestedId, spoken.first().split(QChar(' ')).value(2));
+}
+
+TEST_F(AnnouncementManagerTtsLogTest, TextFieldIsEscapedAndGreppable) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+
+    // Announce a sidebar item whose name contains a quote and a tab, to prove
+    // the text field stays on one parseable line.
+    m_pManager->slotSidebarItemActivated(QStringLiteral("Say \"hello\"\tnow"));
+
+    ASSERT_EQ(1, pSpy->callCount);
+    const QStringList lines = logLines();
+    ASSERT_EQ(2, lines.size()) << "one REQUESTED and one SPOKEN line";
+    for (const QString& line : lines) {
+        EXPECT_TRUE(line.endsWith(
+                QStringLiteral(" text=\"Say \\\"hello\\\"\\tnow\"")))
+                << line.toStdString();
+    }
+}
+
+TEST_F(AnnouncementManagerTtsLogTest, UtteranceIdIsHandedToTheTtsEngine) {
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->slotSoundDevicesReady();
+
+    m_pManager->slotSkinLoaded();
+
+    // Without the id the backend cannot report SUPERSEDED, and EngineTts
+    // cannot bracket the utterance's samples to report FLUSHED/COMPLETED.
+    ASSERT_EQ(1, pSpy->callCount);
+    EXPECT_GT(pSpy->lastUtteranceId, static_cast<quint64>(0));
+}
+
+// Speech batching (issue #48, beginSpeechBatch()/endSpeechBatch()) merges N
+// synchronous speak() calls into one dispatched utterance so a same-event
+// side effect (Smart Cue's pfl move) can't barge in on the announcement that
+// triggered it. Each original speak() still gets its own REQUESTED (the
+// complete record of what was individually asked for), but only the joined
+// text that's actually handed to the synthesizer gets a SPOKEN -- under a
+// fresh id, not one of the per-call ids, since none of those ids' text
+// matches what was actually spoken.
+TEST_F(AnnouncementManagerTtsLogTest, SmartCueBatch_LogsRequestedPerCallAndOneSpokenForTheJoinedText) {
+    auto pPfl1 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pfl")));
+    auto pPfl2 = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pfl")));
+    m_pPlayerManager->m_deckCount = 2;
+    SpyTtsEngine* pSpy = makeManagerWithSink();
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+    m_pManager->connectGroupControls(QStringLiteral("[Channel2]"), 1);
+
+    m_pManager->slotNewTrackLoaded(
+            makeTrack(QStringLiteral("Artist"), QStringLiteral("Title")), 1);
+
+    ASSERT_EQ(1, pSpy->callCount);
+    const QString combined = pSpy->lastText;
+    ASSERT_TRUE(combined.contains(QStringLiteral("Loaded deck, Bravo")));
+    ASSERT_TRUE(combined.contains(QStringLiteral("headphone cue on")));
+
+    // Exactly one SPOKEN record exists at all, and it is for the joined text.
+    const QStringList allSpoken = logLines().filter(QStringLiteral(" SPOKEN "));
+    ASSERT_EQ(1, allSpoken.size());
+    const QStringList joinedRequested = recordsFor(QStringLiteral("REQUESTED"), combined);
+    const QStringList joinedSpoken = recordsFor(QStringLiteral("SPOKEN"), combined);
+    ASSERT_EQ(1, joinedRequested.size());
+    ASSERT_EQ(1, joinedSpoken.size());
+    // Same id links that REQUESTED to that SPOKEN ("<ts> EVENT id=N ..." --
+    // id is the third field).
+    EXPECT_QSTRING_EQ(joinedRequested.first().split(QChar(' ')).value(2),
+            joinedSpoken.first().split(QChar(' ')).value(2));
+
+    // Smart Cue's pfl move and the track-load announcement are two separate
+    // speak() calls batched into `combined` (see
+    // SmartCue_LoadAnnouncementNotLostToCueBargeIn above): each must have its
+    // own REQUESTED whose id differs from the joined dispatch's, and none of
+    // those per-call ids has a SPOKEN of its own -- confirming the merged
+    // pieces were recorded as intent only, not double-dispatched.
+    const QString joinedId = joinedRequested.first().split(QChar(' ')).value(2);
+    const QStringList allRequested = logLines().filter(QStringLiteral(" REQUESTED "));
+    ASSERT_EQ(3, allRequested.size())
+            << "expected one REQUESTED per original speak() call (2) plus one "
+               "for the joined text actually dispatched (1)";
+    for (const QString& line : allRequested) {
+        const QString id = line.split(QChar(' ')).value(2);
+        if (id == joinedId) {
+            continue; // the joined dispatch itself, already checked above
+        }
+        for (const QString& other : logLines()) {
+            EXPECT_FALSE(other.contains(QStringLiteral(" SPOKEN ")) && other.contains(id))
+                    << "a call merged into a batch must not also get its own "
+                       "SPOKEN record: "
+                    << line.toStdString();
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

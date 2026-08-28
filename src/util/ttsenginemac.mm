@@ -4,11 +4,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
 
 #include "engine/enginetts.h"
+#include "util/ttslog.h"
 #include "util/types.h"
 
 namespace {
@@ -21,6 +23,16 @@ struct SharedState {
     EngineTts* pSink = nullptr;
     int sampleRate = 44100;
     std::atomic<long> generation{0};
+};
+
+// Per-say() bookkeeping for the --tts-log audibility hook (see util/ttslog.h).
+// AVSpeechSynthesizer delivers an utterance as a series of buffer-callback
+// invocations, so the callback needs somewhere to remember whether it has
+// already opened the utterance in the sink and whether it has already reported
+// the outcome. One instance per say(), captured (retained) by the block.
+struct RenderState {
+    bool started = false;
+    bool finished = false;
 };
 
 } // namespace
@@ -64,9 +76,11 @@ class MacTtsEngine final : public TtsEngine {
 
         const long generation = m_state->generation.load(std::memory_order_acquire);
         const std::shared_ptr<SharedState> state = m_state;
+        const std::shared_ptr<RenderState> render = std::make_shared<RenderState>();
+        const quint64 utteranceId = m_utteranceId;
         [m_synth writeUtterance:utterance
                 toBufferCallback:^(AVAudioBuffer* buffer) {
-                    feed(state, generation, buffer);
+                    feed(state, generation, utteranceId, render, buffer);
                 }];
     }
 
@@ -97,15 +111,11 @@ class MacTtsEngine final : public TtsEngine {
     // necessarily the GUI thread). Mirrors QtTtsEngine::feed()'s resample and
     // stereo-conversion logic, but AVSpeechSynthesizer's buffers are always
     // planar float, so there's no format switch needed here.
-    static void feed(const std::shared_ptr<SharedState>& state, long generation, AVAudioBuffer* buffer) {
-        if (generation != state->generation.load(std::memory_order_acquire)) {
-            return; // superseded by a newer utterance
-        }
-        auto* pcm = static_cast<AVAudioPCMBuffer*>(buffer);
-        if (!pcm || pcm.frameLength == 0 || !pcm.floatChannelData) {
-            return; // completion marker (empty buffer) or unexpected format
-        }
-
+    static void feed(const std::shared_ptr<SharedState>& state,
+            long generation,
+            quint64 utteranceId,
+            const std::shared_ptr<RenderState>& render,
+            AVAudioBuffer* buffer) {
         EngineTts* pSink = nullptr;
         int sampleRate = 44100;
         {
@@ -113,8 +123,39 @@ class MacTtsEngine final : public TtsEngine {
             pSink = state->pSink;
             sampleRate = state->sampleRate;
         }
+
+        if (generation != state->generation.load(std::memory_order_acquire)) {
+            // Superseded by a newer utterance. Report it once, on the first
+            // buffer we drop; the rest of this render is silently discarded.
+            if (!render->finished) {
+                render->finished = true;
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
+            }
+            return;
+        }
+        auto* pcm = static_cast<AVAudioPCMBuffer*>(buffer);
+        if (!pcm || pcm.frameLength == 0 || !pcm.floatChannelData) {
+            // Completion marker (empty buffer) or unexpected format. This is
+            // the end of the utterance: close out the span in the sink so the
+            // audio callback can report COMPLETED or FLUSHED.
+            if (!render->finished) {
+                render->finished = true;
+                if (render->started && pSink) {
+                    pSink->endUtterance(utteranceId);
+                } else {
+                    mixxx::ttslog::logSuppressedById(
+                            utteranceId, mixxx::ttslog::kReasonNoAudio);
+                }
+            }
+            return;
+        }
+
         if (!pSink) {
             return;
+        }
+        if (!render->started) {
+            render->started = true;
+            pSink->beginUtterance(utteranceId);
         }
 
         const float* const* channelData = pcm.floatChannelData;

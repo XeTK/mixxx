@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "engine/enginetts.h"
+#include "util/ttslog.h"
 #include "util/types.h"
 #ifdef Q_OS_MACOS
 #include "util/ttsenginemac.h"
@@ -172,11 +173,18 @@ class SapiTtsEngine final : public TtsEngine {
     }
 
     void say(const QString& text) override {
+        quint64 droppedId = 0;
         {
             std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_hasPending) {
+                // The worker never even picked the previous utterance up.
+                droppedId = m_pendingId;
+            }
             m_pendingText = text;
+            m_pendingId = m_utteranceId;
             m_hasPending = true;
         }
+        mixxx::ttslog::logSuperseded(droppedId, mixxx::ttslog::kStageQueued);
         // Newer utterance supersedes any render in progress and any audio
         // already queued in the sink.
         m_generation.fetch_add(1, std::memory_order_release);
@@ -211,6 +219,7 @@ class SapiTtsEngine final : public TtsEngine {
         while (true) {
             QString text;
             QString voiceId;
+            quint64 utteranceId = 0;
             int rate = 0;
             bool applyVoice = false;
             bool applyRate = false;
@@ -221,6 +230,7 @@ class SapiTtsEngine final : public TtsEngine {
                     break;
                 }
                 text = m_pendingText;
+                utteranceId = m_pendingId;
                 m_hasPending = false;
                 applyVoice = m_voiceDirty;
                 voiceId = m_desiredVoiceId;
@@ -231,6 +241,8 @@ class SapiTtsEngine final : public TtsEngine {
             }
 
             if (!pVoice) {
+                mixxx::ttslog::logSuppressedById(
+                        utteranceId, mixxx::ttslog::kReasonNoAudio);
                 continue;
             }
             if (applyVoice) {
@@ -244,9 +256,11 @@ class SapiTtsEngine final : public TtsEngine {
             const WavPcm pcm = renderToPcm(pVoice, text);
             // Abort if a newer utterance arrived while we were rendering.
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(
+                        utteranceId, mixxx::ttslog::kStageRender);
                 continue;
             }
-            renderToSink(pcm, generation);
+            renderToSink(pcm, generation, utteranceId);
         }
 
         if (pVoice) {
@@ -317,8 +331,9 @@ class SapiTtsEngine final : public TtsEngine {
 
     // Convert mono int16 PCM to interleaved stereo float and push it into the
     // sink, waiting for room and aborting if superseded by a newer utterance.
-    void renderToSink(const WavPcm& pcm, long generation) {
+    void renderToSink(const WavPcm& pcm, long generation, quint64 utteranceId) {
         if (!m_pSink || pcm.samples.empty()) {
+            mixxx::ttslog::logSuppressedById(utteranceId, mixxx::ttslog::kReasonNoAudio);
             return;
         }
 
@@ -327,10 +342,15 @@ class SapiTtsEngine final : public TtsEngine {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
         while (!m_pSink->isEmpty() && std::chrono::steady_clock::now() < deadline) {
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                 return;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
+
+        // Bracket this utterance's samples so the audio callback can report
+        // whether all of them made it into the output (see EngineTts).
+        m_pSink->beginUtterance(utteranceId);
 
         constexpr int kChunkFrames = 1024;
         CSAMPLE stereo[kChunkFrames * 2];
@@ -338,6 +358,7 @@ class SapiTtsEngine final : public TtsEngine {
         const size_t total = pcm.samples.size();
         while (pos < total) {
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                 return; // superseded
             }
             const int frames = static_cast<int>(
@@ -351,6 +372,7 @@ class SapiTtsEngine final : public TtsEngine {
             int offset = 0;
             while (toWrite > 0) {
                 if (generation != m_generation.load(std::memory_order_acquire)) {
+                    mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                     return;
                 }
                 const int written = m_pSink->writeSamples(stereo + offset, toWrite);
@@ -364,6 +386,7 @@ class SapiTtsEngine final : public TtsEngine {
             }
             pos += frames;
         }
+        m_pSink->endUtterance(utteranceId);
     }
 
     std::thread m_worker;
@@ -371,6 +394,7 @@ class SapiTtsEngine final : public TtsEngine {
     std::condition_variable m_cv;
     QString m_pendingText;
     QString m_desiredVoiceId;
+    quint64 m_pendingId{0};
     int m_desiredRate{0};
     bool m_hasPending{false};
     bool m_voiceDirty{false};
@@ -457,11 +481,18 @@ class EspeakTtsEngine final : public TtsEngine {
     }
 
     void say(const QString& text) override {
+        quint64 droppedId = 0;
         {
             std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_hasPending) {
+                // The worker never even picked the previous utterance up.
+                droppedId = m_pendingId;
+            }
             m_pendingText = text;
+            m_pendingId = m_utteranceId;
             m_hasPending = true;
         }
+        mixxx::ttslog::logSuperseded(droppedId, mixxx::ttslog::kStageQueued);
         // Newer utterance supersedes any render in progress and any audio
         // already queued in the sink.
         m_generation.fetch_add(1, std::memory_order_release);
@@ -503,6 +534,7 @@ class EspeakTtsEngine final : public TtsEngine {
         while (true) {
             QString text;
             QString voiceId;
+            quint64 utteranceId = 0;
             int rate = 0;
             bool applyVoice = false;
             bool applyRate = false;
@@ -513,6 +545,7 @@ class EspeakTtsEngine final : public TtsEngine {
                     break;
                 }
                 text = m_pendingText;
+                utteranceId = m_pendingId;
                 m_hasPending = false;
                 applyVoice = m_voiceDirty;
                 voiceId = m_desiredVoiceId;
@@ -555,9 +588,10 @@ class EspeakTtsEngine final : public TtsEngine {
 
             // Abort if a newer utterance arrived while we were rendering.
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                 continue;
             }
-            renderToSink(pcm, generation);
+            renderToSink(pcm, generation, utteranceId);
         }
     }
 
@@ -567,8 +601,9 @@ class EspeakTtsEngine final : public TtsEngine {
     // eSpeak renders at its own sample rate (typically 22050 Hz), which differs
     // from the engine rate (44100/48000). We resample to the engine rate before
     // writing, otherwise the speech plays at the wrong speed/pitch (distorted).
-    void renderToSink(const std::vector<short>& pcm, long generation) {
+    void renderToSink(const std::vector<short>& pcm, long generation, quint64 utteranceId) {
         if (!m_pSink || pcm.empty()) {
+            mixxx::ttslog::logSuppressedById(utteranceId, mixxx::ttslog::kReasonNoAudio);
             return;
         }
 
@@ -577,10 +612,15 @@ class EspeakTtsEngine final : public TtsEngine {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
         while (!m_pSink->isEmpty() && std::chrono::steady_clock::now() < deadline) {
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                 return;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
+
+        // Bracket this utterance's samples so the audio callback can report
+        // whether all of them made it into the output (see EngineTts).
+        m_pSink->beginUtterance(utteranceId);
 
         const double ratio = static_cast<double>(m_sampleRate) / m_espeakRate;
         constexpr int kChunkFrames = 1024;
@@ -594,6 +634,7 @@ class EspeakTtsEngine final : public TtsEngine {
         const size_t total = pcm.size();
         while (pos < total) {
             if (generation != m_generation.load(std::memory_order_acquire)) {
+                mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                 return; // superseded
             }
             // Nearest-neighbour resample a chunk of source frames to the engine
@@ -611,6 +652,7 @@ class EspeakTtsEngine final : public TtsEngine {
             int offset = 0;
             while (toWrite > 0) {
                 if (generation != m_generation.load(std::memory_order_acquire)) {
+                    mixxx::ttslog::logSuperseded(utteranceId, mixxx::ttslog::kStageRender);
                     return;
                 }
                 const int written = m_pSink->writeSamples(stereo.data() + offset, toWrite);
@@ -624,6 +666,7 @@ class EspeakTtsEngine final : public TtsEngine {
             }
             pos += srcFrames;
         }
+        m_pSink->endUtterance(utteranceId);
     }
 
     // eSpeak is not re-entrant across threads; the callback runs on eSpeak's
@@ -638,6 +681,7 @@ class EspeakTtsEngine final : public TtsEngine {
     std::condition_variable m_cv;
     QString m_pendingText;
     QString m_desiredVoiceId;
+    quint64 m_pendingId{0};
     int m_desiredRate{0};
     int m_espeakRate{22050};
     bool m_hasPending{false};
@@ -651,7 +695,11 @@ class EspeakTtsEngine final : public TtsEngine {
 
 class NullTtsEngine final : public TtsEngine {
   public:
-    void say(const QString&) override {
+    void say(const QString& text) override {
+        // No speech backend in this build. Make that explicit in the test hook
+        // rather than letting the log imply the string was audible.
+        mixxx::ttslog::logSuppressed(
+                m_utteranceId, text, mixxx::ttslog::kReasonNoAudio);
     }
 };
 
