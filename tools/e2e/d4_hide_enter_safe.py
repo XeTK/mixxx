@@ -37,7 +37,10 @@ def run(driver, tts):
     select_all_tracks(driver)
     hide_or_remove_selected(driver)
 
-    if not tts.wait_for("hide the selected 3 tracks", timeout=10.0):
+    # "track" not "tracks" -- see d1_purge_enter_safe.py's comment; this
+    # build's announcement is "3 track(s)" without a loaded translation
+    # catalog for %n to resolve against.
+    if not tts.wait_for("hide the selected 3 track", timeout=10.0):
         print("FAIL: hide confirmation was not announced")
         print("--- TTS log so far ---")
         print(tts.read())

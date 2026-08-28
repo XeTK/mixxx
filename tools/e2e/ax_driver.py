@@ -103,12 +103,29 @@ class MacAxBackend(AxBackend):
             AXUIElementCreateApplication,
             AXUIElementPerformAction,
             AXUIElementSetAttributeValue,
+            AXValueGetValue,
+            kAXValueCGPointType,
+            kAXValueCGSizeType,
         )
         self.Quartz = Quartz
         self._create_app = AXUIElementCreateApplication
         self._copy_attr = AXUIElementCopyAttributeValue
         self._perform = AXUIElementPerformAction
         self._set_attr = AXUIElementSetAttributeValue
+        self._value_get = AXValueGetValue
+        self._point_type = kAXValueCGPointType
+        self._size_type = kAXValueCGSizeType
+        # A real CGEventSource, not None. Found the hard way running this
+        # against a live build: CGEventCreateMouseEvent/CGEventCreateKeyboardEvent
+        # posted with source=None are silently swallowed on this machine --
+        # the events land in the HID queue (CGEventGetLocation shows the
+        # cursor really moved for a synthesized click) but neither Qt's
+        # keyboard focus nor its table selection ever change. A keyboard/mouse
+        # event built from an explicit kCGEventSourceStateHIDSystemState
+        # source works. Kept as one shared source (not re-created per call)
+        # since CGEventSourceCreate is documented to be relatively expensive.
+        self._event_source = Quartz.CGEventSourceCreate(
+            Quartz.kCGEventSourceStateHIDSystemState)
 
     def find_mixxx_pid(self):
         for app in self.Quartz.NSWorkspace.sharedWorkspace().runningApplications():
@@ -132,18 +149,83 @@ class MacAxBackend(AxBackend):
     def set_value(self, el, value):
         return self._set_attr(el, "AXValue", value)
 
+    def _center_of(self, el):
+        """Return the (x, y) screen-point centre of `el`, or None if `el`
+        has no usable geometry (AXPosition/AXSize unset)."""
+        pos_ref = self.get_attr(el, "AXPosition")
+        size_ref = self.get_attr(el, "AXSize")
+        if pos_ref is None or size_ref is None:
+            return None
+        ok_pos, pos = self._value_get(pos_ref, self._point_type, None)
+        ok_size, size = self._value_get(size_ref, self._size_type, None)
+        if not ok_pos or not ok_size:
+            return None
+        return (pos.x + size.width / 2.0, pos.y + size.height / 2.0)
+
+    def click(self, x, y):
+        """Synthesize a real left-click at a screen point (see `focus`)."""
+        q = self.Quartz
+        down = q.CGEventCreateMouseEvent(
+            self._event_source, q.kCGEventLeftMouseDown, (x, y), q.kCGMouseButtonLeft)
+        q.CGEventPost(q.kCGHIDEventTap, down)
+        up = q.CGEventCreateMouseEvent(
+            self._event_source, q.kCGEventLeftMouseUp, (x, y), q.kCGMouseButtonLeft)
+        q.CGEventPost(q.kCGHIDEventTap, up)
+
+    def right_click(self, x, y):
+        """Synthesize a real right-click (secondary click) at a screen point.
+
+        This is how scenarios open the track context menu -- see
+        `AxDriver.open_context_menu_on`. An earlier version of this driver
+        opened it with the ``Shift+F10`` keyboard shortcut instead; running
+        live against a real build revealed that never worked here at all
+        (no menu ever appeared, with no error), almost certainly because
+        macOS's own default "Application windows" shortcut is bound to the
+        bare F10 key and intercepts it before Mixxx ever sees the event. A
+        real secondary click is what a mouse user actually does and is not
+        subject to that collision.
+        """
+        q = self.Quartz
+        down = q.CGEventCreateMouseEvent(
+            self._event_source, q.kCGEventRightMouseDown, (x, y), q.kCGMouseButtonRight)
+        q.CGEventPost(q.kCGHIDEventTap, down)
+        up = q.CGEventCreateMouseEvent(
+            self._event_source, q.kCGEventRightMouseUp, (x, y), q.kCGMouseButtonRight)
+        q.CGEventPost(q.kCGHIDEventTap, up)
+
+    def center_of(self, el):
+        """Public wrapper around `_center_of` for scenario/action code that
+        needs a click point but not a click (e.g. to offset from it)."""
+        return self._center_of(el)
+
     def focus(self, el):
-        return self._set_attr(el, "AXFocused", True)
+        """Move real keyboard focus to `el`.
+
+        Setting the ``AXFocused`` attribute directly (the "obvious" AX API
+        for this) is a silent no-op against this Qt/macOS accessibility
+        bridge -- confirmed by running this live: it never raises, but
+        AXFocusedUIElement never changes and no Qt widget ever actually
+        receives focus. A real synthesized mouse click, the same physical
+        action a sighted user performs, reliably does move Qt's keyboard
+        focus, so that is the primary mechanism here. Falls back to the
+        AXFocused setter for elements with no on-screen geometry (there
+        are none among current callers, but better than raising).
+        """
+        center = self._center_of(el)
+        if center is None:
+            return self._set_attr(el, "AXFocused", True)
+        self.click(*center)
+        return None
 
     def send_key(self, keycode, modifiers):
         flags = 0
         for name in modifiers:
             flags |= _MODIFIER_FLAGS[name]
         q = self.Quartz
-        down = q.CGEventCreateKeyboardEvent(None, keycode, True)
+        down = q.CGEventCreateKeyboardEvent(self._event_source, keycode, True)
         q.CGEventSetFlags(down, flags)
         q.CGEventPost(q.kCGHIDEventTap, down)
-        up = q.CGEventCreateKeyboardEvent(None, keycode, False)
+        up = q.CGEventCreateKeyboardEvent(self._event_source, keycode, False)
         q.CGEventSetFlags(up, flags)
         q.CGEventPost(q.kCGHIDEventTap, up)
 
@@ -200,6 +282,34 @@ class AxDriver:
 
     def focus(self, el):
         return self.backend.focus(el)
+
+    def right_click_point(self, x, y):
+        """Right-click a raw screen point. See `MacAxBackend.right_click`."""
+        return self.backend.right_click(x, y)
+
+    def right_click(self, el, x_offset=None, y_offset=None):
+        """Right-click `el` (its centre, or an offset within it).
+
+        `x_offset`/`y_offset`, if given, are relative to the element's
+        top-left corner rather than its centre -- useful for a table, where
+        the "centre" of an empty/near-empty table may not land on any row.
+        """
+        pos_x, pos_y = None, None
+        if x_offset is not None or y_offset is not None:
+            pos_ref = self.backend.get_attr(el, "AXPosition")
+            if pos_ref is not None:
+                ok, pos = self.backend._value_get(pos_ref, self.backend._point_type, None)
+                if ok:
+                    pos_x, pos_y = pos.x, pos.y
+        if pos_x is not None:
+            x = pos_x + (x_offset or 0)
+            y = pos_y + (y_offset or 0)
+        else:
+            center = self.backend.center_of(el)
+            if center is None:
+                raise RuntimeError("element has no usable geometry to right-click")
+            x, y = center
+        self.right_click_point(x, y)
 
     def send_key(self, keycode, modifiers=()):
         """Post a key press. `modifiers` is an iterable of names like 'alt'."""

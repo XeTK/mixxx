@@ -33,7 +33,10 @@ def run(driver, tts):
     select_all_tracks(driver)
     choose_context_menu_item(driver, "Purge")
 
-    if not tts.wait_for("Permanently remove 3 tracks from the library", timeout=10.0):
+    # "track" not "tracks" -- see d1_purge_enter_safe.py's comment on the
+    # same check; this build's announcement is "3 track(s)", not "3 tracks",
+    # without a loaded translation catalog.
+    if not tts.wait_for("Permanently remove 3 track", timeout=10.0):
         print("FAIL: purge confirmation was not announced")
         sys.exit(1)
     print("OK: purge confirmation announced")
