@@ -43,9 +43,10 @@ void listAppendOrReplaceAt(QList<T>* pList, int index, const T& value) {
 
 BrowseTableModel::BrowseTableModel(QObject* parent,
         TrackCollectionManager* pTrackCollectionManager,
-        RecordingManager* pRecordingManager)
+        RecordingManager* pRecordingManager,
+        const char* nameSpace)
         : TrackModel(pTrackCollectionManager->internalCollection()->database(),
-                  "mixxx.db.model.browse"),
+                  nameSpace),
           QStandardItemModel(parent),
           m_pTrackCollectionManager(pTrackCollectionManager),
           m_pRecordingManager(pRecordingManager),
@@ -220,7 +221,9 @@ TrackPointer BrowseTableModel::getTrack(const QModelIndex& index) const {
 }
 
 TrackPointer BrowseTableModel::getTrackByRef(const TrackRef& trackRef) const {
-    if (m_pRecordingManager->getRecordingLocation() == trackRef.getLocation()) {
+    if (m_pRecordingManager &&
+            m_pRecordingManager->getRecordingLocation() ==
+                    trackRef.getLocation()) {
         QMessageBox::critical(nullptr,
                 tr("Mixxx Library"),
                 tr("Could not load the following file because it is in use by "
