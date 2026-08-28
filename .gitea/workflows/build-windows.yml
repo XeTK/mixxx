@@ -22,6 +22,13 @@ concurrency:
   group: build-windows-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  # The auto-injected GITHUB_TOKEN defaults to read-only on this instance,
+  # which silently breaks the "Publish release" step below (its release
+  # create/lookup calls fail). contents: write is what release creation and
+  # asset upload need -- see build-linux.yml's matching comment.
+  contents: write
+
 jobs:
   build-windows:
     name: Windows x64 Installer
@@ -315,3 +322,84 @@ jobs:
         with:
           name: mixxx-windows-msi
           path: C:\gitea-runner\build/*.msi
+
+      - name: "Publish release"
+        # Attach the .msi to the same Gitea release build-linux.yml's jobs
+        # and build-macos.yml's job create/reuse for this push. Same
+        # create-or-lookup-by-tag / graceful-failure pattern as those two
+        # (see build-linux.yml's "Publish release" step for the full
+        # rationale, including why TAG is sha-based rather than
+        # github.run_number -- issue #150), just expressed in PowerShell
+        # since this job's steps run under shell: pwsh (see the "Configure"
+        # step's KNOWN_ISSUES.md comment on why bash isn't available here).
+        shell: pwsh
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'accessibility-improvements-2026-06-25'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $API = "https://gitea.xetk.co.uk/api/v1/repos/$env:GITHUB_REPOSITORY"
+          $headers = @{ Authorization = "token $env:GITHUB_TOKEN" }
+
+          # Sha-based tag, identical to what build-linux.yml's jobs and
+          # build-macos.yml's job compute for the same commit -- see
+          # build-linux.yml's "Publish release" comment for the full
+          # rationale.
+          $shortSha = (git rev-parse --short=10 HEAD).Trim()
+          $tag = "v-$shortSha"
+          $describe = (git describe --tags --always 2>$null)
+          if (-not $describe) { $describe = "unknown" }
+          $buildDate = Get-Date -AsUTC -Format "yyyy-MM-dd"
+          $releaseName = "Mixxx $tag ($buildDate, $describe, $shortSha)"
+
+          # Create the release if it doesn't exist yet. Race note: Linux,
+          # macOS, and Windows workflow files all trigger independently on
+          # the same push, so whichever job's "Publish release" step reaches
+          # this line first wins the create; the other two get an error back
+          # (tag already exists) from this POST, land in the catch block
+          # below, and fall through to the lookup-by-tag call instead.
+          # Gitea enforces tag uniqueness per release, so at most one of the
+          # three creates can ever actually succeed -- this is the identical
+          # race build-linux.yml's own x86 and arm64 jobs already resolve
+          # this way for their shared run_number-based tag, just now with
+          # three jobs across three files instead of two jobs in one file.
+          $releaseId = $null
+          try {
+            $body = @{
+              tag_name          = $tag
+              name              = $releaseName
+              target_commitish  = $env:GITHUB_SHA
+              draft             = $false
+              prerelease        = $false
+            } | ConvertTo-Json
+            $resp = Invoke-RestMethod -Method Post -Uri "$API/releases" -Headers $headers -ContentType "application/json" -Body $body
+            $releaseId = $resp.id
+          } catch {
+            Write-Host "Create failed (likely already exists), looking up by tag instead: $_"
+          }
+
+          if (-not $releaseId) {
+            try {
+              $resp = Invoke-RestMethod -Method Get -Uri "$API/releases/tags/$tag" -Headers $headers
+              $releaseId = $resp.id
+            } catch {
+              Write-Host "WARN: lookup by tag also failed: $_"
+            }
+          }
+
+          if (-not $releaseId) {
+            Write-Host "WARN: could not determine release ID for $tag"
+            exit 0
+          }
+
+          # The .msi lives at C:\gitea-runner\build\*.msi -- same glob the
+          # "Upload build artifact" step above already uses.
+          $msiFiles = Get-ChildItem -Path "C:\gitea-runner\build\*.msi" -ErrorAction SilentlyContinue
+          foreach ($msi in $msiFiles) {
+            try {
+              $form = @{ attachment = Get-Item -Path $msi.FullName }
+              Invoke-RestMethod -Method Post -Uri "$API/releases/$releaseId/assets" -Headers $headers -Form $form | Out-Null
+            } catch {
+              Write-Host "WARN: asset upload failed for $($msi.FullName): $_"
+            }
+          }
