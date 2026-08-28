@@ -871,11 +871,15 @@ TEST_F(AnnouncementManagerTest, FirstRunOrientation_SpokenOnFirstSoundDevicesRea
 
     EXPECT_EQ(1, pSpy->callCount);
     EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Welcome to Mixxx")));
-    // Issue #125: the orientation also points new users at the AccessMenu
-    // short menu, both the keyboard chord and the DDJ-400 hold gesture.
+    // Issue #125 (and its issue #148 follow-up: keep this controller-
+    // agnostic, since DDJ-400 won't be the only supported controller
+    // forever): the orientation points new users at the AccessMenu short
+    // menu via the keyboard chord, plus a generic nod to controllers that
+    // have their own gesture for it, without naming a specific model.
     EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("accessibility short menu")));
     EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("Alt plus Shift plus M")));
-    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("DDJ-400")));
+    EXPECT_TRUE(pSpy->lastText.contains(QStringLiteral("your controller's menu gesture")));
+    EXPECT_FALSE(pSpy->lastText.contains(QStringLiteral("DDJ-400")));
     EXPECT_TRUE(config()->getValue<bool>(ConfigKey(QStringLiteral("[Accessibility]"),
             QStringLiteral("OrientationPlayed"))));
 }

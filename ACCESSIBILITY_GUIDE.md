@@ -20,8 +20,8 @@ for a one-page cheat sheet.
    the speech toggle (Alt plus Shift plus A), the full deck status
    readouts (Alt plus 1 / Alt plus 2), how to repeat the last thing
    spoken (Alt plus Shift plus R), how to open the accessibility short
-   menu (Alt plus Shift plus M, or holding the browse knob on a
-   DDJ-400), and a pointer to this guide and the quick reference for
+   menu (Alt plus Shift plus M, or your controller's own menu gesture
+   if it has one), and a pointer to this guide and the quick reference for
    everything else. It plays once ever, not on
    every launch — there is no menu item or shortcut to replay it
    deliberately yet, so come back to this guide or the quick reference
