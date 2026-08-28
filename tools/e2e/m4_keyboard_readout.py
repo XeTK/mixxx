@@ -18,6 +18,7 @@ Run via the orchestrator::
 
     python3 tools/e2e/run_e2e.py --scenario m4_keyboard_readout
 """
+import os
 import re
 import sys
 import time
@@ -73,6 +74,16 @@ def find_spoken_or_completed(content, substring):
         if event in ("SPOKEN", "COMPLETED") and substring in text:
             return event, rec_id, text
     return None
+
+
+def prepare(settings_dir, mixxx_bin):
+    # See m1_boot_speech.prepare(): an empty `directories` table makes Mixxx
+    # block on a native file-choose dialog before any window appears.
+    from library_fixture import bootstrap_settings_dir, register_root_directory
+
+    bootstrap_settings_dir(mixxx_bin, settings_dir)
+    music_dir = os.path.normpath(os.path.join(settings_dir, "..", "music"))
+    register_root_directory(settings_dir, music_dir)
 
 
 def run(driver, tts):

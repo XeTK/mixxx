@@ -126,6 +126,39 @@ def bootstrap_settings_dir(mixxx_bin, settings_dir, timeout=45.0):
     shutil.copyfile(template_db, os.path.join(settings_dir, DB_FILENAME))
 
 
+def register_root_directory(settings_dir, directory):
+    """Register `directory` in the `directories` table (schema.xml revision
+    23: ``directories(directory TEXT UNIQUE)``).
+
+    This is required before Mixxx launches, not just cosmetic: CoreServices::
+    initialize() (src/coreservices.cpp) checks whether
+    TrackCollection::loadRootDirs() -- backed by exactly this table -- is
+    empty, and if so opens a *synchronous, blocking* native
+    ``QFileDialog::getExistingDirectory`` ("Choose music library directory")
+    before the main window or any TTS speaks a word. On a throwaway
+    E2E settings dir the table is always empty, so every scenario hit this
+    dialog (discovered by running M1 live for the first time): the process
+    just hangs with no window, no "Mixxx ready", nothing in --tts-log, until
+    the dialog is dismissed one way or another. On a real desktop session
+    with other mounted volumes, an accidentally-dismissed instance of this
+    dialog can point Mixxx's library scanner at a real, unrelated directory
+    on disk -- exactly what a throwaway settings dir is supposed to avoid.
+    Registering any directory here (it does not need to contain fixture
+    tracks) makes ``loadRootDirs()`` non-empty and skips the dialog entirely.
+    """
+    os.makedirs(directory, exist_ok=True)
+    db_path = os.path.join(settings_dir, DB_FILENAME)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO directories (directory) VALUES (?)",
+            (directory,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def seed_tracks(settings_dir, wav_paths, artist="E2E Fixture", album="Destructive Actions"):
     """Insert `wav_paths` directly into track_locations/library.
 

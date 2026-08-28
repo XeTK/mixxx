@@ -9,6 +9,7 @@ Run via the orchestrator::
 
     python3 tools/e2e/run_e2e.py --scenario m3_accessible_names
 """
+import os
 import sys
 
 from ax_driver import AxDriver, create_backend
@@ -26,6 +27,16 @@ EXPECTED_PAGES = [
     "Waveforms",
     "Vinyl Control",
 ]
+
+
+def prepare(settings_dir, mixxx_bin):
+    # See m1_boot_speech.prepare(): an empty `directories` table makes Mixxx
+    # block on a native file-choose dialog before any window appears.
+    from library_fixture import bootstrap_settings_dir, register_root_directory
+
+    bootstrap_settings_dir(mixxx_bin, settings_dir)
+    music_dir = os.path.normpath(os.path.join(settings_dir, "..", "music"))
+    register_root_directory(settings_dir, music_dir)
 
 
 def run(driver, tts):
