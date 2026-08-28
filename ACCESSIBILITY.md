@@ -102,7 +102,7 @@ Key source files:
 - Pitch-fader position after it stops moving
 - Trim knobs and effect-unit mix/super knobs
 - BPM grid halve/double confirmations (`beats_set_halve`/`_double`,
-  bound to `Ctrl+Alt+H`/`Ctrl+Alt+D`, `+Shift` for deck 2 — for
+  bound to `Alt+H`/`Alt+D`, `+Shift` for deck 2 — for
   fixing a half-tempo analysis by ear)
 - Recording started / stopped
 - Optionally, continuous controls can announce *while* they move
@@ -133,8 +133,9 @@ Key source files:
   selected track, each name spoken (with its position) as you arrow
   through it, `Enter` to add. The same pickers exist per deck for the
   loaded track (`[ChannelN],quick_add_to_crate`/`_playlist`, bound to
-  `Ctrl+Alt+C`/`Ctrl+Alt+P`, `+Shift` for deck 2), so what's playing
-  can be filed without finding it in the library again
+  `Alt+C`/`Alt+P` on deck 1 and `Ctrl+Shift+C`/`Ctrl+Shift+P` on
+  deck 2), so what's playing can be filed without finding it in the
+  library again
 - The New Playlist / New Crate dialogs (`Ctrl+N` / `Ctrl+Shift+N`):
   Mixxx speaks that the dialog opened and that its text box already has
   a name filled in and selected, ready to type over; after you press
@@ -185,7 +186,7 @@ the beat click. Level is the `[Earcon],volume` control.
   switch is spoken through the normal cue announcements. Lives in Deck
   preferences because it's a general deck-loading behavior, not an
   accessibility-specific one.
-- Quantize got its first keyboard binding (`Ctrl+Alt+Q`, `+Shift` for
+- Quantize got its first keyboard binding (`Alt+Q`, `+Shift` for
   deck 2) in all shipped layouts.
 - DDJ-400 mapping settings: "Disable jog wheel scratching" (platter
   touch is a no-op; rotation still nudges pitch, Shift+jog still

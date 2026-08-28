@@ -230,11 +230,12 @@ Worked through the full 13-item tester bug list:
 - Rejected loads into a playing deck say why; searches speak their
   match count; both close silent-failure gaps.
 - Per-deck quick add to crate/playlist for the loaded track
-  (`Ctrl+Alt+C`/`P`, `+Shift` deck 2) — file what's playing mid-mix.
+  (`Alt+C`/`P` deck 1, `Ctrl+Shift+C`/`P` deck 2) — file what's
+  playing mid-mix.
 - BPM halve/double bindings with spoken confirmation
-  (`Ctrl+Alt+H`/`D`, also DDJ-400 Shift+Pads 1/2) as the fast fix for
+  (`Alt+H`/`D`, also DDJ-400 Shift+Pads 1/2) as the fast fix for
   half-tempo misanalysis of fast genres; first-ever quantize keyboard
-  binding (`Ctrl+Alt+Q`).
+  binding (`Alt+Q`).
 - Controller layer feedback: `[Tts],shift` and `[Tts],pad_mode`
   controls speak "Shift" and the selected pad layer; wired on the
   Numark Scratch (makes the blind-cycling mode button usable) and the
