@@ -2803,6 +2803,7 @@ if(BUILD_TESTING)
     src/test/keyutilstest.cpp
     src/test/lcstest.cpp
     src/test/learningutilstest.cpp
+    src/test/librarycontrol_sort_test.cpp
     src/test/library_test.cpp
     src/test/libraryscannerdlg_speech_test.cpp
     src/test/libraryscannertest.cpp

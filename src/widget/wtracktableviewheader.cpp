@@ -154,7 +154,11 @@ WTrackTableViewHeader::WTrackTableViewHeader(Qt::Orientation orientation,
 
 void WTrackTableViewHeader::contextMenuEvent(QContextMenuEvent* pEvent) {
     pEvent->accept();
-    m_menu.popup(pEvent->globalPos());
+    showColumnVisibilityMenu(pEvent->globalPos());
+}
+
+void WTrackTableViewHeader::showColumnVisibilityMenu(const QPoint& pos) {
+    m_menu.popup(pos);
 }
 
 void WTrackTableViewHeader::setModel(QAbstractItemModel* pModel) {

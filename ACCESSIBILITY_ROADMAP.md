@@ -60,7 +60,9 @@ one-page shortcut cheat sheet.
 - Library: sidebar item names during arrow-key navigation, pane focus
   changes (search bar / sidebar / track list), and search feedback
 - Track-list sort column/order when it changes (via the sort column
-  toggle or a column-header click), e.g. "Sorting by title ascending"
+  toggle, `Alt+Shift+S`/`Ctrl+Alt+Shift+S` to cycle columns,
+  `Alt+Shift+O` to reverse order, or a column-header click), e.g.
+  "Sorting by title ascending"
 - "Speech on" confirmation when re-enabling TTS
 
 ### Keyboard control (all also controller-mappable)

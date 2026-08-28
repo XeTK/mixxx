@@ -61,6 +61,13 @@ class WTrackTableViewHeader : public QHeaderView {
     void contextMenuEvent(QContextMenuEvent* event) override;
     void setModel(QAbstractItemModel* model) override;
 
+    // Accessibility: pops the "show or hide columns" menu at the given
+    // global position without requiring a QContextMenuEvent (i.e. without a
+    // mouse right-click or a focused header). Used by WTrackTableView to
+    // offer a keyboard path to column visibility, since QHeaderView is not
+    // focusable and thus never receives the Menu key.
+    void showColumnVisibilityMenu(const QPoint& pos);
+
     void saveHeaderState();
     void restoreHeaderState();
     void loadDefaultHeaderState();
