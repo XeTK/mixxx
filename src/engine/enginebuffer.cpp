@@ -1649,7 +1649,19 @@ void EngineBuffer::addControl(EngineControl* pControl) {
 }
 
 bool EngineBuffer::isTrackLoaded() const {
-    return (m_pCurrentTrack && m_iTrackLoading.loadAcquire() == 0);
+    // Do not read m_pCurrentTrack here: it is a non-atomic TrackPointer
+    // (shared_ptr) that slotTrackLoaded()/ejectTrack() reassign from the
+    // CachingReaderWorker thread (or the GUI thread for ejectTrack()) while
+    // holding m_pause, but this method is called from arbitrary threads
+    // (e.g. polled from tests, or from EngineBuffer::process() on the engine
+    // thread) WITHOUT holding m_pause. Concurrently reading and writing a
+    // shared_ptr like that is a data race (confirmed under ThreadSanitizer)
+    // that can tear the pointer/control-block pair and crash - see issue
+    // #147. m_pTrackLoaded is a ControlObject, which is safe to read from
+    // any thread, and is always kept in sync with m_pCurrentTrack under the
+    // same m_pause lock (set in slotTrackLoaded()/ejectTrack()), so use it
+    // instead as a race-free proxy for "do we have a current track".
+    return (m_iTrackLoading.loadAcquire() == 0 && m_pTrackLoaded->toBool());
 }
 
 TrackPointer EngineBuffer::getLoadedTrack() const {
