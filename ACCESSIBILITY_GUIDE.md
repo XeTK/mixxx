@@ -199,12 +199,15 @@ the sound alone is just the alert.
   across the sibling PRs to move it this round, so it's deliberately
   left on Ctrl+Alt pending a follow-up that routes it through the
   AccessMenu value editor instead (issue #50 follow-up).
-- Filing the playing track: Control plus Alt plus P opens the playlist
-  picker for the track loaded in deck 1, Control plus Alt plus C the
-  crate picker; add Shift for deck 2. It's the same spoken menu as the
-  library's Alt plus Shift plus P/C, but for what's on the deck — so
-  when a track is going down well you can file it mid-mix without
-  hunting it down in the library. The add is confirmed out loud.
+- Filing the playing track: Alt plus P opens the playlist picker for
+  the track loaded in deck 1, Alt plus C the crate picker; for deck 2
+  it's Control plus Shift plus P and Control plus Shift plus C (not
+  just Shift added to the deck 1 chord, since Alt plus Shift plus P/C
+  are already claimed by the library's own add-to-playlist/crate
+  shortcuts below). It's the same spoken menu as those library
+  shortcuts, but for what's on the deck — so when a track is going
+  down well you can file it mid-mix without hunting it down in the
+  library. The add is confirmed out loud.
 - Mixer, EQ, and filter without a controller: Alt plus U and G step
   deck 1's volume down and up, Alt plus H and D step trim (gain), Alt
   plus L and F11 step EQ low, Alt plus E and I step EQ mid, Alt plus Q
