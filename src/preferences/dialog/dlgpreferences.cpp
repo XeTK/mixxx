@@ -87,6 +87,14 @@ DlgPreferences::DlgPreferences(
             &QTreeWidget::currentItemChanged,
             this,
             &DlgPreferences::changePage);
+    // See slotTreeItemSelectionChanged()'s docstring: some interactions
+    // (e.g. an assistive-technology "press" on a tree cell) change the
+    // selection without moving the current item, so currentItemChanged
+    // above never fires. Catch those here.
+    connect(contentsTreeWidget,
+            &QTreeWidget::itemSelectionChanged,
+            this,
+            &DlgPreferences::slotTreeItemSelectionChanged);
 
     while (pagesWidget->count() > 0) {
         pagesWidget->removeWidget(pagesWidget->currentWidget());
@@ -287,6 +295,10 @@ DlgPreferences::~DlgPreferences() {
             &QTreeWidget::currentItemChanged,
             this,
             &DlgPreferences::changePage);
+    disconnect(contentsTreeWidget,
+            &QTreeWidget::itemSelectionChanged,
+            this,
+            &DlgPreferences::slotTreeItemSelectionChanged);
     // Need to explicitly delete rather than relying on child auto-deletion
     // because otherwise the QStackedWidget will delete the controller
     // preference pages (and DlgPrefControllers dynamically generates and
@@ -309,6 +321,25 @@ void DlgPreferences::changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPre
             switchToPage(pCurrent->text(0), page.pDlg);
             break;
         }
+    }
+}
+
+void DlgPreferences::slotTreeItemSelectionChanged() {
+    syncCurrentItemToSelection(contentsTreeWidget);
+}
+
+// static
+void DlgPreferences::syncCurrentItemToSelection(QTreeWidget* pTree) {
+    VERIFY_OR_DEBUG_ASSERT(pTree) {
+        return;
+    }
+    const QList<QTreeWidgetItem*> selectedItems = pTree->selectedItems();
+    if (selectedItems.isEmpty()) {
+        return;
+    }
+    QTreeWidgetItem* pSelected = selectedItems.first();
+    if (pSelected != pTree->currentItem()) {
+        pTree->setCurrentItem(pSelected);
     }
 }
 
