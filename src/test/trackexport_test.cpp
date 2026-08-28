@@ -278,8 +278,21 @@ TEST_F(TrackExporterTest, MungeFilename) {
 
     // Create a file with the same name in a different place.  Its filename
     // should be munged and the file still copied.
-    QDir tempPath(QDir::tempPath());
-    QFile file2(tempPath.filePath(kOggTestFile));
+    //
+    // Use a fresh, per-test QTemporaryDir here rather than the shared
+    // QDir::tempPath() root. The latter is the same OS-wide directory for
+    // every process on the machine, and this test writes a real file there
+    // under the fixed name kOggTestFile - a concurrent ctest worker (or a
+    // leftover from a previous run that crashed before the cleanup below
+    // ran) could collide on that exact path. Every other per-instance path
+    // in this fixture (m_exportDir, via m_exportTempDir above) already
+    // avoids this by using QTemporaryDir; this one didn't, which is exactly
+    // the kind of shared-fixed-path gap that would make this test unsafe to
+    // run concurrently with itself or others under `ctest -j`.
+    QTemporaryDir otherTempDir;
+    ASSERT_TRUE(otherTempDir.isValid());
+    QDir otherDir(otherTempDir.path());
+    QFile file2(otherDir.filePath(kOggTestFile));
     mixxx::FileInfo fileinfo2(file2);
     ASSERT_TRUE(file2.open(QIODevice::WriteOnly));
     file2.close();
@@ -303,6 +316,5 @@ TEST_F(TrackExporterTest, MungeFilename) {
     QFileInfo newfile2(m_exportDir.filePath("cover-test-øé~ł€˚-0001.ogg"));
     EXPECT_TRUE(newfile2.exists());
 
-    // Remove the track we created.
-    tempPath.remove(kOggTestFile);
+    // otherTempDir removes itself (and file2) automatically on destruction.
 }
