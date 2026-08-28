@@ -69,6 +69,7 @@ class WOverview : public WWidget, public TrackDropTarget {
 
     void slotTypeControlChanged(double v);
     void slotMinuteMarkersChanged(bool v);
+    void slotDownloadProgressChanged(double progress);
     void slotScalingChanged();
 
   private:
@@ -93,6 +94,10 @@ class WOverview : public WWidget, public TrackDropTarget {
     void drawPlayPosition(QPainter* pPainter);
     void drawEndOfTrackFrame(QPainter* pPainter);
     void drawAnalyzerProgress(QPainter* pPainter);
+    /// Draws the remote-fetch indicator that stands in for the waveform while
+    /// a track is still being downloaded. Returns true if it painted, in which
+    /// case the analysis indicator is skipped.
+    bool drawDownloadProgress(QPainter* pPainter);
     void drawRangeMarks(QPainter* pPainter, const float& offset, const float& gain);
     void drawMarks(QPainter* pPainter, const float offset, const float gain);
     void drawPickupPosition(QPainter* pPainter);
@@ -175,6 +180,9 @@ class WOverview : public WWidget, public TrackDropTarget {
     double m_maxPixelPos;
 
     AnalyzerProgress m_analyzerProgress;
+    // Remote fetch for this deck: 0.0 to 1.0 while downloading, negative when
+    // idle. Mirrors [ChannelN],download_progress.
+    double m_downloadProgress{-1.0};
     bool m_trackLoaded;
     WaveformMarkPointer m_pHoveredMark;
     double m_scaleFactor;
@@ -196,6 +204,7 @@ class WOverview : public WWidget, public TrackDropTarget {
     parented_ptr<ControlProxy> m_pPassthroughControl;
     parented_ptr<ControlProxy> m_pTypeControl;
     parented_ptr<ControlProxy> m_pMinuteMarkersControl;
+    parented_ptr<ControlProxy> m_pDownloadProgressControl;
     // Controls to trigger update of amplitude scaling
     parented_ptr<ControlProxy> m_pReplayGain;
     parented_ptr<ControlProxy> m_pReplayGainEnabled;

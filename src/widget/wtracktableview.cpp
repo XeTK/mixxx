@@ -456,6 +456,11 @@ void WTrackTableView::slotMouseDoubleClicked(const QModelIndex& index) {
     if (doubleClickAction == DlgPrefLibrary::TrackDoubleClickAction::LoadToDeck &&
             pTrackModel->hasCapabilities(
                     TrackModel::Capability::LoadToDeck)) {
+        // An empty group means "wherever a plain load would go"; the model
+        // takes over when the track has to be fetched first.
+        if (pTrackModel->requestDeferredLoad(index, QString(), false)) {
+            return;
+        }
         TrackPointer pTrack = pTrackModel->getTrack(index);
         if (pTrack) {
             emit loadTrack(pTrack);
@@ -1580,6 +1585,11 @@ void WTrackTableView::loadSelectedTrackToGroup(const QString& group,
     }
     auto index = indices.at(0);
     auto* pTrackModel = getTrackModel();
+    if (pTrackModel && pTrackModel->requestDeferredLoad(index, group, play)) {
+        // The model is fetching the track first (e.g. a remote search result)
+        // and will complete the load itself.
+        return;
+    }
     TrackPointer pTrack;
     if (pTrackModel && (pTrack = pTrackModel->getTrack(index))) {
 #ifdef __STEM__
