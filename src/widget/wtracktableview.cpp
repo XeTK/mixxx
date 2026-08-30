@@ -1847,16 +1847,24 @@ void WTrackTableView::quickAddTracksToPlaylist(const QList<TrackId>& trackIds) {
     }
 
     auto pMenu = make_parented<QMenu>(this);
-    for (const auto& [id, name] : playlists) {
-        QAction* pAction = pMenu->addAction(mixxx::escapeTextPropertyWithoutShortcuts(name));
-        pAction->setData(name);
-        pAction->setEnabled(!playlistDao.isPlaylistLocked(id));
-        connect(pAction, &QAction::triggered, this, [this, id, trackIds] {
+    for (const auto& playlist : playlists) {
+        // Not capturing a structured binding directly below - some
+        // toolchains (seen on Android/NDK clang) reject that with
+        // "capturing a structured binding is not yet supported in OpenMP",
+        // apparently triggered by an unrelated compile flag rather than
+        // this lambda actually using OpenMP.
+        const int playlistId = playlist.first;
+        const QString& playlistName = playlist.second;
+        QAction* pAction = pMenu->addAction(
+                mixxx::escapeTextPropertyWithoutShortcuts(playlistName));
+        pAction->setData(playlistName);
+        pAction->setEnabled(!playlistDao.isPlaylistLocked(playlistId));
+        connect(pAction, &QAction::triggered, this, [this, playlistId, trackIds] {
             PlaylistDAO& dao = m_pLibrary->trackCollectionManager()
                                        ->internalCollection()
                                        ->getPlaylistDAO();
             m_pLibrary->trackCollectionManager()->unhideTracks(trackIds);
-            dao.appendTracksToPlaylist(trackIds, id);
+            dao.appendTracksToPlaylist(trackIds, playlistId);
         });
     }
     showQuickAddPickerMenu(pMenu.get());
