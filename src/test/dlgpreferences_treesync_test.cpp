@@ -41,6 +41,7 @@
 #include <gtest/gtest.h>
 
 #include <QSignalSpy>
+#include <QTest>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 
@@ -136,6 +137,26 @@ TEST_F(DlgPreferencesTreeSyncTest, EmptySelection_IsNoOp) {
     DlgPreferences::syncCurrentItemToSelection(m_pTree.get());
 
     EXPECT_EQ(m_pTree->currentItem(), m_pItemA);
+}
+
+// Characterization test, not a fix: documents the reported gap that
+// contentsTreeWidget's category items get no keyboard path out of the tree
+// -- Right arrow on a leaf category item (no children to expand into) is a
+// no-op in stock QTreeWidget, and DlgPreferences installs no keyPressEvent
+// override or focus-chaining to redirect it into the page widget on the
+// right. A keyboard/screen-reader user can therefore only reach a page's
+// controls via Tab, not via the arrow keys they'd naturally try after
+// landing on a category. If DlgPreferences ever grows an override for this,
+// this test's expectations should flip along with it.
+TEST_F(DlgPreferencesTreeSyncTest, RightArrowOnLeafItem_StaysInTreeNoOp) {
+    QSignalSpy currentItemChangedSpy(m_pTree.get(), &QTreeWidget::currentItemChanged);
+    m_pTree->show();
+    m_pTree->setFocus();
+
+    QTest::keyClick(m_pTree.get(), Qt::Key_Right);
+
+    EXPECT_EQ(m_pTree->currentItem(), m_pItemA);
+    EXPECT_EQ(currentItemChangedSpy.count(), 0);
 }
 
 } // namespace
