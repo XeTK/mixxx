@@ -50,13 +50,12 @@ jobs:
           chmod +x tools/android_buildenv.sh
           ./tools/android_buildenv.sh setup
         env:
+          BUILDENV_BASEPATH: /root/buildenv
           # Matches where this runner's sdkmanager actually installs (see
           # whatcha-say/.gitea/workflows/android-fdroid.yml's ANDROID_HOME on
           # the same runner) - upstream's script defaults to the
           # GitHub-hosted-runner-only /usr/lib/android-sdk otherwise.
           ANDROID_SDK: /opt/android-sdk
-        env:
-          BUILDENV_BASEPATH: /root/buildenv
 
       - name: "Setup signing key"
         run: |
