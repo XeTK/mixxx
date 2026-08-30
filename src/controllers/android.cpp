@@ -6,7 +6,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
-#include <QNativeInterface>
+#include <QtCore/qnativeinterface.h>
 #include <QtJniTypes>
 
 #include <algorithm>
