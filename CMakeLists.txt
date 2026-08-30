@@ -5273,6 +5273,20 @@ if(WAVPACK)
   target_link_libraries(mixxx-lib PRIVATE WavPack::wavpack)
 endif()
 
+if(ANDROID)
+  # sleef (a transitive dependency, likely pulled in via FFmpeg's
+  # SIMD-accelerated FFT) exports OpenMP via
+  # $<LINK_ONLY:OpenMP::OpenMP_C> in its vcpkg-generated CMake config.
+  # LINK_ONLY only suppresses propagated include dirs/compile definitions,
+  # NOT compile options, so -fopenmp leaks onto every mixxx-lib translation
+  # unit even though nothing here uses OpenMP. Android's clang then fails to
+  # compile ANY lambda capturing a structured binding anywhere in the
+  # codebase ("capturing a structured binding is not yet supported in
+  # OpenMP") - a known clang/OpenMP limitation unrelated to the code that
+  # trips over it. Explicitly counter the leaked flag (last flag wins).
+  target_compile_options(mixxx-lib PRIVATE -fno-openmp)
+endif()
+
 target_precompile_headers(
   mixxx-lib
   PUBLIC ${MIXXX_LIB_PRECOMPILED_HEADER} ${MIXXX_COMMON_PRECOMPILED_HEADER}
