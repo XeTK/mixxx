@@ -66,6 +66,13 @@ case "$1" in
         ;;
 
     setup)
+        # google-android-cmdline-tools-13.0-installer and openjdk-17-jdk are
+        # upstream's GitHub-hosted-runner package names; neither exists on
+        # our self-hosted Debian trixie `android` runner, and both are
+        # already provisioned there another way (cmdline-tools + JDK 21, see
+        # whatcha-say's android-fdroid.yml on the same runner) - omitted here
+        # rather than aborting the whole apt transaction on an unlocatable
+        # package name.
         sudo apt-get update && sudo apt-get install -y --no-install-recommends -- \
             ccache \
             cmake \
@@ -76,7 +83,6 @@ case "$1" in
             autoconf-archive \
             bison \
             flex \
-            google-android-cmdline-tools-13.0-installer \
             libasound2-dev \
             libegl1-mesa-dev \
             libghc-resolv-dev \
@@ -88,14 +94,20 @@ case "$1" in
             libxkbcommon-x11-dev \
             libxrender-dev \
             linux-libc-dev \
-            openjdk-17-jdk \
             pkg-config \
             python3-jinja2
         (yes | sudo sdkmanager --licenses) || true
         sudo sdkmanager "platforms;android-${ANDROID_API}" "platform-tools" "build-tools;${ANDROID_VERSION}" "ndk;${ANDROID_NDK}"
-        ANDROID_SDK=/usr/lib/android-sdk
-        ANDROID_NDK_HOME=/usr/lib/android-sdk/ndk/${ANDROID_NDK}
-        JAVA_HOME=$(find /usr/lib/jvm -maxdepth 1 -name 'java-17-openjdk*')
+        # Respect a pre-set ANDROID_SDK (e.g. our workflow sets /opt/android-sdk
+        # to match where this runner's sdkmanager actually installs, per
+        # whatcha-say's ANDROID_HOME) instead of assuming upstream's
+        # GitHub-runner-only /usr/lib/android-sdk default.
+        ANDROID_SDK="${ANDROID_SDK:-/usr/lib/android-sdk}"
+        ANDROID_NDK_HOME="${ANDROID_SDK}/ndk/${ANDROID_NDK}"
+        # JDK 17 isn't packaged for trixie (see the apt-get skip above); this
+        # runner already has JDK 21 (whatcha-say), which works fine for Qt's
+        # Android deploy tooling.
+        JAVA_HOME=$(find /usr/lib/jvm -maxdepth 1 \( -name 'java-17-openjdk*' -o -name 'java-21-openjdk*' \) | sort -rV | head -1)
         export ANDROID_SDK
         export ANDROID_NDK_HOME
         export JAVA_HOME
