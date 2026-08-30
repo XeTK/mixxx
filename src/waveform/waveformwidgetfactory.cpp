@@ -2,6 +2,13 @@
 
 #include "waveform/waveform.h"
 
+#ifdef Q_OS_ANDROID
+// GLES3 defines GL_MAJOR_VERSION/GL_MINOR_VERSION with the same values as
+// desktop OpenGL 3.0+, unlike the GLES2 headers Android otherwise pulls in -
+// needed for the glGetIntegerv() version query below.
+#include <GLES3/gl3.h>
+#endif
+
 #ifdef MIXXX_USE_QOPENGL
 #include <QGuiApplication>
 #include <QOpenGLShaderProgram>
