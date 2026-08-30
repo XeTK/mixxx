@@ -1,0 +1,113 @@
+name: Build Android APK (manual)
+
+# Manual-only Qt6/CMake cross-compile of Mixxx for Android, following the
+# same job shape as upstream mixxxdj/mixxx's "Android 15 arm64" CI matrix
+# entry (.github/workflows/build.yml), adapted for our self-hosted Gitea
+# Actions runner the way whatcha-say/.gitea/workflows/android-fdroid.yml
+# adapts its own Android job:
+#   - runs-on: android (the same registered runner label whatcha-say uses)
+#   - inline git clone instead of actions/checkout (no `node` in PATH on
+#     this host-type runner)
+#   - everything else is upstream's own tooling: tools/android_buildenv.sh
+#     (ported from upstream, downloads the official prebuilt vcpkg
+#     arm64-android dependency bundle from downloads.mixxx.org and
+#     provisions JDK/SDK/NDK idempotently) and Qt's own Android APK signing
+#     via QT_ANDROID_KEYSTORE_* env vars (no separate apksigner step needed,
+#     unlike whatcha-say's plain-Gradle app).
+#
+# workflow_dispatch only, deliberately — this is a first pass to prove the
+# cross-compile boots at all. No push trigger, no F-Droid publish step yet:
+# those come after this is proven and after a real signing-key decision is
+# made (see ANDROID_SIGNING_KEYSTORE_BASE64 below).
+#
+# Without ANDROID_SIGNING_KEYSTORE_BASE64/ANDROID_SIGNING_PASSWORD secrets
+# set, this generates a throwaway temporary keystore per run (matches
+# upstream's own fork-safe fallback) — good enough to sideload via `adb
+# install` for a real-device smoke test, not meant for a permanent F-Droid
+# release identity.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build, produce sideloadable APK
+    runs-on: android
+    env:
+      CMAKE_ARGS_EXTRA: ""
+    steps:
+      - name: Checkout code
+        run: |
+          set -eux
+          cd "$GITHUB_WORKSPACE"
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@gitea.xetk.co.uk/xetk/mixxx.git" .
+          git log -1 --oneline
+
+      - name: "Set up build environment (JDK/SDK/NDK/vcpkg deps)"
+        run: |
+          set -eux
+          chmod +x tools/android_buildenv.sh
+          ./tools/android_buildenv.sh setup
+        env:
+          BUILDENV_BASEPATH: /root/buildenv
+
+      - name: "Setup signing key"
+        run: |
+          set -eux
+          if [ -z "${ANDROID_SIGNING_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_SIGNING_KEYSTORE_BASE64 secret set — generating a throwaway temp keystore for this run only."
+            keytool \
+              -genkey \
+              -keystore "$GITHUB_WORKSPACE/mixxx.keystore" \
+              -alias mixxx \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 365 \
+              -keypass mixxxandroid \
+              -storepass mixxxandroid \
+              -dname "CN=xetk-mixxx-android-dev"
+            {
+              echo "QT_ANDROID_KEYSTORE_ALIAS=mixxx"
+              echo "QT_ANDROID_KEYSTORE_KEY_PASS=mixxxandroid"
+              echo "QT_ANDROID_KEYSTORE_STORE_PASS=mixxxandroid"
+              echo "QT_ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/mixxx.keystore"
+            } >> "$GITHUB_ENV"
+          else
+            echo "${ANDROID_SIGNING_KEYSTORE_BASE64}" | base64 -d > "$GITHUB_WORKSPACE/mixxx.keystore"
+            {
+              echo "QT_ANDROID_KEYSTORE_ALIAS=mixxx"
+              echo "QT_ANDROID_KEYSTORE_KEY_PASS=${ANDROID_SIGNING_PASSWORD}"
+              echo "QT_ANDROID_KEYSTORE_STORE_PASS=${ANDROID_SIGNING_PASSWORD}"
+              echo "QT_ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/mixxx.keystore"
+            } >> "$GITHUB_ENV"
+          fi
+        env:
+          ANDROID_SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+
+      - name: "Configure"
+        run: >-
+          cmake -B build -S .
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_SYSTEM_NAME=Android
+          -DVCPKG_TARGET_TRIPLET=arm64-android
+          -DVCPKG_DEFAULT_HOST_TRIPLET=x64-linux-release
+          -DMIXXX_VCPKG_ROOT="${MIXXX_VCPKG_ROOT}"
+          -DBULK=ON
+          -DHID=ON
+          -DQML=ON
+          -DBUILD_TESTING=OFF
+          -DBUILD_BENCH=OFF
+          -L
+
+      - name: "Build"
+        run: cmake --build build --config RelWithDebInfo
+
+      - name: "Locate and upload APK"
+        run: |
+          set -eux
+          find build -iname "*.apk" -exec ls -la {} \;
+          mkdir -p /root/artifacts
+          find build -iname "*.apk" -exec cp {} /root/artifacts/ \;
+          echo "APK(s) copied to /root/artifacts on the android runner for now — adb install from there once a device is plugged in via remote debugging."
