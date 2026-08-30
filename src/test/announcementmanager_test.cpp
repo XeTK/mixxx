@@ -624,7 +624,7 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_AnnouncesEndOfTrack) {
     setEndOfTrack(1.0);
 
     EXPECT_EQ(1, pSpy->callCount);
-    EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1]. End of track", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_SettingDisabled_Silent) {
@@ -650,7 +650,7 @@ TEST_F(AnnouncementManagerPlaystateTest, EndOfTrack_StopSuppressed) {
     setPlay(0.0);       // play→0 while end_of_track=1; "Stopped" must be suppressed
 
     EXPECT_EQ(2, pSpy->callCount);
-    EXPECT_QSTRING_EQ("End of track", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1]. End of track", pSpy->lastText);
 }
 
 // ---------------------------------------------------------------------------
@@ -2749,7 +2749,7 @@ TEST_F(AnnouncementManagerPerformanceTest, EndOfTrack_IncludesTimeRemaining) {
 
     setEndOfTrack(1.0);
 
-    EXPECT_QSTRING_EQ("End of track. 45 seconds remaining.", pSpy->lastText);
+    EXPECT_QSTRING_EQ("[TestChannel1]. End of track. 45 seconds remaining.", pSpy->lastText);
 }
 
 TEST_F(AnnouncementManagerPerformanceTest, CuePreview_SaysCueAndSuppressesStop) {
