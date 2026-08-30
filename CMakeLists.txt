@@ -3694,8 +3694,8 @@ else()
     set(CMAKE_FIND_FRAMEWORK FIRST)
   endif()
   set(OpenGL_GL_PREFERENCE "GLVND")
-  find_package(OpenGL REQUIRED)
   if(EMSCRIPTEN)
+    find_package(OpenGL REQUIRED)
     # Emscripten's FindOpenGL.cmake does not create OpenGL::GL
     target_link_libraries(mixxx-lib PRIVATE ${OPENGL_gl_LIBRARY})
     target_compile_definitions(mixxx-lib PUBLIC QT_OPENGL_ES_2)
@@ -3707,10 +3707,14 @@ else()
       PUBLIC -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES2=1
     )
   elseif(ANDROID)
+    # Android has no desktop GL/GLX (what find_package(OpenGL) looks for) -
+    # link GLES2 directly instead, same as the IOS branch above does for
+    # OpenGLES.
     find_library(GLESv2_LIBRARY GLESv2)
     target_link_libraries(mixxx-lib PRIVATE "${GLESv2_LIBRARY}")
     target_compile_definitions(mixxx-lib PUBLIC QT_OPENGL_ES_2)
   else()
+    find_package(OpenGL REQUIRED)
     target_link_libraries(mixxx-lib PRIVATE OpenGL::GL)
   endif()
   if(UNIX AND QGLES2)
