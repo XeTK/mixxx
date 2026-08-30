@@ -2451,6 +2451,79 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_InterleavedControlDoesNot
             << pSpy->lastText.toStdString();
 }
 
+// Regression test: touching a second control used to steal the first
+// control's "already introduced" context (a single shared m_lastControlKey),
+// so returning to the first control while it was still being dragged
+// re-announced its full name on every alternating tick instead of staying
+// quiet until it settled -- e.g. two decks' volume knobs moved together
+// chanted "Deck 1 volume... Deck 2 volume... Deck 1 volume..." instead of
+// each control keeping its own touch context.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_ReturningToFirstControlDoesNotReannounceName) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.02);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+    const int callsAfterFirstPitchTouch = pSpy->callCount;
+
+    m_pVolume->set(0.60);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText)
+            << "name on touch for the second control";
+
+    // Still dragging the pitch fader, within its context window: this must
+    // not re-speak "[TestChannel1] pitch" a second time.
+    m_pRateRatio->set(1.03);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPitchTouch + 1, pSpy->callCount)
+            << "pitch's own touch context must survive an intervening touch "
+               "of a different control, spoke: "
+            << pSpy->lastText.toStdString();
+}
+
+// Reported live as "the filter just says 'plus 20', missing which deck and
+// that it's the filter" -- reproduces with the same mechanism as the pitch
+// regression above, but for the two decks' own QuickEffect filter knobs
+// (the control the report specifically named), confirming the per-key touch
+// context fix generalizes to it.
+TEST_F(AnnouncementManagerTest, FilterChange_TwoDecksAlternating_EachKeepsOwnTouchContext) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("AnnounceMixer")),
+            true);
+    auto pFilter1 = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[QuickEffectRack1_[Channel1]]"), QStringLiteral("super1")));
+    auto pFilter2 = std::make_unique<ControlObject>(ConfigKey(
+            QStringLiteral("[QuickEffectRack1_[Channel2]]"), QStringLiteral("super1")));
+    pFilter1->set(0.5);
+    pFilter2->set(0.5);
+    SpyTtsEngine* pSpy = makeManager();
+    m_pManager->connectGroupControls(QStringLiteral("[Channel1]"), 0);
+    m_pManager->connectGroupControls(QStringLiteral("[Channel2]"), 1);
+
+    pFilter1->set(0.6);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Deck, Alpha filter", pSpy->lastText)
+            << "name on touch for deck 1's filter";
+    const int callsAfterDeck1Touch = pSpy->callCount;
+
+    pFilter2->set(0.6);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("Deck, Bravo filter", pSpy->lastText)
+            << "name on touch for deck 2's filter";
+
+    // Still sweeping deck 1's filter, within its context window: this must
+    // not go quiet or lose the "which deck / which control" context that
+    // was already established -- it must keep announcing deck 1's values.
+    pFilter1->set(0.7);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterDeck1Touch + 1, pSpy->callCount)
+            << "deck 1 filter's own touch context must survive an "
+               "intervening touch of deck 2's filter, spoke: "
+            << pSpy->lastText.toStdString();
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

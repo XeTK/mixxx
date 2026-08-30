@@ -367,11 +367,18 @@ class AnnouncementManager : public QObject {
     // order.
     QStringList m_pendingControlOrder;
     QHash<QString, PendingControlAnnouncement> m_pendingControls;
-    // The keyed control last spoken (or currently moving), for the
-    // name-on-touch and name-once logic. Any unrelated announcement clears
-    // the key.
-    QString m_lastControlKey;
-    qint64 m_lastControlSpokenMs{0};
+    // Per-key "recently touched" context for the name-on-touch and
+    // name-once logic, tracked independently per control so two controls
+    // moving at once (e.g. two decks' volume knobs) don't steal each
+    // other's context and re-announce their full name on every alternating
+    // tick. An unrelated announcement clears every key at once (see
+    // speak()); a control announcement clears none but its own.
+    QHash<QString, qint64> m_lastControlTouchMs;
+    // True while flushing a batch of keyed control announcements (see
+    // slotAnnouncePendingControl() and the name-on-touch speak() call in
+    // announceControlDebounced()), so speak() knows not to wipe one key's
+    // context out from under another key in the same flush.
+    bool m_flushingControlContext{false};
     // Last spoken value text per control key, session-lifetime: the jitter
     // and no-change guard. A control whose readout hasn't changed makes no
     // announcement at all — neither name nor value.
