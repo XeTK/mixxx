@@ -1252,6 +1252,56 @@ TEST_F(AnnouncementManagerPlaystateTest, PflOn_SettingDisabled_Silent) {
 }
 
 // ---------------------------------------------------------------------------
+// SplitCueOmitDeckName: while split cue is on, drop the deck name from
+// headphone-cue announcements (opt-in setting, issue #175).
+// ---------------------------------------------------------------------------
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOn_SplitCueAndOptedIn_OmitsDeckName) {
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("SplitCueOmitDeckName")),
+            true);
+    auto pSplit = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headSplitDecks")));
+    pSplit->set(1.0);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+    EXPECT_QSTRING_EQ("Headphone cue on", pSpy->lastText);
+
+    setPfl(0.0);
+    EXPECT_QSTRING_EQ("Headphone cue off", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOn_SplitCueOn_SettingDefaultOff_StillNamesDeck) {
+    // The setting defaults to off: split cue alone must not change existing
+    // behavior for users who haven't opted in.
+    auto pSplit = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[Master]"), QStringLiteral("headSplitDecks")));
+    pSplit->set(1.0);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+
+    EXPECT_QSTRING_EQ("[TestChannel1] headphone cue on", pSpy->lastText);
+}
+
+TEST_F(AnnouncementManagerPlaystateTest, PflOn_OptedInButSplitCueOff_StillNamesDeck) {
+    // The setting only takes effect while split cue is actually active --
+    // without the spatial panning, the deck name is still needed.
+    config()->setValue(
+            ConfigKey(QStringLiteral("[Accessibility]"), QStringLiteral("SplitCueOmitDeckName")),
+            true);
+    SpyTtsEngine* pSpy = makeManager();
+    setupGroup();
+
+    setPfl(1.0);
+
+    EXPECT_QSTRING_EQ("[TestChannel1] headphone cue on", pSpy->lastText);
+}
+
+// ---------------------------------------------------------------------------
 // AnnouncePlay / AnnounceCue independence (regression: they were previously
 // gated by the same setting, making them impossible to control separately)
 // ---------------------------------------------------------------------------

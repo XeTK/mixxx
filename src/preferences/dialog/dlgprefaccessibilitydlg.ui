@@ -498,6 +498,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="checkBoxSplitCueOmitDeckName">
+        <property name="toolTip">
+         <string>While split cue is on, each deck is already panned hard left/right in the headphones, so the deck name is dropped from "A headphone cue on"/"off" -- just "Headphone cue on"/"off" is spoken instead. Has no effect while split cue is off.</string>
+        </property>
+        <property name="text">
+         <string>While split cue is on, omit the deck name from headphone cue announcements</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxAnnounceStop">
         <property name="toolTip">
          <string>Speak "Stopped" when a deck is paused by the user.</string>
