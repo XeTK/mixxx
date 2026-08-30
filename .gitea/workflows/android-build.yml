@@ -113,7 +113,23 @@ jobs:
       - name: "Locate and upload APK"
         run: |
           set -eux
-          find build -iname "*.apk" -exec ls -la {} \;
-          mkdir -p /root/artifacts
-          find build -iname "*.apk" -exec cp {} /root/artifacts/ \;
-          echo "APK(s) copied to /root/artifacts on the android runner for now — adb install from there once a device is plugged in via remote debugging."
+          APK_PATH=$(find build -iname "*.apk" | head -1)
+          test -n "$APK_PATH"
+          ls -la "$APK_PATH"
+
+          # actions/upload-artifact needs node, which this host-type runner
+          # doesn't have (same reason the checkout step above uses a raw git
+          # clone instead) - upload as a plain Gitea release asset via curl
+          # instead. Draft + a run-numbered tag so these dev builds don't
+          # clutter real releases and don't collide across runs.
+          API="https://gitea.xetk.co.uk/api/v1/repos/xetk/mixxx"
+          TAG="android-dev-build-${GITHUB_RUN_NUMBER}"
+          RELEASE_JSON=$(curl -sf -X POST "$API/releases" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"Android dev build #${GITHUB_RUN_NUMBER}\",\"draft\":true,\"prerelease\":true}")
+          RELEASE_ID=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          curl -sf -X POST "$API/releases/$RELEASE_ID/assets?name=mixxx.apk" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -F "attachment=@${APK_PATH}"
+          echo "Uploaded to release $TAG (draft) - download via the gitea releases API or UI."
