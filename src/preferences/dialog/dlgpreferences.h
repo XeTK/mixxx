@@ -87,6 +87,17 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
     /// SoundManager/ControllerManager/EffectsManager/etc. instances.
     static void syncCurrentItemToSelection(QTreeWidget* pTree);
 
+    /// Whether Right arrow on `pItem` (the category tree's current item)
+    /// should leave the tree and move keyboard focus into the settings
+    /// page, rather than being left to QTreeWidget's default expand
+    /// behavior. True once there is nothing left for Right arrow to
+    /// usefully do within the tree itself: the item has no children to
+    /// expand into, or it's already expanded. Exposed as a static, pure
+    /// helper (rather than only inline in the event filter) so it can be
+    /// unit-tested without constructing a full DlgPreferences -- see
+    /// syncCurrentItemToSelection()'s docstring for why that's needed.
+    static bool shouldEnterPageOnRightArrow(QTreeWidgetItem* pItem);
+
   public slots:
     void changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPrevious);
     void showSoundHardwarePage(
