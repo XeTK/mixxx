@@ -139,15 +139,14 @@ TEST_F(DlgPreferencesTreeSyncTest, EmptySelection_IsNoOp) {
     EXPECT_EQ(m_pTree->currentItem(), m_pItemA);
 }
 
-// Characterization test, not a fix: documents the reported gap that
-// contentsTreeWidget's category items get no keyboard path out of the tree
-// -- Right arrow on a leaf category item (no children to expand into) is a
-// no-op in stock QTreeWidget, and DlgPreferences installs no keyPressEvent
-// override or focus-chaining to redirect it into the page widget on the
-// right. A keyboard/screen-reader user can therefore only reach a page's
-// controls via Tab, not via the arrow keys they'd naturally try after
-// landing on a category. If DlgPreferences ever grows an override for this,
-// this test's expectations should flip along with it.
+// Documents the baseline this fix builds on: Right arrow on a leaf category
+// item (no children to expand into) is a no-op in stock QTreeWidget itself
+// -- nothing here moves focus anywhere. The fix (issue #178) lives one level
+// up, in DlgPreferences::eventFilter(), which redirects focus into the
+// settings pane once shouldEnterPageOnRightArrow() says there's nothing
+// left for the tree to usefully do with the key -- see the tests for that
+// helper below. A plain QTreeWidget with no such filter installed, as here,
+// correctly keeps behaving exactly like this.
 TEST_F(DlgPreferencesTreeSyncTest, RightArrowOnLeafItem_StaysInTreeNoOp) {
     QSignalSpy currentItemChangedSpy(m_pTree.get(), &QTreeWidget::currentItemChanged);
     m_pTree->show();
@@ -157,6 +156,39 @@ TEST_F(DlgPreferencesTreeSyncTest, RightArrowOnLeafItem_StaysInTreeNoOp) {
 
     EXPECT_EQ(m_pTree->currentItem(), m_pItemA);
     EXPECT_EQ(currentItemChangedSpy.count(), 0);
+}
+
+// shouldEnterPageOnRightArrow(): the pure decision of whether Right arrow on
+// the tree's current item should leave the tree, factored out so it's
+// testable without a full DlgPreferences (see its docstring).
+TEST_F(DlgPreferencesTreeSyncTest, ShouldEnterPageOnRightArrow_NullItem_False) {
+    EXPECT_FALSE(DlgPreferences::shouldEnterPageOnRightArrow(nullptr));
+}
+
+TEST_F(DlgPreferencesTreeSyncTest, ShouldEnterPageOnRightArrow_LeafItem_True) {
+    // m_pItemA/B have no children (see SetUp()), like most real preferences
+    // categories.
+    EXPECT_TRUE(DlgPreferences::shouldEnterPageOnRightArrow(m_pItemA));
+}
+
+TEST_F(DlgPreferencesTreeSyncTest, ShouldEnterPageOnRightArrow_CollapsedParent_False) {
+    auto* pChild = new QTreeWidgetItem(m_pItemA, QTreeWidgetItem::Type);
+    pChild->setText(0, QStringLiteral("Sub-page"));
+    ASSERT_FALSE(m_pItemA->isExpanded());
+
+    // A category with unexpanded children (e.g. Controllers, with a
+    // sub-item per connected device) still gets ordinary Right-arrow
+    // expand behavior first.
+    EXPECT_FALSE(DlgPreferences::shouldEnterPageOnRightArrow(m_pItemA));
+}
+
+TEST_F(DlgPreferencesTreeSyncTest, ShouldEnterPageOnRightArrow_ExpandedParent_True) {
+    auto* pChild = new QTreeWidgetItem(m_pItemA, QTreeWidgetItem::Type);
+    pChild->setText(0, QStringLiteral("Sub-page"));
+    m_pItemA->setExpanded(true);
+
+    // Nothing left to expand: Right arrow should now leave the tree.
+    EXPECT_TRUE(DlgPreferences::shouldEnterPageOnRightArrow(m_pItemA));
 }
 
 } // namespace

@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QDialog>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMoveEvent>
 #include <QPalette>
 #include <QResizeEvent>
@@ -278,6 +279,10 @@ DlgPreferences::DlgPreferences(
 
     // Install event handler to generate closeDlg signal
     installEventFilter(this);
+    // Issue: Right arrow on the category tree has no way to leave the tree
+    // and reach the settings pane -- see the Key_Right handling in
+    // eventFilter().
+    contentsTreeWidget->installEventFilter(this);
 
     // If we don't call this explicitly, then we default to showing the sound
     // hardware page but the tree item is not selected.
@@ -347,6 +352,14 @@ void DlgPreferences::syncCurrentItemToSelection(QTreeWidget* pTree) {
     }
 }
 
+// static
+bool DlgPreferences::shouldEnterPageOnRightArrow(QTreeWidgetItem* pItem) {
+    if (!pItem) {
+        return false;
+    }
+    return pItem->childCount() == 0 || pItem->isExpanded();
+}
+
 void DlgPreferences::showSoundHardwarePage(
         std::optional<mixxx::preferences::SoundHardwareTab> tab) {
     switchToPage(m_soundPage.pTreeItem->text(0), m_soundPage.pDlg);
@@ -364,6 +377,27 @@ bool DlgPreferences::eventFilter(QObject* o, QEvent* e) {
 
     if (e->type() == QEvent::Show) {
         onShow();
+    }
+
+    // The category tree has no built-in way to hand keyboard focus to the
+    // settings pane -- Right arrow either expands a category or, once
+    // there's nothing left to expand, does nothing at all (issue #178).
+    // Redirect it into the current page's first focusable control instead,
+    // once expanding is no longer useful. Left arrow is deliberately left
+    // alone: several page controls (sliders, spin boxes) already use it for
+    // their own value, so a blanket "Left goes back to the tree" would
+    // fight with them; Shift+Tab already gets back to the tree.
+    if (o == contentsTreeWidget && e->type() == QEvent::KeyPress) {
+        auto* pKeyEvent = static_cast<QKeyEvent*>(e);
+        if (pKeyEvent->key() == Qt::Key_Right &&
+                shouldEnterPageOnRightArrow(contentsTreeWidget->currentItem())) {
+            QWidget* pPage = pagesWidget->currentWidget();
+            QWidget* pNext = pPage ? pPage->nextInFocusChain() : nullptr;
+            if (pPage && pNext && pPage->isAncestorOf(pNext)) {
+                pNext->setFocus(Qt::TabFocusReason);
+                return true;
+            }
+        }
     }
 
     // Standard event processing
