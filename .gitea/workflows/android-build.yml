@@ -104,7 +104,6 @@ jobs:
           -DQML=ON
           -DBUILD_TESTING=OFF
           -DBUILD_BENCH=OFF
-          -DCCACHE_SUPPORT=ON
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -L
 

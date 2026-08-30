@@ -4,7 +4,12 @@
 #include <android/log.h>
 #include <qjnitypes.h>
 
+#include <QCoreApplication>
+#include <QDebug>
+#include <QNativeInterface>
 #include <QtJniTypes>
+
+#include <algorithm>
 #include <cstddef>
 
 namespace mixxx {

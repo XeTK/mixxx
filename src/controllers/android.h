@@ -1,5 +1,10 @@
 #pragma once
 
+#include <QJniObject>
+
+#include <condition_variable>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 struct libusb_context;
