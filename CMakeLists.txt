@@ -3856,7 +3856,14 @@ endif()
 # Linux TTS via eSpeak NG (native, thread-safe). Falls back to a silent
 # no-op engine when the library is absent. eSpeak renders speech to mono 16-bit
 # PCM via a synthesis callback, which we feed into the EngineTts sink.
-if(NOT Q_OS_WIN AND NOT Q_OS_MACOS)
+#
+# Q_OS_WIN/Q_OS_MACOS are C++ preprocessor macros, not CMake variables - this
+# condition was always true regardless of platform (undefined CMake variables
+# are falsy, so NOT <undefined> is always true). Fixed to the real CMake
+# platform variables, and explicitly excluded ANDROID: pkg-config on the
+# Android vcpkg triplet was resolving to a non-Android espeak-ng, so the
+# header search path didn't match what the Android compiler actually sees.
+if(NOT WIN32 AND NOT APPLE AND NOT ANDROID)
   find_package(PkgConfig QUIET)
   if(PkgConfig_FOUND)
     pkg_check_modules(ESPEAK_NG QUIET espeak-ng)
