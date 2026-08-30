@@ -73,7 +73,7 @@
 #include "util/sandbox.h"
 #endif
 
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) && defined(__X11__)
 #include <X11/XKBlib.h>
 #endif
 
@@ -129,7 +129,7 @@ Bool __xErrorHandler(Display* display, XErrorEvent* event, xError* error) {
 
 #endif
 
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && defined(__X11__)
 QLocale localeFromXkbSymbol(const QString& xkbLayout) {
     // This maps XKB layouts to locales of keyboard mappings that are shipped with Mixxx
     static const QMap<QString, QLocale> xkbToLocaleMap = {
@@ -279,7 +279,7 @@ QString getCurrentXkbLayoutName() {
 // to "ibus engine". QGuiApplication::inputMethod() does not work with GNOME and XFCE
 // https://bugreports.qt.io/browse/QTBUG-137302
 inline QLocale inputLocale() {
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && defined(__X11__)
     QString layoutName = getCurrentXkbLayoutName();
     if (!layoutName.isEmpty()) {
         qDebug() << "Keyboard Layout from XKB:" << layoutName;

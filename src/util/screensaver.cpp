@@ -146,7 +146,7 @@ void ScreenSaverHelper::uninhibitInternal()
     s_enabled = false;
 }
 
-#elif defined(Q_OS_LINUX)
+#elif defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
 const char *SCREENSAVERS[][4] = {
     // org.freedesktop.ScreenSaver is the standard. should work for gnome and kde too, 
     // but I add their specific names too
@@ -338,8 +338,10 @@ void ScreenSaverHelper::uninhibitInternal() {
     setIdleTimerDisabled(false);
     s_enabled = false;
 }
-#elif defined(Q_OS_WASM)
-// Screensavers are not supported
+#elif defined(Q_OS_WASM) || defined(Q_OS_ANDROID)
+// Screensavers are not supported (Android: not yet implemented - the
+// freedesktop DBus screensaver interfaces this file uses elsewhere don't
+// exist there anyway)
 void ScreenSaverHelper::triggerUserActivity() {
 }
 void ScreenSaverHelper::inhibitInternal() {
