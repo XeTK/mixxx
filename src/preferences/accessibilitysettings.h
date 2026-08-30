@@ -32,6 +32,20 @@ class AccessibilitySettings {
             "AnnounceCue",
             true);
 
+    // While split cue (Alt+H) is on, each deck is already panned hard
+    // left/right in the headphones, so the deck name in "A headphone cue
+    // on"/"off" is redundant information a DJ has to wait through on every
+    // mid-mix cue check. Off by default: split cue being on doesn't by
+    // itself mean the deck name should stop being announced everywhere else
+    // (hotcues, transport, etc.), so this is scoped narrowly to the
+    // headphone-cue announcement and left opt-in rather than silently
+    // changing existing behavior for everyone who already has split cue on.
+    DEFINE_PREFERENCE_HELPERS(SplitCueOmitDeckName,
+            bool,
+            "[Accessibility]",
+            "SplitCueOmitDeckName",
+            false);
+
     DEFINE_PREFERENCE_HELPERS(AnnounceStop,
             bool,
             "[Accessibility]",

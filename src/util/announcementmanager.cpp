@@ -1391,16 +1391,28 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
         if (m_settings.getAnnounceCue()) {
             // "Headphone cue", not just "Cue": a DJ would otherwise confuse
             // this with the transport cue button or hotcues. Name the deck so
-            // it is clear which channel was cued.
-            const QString deck = deckName(group, deckIndex);
+            // it is clear which channel was cued -- unless split cue is on
+            // and the user has opted to drop it: each deck is already
+            // panned hard left/right in the headphones at that point, so
+            // the deck name is redundant information on every mid-mix cue
+            // check. Two full strings rather than gluing a deck-name prefix
+            // onto a shared fragment, so translators get real sentences.
+            const bool splitCueActive = readGroupControl(
+                                                 QStringLiteral("[Master]"),
+                                                 QStringLiteral("headSplitDecks")) > 0.0;
+            const bool omitDeckName = splitCueActive && m_settings.getSplitCueOmitDeckName();
             if (value > 0.0) {
                 emitCue(static_cast<int>(EngineEarcon::Id::CueOn),
                         deckIndex,
-                        tr("%1 headphone cue on").arg(deck));
+                        omitDeckName ? tr("Headphone cue on")
+                                     : tr("%1 headphone cue on")
+                                               .arg(deckName(group, deckIndex)));
             } else {
                 emitCue(static_cast<int>(EngineEarcon::Id::CueOff),
                         deckIndex,
-                        tr("%1 headphone cue off").arg(deck));
+                        omitDeckName ? tr("Headphone cue off")
+                                     : tr("%1 headphone cue off")
+                                               .arg(deckName(group, deckIndex)));
             }
         }
     });
