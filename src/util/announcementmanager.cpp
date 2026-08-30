@@ -1353,16 +1353,18 @@ void AnnouncementManager::connectGroupControls(const QString& group, int deckInd
             // Say how much is actually left so the DJ knows how long they
             // have to bring in the next track. In sounds-only mode the earcon
             // is the alert; the time is spoken only when speech is on.
+            const QString deck = deckName(group, deckIndex);
             const double duration = readGroupControl(group, QStringLiteral("duration"));
             QString text;
             if (duration > 0.0) {
                 const double playPos =
                         readGroupControl(group, QStringLiteral("playposition"));
-                text = tr("End of track. %1.")
-                               .arg(remainingText(static_cast<int>(std::lround(
-                                       duration * (1.0 - playPos)))));
+                text = tr("%1. End of track. %2.")
+                               .arg(deck,
+                                       remainingText(static_cast<int>(std::lround(
+                                               duration * (1.0 - playPos)))));
             } else {
-                text = tr("End of track");
+                text = tr("%1. End of track").arg(deck);
             }
             emitCue(static_cast<int>(EngineEarcon::Id::EndOfTrack), deckIndex, text);
         }
