@@ -2451,6 +2451,38 @@ TEST_F(AnnouncementManagerPerformanceTest, TempoChange_InterleavedControlDoesNot
             << pSpy->lastText.toStdString();
 }
 
+// Regression test: touching a second control used to steal the first
+// control's "already introduced" context (a single shared m_lastControlKey),
+// so returning to the first control while it was still being dragged
+// re-announced its full name on every alternating tick instead of staying
+// quiet until it settled -- e.g. two decks' volume knobs moved together
+// chanted "Deck 1 volume... Deck 2 volume... Deck 1 volume..." instead of
+// each control keeping its own touch context.
+TEST_F(AnnouncementManagerPerformanceTest, TempoChange_ReturningToFirstControlDoesNotReannounceName) {
+    SpyTtsEngine* pSpy = makeManager();
+    createPerformanceControls();
+    setupGroup();
+
+    m_pRateRatio->set(1.02);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] pitch", pSpy->lastText) << "name on touch";
+    const int callsAfterFirstPitchTouch = pSpy->callCount;
+
+    m_pVolume->set(0.60);
+    QCoreApplication::processEvents();
+    EXPECT_QSTRING_EQ("[TestChannel1] volume", pSpy->lastText)
+            << "name on touch for the second control";
+
+    // Still dragging the pitch fader, within its context window: this must
+    // not re-speak "[TestChannel1] pitch" a second time.
+    m_pRateRatio->set(1.03);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(callsAfterFirstPitchTouch + 1, pSpy->callCount)
+            << "pitch's own touch context must survive an intervening touch "
+               "of a different control, spoke: "
+            << pSpy->lastText.toStdString();
+}
+
 TEST_F(AnnouncementManagerPerformanceTest, VolumeChange_MixerOnByDefault_Spoken) {
     SpyTtsEngine* pSpy = makeManager();
     createPerformanceControls();

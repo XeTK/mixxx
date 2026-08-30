@@ -1050,8 +1050,12 @@ void AnnouncementManager::onTtsSinkDestroyed() {
 void AnnouncementManager::speak(const QString& text) {
     // Any announcement invalidates the knob/fader name-once context: after an
     // unrelated utterance the next control move must name the control again.
-    // slotAnnouncePendingControl() restores the context after its own speak().
-    m_lastControlKey.clear();
+    // Skipped while flushing a batch of keyed control announcements, so one
+    // key's speak() doesn't wipe out the context another key in the same
+    // flush just set (see m_flushingControlContext).
+    if (!m_flushingControlContext) {
+        m_lastControlTouchMs.clear();
+    }
 
     // Test hook (--tts-log): record that this utterance was requested, and the
     // id every later record for it carries. The old hook stopped here, which
@@ -2756,20 +2760,21 @@ void AnnouncementManager::announceControlDebounced(
     // chant the name instead of the value — and not in while-moving mode,
     // which already speaks name and value immediately.
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    const bool sameControl = key == m_lastControlKey &&
-            now - m_lastControlSpokenMs < kControlContextMs;
+    const bool sameControl = m_lastControlTouchMs.contains(key) &&
+            now - m_lastControlTouchMs.value(key) < kControlContextMs;
     if (sameControl) {
         // Active movement keeps the spoken context alive: a long slow drag
         // must not re-announce the name halfway through.
-        m_lastControlSpokenMs = now;
+        m_lastControlTouchMs[key] = now;
     } else if (!m_settings.getAnnounceWhileMoving() &&
             valueText != m_lastValueByKey.value(key)) {
         kLogger.debug() << "control (name on touch): key=" << key;
+        m_flushingControlContext = true;
         speak(name);
-        // speak() clears the control context; restore it so the resting
-        // value is spoken without repeating the name.
-        m_lastControlKey = key;
-        m_lastControlSpokenMs = now;
+        m_flushingControlContext = false;
+        // speak() would otherwise clear every key's context; this key's own
+        // touch just set it, so restore only this one.
+        m_lastControlTouchMs[key] = now;
     }
     startControlDebounce();
 }
@@ -2801,6 +2806,11 @@ void AnnouncementManager::slotAnnouncePendingControl() {
     // instead of each speak() call's barge-in discarding the previous one
     // mid-render.
     beginSpeechBatch();
+    // Keep every key's touch context alive across this whole flush: two
+    // controls settling in the same debounce window must not steal each
+    // other's "already named" state, or both re-announce their full name on
+    // every alternating tick instead of settling into value-only readouts.
+    m_flushingControlContext = true;
 
     // Full wording ("Deck 1 volume three quarters") for every announcement
     // flushed in this batch, even the ones where only the value was
@@ -2829,8 +2839,8 @@ void AnnouncementManager::slotAnnouncePendingControl() {
             const QString& value = entry.value;
 
             const qint64 now = QDateTime::currentMSecsSinceEpoch();
-            const bool sameControl = key == m_lastControlKey &&
-                    now - m_lastControlSpokenMs < kControlContextMs;
+            const bool sameControl = m_lastControlTouchMs.contains(key) &&
+                    now - m_lastControlTouchMs.value(key) < kControlContextMs;
             if (value == m_lastValueByKey.value(key)) {
                 // The control settled on the same readout it last
                 // announced (a jittery pot does this constantly; so does
@@ -2838,7 +2848,7 @@ void AnnouncementManager::slotAnnouncePendingControl() {
                 // stay quiet, but keep the context fresh so a real change
                 // still gets the short value-only announcement.
                 if (sameControl) {
-                    m_lastControlSpokenMs = now;
+                    m_lastControlTouchMs[key] = now;
                 }
                 kLogger.debug() << "control (suppressed, unchanged readout): key=" << key
                                 << "value=" << value;
@@ -2847,13 +2857,12 @@ void AnnouncementManager::slotAnnouncePendingControl() {
             const QString fullText = name + QStringLiteral(" ") + value;
             speak(sameControl ? value : fullText);
             fullTextsForRepeat << fullText;
-            // speak() clears the control context (any unrelated
-            // announcement invalidates it); restore it.
-            m_lastControlKey = key;
             m_lastValueByKey.insert(key, value);
-            m_lastControlSpokenMs = now;
+            m_lastControlTouchMs[key] = now;
         }
     }
+
+    m_flushingControlContext = false;
 
     endSpeechBatch();
 
