@@ -35,6 +35,14 @@
 #include "util/sandbox.h"
 #include "util/versionstore.h"
 
+#ifdef Q_OS_ANDROID
+#include <android/log.h>
+#define MIXXX_ANDROID_TRACE(msg) \
+    __android_log_print(ANDROID_LOG_ERROR, "mixxx_trace", "%s", msg)
+#else
+#define MIXXX_ANDROID_TRACE(msg)
+#endif
+
 namespace {
 
 // Exit codes
@@ -57,13 +65,17 @@ const QString kNotifyMaxDbgTimeKey = QStringLiteral("notify_max_dbg_time");
 constexpr int kPixmapCacheLimitAt100PercentZoom = 32 * 1024; // 32 MByte
 
 int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
+    MIXXX_ANDROID_TRACE("runMixxx: enter");
     CmdlineArgs::Instance().parseForUserFeedback();
 
     int exitCode;
 #ifdef MIXXX_USE_QML
     if (args.isQml()) {
+        MIXXX_ANDROID_TRACE("runMixxx: before QmlApplication ctor");
         mixxx::qml::QmlApplication qmlApplication(pApp, args);
+        MIXXX_ANDROID_TRACE("runMixxx: before pApp->exec()");
         exitCode = pApp->exec();
+        MIXXX_ANDROID_TRACE("runMixxx: after pApp->exec()");
     } else
 #endif
     {

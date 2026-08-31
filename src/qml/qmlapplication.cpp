@@ -11,6 +11,15 @@
 #include "soundio/soundmanager.h"
 #include "waveform/visualsmanager.h"
 #include "waveform/waveformwidgetfactory.h"
+
+#ifdef Q_OS_ANDROID
+#include <android/log.h>
+#define MIXXX_ANDROID_TRACE(msg) \
+    __android_log_print(ANDROID_LOG_ERROR, "mixxx_trace", "%s", msg)
+#else
+#define MIXXX_ANDROID_TRACE(msg)
+#endif
+
 Q_IMPORT_QML_PLUGIN(MixxxPlugin)
 Q_IMPORT_QML_PLUGIN(Mixxx_ControlsPlugin)
 
@@ -39,18 +48,24 @@ QmlApplication::QmlApplication(
           m_mainFilePath(m_pCoreServices->getSettings()->getResourcePath() + kMainQmlFileName),
           m_pAppEngine(nullptr),
           m_autoReload() {
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: after CoreServices constructed");
     QQuickStyle::setStyle("Basic");
 
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: before CoreServices::initialize");
     m_pCoreServices->initialize(app);
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: before setupDevices");
     SoundDeviceStatus result = m_pCoreServices->getSoundManager()->setupDevices();
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: after setupDevices");
     if (result != SoundDeviceStatus::Ok) {
         const int reInt = static_cast<int>(result);
         qCritical() << "Error setting up sound devices:" << reInt;
+        MIXXX_ANDROID_TRACE("QmlApplication ctor: setupDevices failed, exiting");
         exit(reInt);
     }
 
     // FIXME: DlgPreferences has some initialization logic that must be executed
     // before the GUI is shown, at least for the effects system.
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: before makeDlgPreferences");
     std::shared_ptr<QDialog> pDlgPreferences = m_pCoreServices->makeDlgPreferences();
     // Without this, QApplication will quit when the last QWidget QWindow is
     // closed because it does not take into account the window created by
@@ -61,9 +76,12 @@ QmlApplication::QmlApplication(
     // follows a strict singleton pattern design
     QmlDlgPreferencesProxy::s_pInstance =
             std::make_unique<QmlDlgPreferencesProxy>(pDlgPreferences, this);
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: before loadQml");
     loadQml(m_mainFilePath);
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: after loadQml");
 
     m_pCoreServices->getControllerManager()->setUpDevices();
+    MIXXX_ANDROID_TRACE("QmlApplication ctor: after setUpDevices, ctor complete");
 
     connect(&m_autoReload,
             &QmlAutoReload::triggered,

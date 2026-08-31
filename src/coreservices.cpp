@@ -8,6 +8,14 @@
 #include <QtGlobal>
 #include <gsl/pointers>
 
+#ifdef Q_OS_ANDROID
+#include <android/log.h>
+#define MIXXX_ANDROID_TRACE(msg) \
+    __android_log_print(ANDROID_LOG_ERROR, "mixxx_trace", "%s", msg)
+#else
+#define MIXXX_ANDROID_TRACE(msg)
+#endif
+
 #ifdef __BROADCAST__
 #include "broadcast/broadcastmanager.h"
 #endif
@@ -365,21 +373,28 @@ CoreServices::CoreServices(const CmdlineArgs& args, QApplication* pApp)
         : m_runtime_timer(QLatin1String("CoreServices::runtime")),
           m_cmdlineArgs(args),
           m_isInitialized(false) {
+    MIXXX_ANDROID_TRACE("CoreServices ctor: enter");
     m_runtime_timer.start();
     mixxx::Time::start();
     ScopedTimer t(QStringLiteral("CoreServices::CoreServices"));
     // All this here is running without without start up screen
     // Defer long initializations to CoreServices::initialize() which is
     // called after the GUI is initialized
+    MIXXX_ANDROID_TRACE("CoreServices ctor: before initializeSettings");
     initializeSettings();
+    MIXXX_ANDROID_TRACE("CoreServices ctor: before initializeLogging");
     initializeLogging();
+    MIXXX_ANDROID_TRACE("CoreServices ctor: before StatsManager");
     // Only record stats in developer mode.
     if (m_cmdlineArgs.getDeveloper()) {
         StatsManager::createInstance();
     }
+    MIXXX_ANDROID_TRACE("CoreServices ctor: before initializeTranslations");
     mixxx::Translations::initializeTranslations(
             m_pSettingsManager->settings(), pApp, m_cmdlineArgs.getLocale());
+    MIXXX_ANDROID_TRACE("CoreServices ctor: before initializeKeyboard");
     initializeKeyboard();
+    MIXXX_ANDROID_TRACE("CoreServices ctor: exit");
 }
 
 CoreServices::~CoreServices() {
