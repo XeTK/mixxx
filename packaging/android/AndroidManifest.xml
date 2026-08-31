@@ -46,9 +46,19 @@
                 android:name="android.app.background_running"
                 android:value="true" />
 
+          <!-- Temporarily disabled for diagnosis: every launch aborts via
+               FORTIFY "pthread_mutex_lock called on a destroyed mutex" on an
+               hwuiTask thread, ~10ms after CoreServices::CoreServices()
+               starts, right as libmixxx finishes loading and Qt's platform
+               plugin transitions off the splash overlay this meta-data
+               drives. Testing whether QtActivityDelegate's splash-hide path
+               (which replaces the window content) is the trigger by removing
+               it - see MIXXX_ANDROID_TRACE findings in coreservices.cpp. -->
+          <!--
           <meta-data
                 android:name="android.app.splash_screen_drawable"
                 android:resource="@drawable/ic_launcher_foreground" />
+          -->
 
           <meta-data
                 android:name="android.app.arguments"
