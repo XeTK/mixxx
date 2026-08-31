@@ -456,6 +456,12 @@ void CoreServices::initializeSettings() {
         if (!Sandbox::ensureSettingsPathAccessible(&settingsPath)) {
             // The user either declined the permission dialog or the
             // folder remains unwritable. Show a clear error and exit.
+            //
+            // QMessageBox is QtWidgets-based; this app launches through the
+            // QML-only shell on Android (and iOS), where there is no
+            // QtWidgets-compatible native window surface to host it -
+            // popping one here is unsafe. Log instead.
+#if !defined(Q_OS_ANDROID)
             QMessageBox::critical(nullptr,
                     tr("Cannot access settings folder"),
                     tr("Mixxx cannot access the settings folder:"
@@ -467,6 +473,9 @@ void CoreServices::initializeSettings() {
                        "Click OK to exit.")
                             .arg(settingsPath),
                     QMessageBox::Ok);
+#else
+            qCritical() << "Cannot access settings folder:" << settingsPath;
+#endif
             exit(1);
         }
     }
@@ -524,11 +533,15 @@ void CoreServices::initialize(QApplication* pApp) {
     emit initializationProgressUpdate(10, tr("database"));
     m_pDbConnectionPool = MixxxDb(pConfig).connectionPool();
     if (!m_pDbConnectionPool) {
+        qCritical() << "MIXXX_ANDROID_DEBUG: MixxxDb(pConfig).connectionPool() "
+                       "returned null, resourcePath="
+                    << resourcePath << "settingsPath=" << pConfig->getSettingsPath();
         exit(-1);
     }
     // Create a connection for the main thread
     m_pDbConnectionPool->createThreadLocalConnection();
     if (!initializeDatabase()) {
+        qCritical() << "MIXXX_ANDROID_DEBUG: initializeDatabase() returned false";
         exit(-1);
     }
 
@@ -949,10 +962,18 @@ bool CoreServices::initializeDatabase() {
                     "to build it.");
         }
 
+        // QMessageBox is QtWidgets-based; this app launches through the
+        // QML-only shell on Android (and iOS), where there is no
+        // QtWidgets-compatible native window surface to host it - popping
+        // one here is unsafe. Log instead.
+#if !defined(Q_OS_ANDROID)
         QMessageBox::critical(nullptr,
                 tr("Cannot open database"),
                 errorDetail + QStringLiteral("\n\n") + tr("Click OK to exit."),
                 QMessageBox::Ok);
+#else
+        qCritical() << "Cannot open database:" << errorDetail;
+#endif
         return false;
     }
 
