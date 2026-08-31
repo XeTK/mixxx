@@ -29,7 +29,7 @@ private:
    /* sleep management */
    static IOPMAssertionID s_systemSleepAssertionID;
    static IOPMAssertionID s_userActivityAssertionID;
-#elif defined(Q_OS_LINUX)
+#elif defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
     static uint32_t s_cookie;
     static int s_saverindex;
 #endif // Q_OS_MACOS

@@ -13,7 +13,7 @@
 #include <QGLFormat>
 #endif
 
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #endif
@@ -74,7 +74,7 @@
 #endif
 
 namespace {
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
 // Detect if the desktop supports a global menu to decide whether we need to rebuild
 // and reconnect the menu bar when switching to/from fullscreen mode.
 // Compared to QMenuBar::isNativeMenuBar() (requires a set menu bar) and
@@ -203,7 +203,7 @@ MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServi
           m_noMicInputDialog(nullptr),
           m_noAuxInputDialog(nullptr),
           m_pGuiTick(nullptr),
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
           m_supportsGlobalMenuBar(supportsGlobalMenu()),
 #endif
           m_inRebootMixxxView(false),
@@ -212,7 +212,7 @@ MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServi
           m_toolTipsCfg(mixxx::preferences::Tooltips::On) {
     DEBUG_ASSERT(pCoreServices);
     // These depend on the settings
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
     // If the desktop features a global menubar and we'll go fullscreen during
     // startup, set Qt::AA_DontUseNativeMenuBar so the menubar is placed in the
     // window like it's done in slotViewFullScreen(). On other desktops this
@@ -617,7 +617,7 @@ void MixxxMainWindow::initialize() {
 
 #ifndef __APPLE__
     // Ask for permission to auto-hide the menu bar if applicable.
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
     // This makes no sense when starting in windowed mode with a global menu,
     // we'll ask when going fullscreen.
     if (!m_supportsGlobalMenuBar || isFullScreen()) {
@@ -1825,7 +1825,7 @@ bool MixxxMainWindow::eventFilter(QObject* obj, QEvent* event) {
         const bool isFullScreenNow = windowState() & Qt::WindowFullScreen;
         if ((isFullScreenNow && !wasFullScreen) ||
                 (!isFullScreenNow && wasFullScreen)) {
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
             // Fix for "No menu bar with ubuntu unity in full screen mode"
             // (issues #6072 and #6689). Before touching anything here, please
             // read those bugs.
@@ -1839,7 +1839,7 @@ bool MixxxMainWindow::eventFilter(QObject* obj, QEvent* event) {
 #endif
 
 #ifndef __APPLE__
-#ifdef __LINUX__
+#if defined(__LINUX__) && !defined(__ANDROID__)
             // Only show the dialog if we are able to have the menubar in the
             // main window, only then we're able to hide it.
             if (!m_supportsGlobalMenuBar || isFullScreenNow)
