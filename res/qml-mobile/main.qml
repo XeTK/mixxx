@@ -11,6 +11,12 @@ ApplicationWindow {
     property alias showEffects: showEffectsButton.checked
     property alias showSamplers: showSamplersButton.checked
     property alias maximizeLibrary: maximizeLibraryButton.checked
+    // Hides per-deck knobs/hotcues/rate slider/mixer, leaving just the big
+    // waveform + basic transport - meant for when a physical controller is
+    // connected and the phone screen is better used as a waveform display
+    // than a duplicate set of on-screen controls.
+    property alias compactControls: compactControlsButton.checked
+    property bool toolbarCollapsed: false
 
     width: 1920
     height: 1080
@@ -35,16 +41,24 @@ ApplicationWindow {
             id: toolbar
 
             width: parent.width
-            height: 36
+            height: root.toolbarCollapsed ? 14 : 36
             color: Theme.toolbarBackgroundColor
             radius: 1
 
+            Behavior on height {
+                NumberAnimation {
+                    duration: 120
+                }
+            }
+
             Flickable {
                 anchors.fill: parent
+                anchors.rightMargin: 22
                 contentWidth: toolbarRow.implicitWidth + 10
                 contentHeight: height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+                visible: !root.toolbarCollapsed
 
                 Row {
                     id: toolbarRow
@@ -56,6 +70,14 @@ ApplicationWindow {
                     id: show4DecksButton
 
                     text: "4 Decks"
+                    activeColor: Theme.white
+                    checkable: true
+                }
+
+                Skin.Button {
+                    id: compactControlsButton
+
+                    text: "Compact"
                     activeColor: Theme.white
                     checkable: true
                 }
@@ -117,6 +139,20 @@ ApplicationWindow {
                 }
                 }
             }
+
+            Skin.Button {
+                id: toolbarCollapseButton
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 20
+                height: parent.height
+                text: root.toolbarCollapsed ? "▸" : "▾"
+                activeColor: Theme.white
+                onClicked: {
+                    root.toolbarCollapsed = !root.toolbarCollapsed;
+                }
+            }
         }
 
         Skin.WaveformDisplay {
@@ -124,7 +160,7 @@ ApplicationWindow {
 
             group: "[Channel3]"
             width: root.width
-            height: 50
+            height: 90
             visible: root.show4decks && !root.maximizeLibrary
 
             FadeBehavior on visible {
@@ -137,7 +173,7 @@ ApplicationWindow {
 
             group: "[Channel1]"
             width: root.width
-            height: 50
+            height: 90
             visible: !root.maximizeLibrary
 
             FadeBehavior on visible {
@@ -150,7 +186,7 @@ ApplicationWindow {
 
             group: "[Channel2]"
             width: root.width
-            height: 50
+            height: 90
             visible: !root.maximizeLibrary
 
             FadeBehavior on visible {
@@ -163,7 +199,7 @@ ApplicationWindow {
 
             group: "[Channel4]"
             width: root.width
-            height: 50
+            height: 90
             visible: root.show4decks && !root.maximizeLibrary
 
             FadeBehavior on visible {
@@ -177,7 +213,7 @@ ApplicationWindow {
             leftDeckGroup: "[Channel1]"
             rightDeckGroup: "[Channel2]"
             width: parent.width
-            minimized: root.maximizeLibrary
+            minimized: root.maximizeLibrary || root.compactControls
         }
 
         Skin.CrossfaderRow {
@@ -198,7 +234,7 @@ ApplicationWindow {
             leftDeckGroup: "[Channel3]"
             rightDeckGroup: "[Channel4]"
             width: parent.width
-            minimized: root.maximizeLibrary
+            minimized: root.maximizeLibrary || root.compactControls
             visible: root.show4decks
 
             Skin.FadeBehavior on visible {
