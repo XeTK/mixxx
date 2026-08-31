@@ -17,8 +17,19 @@ ApplicationWindow {
     color: Theme.backgroundColor
     visible: true
 
-    Column {
+    Flickable {
+        id: mainFlickable
+
         anchors.fill: parent
+        contentWidth: width
+        contentHeight: Math.max(mainColumn.implicitHeight, height)
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+    Column {
+        id: mainColumn
+
+        width: mainFlickable.width
 
         Rectangle {
             id: toolbar
@@ -219,7 +230,7 @@ ApplicationWindow {
 
         Skin.Library {
             width: parent.width
-            height: parent.height - y
+            height: Math.max(mainFlickable.height - y, 300)
         }
 
         move: Transition {
@@ -228,5 +239,6 @@ ApplicationWindow {
                 duration: 150
             }
         }
+    }
     }
 }
