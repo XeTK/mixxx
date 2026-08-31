@@ -44,21 +44,30 @@ jobs:
             "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@gitea.xetk.co.uk/xetk/mixxx.git" .
           git log -1 --oneline
 
-      - name: "Free up disk space (stale workdirs from previous runs)"
+      - name: "Free up disk space (stale workdirs + global Gradle cache)"
         run: |
           set -eux
           df -h /
+          du -sh /root/.cache/act/*/hostexecutor 2>/dev/null | sort -rh | head -5 || true
+          du -sh /root/.gradle 2>/dev/null || true
           # Each dispatch gets its own /root/.cache/act/<hash>/hostexecutor
           # workdir (10+ GB: vcpkg deps bundle + full C++ object tree) that
           # doesn't appear to get cleaned up automatically between runs.
-          # After ~15 dispatches tonight this filled the disk and failed
-          # the Gradle APK packaging step with ENOSPC. Remove sibling
-          # workdirs untouched for over an hour (leaves anything a
-          # concurrently-running job on this shared runner might still be
-          # using alone).
+          # There's no ccache anymore (reverted - see commit history), so
+          # these old workdirs give zero build-speed benefit; only keep the
+          # current one plus anything younger than 10min (a concurrently
+          # running job on this shared runner might still be using it).
           THIS_RUN_DIR="$GITHUB_WORKSPACE"
           PARENT_DIR="$(dirname "$THIS_RUN_DIR")"
-          find "$PARENT_DIR" -maxdepth 1 -mindepth 1 -not -path "$THIS_RUN_DIR" -mmin +60 -print -exec rm -rf {} + || true
+          find "$PARENT_DIR" -maxdepth 1 -mindepth 1 -not -path "$THIS_RUN_DIR" -mmin +10 -print -exec rm -rf {} + || true
+          # Separately, Gradle's *global* dependency/transform cache at
+          # /root/.gradle/caches lives OUTSIDE any per-run workdir and is
+          # never touched by the cleanup above, so it grows unboundedly
+          # across every dispatch. This, not the per-run workdirs, is what
+          # actually filled the disk on 2026-08-31 (94% used before this
+          # build even started). Safe to wipe entirely - Gradle
+          # re-downloads/re-extracts on demand.
+          rm -rf /root/.gradle/caches /root/.gradle/daemon || true
           df -h /
 
       - name: "Set up build environment (JDK/SDK/NDK/vcpkg deps)"
