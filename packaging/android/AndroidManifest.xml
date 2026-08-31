@@ -48,7 +48,7 @@
 
           <meta-data
                 android:name="android.app.splash_screen_drawable"
-                android:value="@drawable/ic_launcher_foreground" />
+                android:resource="@drawable/ic_launcher_foreground" />
 
           <meta-data
                 android:name="android.app.arguments"
