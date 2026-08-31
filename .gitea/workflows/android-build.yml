@@ -44,6 +44,23 @@ jobs:
             "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@gitea.xetk.co.uk/xetk/mixxx.git" .
           git log -1 --oneline
 
+      - name: "Free up disk space (stale workdirs from previous runs)"
+        run: |
+          set -eux
+          df -h /
+          # Each dispatch gets its own /root/.cache/act/<hash>/hostexecutor
+          # workdir (10+ GB: vcpkg deps bundle + full C++ object tree) that
+          # doesn't appear to get cleaned up automatically between runs.
+          # After ~15 dispatches tonight this filled the disk and failed
+          # the Gradle APK packaging step with ENOSPC. Remove sibling
+          # workdirs untouched for over an hour (leaves anything a
+          # concurrently-running job on this shared runner might still be
+          # using alone).
+          THIS_RUN_DIR="$GITHUB_WORKSPACE"
+          PARENT_DIR="$(dirname "$THIS_RUN_DIR")"
+          find "$PARENT_DIR" -maxdepth 1 -mindepth 1 -not -path "$THIS_RUN_DIR" -mmin +60 -print -exec rm -rf {} + || true
+          df -h /
+
       - name: "Set up build environment (JDK/SDK/NDK/vcpkg deps)"
         run: |
           set -eux
