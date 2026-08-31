@@ -37,6 +37,7 @@
 
 #ifdef Q_OS_ANDROID
 #include <android/log.h>
+#include <unistd.h>
 #define MIXXX_ANDROID_TRACE(msg) \
     __android_log_print(ANDROID_LOG_ERROR, "mixxx_trace", "%s", msg)
 #else
@@ -184,6 +185,20 @@ void applyStyleOverride(CmdlineArgs* pArgs) {
 } // anonymous namespace
 
 int main(int argc, char * argv[]) {
+#ifdef Q_OS_ANDROID
+    // Debug-only gate: touch /data/local/tmp/mixxx_wait_for_debugger before
+    // launching to pause here indefinitely (before any Qt/Mixxx code runs),
+    // giving a native debugger unlimited time to attach by pid instead of
+    // racing the ~4s process lifetime before the early startup crash hits.
+    // Touch /data/local/tmp/mixxx_debug_go to release.
+    if (access("/data/local/tmp/mixxx_wait_for_debugger", F_OK) == 0) {
+        MIXXX_ANDROID_TRACE("main: waiting for debugger, touch /data/local/tmp/mixxx_debug_go to continue");
+        while (access("/data/local/tmp/mixxx_debug_go", F_OK) != 0) {
+            usleep(200000);
+        }
+        MIXXX_ANDROID_TRACE("main: debugger released, continuing");
+    }
+#endif
     Console console;
 
     // These need to be set early on (not sure how early) in order to trigger
