@@ -2459,6 +2459,18 @@ if(QT6)
       COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets
+      # The wholesale copy above lands the desktop skin at assets/qml/ (used
+      # via kMainQmlFileName = "qml/main.qml", see qml/qmlapplication.cpp).
+      # Overwrite it with the phone-optimized skin, then delete the leftover
+      # assets/qml-mobile/ copy of the same files under their original name -
+      # copy_directory has no exclude filter, so this runs as separate
+      # overwrite + cleanup steps rather than a single copy.
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res/qml-mobile
+        ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets/qml
+      COMMAND
+        ${CMAKE_COMMAND} -E rm -rf
+        ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets/qml-mobile
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
     add_dependencies(mixxx copy-resource-android)
@@ -4036,23 +4048,15 @@ if(QML)
   # and :/mixxx.org/imports/Mixxx/Controls are placed into beginning of the binary
   qt_finalize_target(mixxx)
 
-  if(ANDROID)
-    # Android gets a phone-optimized skin (smaller waveforms, a scrollable
-    # toolbar that can't overflow narrow screens, long-press-to-load-to-deck
-    # on tracks) instead of the desktop-oriented default. Installing its
-    # contents at the same "qml/" destination as the desktop skin below means
-    # QmlApplication's hardcoded kMainQmlFileName ("qml/main.qml", see
-    # src/qml/qmlapplication.cpp) resolves correctly with no C++ changes needed.
-    install(
-      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/qml-mobile/"
-      DESTINATION "${MIXXX_INSTALL_DATADIR}/qml"
-    )
-  else()
-    install(
-      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/qml"
-      DESTINATION "${MIXXX_INSTALL_DATADIR}"
-    )
-  endif()
+  # Note: Android doesn't use this install() target at all - its APK assets
+  # are staged by the copy-resource-android custom target above instead
+  # (androiddeployqt bundles whatever ends up in android-build/assets, not
+  # whatever install() would produce), which is where the phone-optimized
+  # res/qml-mobile skin actually gets substituted in for Android.
+  install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/qml"
+    DESTINATION "${MIXXX_INSTALL_DATADIR}"
+  )
 endif()
 
 option(DEBUG_ASSERTIONS_FATAL "Fail if debug become true assertions" OFF)
