@@ -645,7 +645,15 @@ void BaseTrackPlayerImpl::slotLoadFailed(TrackPointer pTrack, const QString& rea
     } else if (pTrack) {
         m_pPrevFailedTrackId = pTrack->getId();
     }
+    // QMessageBox is unsafe to pop on the QML-only shell on Android (and
+    // iOS), where there is no QtWidgets-compatible native window surface to
+    // host it - it can end up mistaken for the app's last window, causing
+    // Mixxx to quit entirely when the dialog is dismissed. Log instead.
+#if !defined(Q_OS_ANDROID)
     QMessageBox::warning(nullptr, tr("Couldn't load track."), reason);
+#else
+    qWarning() << "Couldn't load track:" << reason;
+#endif
     m_pPrevFailedTrackId = TrackId();
 }
 
