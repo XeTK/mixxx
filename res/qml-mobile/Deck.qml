@@ -108,6 +108,13 @@ Item {
         Item {
             id: waveformBar
 
+            // The strip's children are fixed-width, so on narrow decks they
+            // pile on top of each other - shed the least important ones
+            // progressively instead of garbling.
+            readonly property bool showPassthrough: width >= 290
+            readonly property bool showPosition: width >= 225
+            readonly property bool showQuantize: width >= 170
+
             height: 22
             anchors.left: parent.left
             anchors.right: parent.right
@@ -181,6 +188,7 @@ Item {
             Skin.EmbeddedText {
                 id: waveformBarPosition
 
+                visible: waveformBar.showPosition
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: waveformBarHSeparator2.right
@@ -253,6 +261,7 @@ Item {
             }
 
             InfoBarButton {
+                visible: waveformBar.showQuantize
                 anchors.top: waveformBarVSeparator.bottom
                 anchors.bottom: waveformBar.bottom
                 anchors.left: waveformBarRightSpace.left
@@ -279,6 +288,7 @@ Item {
             Rectangle {
                 id: waveformBarHSeparator3
 
+                visible: waveformBar.showPassthrough
                 anchors.top: waveformBar.top
                 anchors.bottom: waveformBar.bottom
                 anchors.right: waveformBarLeftSpace.left
@@ -288,6 +298,7 @@ Item {
             }
 
             InfoBarButton {
+                visible: waveformBar.showPassthrough
                 anchors.top: waveformBarVSeparator.bottom
                 anchors.bottom: waveformBar.bottom
                 anchors.left: waveformBarLeftSpace.left

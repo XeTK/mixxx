@@ -18,8 +18,15 @@ ApplicationWindow {
     // than a duplicate set of on-screen controls.
     property alias compactControls: compactControlsButton.checked
 
-    width: 1920
-    height: 1080
+    // On Android the window must track the (rotating) screen; the fixed
+    // size is only a sane default for the desktop preview. Without this,
+    // an app launched from a portrait home screen keeps its portrait-sized
+    // GL window after the forced rotation to landscape (the manifest
+    // handles configChanges itself, so nothing recreates the activity and
+    // Qt misses the resize), leaving the UI squashed into the left third
+    // of the screen.
+    width: Qt.platform.os === "android" ? Screen.width : 1920
+    height: Qt.platform.os === "android" ? Screen.height : 1080
     color: Theme.backgroundColor
     visible: true
 
@@ -35,15 +42,36 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 4
-        width: 36
-        height: 28
-        text: root.currentScreen === "decks" ? "☰" : "←"
+        // Big enough to hit with a thumb.
+        width: 48
+        height: 40
+        // "<" is plain ASCII; the ☰/← glyphs render as tofu boxes on
+        // Android (the bundled fonts don't cover them), so the hamburger
+        // is drawn with rectangles below instead of a glyph.
+        text: root.currentScreen === "decks" ? "" : "<"
         activeColor: Theme.white
         onClicked: {
             if (root.currentScreen === "decks")
                 menuDrawer.open();
             else
                 root.currentScreen = "decks";
+        }
+
+        Column {
+            visible: root.currentScreen === "decks"
+            anchors.centerIn: parent
+            spacing: 4
+
+            Repeater {
+                model: 3
+
+                Rectangle {
+                    width: 18
+                    height: 2
+                    radius: 1
+                    color: Theme.buttonNormalColor
+                }
+            }
         }
     }
 
