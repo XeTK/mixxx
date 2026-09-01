@@ -83,16 +83,27 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         return QUrl::fromLocalFile(location);
     }
     case CoverArtUrlRole: {
+        const QModelIndex sourceIndex = pSourceModel->index(proxyIndex.row(), 0);
+        const TrackId trackId = pSourceModel->getTrackId(sourceIndex);
+        const auto cacheIt = m_coverArtUrlCache.constFind(trackId);
+        if (cacheIt != m_coverArtUrlCache.constEnd()) {
+            return cacheIt.value();
+        }
         // Unlike the other roles, this needs the actual Track object (to
         // reuse the same CoverInfo/AsyncImageProvider path the loaded-deck
-        // cover art uses) rather than a single SQL column.
-        const TrackPointer pTrack = pSourceModel->getTrack(
-                pSourceModel->index(proxyIndex.row(), 0));
+        // cover art uses) rather than a single SQL column - expensive
+        // enough (hydrates a full Track, probes for embedded/sidecar
+        // artwork) that it must be cached rather than redone on every
+        // data() call, e.g. every time the view repaints a row.
+        const TrackPointer pTrack = pSourceModel->getTrack(sourceIndex);
         if (!pTrack) {
             return {};
         }
         const CoverInfo coverInfo = pTrack->getCoverInfoWithLocation();
-        return AsyncImageProvider::trackLocationToCoverArtUrl(coverInfo.trackLocation);
+        const QUrl coverArtUrl =
+                AsyncImageProvider::trackLocationToCoverArtUrl(coverInfo.trackLocation);
+        m_coverArtUrlCache.insert(trackId, coverArtUrl);
+        return coverArtUrl;
     }
     default:
         break;

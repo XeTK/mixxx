@@ -1,6 +1,10 @@
 #pragma once
+#include <QHash>
 #include <QIdentityProxyModel>
 #include <QQmlEngine>
+#include <QUrl>
+
+#include "track/trackid.h"
 
 class LibraryTableModel;
 
@@ -34,6 +38,13 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     int columnCount(const QModelIndex& index = QModelIndex()) const override;
     QHash<int, QByteArray> roleNames() const override;
     Q_INVOKABLE QVariant get(int row) const;
+
+  private:
+    // Resolving cover art requires hydrating a full Track object and
+    // probing for embedded/sidecar artwork (see data()'s CoverArtUrlRole
+    // case) - too expensive to redo on every data() call for a role that
+    // never changes for a given track while the library list is open.
+    mutable QHash<TrackId, QUrl> m_coverArtUrlCache;
 };
 
 } // namespace qml
