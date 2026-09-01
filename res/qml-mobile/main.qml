@@ -7,274 +7,284 @@ import "Theme"
 ApplicationWindow {
     id: root
 
-    property alias show4decks: show4DecksButton.checked
-    property alias showEffects: showEffectsButton.checked
-    property alias showSamplers: showSamplersButton.checked
-    property alias maximizeLibrary: maximizeLibraryButton.checked
+    // "decks" | "library" | "effects" | "sampler" - each is a genuinely
+    // separate full-screen view on mobile rather than an inline section
+    // competing with the others for scroll space. The hamburger button
+    // doubles as a back button whenever we're not on "decks".
+    property string currentScreen: "decks"
     // Hides per-deck knobs/hotcues/rate slider/mixer, leaving just the big
     // waveform + basic transport - meant for when a physical controller is
     // connected and the phone screen is better used as a waveform display
     // than a duplicate set of on-screen controls.
     property alias compactControls: compactControlsButton.checked
-    property bool toolbarCollapsed: false
 
     width: 1920
     height: 1080
     color: Theme.backgroundColor
     visible: true
 
-    Flickable {
-        id: mainFlickable
+    // A small persistent hamburger button replaces the old full-width
+    // toolbar row - it doesn't eat a fixed strip of vertical space the way
+    // a toolbar (even a collapsible one) does, and phones have plenty of
+    // width but little height to spare in landscape. On any screen other
+    // than "decks" it becomes a back button instead of opening the drawer.
+    Skin.Button {
+        id: menuButton
 
-        anchors.fill: parent
-        contentWidth: width
-        contentHeight: Math.max(mainColumn.implicitHeight, height)
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
+        z: 10
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 4
+        width: 36
+        height: 28
+        text: root.currentScreen === "decks" ? "☰" : "←"
+        activeColor: Theme.white
+        onClicked: {
+            if (root.currentScreen === "decks")
+                menuDrawer.open();
+            else
+                root.currentScreen = "decks";
+        }
+    }
 
-    Column {
-        id: mainColumn
+    Popup {
+        id: menuDrawer
 
-        width: mainFlickable.width
+        x: root.width - width - 4
+        y: menuButton.height + 8
+        dim: true
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        contentWidth: menuColumn.implicitWidth
+        contentHeight: menuColumn.implicitHeight
 
-        Rectangle {
-            id: toolbar
+        background: BorderImage {
+            anchors.fill: parent
+            horizontalTileMode: BorderImage.Stretch
+            verticalTileMode: BorderImage.Stretch
+            source: Theme.imgPopupBackground
 
-            width: parent.width
-            height: root.toolbarCollapsed ? 14 : 36
-            color: Theme.toolbarBackgroundColor
-            radius: 1
+            border {
+                top: 10
+                left: 20
+                right: 20
+                bottom: 10
+            }
+        }
 
-            Behavior on height {
-                NumberAnimation {
-                    duration: 120
-                }
+        Column {
+            id: menuColumn
+
+            spacing: 4
+
+            Skin.Button {
+                id: compactControlsButton
+
+                width: 160
+                text: "Compact"
+                activeColor: Theme.white
+                checkable: true
             }
 
-            Flickable {
-                anchors.fill: parent
-                anchors.rightMargin: 22
-                contentWidth: toolbarRow.implicitWidth + 10
-                contentHeight: height
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                visible: !root.toolbarCollapsed
-
-                Row {
-                    id: toolbarRow
-
-                    padding: 5
-                    spacing: 5
-
-                Skin.Button {
-                    id: show4DecksButton
-
-                    text: "4 Decks"
-                    activeColor: Theme.white
-                    checkable: true
-                }
-
-                Skin.Button {
-                    id: compactControlsButton
-
-                    text: "Compact"
-                    activeColor: Theme.white
-                    checkable: true
-                }
-
-                Skin.Button {
-                    id: maximizeLibraryButton
-
-                    text: "Library"
-                    activeColor: Theme.white
-                    checkable: true
-                }
-
-                Skin.Button {
-                    id: showEffectsButton
-
-                    text: "Effects"
-                    activeColor: Theme.white
-                    checkable: true
-                }
-
-                Skin.Button {
-                    id: showSamplersButton
-
-                    text: "Sampler"
-                    activeColor: Theme.white
-                    checkable: true
-                }
-
-                Skin.Button {
-                    id: showPreferencesButton
-
-                    text: "Prefs"
-                    activeColor: Theme.white
-                    onClicked: {
-                        Mixxx.PreferencesDialog.show();
-                    }
-                }
-
-                Skin.Button {
-                    id: showDevToolsButton
-
-                    text: "Develop"
-                    activeColor: Theme.white
-                    checkable: true
-                    checked: devToolsWindow.visible
-                    onClicked: {
-                        if (devToolsWindow.visible)
-                            devToolsWindow.close();
-                        else
-                            devToolsWindow.show();
-                    }
-
-                    DeveloperToolsWindow {
-                        id: devToolsWindow
-
-                        width: 640
-                        height: 480
-                    }
-                }
+            Skin.Button {
+                width: 160
+                text: "Library"
+                activeColor: Theme.white
+                onClicked: {
+                    root.currentScreen = "library";
+                    menuDrawer.close();
                 }
             }
 
             Skin.Button {
-                id: toolbarCollapseButton
-
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                width: 20
-                height: parent.height
-                text: root.toolbarCollapsed ? "▸" : "▾"
+                width: 160
+                text: "Effects"
                 activeColor: Theme.white
                 onClicked: {
-                    root.toolbarCollapsed = !root.toolbarCollapsed;
+                    root.currentScreen = "effects";
+                    menuDrawer.close();
+                }
+            }
+
+            Skin.Button {
+                width: 160
+                text: "Sampler"
+                activeColor: Theme.white
+                onClicked: {
+                    root.currentScreen = "sampler";
+                    menuDrawer.close();
+                }
+            }
+
+            Skin.Button {
+                width: 160
+                text: "Prefs"
+                activeColor: Theme.white
+                onClicked: {
+                    // FIXME: this opens the legacy QtWidgets preferences
+                    // dialog, which isn't usable on a phone screen (tiny
+                    // desktop-oriented controls, no touch-friendly layout).
+                    // A real QML preferences UI is its own separate project.
+                    Mixxx.PreferencesDialog.show();
+                    menuDrawer.close();
+                }
+            }
+
+            Skin.Button {
+                id: showDevToolsButton
+
+                width: 160
+                text: "Develop"
+                activeColor: Theme.white
+                checkable: true
+                checked: devToolsWindow.visible
+                onClicked: {
+                    if (devToolsWindow.visible)
+                        devToolsWindow.close();
+                    else
+                        devToolsWindow.show();
+
+                    menuDrawer.close();
+                }
+
+                DeveloperToolsWindow {
+                    id: devToolsWindow
+
+                    width: 640
+                    height: 480
                 }
             }
         }
+    }
 
-        Skin.WaveformDisplay {
-            id: deck3waveform
+    Item {
+        id: decksScreen
 
-            group: "[Channel3]"
-            width: root.width
-            height: 90
-            visible: root.show4decks && !root.maximizeLibrary
+        anchors.fill: parent
+        visible: root.currentScreen === "decks"
 
-            FadeBehavior on visible {
-                fadeTarget: deck3waveform
+        // Everything scales to the window instead of scrolling: each
+        // waveform takes a share of the height and the deck controls fill
+        // whatever remains (the mixer scales itself down if that's tighter
+        // than its natural size - see Mixer.qml). In compact mode the
+        // controls collapse and the waveforms split the whole screen.
+        readonly property real waveformHeight: root.compactControls ? height / 2 : Math.max(70, height * 0.22)
+
+        // No reserved header row - the hamburger/back button floats
+        // (z: 10, see above) directly over the top corner of the
+        // first waveform instead of pushing content down.
+        Item {
+            id: deck1waveformWrap
+
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: decksScreen.waveformHeight
+
+            Behavior on height {
+                NumberAnimation {
+                    duration: 150
+                }
+            }
+
+            Skin.WaveformDisplay {
+                id: deck1waveform
+
+                anchors.fill: parent
+                group: "[Channel1]"
+            }
+
+            Skin.TrackInfoBubble {
+                // Sits at the bottom of channel A's waveform rather
+                // than the top, since the top-left corner is where beat
+                // markers/cue flags tend to cluster and the hamburger
+                // button already lives there too.
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.margins: 4
+                group: "[Channel1]"
             }
         }
 
-        Skin.WaveformDisplay {
-            id: deck1waveform
+        Item {
+            id: deck2waveformWrap
 
-            group: "[Channel1]"
-            width: root.width
-            height: 90
-            visible: !root.maximizeLibrary
+            anchors.top: deck1waveformWrap.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: decksScreen.waveformHeight
 
-            FadeBehavior on visible {
-                fadeTarget: deck1waveform
+            Behavior on height {
+                NumberAnimation {
+                    duration: 150
+                }
             }
-        }
 
-        Skin.WaveformDisplay {
-            id: deck2waveform
+            Skin.WaveformDisplay {
+                id: deck2waveform
 
-            group: "[Channel2]"
-            width: root.width
-            height: 90
-            visible: !root.maximizeLibrary
-
-            FadeBehavior on visible {
-                fadeTarget: deck2waveform
+                anchors.fill: parent
+                group: "[Channel2]"
             }
-        }
 
-        Skin.WaveformDisplay {
-            id: deck4waveform
-
-            group: "[Channel4]"
-            width: root.width
-            height: 90
-            visible: root.show4decks && !root.maximizeLibrary
-
-            FadeBehavior on visible {
-                fadeTarget: deck4waveform
+            Skin.TrackInfoBubble {
+                // Bottom instead of top now too - the hamburger/back
+                // button moved to the top-right corner, which would
+                // otherwise sit right on top of this.
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.margins: 4
+                group: "[Channel2]"
             }
         }
 
         Skin.DeckRow {
             id: decks12
 
+            anchors.top: deck2waveformWrap.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
             leftDeckGroup: "[Channel1]"
             rightDeckGroup: "[Channel2]"
-            width: parent.width
-            minimized: root.maximizeLibrary || root.compactControls
+            minimized: root.compactControls
         }
+    }
 
-        Skin.CrossfaderRow {
-            id: crossfader
+    Item {
+        id: libraryScreen
 
-            crossfaderWidth: decks12.mixer.width
-            width: parent.width
-            visible: !root.maximizeLibrary
-
-            Skin.FadeBehavior on visible {
-                fadeTarget: crossfader
-            }
-        }
-
-        Skin.DeckRow {
-            id: decks34
-
-            leftDeckGroup: "[Channel3]"
-            rightDeckGroup: "[Channel4]"
-            width: parent.width
-            minimized: root.maximizeLibrary || root.compactControls
-            visible: root.show4decks
-
-            Skin.FadeBehavior on visible {
-                fadeTarget: decks34
-            }
-        }
-
-        Skin.SamplerRow {
-            id: samplers
-
-            width: parent.width
-            visible: root.showSamplers
-
-            Skin.FadeBehavior on visible {
-                fadeTarget: samplers
-            }
-        }
-
-        Skin.EffectRow {
-            id: effects
-
-            width: parent.width
-            visible: root.showEffects
-
-            Skin.FadeBehavior on visible {
-                fadeTarget: effects
-            }
-        }
+        anchors.fill: parent
+        visible: root.currentScreen === "library"
 
         Skin.Library {
-            width: parent.width
-            height: Math.max(mainFlickable.height - y, 300)
-        }
-
-        move: Transition {
-            NumberAnimation {
-                properties: "x,y"
-                duration: 150
+            anchors.fill: parent
+            onTrackLoadedToDeck: {
+                root.currentScreen = "decks";
             }
         }
     }
+
+    Item {
+        id: effectsScreen
+
+        anchors.fill: parent
+        visible: root.currentScreen === "effects"
+
+        Skin.EffectRow {
+            anchors.fill: parent
+        }
+    }
+
+    Item {
+        id: samplerScreen
+
+        anchors.fill: parent
+        visible: root.currentScreen === "sampler"
+
+        Skin.SamplerRow {
+            anchors.fill: parent
+        }
     }
 }

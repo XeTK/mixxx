@@ -11,7 +11,10 @@ Rectangle {
 
     color: Theme.knobBackgroundColor
     width: 56
-    height: 56
+    // Tall enough to actually contain the effect-selector combo box that
+    // sits under the knob - it used to paint ~14px past the declared 56,
+    // which made the mixer's fit-to-height math clip the "Filter" label.
+    height: 60
     radius: 5
 
     Skin.ControlKnob {
@@ -65,6 +68,7 @@ Rectangle {
         anchors.leftMargin: 2
         anchors.right: root.right
         anchors.top: knob.bottom
+        anchors.bottom: root.bottom
         anchors.margins: 1
         spacing: 2
         indicator.width: 0

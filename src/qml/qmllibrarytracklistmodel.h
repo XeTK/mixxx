@@ -19,6 +19,10 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
         AlbumRole,
         AlbumArtistRole,
         FileUrlRole,
+        DurationRole,
+        BpmRole,
+        KeyRole,
+        GenreRole,
     };
     Q_ENUM(Roles);
 

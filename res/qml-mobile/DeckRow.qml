@@ -8,7 +8,9 @@ Item {
     property alias mixer: mixer
     property bool minimized: false
 
-    implicitHeight: mixer.height
+    // No implicitHeight here - main.qml anchors this row between the
+    // waveforms and the bottom of the window, so it fills whatever real
+    // estate is left and the decks/mixer scale themselves to fit it.
     states: [
         State {
             when: root.minimized
@@ -17,11 +19,6 @@ Item {
             PropertyChanges {
                 target: mixer
                 visible: false
-            }
-
-            PropertyChanges {
-                target: root
-                implicitHeight: 66
             }
 
             AnchorChanges {
@@ -47,11 +44,6 @@ Item {
             PropertyChanges {
                 target: mixer
                 visible: true
-            }
-
-            PropertyChanges {
-                target: root
-                implicitHeight: mixer.height
             }
 
             AnchorChanges {
@@ -80,6 +72,7 @@ Item {
         id: mixer
 
         anchors.top: parent.top
+        anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         leftDeckGroup: root.leftDeckGroup
         rightDeckGroup: root.rightDeckGroup
@@ -103,17 +96,9 @@ Item {
         to: "minimized"
         reversible: true
 
-        SequentialAnimation {
-            AnchorAnimation {
-                targets: [leftDeck, rightDeck]
-                duration: 150
-            }
-
-            PropertyAnimation {
-                target: root
-                property: "implicitHeight"
-                duration: 150
-            }
+        AnchorAnimation {
+            targets: [leftDeck, rightDeck]
+            duration: 150
         }
     }
 }

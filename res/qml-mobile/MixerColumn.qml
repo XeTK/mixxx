@@ -7,30 +7,10 @@ Item {
 
     required property string group
 
-    Rectangle {
-        id: gainKnobFrame
-
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: width
-        color: Theme.knobBackgroundColor
-        radius: 5
-
-        Skin.ControlKnob {
-            id: gainKnob
-
-            anchors.centerIn: parent
-            width: 48
-            height: 48
-            group: root.group
-            key: "pregain"
-            color: Theme.gainKnobColor
-        }
-    }
-
+    // The gain knob that used to sit on top of the fader now lives in
+    // EqColumn's side column, so the volume fader gets this full height.
     Item {
-        anchors.top: gainKnobFrame.bottom
+        anchors.top: parent.top
         anchors.topMargin: 5
         anchors.bottomMargin: 5
         anchors.left: parent.left

@@ -12,6 +12,10 @@ const QHash<int, QByteArray> kRoleNames = {
         {QmlLibraryTrackListModel::AlbumRole, "album"},
         {QmlLibraryTrackListModel::AlbumArtistRole, "albumArtist"},
         {QmlLibraryTrackListModel::FileUrlRole, "fileUrl"},
+        {QmlLibraryTrackListModel::DurationRole, "duration"},
+        {QmlLibraryTrackListModel::BpmRole, "bpm"},
+        {QmlLibraryTrackListModel::KeyRole, "key"},
+        {QmlLibraryTrackListModel::GenreRole, "genre"},
 };
 }
 
@@ -52,6 +56,18 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         break;
     case AlbumArtistRole:
         column = pSourceModel->fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_ALBUMARTIST);
+        break;
+    case DurationRole:
+        column = pSourceModel->fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_DURATION);
+        break;
+    case BpmRole:
+        column = pSourceModel->fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_BPM);
+        break;
+    case KeyRole:
+        column = pSourceModel->fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_KEY);
+        break;
+    case GenreRole:
+        column = pSourceModel->fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_GENRE);
         break;
     case FileUrlRole: {
         column = pSourceModel->fieldIndex(ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION);

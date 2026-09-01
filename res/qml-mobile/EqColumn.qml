@@ -9,6 +9,13 @@ Column {
     id: root
 
     required property string group
+    // When vertical space is tight, the gain and quick-effect filter move
+    // into a second column beside the EQ stack (compact). With enough room
+    // they rejoin the EQs as one tall stack: gain, EQs, filter.
+    property bool compact: true
+    // Renders the columns right-to-left so the compact gain/filter column
+    // can face this channel's own deck on either side of the mixer.
+    property bool mirrored: false
     property var player: Mixxx.PlayerManager.getPlayer(root.group)
 
     Mixxx.ControlProxy {
@@ -23,10 +30,17 @@ Column {
     }
 
     Row {
+        spacing: 4
+        layoutDirection: root.mirrored ? Qt.RightToLeft : Qt.LeftToRight
+
         Column {
             id: stem
             spacing: 4
-            width: 10
+            // Was 10, while the knobs inside are 56 wide - they painted
+            // ~46px past the column's declared bounds, so the mixer
+            // undercounted its own width and the overflow landed on top of
+            // the neighbouring deck's buttons.
+            width: 56
             visible: opacity != 0
             Repeater {
                 model: root.player.stemsModel
@@ -43,8 +57,27 @@ Column {
         Column {
             id: eq
             spacing: 4
-            width: 10
+            // Same as the stem column above: match the knobs' real width.
+            width: 56
             visible: opacity != 0
+
+            Rectangle {
+                visible: !root.compact
+                width: 56
+                height: 56
+                color: Theme.knobBackgroundColor
+                radius: 5
+
+                Skin.ControlKnob {
+                    anchors.centerIn: parent
+                    width: 48
+                    height: 48
+                    group: root.group
+                    key: "pregain"
+                    color: Theme.gainKnobColor
+                }
+            }
+
             Skin.EqKnob {
                 statusKey: "button_parameter3"
                 knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
@@ -67,6 +100,42 @@ Column {
             }
 
             Skin.QuickFxKnob {
+                visible: !root.compact
+                group: "[QuickEffectRack1_" + root.group + "]"
+                knob.arcStyle: ShapePath.DashLine
+                knob.arcStylePattern: [2, 2]
+                knob.color: Theme.eqFxColor
+            }
+        }
+
+        Item {
+            id: aux
+
+            visible: root.compact
+            width: 56
+            height: eq.height
+
+            // Compact mode only: gain pinned to the top, filter pinned to
+            // the bottom of the container, empty space between.
+            Rectangle {
+                anchors.top: parent.top
+                width: 56
+                height: 56
+                color: Theme.knobBackgroundColor
+                radius: 5
+
+                Skin.ControlKnob {
+                    anchors.centerIn: parent
+                    width: 48
+                    height: 48
+                    group: root.group
+                    key: "pregain"
+                    color: Theme.gainKnobColor
+                }
+            }
+
+            Skin.QuickFxKnob {
+                anchors.bottom: parent.bottom
                 group: "[QuickEffectRack1_" + root.group + "]"
                 knob.arcStyle: ShapePath.DashLine
                 knob.arcStylePattern: [2, 2]
@@ -102,11 +171,5 @@ Column {
                 }
             }
         ]
-    }
-
-    Skin.OrientationToggleButton {
-        group: root.group
-        key: "orientation"
-        color: Theme.crossfaderOrientationColor
     }
 }

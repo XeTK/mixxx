@@ -3,6 +3,14 @@ import QtQuick 2.12
 import "Theme"
 
 Item {
+    id: root
+
+    // Loading a track (by any method - double-click, Enter, or the
+    // long-press "load to deck" popup) should return to the decks screen
+    // automatically, since there's no reason to keep looking at the library
+    // once you've picked something.
+    signal trackLoadedToDeck
+
     Rectangle {
         color: Theme.deckBackgroundColor
         anchors.fill: parent
@@ -48,6 +56,7 @@ Item {
                     return ;
 
                 Mixxx.PlayerManager.loadLocationUrlIntoNextAvailableDeck(url, play);
+                root.trackLoadedToDeck();
             }
 
             function loadSelectedTrack(group, play) {
@@ -60,6 +69,7 @@ Item {
                     return ;
 
                 player.loadTrackFromLocationUrl(url, play);
+                root.trackLoadedToDeck();
             }
 
             anchors.fill: parent
@@ -85,19 +95,42 @@ Item {
                 required property url fileUrl
                 required property string artist
                 required property string title
+                required property string duration
+                required property string bpm
+                required property string key
+                required property string genre
 
                 implicitWidth: listView.width
-                implicitHeight: 30
+                implicitHeight: 44
 
-                Text {
+                Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: itemDlgt.artist + " - " + itemDlgt.title
-                    color: (listView.currentIndex == itemDlgt.index && listView.activeFocus) ? Theme.blue : Theme.deckTextColor
+                    width: parent.width
+                    spacing: 2
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: listView.highlightMoveDuration
+                    Text {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        text: itemDlgt.artist + " - " + itemDlgt.title
+                        color: (listView.currentIndex == itemDlgt.index && listView.activeFocus) ? Theme.blue : Theme.deckTextColor
+
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: listView.highlightMoveDuration
+                            }
                         }
+                    }
+
+                    // Auxiliary metadata that doesn't fit on the title line -
+                    // useful for picking a track by feel (matching key/bpm)
+                    // rather than opening it first to find out.
+                    Text {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        font.pixelSize: 11
+                        opacity: 0.7
+                        color: Theme.deckTextColor
+                        text: [itemDlgt.genre, itemDlgt.key, itemDlgt.bpm ? itemDlgt.bpm + " BPM" : "", itemDlgt.duration].filter((s) => s.length > 0).join("  ·  ")
                     }
                 }
 

@@ -35,19 +35,28 @@ Item {
         anchors.fill: parent
     }
 
-    Skin.DeckInfoBar {
-        id: infoBar
+    // DeckInfoBar (cover art/title/key/bpm) doesn't get its own row here on
+    // mobile - it floats over the main waveform in main.qml instead
+    // (Skin.TrackInfoBubble), reclaiming this row's height for the rest of
+    // the deck controls.
+    Skin.SyncButton {
+        id: syncButton
 
-        anchors.leftMargin: 5
-        anchors.topMargin: 5
-        anchors.rightMargin: 5
+        visible: !root.minimized
         anchors.top: parent.top
-        anchors.left: parent.left
+        anchors.topMargin: 5
         anchors.right: parent.right
+        anchors.rightMargin: 5
         group: root.group
-        rightColumnWidth: rateSlider.width
+
+        FadeBehavior on visible {
+            fadeTarget: syncButton
+        }
     }
 
+    // The tempo slider runs the full deck height (below Sync) instead of
+    // stopping at the button bar - pitch bending by touch needs the
+    // travel distance far more than the buttons need the extra width.
     Skin.ControlSlider {
         id: rateSlider
 
@@ -55,9 +64,9 @@ Item {
         anchors.topMargin: 5
         anchors.rightMargin: 5
         anchors.bottomMargin: 5
-        anchors.top: infoBar.bottom
+        anchors.top: syncButton.bottom
         anchors.right: parent.right
-        anchors.bottom: buttonBar.top
+        anchors.bottom: parent.bottom
         width: syncButton.width
         group: root.group
         key: "rate"
@@ -76,27 +85,30 @@ Item {
         visible: !root.minimized
         anchors.leftMargin: 5
         anchors.rightMargin: 5
-        anchors.bottomMargin: 5
-        anchors.top: rateSlider.top
-        anchors.bottom: buttonBar.top
+        anchors.topMargin: 5
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: rateSlider.left
         radius: 5
         color: Theme.deckBackgroundColor
-        height: 56
+        // Was 56 - this mini overview duplicates the big waveform above it
+        // (main.qml), so it doesn't need to be nearly as tall; shrunk to
+        // just enough to still show the FX1/FX2/quantize/passthrough row
+        // underneath it.
+        height: 34
 
         Skin.WaveformOverview {
             group: root.group
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            height: parent.height - 26
+            height: parent.height - 22
         }
 
         Item {
             id: waveformBar
 
-            height: 26
+            height: 22
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -110,7 +122,7 @@ Item {
                 anchors.rightMargin: 5
                 anchors.leftMargin: 5
                 height: 2
-                color: infoBar.lineColor
+                color: Theme.deckLineColor
             }
 
             InfoBarButton {
@@ -137,7 +149,7 @@ Item {
                 anchors.left: waveformBarVSeparator.left
                 anchors.leftMargin: rateSlider.width
                 width: 2
-                color: infoBar.lineColor
+                color: Theme.deckLineColor
             }
 
             InfoBarButton {
@@ -163,7 +175,7 @@ Item {
                 anchors.left: waveformBarHSeparator1.right
                 anchors.leftMargin: rateSlider.width
                 width: 2
-                color: infoBar.lineColor
+                color: Theme.deckLineColor
             }
 
             Skin.EmbeddedText {
@@ -178,8 +190,15 @@ Item {
                     if (isNaN(positionSeconds))
                         return "";
 
-                    let minutes = Math.floor(positionSeconds / 60);
-                    let seconds = positionSeconds - (minutes * 60);
+                    // The position can be negative while the playhead is in
+                    // the preroll region before 0:00 (e.g. right after
+                    // cueing to the very start) - format the magnitude and
+                    // add the sign back, otherwise the zero-padding mangles
+                    // it into nonsense like "0-1:58.9".
+                    const sign = positionSeconds < 0 ? "-" : "";
+                    const absoluteSeconds = Math.abs(positionSeconds);
+                    let minutes = Math.floor(absoluteSeconds / 60);
+                    let seconds = absoluteSeconds - (minutes * 60);
                     const deciseconds = Math.trunc((seconds - Math.trunc(seconds)) * 10);
                     seconds = Math.trunc(seconds);
                     if (minutes < 10)
@@ -188,7 +207,7 @@ Item {
                     if (seconds < 10)
                         seconds = "0" + seconds;
 
-                    return minutes + ':' + seconds + "." + deciseconds;
+                    return sign + minutes + ':' + seconds + "." + deciseconds;
                 }
 
                 Mixxx.ControlProxy {
@@ -230,7 +249,7 @@ Item {
                 anchors.right: waveformBarRightSpace.left
                 anchors.bottomMargin: 5
                 width: 2
-                color: infoBar.lineColor
+                color: Theme.deckLineColor
             }
 
             InfoBarButton {
@@ -265,7 +284,7 @@ Item {
                 anchors.right: waveformBarLeftSpace.left
                 anchors.bottomMargin: 5
                 width: 2
-                color: infoBar.lineColor
+                color: Theme.deckLineColor
             }
 
             InfoBarButton {
@@ -292,33 +311,34 @@ Item {
     Item {
         id: buttonBar
 
+        // Was a fixed 56px strip - now fills whatever's left below the mini
+        // overview instead of leaving dead space, and CUE/PLAY/hotcues size
+        // themselves (via playButton.height) off that actual available
+        // height rather than a small fixed default.
+        anchors.top: overview.bottom
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.right: rateSlider.left
         anchors.leftMargin: 5
         anchors.rightMargin: 5
+        anchors.topMargin: 5
         anchors.bottomMargin: 5
-        height: 56
         visible: !root.minimized
 
-        Skin.ControlButton {
-            id: cueButton
+        // Sized off the real remaining width (not a multiple of the button
+        // height) so the row always fits the deck regardless of window
+        // aspect ratio.
+        readonly property real hotcueButtonWidth: Math.max(20, (buttonBar.width + 3) / 4)
 
-            anchors.left: parent.left
-            anchors.bottom: playButton.top
-            anchors.bottomMargin: 5
-            group: root.group
-            key: "cue_default"
-            text: "Cue"
-            activeColor: Theme.deckActiveColor
-        }
-
+        // Play and Cue share the bottom row, Play always on the left; the
+        // hotcues get the full top row to themselves.
         Skin.ControlButton {
             id: playButton
 
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.topMargin: 5
+            width: (buttonBar.width - 5) / 2
+            height: (buttonBar.height - 5) / 2
             group: root.group
             key: "play"
             text: "Play"
@@ -326,80 +346,36 @@ Item {
             activeColor: Theme.deckActiveColor
         }
 
-        Row {
-            anchors.left: playButton.right
-            anchors.leftMargin: 10
-            anchors.bottom: playButton.bottom
-            anchors.topMargin: 5
-            spacing: -1
+        Skin.ControlButton {
+            id: cueButton
 
-            Skin.IntroOutroButton {
-                keyPrefix: "intro_start"
-                group: root.group
-
-                text: "Intro\nStart"
-
-                width: playButton.height * 2 - 1
-                height: playButton.height
-            }
-
-            Skin.IntroOutroButton {
-                keyPrefix: "intro_end"
-                group: root.group
-
-                text: "Intro\nEnd"
-
-                width: playButton.height * 2 - 1
-                height: playButton.height
-            }
-
-            Skin.IntroOutroButton {
-                keyPrefix: "outro_start"
-                group: root.group
-
-                text: "Outro\nStart"
-
-                width: playButton.height * 2 - 1
-                height: playButton.height
-            }
-
-            Skin.IntroOutroButton {
-                keyPrefix: "outro_end"
-                group: root.group
-
-                text: "Outro\nEnd"
-
-                width: playButton.height * 2 - 1
-                height: playButton.height
-            }
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            width: (buttonBar.width - 5) / 2
+            height: (buttonBar.height - 5) / 2
+            group: root.group
+            key: "cue_default"
+            text: "Cue"
+            activeColor: Theme.deckActiveColor
         }
 
         Row {
-            anchors.left: cueButton.right
+            anchors.left: parent.left
             anchors.top: parent.top
-            anchors.leftMargin: 10
             spacing: -1
 
             Repeater {
-                model: 8
+                model: 4
 
                 Skin.HotcueButton {
                     required property int index
 
                     hotcueNumber: this.index + 1
                     group: root.group
-                    width: playButton.height
+                    width: buttonBar.hotcueButtonWidth
                     height: playButton.height
                 }
             }
-        }
-
-        Skin.SyncButton {
-            id: syncButton
-
-            anchors.right: parent.right
-            anchors.top: parent.top
-            group: root.group
         }
 
         FadeBehavior on visible {
