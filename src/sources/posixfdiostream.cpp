@@ -39,10 +39,10 @@ void PosixFdIOStream::writeBlock(const TagLib::ByteVector&) {
     // never constructs this stream in the first place).
 }
 
-void PosixFdIOStream::insert(const TagLib::ByteVector&, TagLibReadLength, TagLibReadLength) {
+void PosixFdIOStream::insert(const TagLib::ByteVector&, TagLibInsertStart, TagLibReadLength) {
 }
 
-void PosixFdIOStream::removeBlock(TagLibReadLength, TagLibReadLength) {
+void PosixFdIOStream::removeBlock(TagLibInsertStart, TagLibReadLength) {
 }
 
 bool PosixFdIOStream::readOnly() const {

@@ -8,9 +8,16 @@ namespace mixxx {
 #if TAGLIB_MAJOR_VERSION >= 2
 using TagLibOffset = TagLib::offset_t;
 using TagLibReadLength = size_t;
+// TagLib 2.x's IOStream::insert()/removeBlock() take a mixed offset_t
+// start + size_t length/replace, not uniformly one type - confirmed
+// against the actual header (this could not be verified locally when
+// this class was first written: the desktop dependency bundle only has
+// TagLib 1.13, which uses unsigned long for both parameters instead).
+using TagLibInsertStart = TagLib::offset_t;
 #else
 using TagLibOffset = long;
 using TagLibReadLength = unsigned long;
+using TagLibInsertStart = unsigned long;
 #endif
 
 /// Read-only TagLib::IOStream over a plain POSIX file descriptor.
@@ -49,9 +56,9 @@ class PosixFdIOStream : public TagLib::IOStream {
     void writeBlock(const TagLib::ByteVector& data) override;
     void insert(
             const TagLib::ByteVector& data,
-            TagLibReadLength start,
+            TagLibInsertStart start,
             TagLibReadLength replace) override;
-    void removeBlock(TagLibReadLength start, TagLibReadLength length) override;
+    void removeBlock(TagLibInsertStart start, TagLibReadLength length) override;
 
     bool readOnly() const override;
     bool isOpen() const override;
