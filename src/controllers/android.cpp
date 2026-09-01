@@ -166,12 +166,12 @@ Q_DECLARE_JNI_NATIVE_METHOD(usbDeviceAccessResult)
 
 Q_DECLARE_JNI_CLASS(MidiDeviceBridgeClass, "org/mixxx/MidiDeviceBridge")
 
-void midiDeviceOpened(JNIEnv*, jobject, jlong nativeKey, jboolean success) {
+void onDeviceOpened(JNIEnv*, jobject, jlong nativeKey, jboolean success) {
     mixxx::android::dispatchMidiDeviceOpened(nativeKey, success);
 }
-Q_DECLARE_JNI_NATIVE_METHOD(midiDeviceOpened)
+Q_DECLARE_JNI_NATIVE_METHOD(onDeviceOpened)
 
-void midiDataReceived(JNIEnv* env, jobject, jlong nativeKey, jbyteArray data, jint offset, jint count) {
+void onMidiDataReceived(JNIEnv* env, jobject, jlong nativeKey, jbyteArray data, jint offset, jint count) {
     jbyte* bytes = env->GetByteArrayElements(data, nullptr);
     if (!bytes) {
         return;
@@ -180,7 +180,7 @@ void midiDataReceived(JNIEnv* env, jobject, jlong nativeKey, jbyteArray data, ji
             nativeKey, reinterpret_cast<const unsigned char*>(bytes) + offset, count);
     env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 }
-Q_DECLARE_JNI_NATIVE_METHOD(midiDataReceived)
+Q_DECLARE_JNI_NATIVE_METHOD(onMidiDataReceived)
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
     QJniEnvironment env;
@@ -188,8 +188,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
             Q_JNI_NATIVE_METHOD(usbDeviceAccessResult),
     });
     env.registerNativeMethods<QtJniTypes::MidiDeviceBridgeClass>({
-            Q_JNI_NATIVE_METHOD(midiDeviceOpened),
-            Q_JNI_NATIVE_METHOD(midiDataReceived),
+            Q_JNI_NATIVE_METHOD(onDeviceOpened),
+            Q_JNI_NATIVE_METHOD(onMidiDataReceived),
     });
     return JNI_VERSION_1_6;
 }
