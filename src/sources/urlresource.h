@@ -35,21 +35,26 @@ class UrlResource {
     }
 
     inline QString getLocalFileName() const {
+        DEBUG_ASSERT(isLocalFile());
+        const QString localFileName = m_url.toLocalFile();
 #ifdef Q_OS_ANDROID
         // Tracks added via the Storage Access Framework folder picker
         // (the only way to grant Mixxx access to a music library on
-        // Android) are stored as content:// URIs, not file:// paths -
-        // isLocalFile() is false for these, so there is no local path
-        // for QUrl to hand back. Bridge to a real, POSIX-openable path
-        // instead of asserting/returning empty, so TagLib and the
-        // QFile-based SoundSource providers work the same as they do
-        // with real file paths.
-        if (m_url.scheme() == QLatin1String("content")) {
-            return android::resolveContentUriToFilePath(m_url);
+        // Android) have a content:// URI as their canonical location.
+        // That location round-trips through mixxx::FileInfo::toQUrl(),
+        // which unconditionally calls QUrl::fromLocalFile() - this
+        // forces scheme() to "file" (so isLocalFile() above is
+        // misleadingly true, and scheme() can never actually read
+        // "content" here), but toLocalFile() still hands back the
+        // original content:// string as literal, unmangled text. Detect
+        // it by content and bridge to a real, POSIX-openable path so
+        // TagLib and the QFile-based SoundSource providers work the same
+        // as they do with real file paths.
+        if (localFileName.startsWith(QLatin1String("content://"))) {
+            return android::resolveContentUriToFilePath(localFileName);
         }
 #endif
-        DEBUG_ASSERT(isLocalFile());
-        return m_url.toLocalFile();
+        return localFileName;
     }
 
   private:

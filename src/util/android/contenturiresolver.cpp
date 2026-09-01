@@ -42,9 +42,7 @@ void evictOldestIfNeeded() {
 
 } // namespace
 
-QString resolveContentUriToFilePath(const QUrl& contentUri) {
-    const QString uriString = contentUri.toString();
-
+QString resolveContentUriToFilePath(const QString& uriString) {
     QMutexLocker locker(&s_cacheMutex);
     const auto cachedPathIt = s_cachedPathsByUri.constFind(uriString);
     if (cachedPathIt != s_cachedPathsByUri.constEnd()) {

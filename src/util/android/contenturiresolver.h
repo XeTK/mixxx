@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-#include <QUrl>
 
 namespace mixxx {
 namespace android {
@@ -30,7 +29,7 @@ namespace android {
 ///
 /// Returns an empty string if the URI cannot be opened (e.g. the
 /// underlying document was deleted, or access was revoked).
-QString resolveContentUriToFilePath(const QUrl& contentUri);
+QString resolveContentUriToFilePath(const QString& contentUri);
 
 } // namespace android
 } // namespace mixxx
