@@ -4,6 +4,10 @@
 
 #include "util/logger.h"
 
+#ifdef Q_OS_ANDROID
+#include "util/android/contenturiresolver.h"
+#endif
+
 namespace mixxx {
 
 namespace {
@@ -57,7 +61,14 @@ SoundSource::OpenResult SoundSourceOggVorbis::tryOpen(
         OpenMode /*mode*/,
         const OpenParams& /*config*/) {
     m_pFile = std::make_unique<QFile>(getLocalFileName());
-    if (!m_pFile->open(QFile::ReadOnly)) {
+#ifdef Q_OS_ANDROID
+    const bool fileOpened = m_pFile->fileName().startsWith(QLatin1String("content://"))
+            ? android::openContentUriAsQFile(m_pFile->fileName(), m_pFile.get())
+            : m_pFile->open(QFile::ReadOnly);
+#else
+    const bool fileOpened = m_pFile->open(QFile::ReadOnly);
+#endif
+    if (!fileOpened) {
         kLogger.warning()
                 << "Failed to open file for"
                 << getUrlString();

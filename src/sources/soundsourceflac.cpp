@@ -4,6 +4,10 @@
 #include "util/math.h"
 #include "util/sample.h"
 
+#ifdef Q_OS_ANDROID
+#include "util/android/contenturiresolver.h"
+#endif
+
 namespace mixxx {
 
 namespace {
@@ -104,7 +108,14 @@ SoundSource::OpenResult SoundSourceFLAC::tryOpen(
         OpenMode /*mode*/,
         const OpenParams& /*config*/) {
     DEBUG_ASSERT(!m_file.isOpen());
-    if (!m_file.open(QIODevice::ReadOnly)) {
+#ifdef Q_OS_ANDROID
+    const bool fileOpened = m_file.fileName().startsWith(QLatin1String("content://"))
+            ? android::openContentUriAsQFile(m_file.fileName(), &m_file)
+            : m_file.open(QIODevice::ReadOnly);
+#else
+    const bool fileOpened = m_file.open(QIODevice::ReadOnly);
+#endif
+    if (!fileOpened) {
         kLogger.warning()
                 << "Failed to open FLAC file:"
                 << m_file.fileName();

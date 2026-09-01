@@ -11,11 +11,36 @@
 #include "util/logger.h"
 #include "util/safelywritablefile.h"
 
+#ifdef Q_OS_ANDROID
+#include <taglib/id3v2framefactory.h>
+
+#include "sources/posixfdiostream.h"
+#include "util/android/contenturiresolver.h"
+#endif
+
 namespace mixxx {
 
 namespace {
 
 Logger kLogger("MetadataSourceTagLib");
+
+#ifdef Q_OS_ANDROID
+// Returns a stream if fileName is an Android Storage Access Framework
+// content:// URI (see util/android/contenturiresolver.h for why a
+// stream is needed instead of a plain path), otherwise nullptr - callers
+// fall back to the normal filename-based TagLib::File constructor in
+// that case, unchanged from every other platform.
+std::unique_ptr<PosixFdIOStream> openAndroidContentStream(const QString& fileName) {
+    if (!fileName.startsWith(QLatin1String("content://"))) {
+        return nullptr;
+    }
+    const int fd = android::resolveContentUriToSharedReadFd(fileName);
+    if (fd < 0) {
+        return nullptr;
+    }
+    return std::make_unique<PosixFdIOStream>(fd);
+}
+#endif
 
 // Workaround for missing functionality in TagLib 1.11.x that
 // doesn't support to read text chunks from AIFF files.
@@ -29,6 +54,11 @@ class AiffFile : public TagLib::RIFF::AIFF::File {
     explicit AiffFile(TagLib::FileName fileName)
             : TagLib::RIFF::AIFF::File(fileName) {
     }
+#ifdef Q_OS_ANDROID
+    explicit AiffFile(TagLib::IOStream* stream)
+            : TagLib::RIFF::AIFF::File(stream) {
+    }
+#endif
 
     bool importTrackMetadataFromTextChunks(TrackMetadata* pTrackMetadata) /*non-const*/ {
         if (pTrackMetadata == nullptr) {
@@ -116,7 +146,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
 
     switch (m_fileType) {
     case taglib::FileType::MPEG: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::MPEG::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::MPEG::File>(
+                          pAndroidStream.get(), TagLib::ID3v2::FrameFactory::instance())
+                : std::make_unique<TagLib::MPEG::File>(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::MPEG::File& file = *pFile;
+#else
         TagLib::MPEG::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -148,7 +187,15 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::MP4: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::MP4::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::MP4::File>(pAndroidStream.get())
+                : std::make_unique<TagLib::MP4::File>(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::MP4::File& file = *pFile;
+#else
         TagLib::MP4::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -162,7 +209,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::FLAC: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::FLAC::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::FLAC::File>(
+                          pAndroidStream.get(), TagLib::ID3v2::FrameFactory::instance())
+                : std::make_unique<TagLib::FLAC::File>(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::FLAC::File& file = *pFile;
+#else
         TagLib::FLAC::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -203,7 +259,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::OggVorbis: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::Ogg::Vorbis::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::Ogg::Vorbis::File>(pAndroidStream.get())
+                : std::make_unique<TagLib::Ogg::Vorbis::File>(
+                          TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::Ogg::Vorbis::File& file = *pFile;
+#else
         TagLib::Ogg::Vorbis::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -219,7 +284,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::Opus: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::Ogg::Opus::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::Ogg::Opus::File>(pAndroidStream.get())
+                : std::make_unique<TagLib::Ogg::Opus::File>(
+                          TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::Ogg::Opus::File& file = *pFile;
+#else
         TagLib::Ogg::Opus::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -235,7 +309,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::WavPack: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::WavPack::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::WavPack::File>(pAndroidStream.get())
+                : std::make_unique<TagLib::WavPack::File>(
+                          TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::WavPack::File& file = *pFile;
+#else
         TagLib::WavPack::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -249,7 +332,16 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::WAV: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<TagLib::RIFF::WAV::File> pFile = pAndroidStream
+                ? std::make_unique<TagLib::RIFF::WAV::File>(pAndroidStream.get())
+                : std::make_unique<TagLib::RIFF::WAV::File>(
+                          TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        TagLib::RIFF::WAV::File& file = *pFile;
+#else
         TagLib::RIFF::WAV::File file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }
@@ -269,7 +361,15 @@ MetadataSourceTagLib::importTrackMetadataAndCoverImage(
         break;
     }
     case taglib::FileType::AIFF: {
+#ifdef Q_OS_ANDROID
+        std::unique_ptr<PosixFdIOStream> pAndroidStream = openAndroidContentStream(m_fileName);
+        std::unique_ptr<AiffFile> pFile = pAndroidStream
+                ? std::make_unique<AiffFile>(pAndroidStream.get())
+                : std::make_unique<AiffFile>(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+        AiffFile& file = *pFile;
+#else
         AiffFile file(TAGLIB_FILENAME_FROM_QSTRING(m_fileName));
+#endif
         if (!taglib::readAudioPropertiesFromFile(pTrackMetadata, file)) {
             break;
         }

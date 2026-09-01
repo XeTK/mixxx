@@ -4,10 +4,6 @@
 
 #include <QUrl>
 
-#ifdef Q_OS_ANDROID
-#include "util/android/contenturiresolver.h"
-#endif
-
 namespace mixxx {
 
 class UrlResource {
@@ -34,27 +30,21 @@ class UrlResource {
         return m_url.isLocalFile();
     }
 
+    // On Android, this may return an Android Storage Access Framework
+    // content:// URI string rather than an actually-local path: it
+    // round-trips through mixxx::FileInfo::toQUrl(), which unconditionally
+    // calls QUrl::fromLocalFile() - that forces scheme() to "file" (so
+    // isLocalFile() above is misleadingly true for these too), but
+    // toLocalFile() still hands back the original content:// string as
+    // literal, unmangled text. Callers that actually open the file (as
+    // opposed to using this for display/logging) must check for that
+    // prefix themselves and go through
+    // util/android/contenturiresolver.h instead of treating it as an
+    // openable path - see e.g. sources/soundsourceflac.cpp or
+    // sources/metadatasourcetaglib.cpp.
     inline QString getLocalFileName() const {
         DEBUG_ASSERT(isLocalFile());
-        const QString localFileName = m_url.toLocalFile();
-#ifdef Q_OS_ANDROID
-        // Tracks added via the Storage Access Framework folder picker
-        // (the only way to grant Mixxx access to a music library on
-        // Android) have a content:// URI as their canonical location.
-        // That location round-trips through mixxx::FileInfo::toQUrl(),
-        // which unconditionally calls QUrl::fromLocalFile() - this
-        // forces scheme() to "file" (so isLocalFile() above is
-        // misleadingly true, and scheme() can never actually read
-        // "content" here), but toLocalFile() still hands back the
-        // original content:// string as literal, unmangled text. Detect
-        // it by content and bridge to a real, POSIX-openable path so
-        // TagLib and the QFile-based SoundSource providers work the same
-        // as they do with real file paths.
-        if (localFileName.startsWith(QLatin1String("content://"))) {
-            return android::resolveContentUriToFilePath(localFileName);
-        }
-#endif
-        return localFileName;
+        return m_url.toLocalFile();
     }
 
   private:

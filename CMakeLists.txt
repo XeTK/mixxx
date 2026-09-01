@@ -3771,7 +3771,10 @@ target_link_libraries(mixxx-lib PUBLIC PortAudio::PortAudio)
 if(ANDROID)
   target_link_libraries(mixxx-lib PUBLIC OpenSLES android)
   target_compile_definitions(mixxx-lib PUBLIC PA_USE_OBOE)
-  target_sources(mixxx-lib PRIVATE src/util/android/contenturiresolver.cpp)
+  target_sources(mixxx-lib PRIVATE
+    src/util/android/contenturiresolver.cpp
+    src/sources/posixfdiostream.cpp
+  )
 endif()
 
 # PortAudio Ring Buffer
