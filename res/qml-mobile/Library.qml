@@ -130,7 +130,9 @@ Item {
                         font.pixelSize: 11
                         opacity: 0.7
                         color: Theme.deckTextColor
-                        text: [itemDlgt.genre, itemDlgt.key, itemDlgt.bpm ? itemDlgt.bpm + " BPM" : "", itemDlgt.duration].filter((s) => s.length > 0).join("  ·  ")
+                        // The bpm role renders unanalysed tracks as "-",
+                        // which would otherwise show up as a stray "- BPM".
+                        text: [itemDlgt.genre, itemDlgt.key, itemDlgt.bpm && itemDlgt.bpm !== "-" ? itemDlgt.bpm + " BPM" : "", itemDlgt.duration].filter((s) => s.length > 0).join("  ·  ")
                     }
                 }
 
