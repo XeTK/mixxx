@@ -111,6 +111,10 @@ AbstractButton {
             text: root.text
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
+            // Keep the text inside the button when it's squeezed narrower
+            // than its label instead of painting over the neighbours.
+            elide: Text.ElideRight
+            clip: true
             font.family: Theme.fontFamily
             font.capitalization: Font.AllUppercase
             font.bold: true

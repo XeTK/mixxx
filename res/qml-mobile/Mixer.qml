@@ -20,8 +20,11 @@ Item {
 
     // Clamped well above zero because the height can transiently go
     // negative while the anchor layout settles, and a negative scale
-    // renders everything mirrored.
-    readonly property real contentScale: content.height > 0 ? Math.max(0.05, Math.min(1, height / (content.height + 10))) : 1
+    // renders everything mirrored. Also capped by width: the mixer never
+    // claims more than half the deck row, so narrow windows (portrait-ish
+    // desktop resizes, Android split-screen) squeeze the mixer instead of
+    // starving the decks into overlapping slivers.
+    readonly property real contentScale: content.height > 0 && content.width > 0 ? Math.max(0.05, Math.min(1, height / (content.height + 10), (parent ? parent.width * 0.5 : width) / (content.width + 10))) : 1
 
     implicitWidth: content.width * contentScale + 10
 

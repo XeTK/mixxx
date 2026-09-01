@@ -110,10 +110,13 @@ Item {
 
             // The strip's children are fixed-width, so on narrow decks they
             // pile on top of each other - shed the least important ones
-            // progressively instead of garbling.
+            // progressively instead of garbling, down to nothing on decks
+            // squeezed by extreme aspect ratios.
             readonly property bool showPassthrough: width >= 290
             readonly property bool showPosition: width >= 225
             readonly property bool showQuantize: width >= 170
+            readonly property bool showFx2: width >= 115
+            readonly property bool showFx1: width >= 60
 
             height: 22
             anchors.left: parent.left
@@ -133,6 +136,7 @@ Item {
             }
 
             InfoBarButton {
+                visible: waveformBar.showFx1
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
@@ -151,6 +155,7 @@ Item {
             Rectangle {
                 id: waveformBarHSeparator1
 
+                visible: waveformBar.showFx2
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: waveformBarVSeparator.left
@@ -160,6 +165,7 @@ Item {
             }
 
             InfoBarButton {
+                visible: waveformBar.showFx2
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: waveformBarHSeparator1.left
@@ -177,6 +183,7 @@ Item {
             Rectangle {
                 id: waveformBarHSeparator2
 
+                visible: waveformBar.showFx2
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: waveformBarHSeparator1.right
