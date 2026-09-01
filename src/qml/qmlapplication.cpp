@@ -1,5 +1,6 @@
 #include "qmlapplication.h"
 
+#include <QFile>
 #include <QQmlEngineExtensionPlugin>
 #include <QQuickStyle>
 
@@ -24,7 +25,29 @@ Q_IMPORT_QML_PLUGIN(MixxxPlugin)
 Q_IMPORT_QML_PLUGIN(Mixxx_ControlsPlugin)
 
 namespace {
-const QString kMainQmlFileName = QStringLiteral("qml/main.qml");
+// Both QML skin trees ship in every build; which one loads is decided at
+// runtime. Android defaults to the phone-optimized skin, everything else
+// to the desktop one, and the [QML],skin config key ("qml"/"qml-mobile")
+// overrides the default on any platform - so the mobile skin can be
+// previewed on a desktop without repackaging, and vice versa.
+QString resolveMainQmlFilePath(const UserSettingsPointer& pSettings) {
+#ifdef Q_OS_ANDROID
+    const QString defaultSkin = QStringLiteral("qml-mobile");
+#else
+    const QString defaultSkin = QStringLiteral("qml");
+#endif
+    const QString skin = pSettings->getValue(
+            ConfigKey(QStringLiteral("[QML]"), QStringLiteral("skin")),
+            defaultSkin);
+    const QString resourcePath = pSettings->getResourcePath();
+    QString mainFilePath = resourcePath + skin + QStringLiteral("/main.qml");
+    if (skin != defaultSkin && !QFile::exists(mainFilePath)) {
+        qWarning() << "QML skin" << skin << "has no main.qml under"
+                   << resourcePath << "- falling back to" << defaultSkin;
+        mainFilePath = resourcePath + defaultSkin + QStringLiteral("/main.qml");
+    }
+    return mainFilePath;
+}
 
 // Converts a (capturing) lambda into a function pointer that can be passed to
 // qmlRegisterSingletonType.
@@ -45,7 +68,7 @@ QmlApplication::QmlApplication(
         const CmdlineArgs& args)
         : m_pCoreServices(std::make_unique<mixxx::CoreServices>(args, app)),
           m_visualsManager(std::make_unique<VisualsManager>()),
-          m_mainFilePath(m_pCoreServices->getSettings()->getResourcePath() + kMainQmlFileName),
+          m_mainFilePath(resolveMainQmlFilePath(m_pCoreServices->getSettings())),
           m_pAppEngine(nullptr),
           m_autoReload() {
     MIXXX_ANDROID_TRACE("QmlApplication ctor: after CoreServices constructed");

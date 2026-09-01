@@ -2456,21 +2456,13 @@ if(QT6)
       COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/packaging/android
         ${CMAKE_CURRENT_BINARY_DIR}/android
+      # The wholesale copy lands both skin trees in the APK (assets/qml/
+      # and assets/qml-mobile/); which one loads is decided at runtime in
+      # qml/qmlapplication.cpp (Android defaults to qml-mobile, overridable
+      # via the [QML],skin config key).
       COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets
-      # The wholesale copy above lands the desktop skin at assets/qml/ (used
-      # via kMainQmlFileName = "qml/main.qml", see qml/qmlapplication.cpp).
-      # Overwrite it with the phone-optimized skin, then delete the leftover
-      # assets/qml-mobile/ copy of the same files under their original name -
-      # copy_directory has no exclude filter, so this runs as separate
-      # overwrite + cleanup steps rather than a single copy.
-      COMMAND
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res/qml-mobile
-        ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets/qml
-      COMMAND
-        ${CMAKE_COMMAND} -E rm -rf
-        ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets/qml-mobile
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
     add_dependencies(mixxx copy-resource-android)
@@ -4051,10 +4043,15 @@ if(QML)
   # Note: Android doesn't use this install() target at all - its APK assets
   # are staged by the copy-resource-android custom target above instead
   # (androiddeployqt bundles whatever ends up in android-build/assets, not
-  # whatever install() would produce), which is where the phone-optimized
-  # res/qml-mobile skin actually gets substituted in for Android.
+  # whatever install() would produce). Both skin trees ship everywhere;
+  # which one loads is a runtime decision in qml/qmlapplication.cpp
+  # (platform default + [QML],skin config override).
   install(
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/qml"
+    DESTINATION "${MIXXX_INSTALL_DATADIR}"
+  )
+  install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/qml-mobile"
     DESTINATION "${MIXXX_INSTALL_DATADIR}"
   )
 endif()
