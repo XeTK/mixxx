@@ -76,6 +76,19 @@ QmlApplication::QmlApplication(
 
     MIXXX_ANDROID_TRACE("QmlApplication ctor: before CoreServices::initialize");
     m_pCoreServices->initialize(app);
+
+    // MixxxMainWindow::initialize() does the equivalent of this for the
+    // widgets UI. Without it, WaveformWidgetFactory::instance() stays null
+    // and allshader::WaveformRenderMark (constructed fresh on every QML
+    // repaint) fails its connect() calls every single frame, which
+    // saturates the main thread. startVSync() is intentionally not called
+    // here: that wires up the vsync-thread-driven render()/swap() path via
+    // a GuiTick this class doesn't have, but the QML waveform display
+    // drives its own redraws directly (see QmlWaveformDisplay), so it's
+    // not needed just to make the singleton usable.
+    WaveformWidgetFactory::createInstance();
+    WaveformWidgetFactory::instance()->setConfig(m_pCoreServices->getSettings());
+
     MIXXX_ANDROID_TRACE("QmlApplication ctor: before setupDevices");
     SoundDeviceStatus result = m_pCoreServices->getSoundManager()->setupDevices();
     MIXXX_ANDROID_TRACE("QmlApplication ctor: after setupDevices");
@@ -136,6 +149,7 @@ QmlApplication::~QmlApplication() {
     QmlDlgPreferencesProxy::s_pInstance.reset();
     m_visualsManager.reset();
     m_pAppEngine.reset();
+    WaveformWidgetFactory::destroy();
     m_pCoreServices.reset();
 }
 
