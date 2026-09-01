@@ -78,8 +78,8 @@ ApplicationWindow {
     Popup {
         id: menuDrawer
 
-        x: root.width - width - 4
-        y: menuButton.height + 8
+        x: (root.width - width) / 2
+        y: (root.height - height) / 2
         dim: true
         modal: true
         focus: true

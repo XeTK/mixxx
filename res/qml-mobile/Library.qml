@@ -1,4 +1,5 @@
 import Mixxx 1.0 as Mixxx
+import Qt5Compat.GraphicalEffects
 import QtQuick 2.12
 import "Theme"
 
@@ -95,23 +96,67 @@ Item {
                 required property url fileUrl
                 required property string artist
                 required property string title
+                required property string album
                 required property string duration
                 required property string bpm
                 required property string key
                 required property string genre
+                required property url coverArtUrl
 
                 implicitWidth: listView.width
-                implicitHeight: 44
+                implicitHeight: 60
+
+                // Cover art thumbnail, like the desktop library's Cover Art
+                // column - a blank track-shaped placeholder when there's no
+                // embedded/found artwork rather than empty space.
+                Rectangle {
+                    id: coverArtFrame
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    width: 48
+                    height: 48
+                    radius: 4
+                    color: Theme.knobBackgroundColor
+                }
+
+                Image {
+                    id: coverArt
+
+                    anchors.fill: coverArtFrame
+                    source: itemDlgt.coverArtUrl
+                    visible: false
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                }
+
+                Rectangle {
+                    id: coverArtMask
+
+                    anchors.fill: coverArtFrame
+                    radius: coverArtFrame.radius
+                    visible: false
+                }
+
+                OpacityMask {
+                    anchors.fill: coverArtFrame
+                    source: coverArt
+                    maskSource: coverArtMask
+                    visible: itemDlgt.coverArtUrl.toString().length > 0
+                }
 
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width
+                    anchors.left: coverArtFrame.right
+                    anchors.leftMargin: 8
+                    anchors.right: parent.right
                     spacing: 2
 
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        text: itemDlgt.artist + " - " + itemDlgt.title
+                        font.bold: true
+                        text: itemDlgt.title
                         color: (listView.currentIndex == itemDlgt.index && listView.activeFocus) ? Theme.blue : Theme.deckTextColor
 
                         Behavior on color {
@@ -121,7 +166,15 @@ Item {
                         }
                     }
 
-                    // Auxiliary metadata that doesn't fit on the title line -
+                    Text {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        font.pixelSize: 12
+                        color: Theme.deckTextColor
+                        text: [itemDlgt.artist, itemDlgt.album].filter((s) => s.length > 0).join("  ·  ")
+                    }
+
+                    // Auxiliary metadata that doesn't fit on the lines above -
                     // useful for picking a track by feel (matching key/bpm)
                     // rather than opening it first to find out.
                     Text {

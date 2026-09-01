@@ -2,6 +2,8 @@
 
 #include "library/librarytablemodel.h"
 #include "moc_qmllibrarytracklistmodel.cpp"
+#include "qml/asyncimageprovider.h"
+#include "track/track.h"
 
 namespace mixxx {
 namespace qml {
@@ -16,6 +18,7 @@ const QHash<int, QByteArray> kRoleNames = {
         {QmlLibraryTrackListModel::BpmRole, "bpm"},
         {QmlLibraryTrackListModel::KeyRole, "key"},
         {QmlLibraryTrackListModel::GenreRole, "genre"},
+        {QmlLibraryTrackListModel::CoverArtUrlRole, "coverArtUrl"},
 };
 }
 
@@ -78,6 +81,18 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
             return {};
         }
         return QUrl::fromLocalFile(location);
+    }
+    case CoverArtUrlRole: {
+        // Unlike the other roles, this needs the actual Track object (to
+        // reuse the same CoverInfo/AsyncImageProvider path the loaded-deck
+        // cover art uses) rather than a single SQL column.
+        const TrackPointer pTrack = pSourceModel->getTrack(
+                pSourceModel->index(proxyIndex.row(), 0));
+        if (!pTrack) {
+            return {};
+        }
+        const CoverInfo coverInfo = pTrack->getCoverInfoWithLocation();
+        return AsyncImageProvider::trackLocationToCoverArtUrl(coverInfo.trackLocation);
     }
     default:
         break;

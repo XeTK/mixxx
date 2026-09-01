@@ -23,6 +23,7 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
         BpmRole,
         KeyRole,
         GenreRole,
+        CoverArtUrlRole,
     };
     Q_ENUM(Roles);
 

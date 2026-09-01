@@ -14,6 +14,10 @@ Item {
     required property string group
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
 
+    // Nothing useful to show (and an empty pill just looks like a stray
+    // dark blob on the waveform) until a track is actually loaded.
+    visible: deckPlayer.isLoaded
+
     implicitWidth: row.implicitWidth + 16
     implicitHeight: 36
 
