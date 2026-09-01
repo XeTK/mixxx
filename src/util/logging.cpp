@@ -3,6 +3,10 @@
 #include <signal.h>
 #include <stdio.h>
 
+#ifdef Q_OS_ANDROID
+#include <android/log.h>
+#endif
+
 #include <QByteArray>
 #include <QDateTime>
 #include <QFile>
@@ -186,6 +190,25 @@ inline void writeToFile(
     }
 }
 
+#ifdef Q_OS_ANDROID
+int androidLogPriority(QtMsgType type) {
+    switch (type) {
+    case QtDebugMsg:
+        return ANDROID_LOG_DEBUG;
+    case QtInfoMsg:
+        return ANDROID_LOG_INFO;
+    case QtWarningMsg:
+        return ANDROID_LOG_WARN;
+    case QtCriticalMsg:
+        return ANDROID_LOG_ERROR;
+    case QtFatalMsg:
+        return ANDROID_LOG_FATAL;
+    default:
+        return ANDROID_LOG_INFO;
+    }
+}
+#endif
+
 /// Actually write a log message to stderr.
 inline void writeToStdErr(
         QtMsgType type,
@@ -197,6 +220,16 @@ inline void writeToStdErr(
     const QByteArray formattedMessage =
             formattedMessageStr.replace(kThreadNamePattern, threadName)
                     .toLocal8Bit();
+
+#ifdef Q_OS_ANDROID
+    // Writing to plain stderr is a no-op for on-device debugging: this
+    // custom (non-androiddeployqt-templated) packaging doesn't forward the
+    // process's stderr to logcat, so every qWarning/qCritical in the app
+    // was previously invisible on Android no matter the log level. Mirror
+    // it to __android_log_print (same mechanism as MIXXX_ANDROID_TRACE in
+    // qmlapplication.cpp) so `adb logcat` actually shows something.
+    __android_log_print(androidLogPriority(type), "mixxx", "%s", formattedMessage.constData());
+#endif
 
     const auto locked = lockMutex(&s_mutexStdErr);
     const std::size_t written = fwrite(
