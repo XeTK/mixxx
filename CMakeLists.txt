@@ -3802,6 +3802,21 @@ if(PORTMIDI)
   )
 endif()
 
+# Android MIDI backend (android.media.midi, via JNI) - PortMidi has no
+# equivalent of an ALSA sequencer or similar exposed to Android apps, so
+# this is what a class-compliant USB MIDI DJ controller needs when
+# plugged into an Android phone via USB-OTG.
+if(ANDROID)
+  target_compile_definitions(mixxx-lib PUBLIC __ANDROID_MIDI__)
+  target_sources(
+    mixxx-lib
+    PRIVATE
+      src/controllers/midi/midibytestreamparser.cpp
+      src/controllers/midi/androidmidicontroller.cpp
+      src/controllers/midi/androidmidienumerator.cpp
+  )
+endif()
+
 # Protobuf
 add_subdirectory(src/proto)
 target_link_libraries(mixxx-lib PUBLIC mixxx-proto)

@@ -19,6 +19,10 @@
 #include "controllers/midi/portmidienumerator.h"
 #endif
 
+#ifdef __ANDROID_MIDI__
+#include "controllers/midi/androidmidienumerator.h"
+#endif
+
 #ifdef __HSS1394__
 #include "controllers/midi/hss1394enumerator.h"
 #endif
@@ -157,6 +161,9 @@ void ControllerManager::slotInitialize() {
     // construct since they interact with host MIDI APIs.
 #ifdef __PORTMIDI__
     m_enumerators.append(new PortMidiEnumerator(m_pConfig));
+#endif
+#ifdef __ANDROID_MIDI__
+    m_enumerators.append(new AndroidMidiEnumerator());
 #endif
 #ifdef __HSS1394__
     m_enumerators.append(new Hss1394Enumerator());

@@ -16,10 +16,11 @@ namespace android {
 
 namespace {
 
-// Bounds how many ParcelFileDescriptors are kept open at once. A full
-// library scan resolves every track in sequence, so without a cap this
-// would leak one fd per track and exhaust the process' descriptor limit
-// well before a modest-sized library finished scanning.
+// Bounds how many ParcelFileDescriptors are kept in the shared-fd cache
+// at once. A full library scan resolves every track in sequence, so
+// without a cap this would leak one fd per track and exhaust the
+// process' descriptor limit well before a modest-sized library finished
+// scanning.
 constexpr int kMaxCachedDescriptors = 32;
 
 QMutex s_cacheMutex;
@@ -40,27 +41,23 @@ void evictOldestIfNeeded() {
     }
 }
 
-} // namespace
-
-int resolveContentUriToSharedReadFd(const QString& uriString) {
-    QMutexLocker locker(&s_cacheMutex);
-    const auto cachedFdIt = s_cachedFdsByUri.constFind(uriString);
-    if (cachedFdIt != s_cachedFdsByUri.constEnd()) {
-        return cachedFdIt.value();
-    }
-
+// Shared JNI plumbing for both resolveContentUriToSharedReadFd() and
+// openContentUriAsQFile(): asks Android's ContentResolver to open the
+// given content:// URI, returning a Java ParcelFileDescriptor (invalid
+// on failure, with a warning already logged).
+QJniObject openParcelFileDescriptor(const QString& uriString) {
     QJniObject context = QNativeInterface::QAndroidApplication::context();
     if (!context.isValid()) {
         __android_log_print(ANDROID_LOG_WARN,
                 "mixxx",
-                "resolveContentUriToSharedReadFd: no Android context");
-        return -1;
+                "openParcelFileDescriptor: no Android context");
+        return {};
     }
 
     QJniObject contentResolver = context.callObjectMethod(
             "getContentResolver", "()Landroid/content/ContentResolver;");
     if (!contentResolver.isValid()) {
-        return -1;
+        return {};
     }
 
     QJniObject jUriString = QJniObject::fromString(uriString);
@@ -69,7 +66,7 @@ int resolveContentUriToSharedReadFd(const QString& uriString) {
             "(Ljava/lang/String;)Landroid/net/Uri;",
             jUriString.object<jstring>());
     if (!uri.isValid()) {
-        return -1;
+        return {};
     }
 
     QJniObject jMode = QJniObject::fromString("r");
@@ -86,15 +83,31 @@ int resolveContentUriToSharedReadFd(const QString& uriString) {
         // scanned into the library.
         __android_log_print(ANDROID_LOG_WARN,
                 "mixxx",
-                "resolveContentUriToSharedReadFd: openFileDescriptor threw for %s",
+                "openParcelFileDescriptor: openFileDescriptor threw for %s",
                 uriString.toUtf8().constData());
-        return -1;
+        return {};
     }
     if (!parcelFileDescriptor.isValid()) {
         __android_log_print(ANDROID_LOG_WARN,
                 "mixxx",
-                "resolveContentUriToSharedReadFd: openFileDescriptor returned null for %s",
+                "openParcelFileDescriptor: openFileDescriptor returned null for %s",
                 uriString.toUtf8().constData());
+        return {};
+    }
+    return parcelFileDescriptor;
+}
+
+} // namespace
+
+int resolveContentUriToSharedReadFd(const QString& uriString) {
+    QMutexLocker locker(&s_cacheMutex);
+    const auto cachedFdIt = s_cachedFdsByUri.constFind(uriString);
+    if (cachedFdIt != s_cachedFdsByUri.constEnd()) {
+        return cachedFdIt.value();
+    }
+
+    QJniObject parcelFileDescriptor = openParcelFileDescriptor(uriString);
+    if (!parcelFileDescriptor.isValid()) {
         return -1;
     }
 
@@ -113,20 +126,39 @@ int resolveContentUriToSharedReadFd(const QString& uriString) {
 }
 
 bool openContentUriAsQFile(const QString& contentUri, QFile* pFile) {
-    const int sharedFd = resolveContentUriToSharedReadFd(contentUri);
-    if (sharedFd < 0) {
+    // Deliberately does NOT go through the shared-fd cache/dup() a
+    // shared descriptor: dup() creates a new file descriptor *number*,
+    // but it does not give that number its own file position - it still
+    // shares the same underlying open file description (and therefore
+    // the same lseek/read cursor) as the descriptor it was dup'd from.
+    // QFile reads via a plain, stateful lseek()+read(), so two QFiles
+    // sharing a dup() lineage of the same URI - e.g. a track loaded to
+    // a deck while the analyzer thread scans the same track in the
+    // background, which genuinely happens - corrupt each other's reads
+    // (confirmed concretely: the analyzer failed with FLAC "LOST_SYNC"
+    // decode errors while a deck was simultaneously playing the same
+    // track through a dup()'d descriptor of the same fd). Each
+    // QFile-based consumer therefore gets a fully independent
+    // ContentResolver-issued descriptor instead.
+    QJniObject parcelFileDescriptor = openParcelFileDescriptor(contentUri);
+    if (!parcelFileDescriptor.isValid()) {
         return false;
     }
-    const int duplicatedFd = ::dup(sharedFd);
-    if (duplicatedFd < 0) {
-        __android_log_print(ANDROID_LOG_WARN,
-                "mixxx",
-                "openContentUriAsQFile: dup() failed for %s",
-                contentUri.toUtf8().constData());
+
+    // detachFd() transfers ownership of the underlying fd out of the
+    // Java ParcelFileDescriptor (which would otherwise close it - via
+    // its CloseGuard finalizer - whenever it gets garbage collected,
+    // possibly while our QFile is still actively using the same fd
+    // number) to us; QFile(fd, AutoCloseHandle) then becomes the sole
+    // owner and closes it exactly once when done.
+    const jint fd = parcelFileDescriptor.callMethod<jint>("detachFd");
+    if (fd < 0) {
+        parcelFileDescriptor.callMethod<void>("close");
         return false;
     }
-    if (!pFile->open(duplicatedFd, QIODevice::ReadOnly, QFileDevice::AutoCloseHandle)) {
-        ::close(duplicatedFd);
+
+    if (!pFile->open(fd, QIODevice::ReadOnly, QFileDevice::AutoCloseHandle)) {
+        ::close(fd);
         return false;
     }
     return true;

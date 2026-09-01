@@ -69,4 +69,10 @@
     <uses-feature
         android:name="android.hardware.usb.host"
         android:required="true" />
+    <!-- Not required=true: MIDI controller support (AndroidMidiController)
+         should degrade gracefully rather than block install on the
+         (increasingly rare) Android device without it. -->
+    <uses-feature
+        android:name="android.hardware.midi"
+        android:required="false" />
 </manifest>

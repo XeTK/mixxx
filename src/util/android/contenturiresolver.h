@@ -25,9 +25,10 @@ namespace android {
 /// readers *that use pread() rather than lseek()+read()* (as
 /// PosixFdIOStream does) - reads specify their own offset explicitly
 /// rather than relying on/mutating the shared kernel-level file
-/// position. A consumer that can only read via a path or a plain
-/// lseek()+read()-based API (e.g. QFile::open(fd, ...)) must first
-/// ::dup() the returned descriptor to get its own independent one.
+/// position. A consumer that can only read via a plain
+/// lseek()+read()-based API (e.g. QFile) must NOT use this descriptor
+/// (nor a ::dup() of it - see openContentUriAsQFile()'s comment for why
+/// that doesn't give the independence it looks like it would).
 ///
 /// The descriptor is kept open in a small process-wide cache (see
 /// contenturiresolver.cpp) so it stays valid for as long as it might
@@ -43,16 +44,21 @@ int resolveContentUriToSharedReadFd(const QString& contentUri);
 /// Opens `pFile` for reading an Android content:// URI, for the
 /// QFile-based SoundSource providers (FLAC, MP3, Ogg Vorbis).
 ///
-/// Unlike resolveContentUriToSharedReadFd()'s caller-managed pread()
-/// access, QFile reads via a plain, shared, mutable file position - so
-/// this duplicates the cached descriptor first (via ::dup()) to give
-/// `pFile` its own independent one, safe to seek/read concurrently with
-/// any other consumer of the same URI. The duplicate is closed
-/// automatically when `pFile` is closed or destroyed.
+/// Gets a fully independent ContentResolver-issued descriptor for every
+/// call, rather than sharing/duplicating resolveContentUriToSharedReadFd()'s
+/// cached one: ::dup() creates a new descriptor *number*, but that
+/// number still shares the same underlying open file description - and
+/// therefore the same lseek/read cursor - as the descriptor it was
+/// dup'd from. QFile reads via a plain, stateful lseek()+read(), so two
+/// QFiles sharing a dup() lineage of the same URI corrupt each other's
+/// reads the moment they're used concurrently (confirmed concretely: a
+/// track loaded to a deck while the background analyzer thread scanned
+/// the same track caused FLAC "LOST_SYNC" decode errors in the
+/// analyzer). A fresh, independent ContentResolver.openFileDescriptor()
+/// call per QFile avoids this entirely.
 ///
 /// Returns false (and leaves `pFile` unopened) if the URI cannot be
-/// resolved to a descriptor, or the ::dup() call itself fails (e.g. the
-/// process' descriptor limit has been reached).
+/// resolved to a descriptor.
 bool openContentUriAsQFile(const QString& contentUri, QFile* pFile);
 
 } // namespace android

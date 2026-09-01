@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QJniObject>
+#include <qtypes.h>
 
 #include <condition_variable>
 #include <mutex>
@@ -21,6 +22,35 @@ extern std::condition_variable s_grantingWaitCond;
 extern std::vector<std::pair<QJniObject, bool>> s_grantingResult;
 extern QJniObject s_intent;
 extern QJniObject s_usbManager;
+
+/// Implemented by AndroidMidiController; see registerMidiDeviceCallback().
+class MidiDeviceCallback {
+  public:
+    virtual ~MidiDeviceCallback() = default;
+
+    /// May be called from an arbitrary Java-side thread (the Handler
+    /// org/mixxx/MidiDeviceBridge posts its MidiManager callbacks
+    /// through). Implementations must only queue work (e.g. emit a Qt
+    /// signal to be handled via a cross-thread connection) rather than
+    /// doing anything synchronously here, since this is invoked while
+    /// holding a lock shared with unregisterMidiDeviceCallback() -
+    /// calling back into that lock (e.g. via a directly-connected slot
+    /// that closes the controller) would deadlock.
+    virtual void onDeviceOpened(bool success) = 0;
+    virtual void onMidiDataReceived(const unsigned char* data, int length) = 0;
+};
+
+/// Registers a callback to receive org/mixxx/MidiDeviceBridge's JNI
+/// callbacks for one opened MIDI device, returning an opaque key to pass
+/// as that bridge's "native pointer" constructor argument. Callbacks are
+/// routed through this registry - looked up by key - rather than the
+/// Java side holding a raw pointer to the AndroidMidiController and the
+/// native glue reinterpret_cast'ing it back: a MIDI message or open
+/// callback can arrive after the controller has already been destroyed
+/// (e.g. the device was unplugged, or Mixxx closed it), and a registry
+/// lookup safely no-ops in that case instead of touching freed memory.
+qint64 registerMidiDeviceCallback(MidiDeviceCallback* pCallback);
+void unregisterMidiDeviceCallback(qint64 key);
 
 } // namespace android
 } // namespace mixxx

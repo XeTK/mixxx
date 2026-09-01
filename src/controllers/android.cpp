@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <unordered_map>
 
 namespace mixxx {
 namespace android {
@@ -19,6 +20,44 @@ std::condition_variable s_grantingWaitCond = {};
 std::vector<std::pair<QJniObject, bool>> s_grantingResult = {};
 QJniObject s_intent = {};
 QJniObject s_usbManager = {};
+
+namespace {
+std::mutex s_midiCallbacksLock;
+std::unordered_map<qint64, MidiDeviceCallback*> s_midiCallbacks;
+qint64 s_nextMidiCallbackKey = 1;
+} // namespace
+
+qint64 registerMidiDeviceCallback(MidiDeviceCallback* pCallback) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    const qint64 key = s_nextMidiCallbackKey++;
+    s_midiCallbacks.emplace(key, pCallback);
+    return key;
+}
+
+void unregisterMidiDeviceCallback(qint64 key) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    s_midiCallbacks.erase(key);
+}
+
+namespace {
+
+void dispatchMidiDeviceOpened(qint64 key, bool success) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    const auto it = s_midiCallbacks.find(key);
+    if (it != s_midiCallbacks.end()) {
+        it->second->onDeviceOpened(success);
+    }
+}
+
+void dispatchMidiDataReceived(qint64 key, const unsigned char* data, int length) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    const auto it = s_midiCallbacks.find(key);
+    if (it != s_midiCallbacks.end()) {
+        it->second->onMidiDataReceived(data, length);
+    }
+}
+
+} // namespace
 
 const QJniObject& getIntent() {
     __android_log_print(ANDROID_LOG_VERBOSE, "mixxx", "about to get intent");
@@ -125,10 +164,32 @@ void usbDeviceAccessResult(JNIEnv*, jobject, jobject device, jboolean granted) {
 }
 Q_DECLARE_JNI_NATIVE_METHOD(usbDeviceAccessResult)
 
+Q_DECLARE_JNI_CLASS(MidiDeviceBridgeClass, "org/mixxx/MidiDeviceBridge")
+
+void midiDeviceOpened(JNIEnv*, jobject, jlong nativeKey, jboolean success) {
+    mixxx::android::dispatchMidiDeviceOpened(nativeKey, success);
+}
+Q_DECLARE_JNI_NATIVE_METHOD(midiDeviceOpened)
+
+void midiDataReceived(JNIEnv* env, jobject, jlong nativeKey, jbyteArray data, jint offset, jint count) {
+    jbyte* bytes = env->GetByteArrayElements(data, nullptr);
+    if (!bytes) {
+        return;
+    }
+    mixxx::android::dispatchMidiDataReceived(
+            nativeKey, reinterpret_cast<const unsigned char*>(bytes) + offset, count);
+    env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+}
+Q_DECLARE_JNI_NATIVE_METHOD(midiDataReceived)
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
     QJniEnvironment env;
     env.registerNativeMethods<QtJniTypes::UsbPermissionClass>({
             Q_JNI_NATIVE_METHOD(usbDeviceAccessResult),
+    });
+    env.registerNativeMethods<QtJniTypes::MidiDeviceBridgeClass>({
+            Q_JNI_NATIVE_METHOD(midiDeviceOpened),
+            Q_JNI_NATIVE_METHOD(midiDataReceived),
     });
     return JNI_VERSION_1_6;
 }
