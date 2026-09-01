@@ -6,11 +6,8 @@
 #include <QJniEnvironment>
 #include <QtCore/qnativeinterface.h>
 
+#include "moc_androidmidicontroller.cpp"
 #include "util/time.h"
-
-namespace {
-const QString kLogTag = QStringLiteral("mixxx");
-}
 
 AndroidMidiController::AndroidMidiController(
         const QString& deviceName, const QJniObject& deviceInfo)
