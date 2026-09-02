@@ -6,6 +6,11 @@ var DDJFLX2 = {
     jogCounter: 0
 };
 
+// Accessibility (this fork): scales the jog wheel bend and scratch response.
+// 1.0 = stock feel. Same setting/behavior as the DDJ-400 mapping's jog
+// wheel sensitivity, see the mapping settings.
+DDJFLX2.jogSensitivity = engine.getSetting("jogSensitivity") || 1.0;
+
 DDJFLX2.init = function() {
     for (var i = 1; i <= 4; i++) {
 
@@ -132,7 +137,7 @@ DDJFLX2.jog = function(channel, control, value, status, group) {
         var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
         if (DDJFLX2.vDeck[vDeckNo]["jogEnabled"]) {
             var vgroup = "[Channel" + vDeckNo + "]";
-            engine.setValue(vgroup, "jog", value - 64);
+            engine.setValue(vgroup, "jog", (value - 64) * DDJFLX2.jogSensitivity);
         }
     }
 };
@@ -142,7 +147,7 @@ DDJFLX2.scratch = function(channel, control, value, status, group) {
     // Convert value down to +1/-1
     // Register the movement
     engine.scratchTick(DDJFLX2.vDeckNo[script.deckFromGroup(group)],
-        value - 64);
+        (value - 64) * DDJFLX2.jogSensitivity);
 };
 
 DDJFLX2.touch = function(channel, control, value, status, group) {
