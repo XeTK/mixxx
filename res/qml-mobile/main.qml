@@ -1,5 +1,4 @@
 import "." as Skin
-import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "Theme"
@@ -150,11 +149,7 @@ ApplicationWindow {
                 text: "Prefs"
                 activeColor: Theme.white
                 onClicked: {
-                    // FIXME: this opens the legacy QtWidgets preferences
-                    // dialog, which isn't usable on a phone screen (tiny
-                    // desktop-oriented controls, no touch-friendly layout).
-                    // A real QML preferences UI is its own separate project.
-                    Mixxx.PreferencesDialog.show();
+                    root.currentScreen = "preferences";
                     menuDrawer.close();
                 }
             }
@@ -312,6 +307,17 @@ ApplicationWindow {
         visible: root.currentScreen === "sampler"
 
         Skin.SamplerRow {
+            anchors.fill: parent
+        }
+    }
+
+    Item {
+        id: preferencesScreen
+
+        anchors.fill: parent
+        visible: root.currentScreen === "preferences"
+
+        Skin.Preferences {
             anchors.fill: parent
         }
     }

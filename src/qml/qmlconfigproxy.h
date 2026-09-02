@@ -24,6 +24,21 @@ class QmlConfigProxy : public QObject {
     Q_INVOKABLE QVariantList getTrackColorPalette();
     Q_INVOKABLE int getMultiSamplingLevel();
 
+    // Generic bridge for QML preference pages backed by plain ConfigObject
+    // key/value settings (bool/int/double/QString). Dispatches on
+    // defaultValue's/value's QVariant type to the matching
+    // ConfigObject::getValue<T>/setValue<T> specialization. Like the
+    // getters above, these are methods rather than a Q_PROPERTY because
+    // ConfigObject has no change notification to bind to.
+    Q_INVOKABLE QVariant getValue(
+            const QString& group,
+            const QString& key,
+            const QVariant& defaultValue = QVariant());
+    Q_INVOKABLE void setValue(
+            const QString& group,
+            const QString& key,
+            const QVariant& value);
+
     static QmlConfigProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static inline void registerUserSettings(UserSettingsPointer pConfig) {
         s_pUserSettings = std::move(pConfig);

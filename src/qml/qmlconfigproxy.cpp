@@ -42,6 +42,40 @@ int QmlConfigProxy::getMultiSamplingLevel() {
             mixxx::preferences::MultiSamplingMode::Disabled));
 }
 
+QVariant QmlConfigProxy::getValue(
+        const QString& group, const QString& key, const QVariant& defaultValue) {
+    const ConfigKey configKey(group, key);
+    switch (defaultValue.typeId()) {
+    case QMetaType::Bool:
+        return m_pConfig->getValue(configKey, defaultValue.toBool());
+    case QMetaType::Int:
+        return m_pConfig->getValue(configKey, defaultValue.toInt());
+    case QMetaType::Double:
+        return m_pConfig->getValue(configKey, defaultValue.toDouble());
+    default:
+        return m_pConfig->getValue(configKey, defaultValue.toString());
+    }
+}
+
+void QmlConfigProxy::setValue(
+        const QString& group, const QString& key, const QVariant& value) {
+    const ConfigKey configKey(group, key);
+    switch (value.typeId()) {
+    case QMetaType::Bool:
+        m_pConfig->setValue(configKey, value.toBool());
+        break;
+    case QMetaType::Int:
+        m_pConfig->setValue(configKey, value.toInt());
+        break;
+    case QMetaType::Double:
+        m_pConfig->setValue(configKey, value.toDouble());
+        break;
+    default:
+        m_pConfig->setValue(configKey, value.toString());
+        break;
+    }
+}
+
 // static
 QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine) {
     // The implementation of this method is mostly taken from the code example
