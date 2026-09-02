@@ -70,7 +70,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL Android)
     set(ANDROID_SDK_ROOT "$ENV{ANDROID_SDK}")
   endif()
   set(ANDROID_ABI arm64-v8a)
-  set(ANDROID_NDK_HOST_SYSTEM_NAME linux-x86_64)
+  if(CMAKE_HOST_APPLE)
+    # The NDK's prebuilt host toolchain directory is named darwin-x86_64
+    # even on Apple Silicon hosts (it's a universal binary internally) -
+    # only Linux hosts (our CI runner) use linux-x86_64.
+    set(ANDROID_NDK_HOST_SYSTEM_NAME darwin-x86_64)
+  else()
+    set(ANDROID_NDK_HOST_SYSTEM_NAME linux-x86_64)
+  endif()
   set(CMAKE_SYSTEM_VERSION 35) # API level
   set(ANDROID_PLATFORM "android-${CMAKE_SYSTEM_VERSION}")
   set(ANDROID_API_VERSION "android-${CMAKE_SYSTEM_VERSION}")
