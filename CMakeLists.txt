@@ -2457,8 +2457,30 @@ if(QT6)
         QT_ANDROID_EXTRA_LIBS
           ${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/${ANDROID_NDK_HOST_SYSTEM_NAME}/lib/clang/18/lib/linux/aarch64/libomp.so
     )
-    add_custom_target(
-      copy-resource-android
+    # Plain add_custom_target() has no tracked OUTPUT, so although its
+    # COMMAND does re-run on every build (refreshing android-build/assets
+    # on disk), Ninja has no file-level edge from it to the final
+    # packaged APK - androiddeployqt/gradle's own ninja rule only tracks
+    # the shared library and a deployment-settings json as real inputs.
+    # The result: editing a QML/resource file alone gets silently copied
+    # into assets/ but the already-built signed APK never gets
+    # regenerated, so `adb install` reinstalls stale content. Route the
+    # copy through a real OUTPUT stamp file instead, and use
+    # LINK_DEPENDS to make relinking (and therefore repackaging) the
+    # `mixxx` target depend on that stamp, so a resource-only change is
+    # correctly seen as making the APK stale.
+    file(
+      GLOB_RECURSE ANDROID_RESOURCE_FILES
+      CONFIGURE_DEPENDS
+      "${CMAKE_SOURCE_DIR}/res/*"
+      "${CMAKE_SOURCE_DIR}/packaging/android/*"
+    )
+    set(
+      ANDROID_RESOURCE_COPY_STAMP
+      "${CMAKE_CURRENT_BINARY_DIR}/copy-resource-android.stamp"
+    )
+    add_custom_command(
+      OUTPUT "${ANDROID_RESOURCE_COPY_STAMP}"
       COMMENT "Copy resources folder to Android build asset directory"
       COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/packaging/android
@@ -2470,9 +2492,16 @@ if(QT6)
       COMMAND
         ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets
+      COMMAND ${CMAKE_COMMAND} -E touch "${ANDROID_RESOURCE_COPY_STAMP}"
+      DEPENDS ${ANDROID_RESOURCE_FILES}
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+    add_custom_target(copy-resource-android DEPENDS "${ANDROID_RESOURCE_COPY_STAMP}")
     add_dependencies(mixxx copy-resource-android)
+    set_target_properties(
+      mixxx
+      PROPERTIES LINK_DEPENDS "${ANDROID_RESOURCE_COPY_STAMP}"
+    )
     target_link_libraries(mixxx PUBLIC omp)
   else()
     qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
