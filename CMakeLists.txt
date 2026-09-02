@@ -4017,6 +4017,8 @@ if(QML)
       src/qml/qmlbeatsmodel.cpp
       src/qml/qmlcuesmodel.cpp
       src/qml/qmlcontrolproxy.cpp
+      src/qml/qmlcontrollerlistmodel.cpp
+      src/qml/qmlcontrollermanagerproxy.cpp
       src/qml/qmlconfigproxy.cpp
       src/qml/qmldlgpreferencesproxy.cpp
       src/qml/qmleffectmanifestparametersmodel.cpp
@@ -4026,6 +4028,8 @@ if(QML)
       src/qml/qmllibrarytracklistmodel.cpp
       src/qml/qmlplayermanagerproxy.cpp
       src/qml/qmlplayerproxy.cpp
+      src/qml/qmlsounddevicemodel.cpp
+      src/qml/qmlsoundmanagerproxy.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
       src/qml/qmlchainpresetmodel.cpp
       src/qml/qmlwaveformoverview.cpp

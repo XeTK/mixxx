@@ -29,6 +29,16 @@ Item {
             id: "interface",
             label: "Interface",
             source: "preferences/PrefsInterface.qml"
+        },
+        {
+            id: "soundhardware",
+            label: "Sound Hardware",
+            source: "preferences/PrefsSoundHardware.qml"
+        },
+        {
+            id: "controllers",
+            label: "Controllers",
+            source: "preferences/PrefsControllers.qml"
         }
     ]
     property string currentCategory: ""

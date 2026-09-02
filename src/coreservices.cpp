@@ -56,12 +56,14 @@
 #include "controllers/scripting/controllerscriptenginebase.h"
 #include "qml/qmlconfigproxy.h"
 #include "qml/qmlcontrolproxy.h"
+#include "qml/qmlcontrollermanagerproxy.h"
 #include "qml/qmldlgpreferencesproxy.h"
 #include "qml/qmleffectslotproxy.h"
 #include "qml/qmleffectsmanagerproxy.h"
 #include "qml/qmllibraryproxy.h"
 #include "qml/qmlplayermanagerproxy.h"
 #include "qml/qmlplayerproxy.h"
+#include "qml/qmlsoundmanagerproxy.h"
 #endif
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
@@ -875,6 +877,9 @@ void CoreServices::initializeQMLSingletons() {
     mixxx::qml::QmlPlayerManagerProxy::registerPlayerManager(getPlayerManager());
     mixxx::qml::QmlConfigProxy::registerUserSettings(getSettings());
     mixxx::qml::QmlLibraryProxy::registerLibrary(getLibrary());
+    mixxx::qml::QmlSoundManagerProxy::registerSoundManager(getSoundManager());
+    mixxx::qml::QmlControllerManagerProxy::registerControllerManager(
+            getControllerManager(), getSettings());
 
     ControllerScriptEngineBase::registerTrackCollectionManager(getTrackCollectionManager());
 
@@ -1026,6 +1031,8 @@ void CoreServices::finalize() {
     mixxx::qml::QmlPlayerManagerProxy::registerPlayerManager(nullptr);
     mixxx::qml::QmlConfigProxy::registerUserSettings(nullptr);
     mixxx::qml::QmlLibraryProxy::registerLibrary(nullptr);
+    mixxx::qml::QmlSoundManagerProxy::registerSoundManager(nullptr);
+    mixxx::qml::QmlControllerManagerProxy::registerControllerManager(nullptr, nullptr);
 
     ControllerScriptEngineBase::registerTrackCollectionManager(nullptr);
 #endif
