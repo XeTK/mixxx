@@ -5,6 +5,10 @@
 #include "util/logger.h"
 #include "util/semanticversion.h"
 
+#ifdef Q_OS_ANDROID
+#include "util/android/contenturiresolver.h"
+#endif
+
 namespace mixxx {
 
 namespace {
@@ -91,6 +95,16 @@ SoundSource::OpenResult SoundSourceSndFile::tryOpen(
             reinterpret_cast<wchar_t*>(const_cast<ushort*>(fileNameUtf16)),
             SFM_READ,
             &sfInfo);
+#elif defined(Q_OS_ANDROID)
+    const QString fileName = getLocalFileName();
+    if (fileName.startsWith(QLatin1String("content://"))) {
+        const int fd = android::openContentUriIndependentFd(fileName);
+        // close_desc=1: hand the fd's lifetime over to libsndfile, matching
+        // sf_open()'s usual ownership (sf_close() below closes it).
+        m_pSndFile = fd < 0 ? nullptr : sf_open_fd(fd, SFM_READ, &sfInfo, /*close_desc*/ 1);
+    } else {
+        m_pSndFile = sf_open(QFile::encodeName(fileName), SFM_READ, &sfInfo);
+    }
 #else
     m_pSndFile = sf_open(QFile::encodeName(getLocalFileName()), SFM_READ, &sfInfo);
 #endif

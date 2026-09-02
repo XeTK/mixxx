@@ -61,5 +61,18 @@ int resolveContentUriToSharedReadFd(const QString& contentUri);
 /// resolved to a descriptor.
 bool openContentUriAsQFile(const QString& contentUri, QFile* pFile);
 
+/// Resolves an Android content:// URI to a fully independent, caller-owned
+/// file descriptor, for consumers with their own raw-fd-based API (e.g.
+/// libsndfile's sf_open_fd(), used by SoundSourceSndFile for WAV/AIFF).
+///
+/// Same independence guarantee as openContentUriAsQFile() and for the same
+/// reason: a plain lseek()+read()-based reader must not share a fd (or a
+/// ::dup() of one) with any other concurrent reader of the same URI.
+///
+/// Returns -1 if the URI cannot be resolved to a descriptor. The caller
+/// owns the returned descriptor and is responsible for closing it (or
+/// handing ownership to a C API that will, e.g. sf_open_fd's close_desc).
+int openContentUriIndependentFd(const QString& contentUri);
+
 } // namespace android
 } // namespace mixxx

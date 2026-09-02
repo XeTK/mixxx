@@ -97,6 +97,28 @@ QJniObject openParcelFileDescriptor(const QString& uriString) {
     return parcelFileDescriptor;
 }
 
+// Shared by openContentUriAsQFile() and openContentUriIndependentFd():
+// resolves the URI to a fresh ParcelFileDescriptor and detaches its
+// underlying fd, transferring sole ownership to the caller. Returns -1
+// on failure (already logged by openParcelFileDescriptor() or here).
+int detachIndependentFd(const QString& contentUri) {
+    QJniObject parcelFileDescriptor = openParcelFileDescriptor(contentUri);
+    if (!parcelFileDescriptor.isValid()) {
+        return -1;
+    }
+
+    // detachFd() transfers ownership of the underlying fd out of the
+    // Java ParcelFileDescriptor (which would otherwise close it - via
+    // its CloseGuard finalizer - whenever it gets garbage collected,
+    // possibly while the fd is still in active use elsewhere) to us.
+    const jint fd = parcelFileDescriptor.callMethod<jint>("detachFd");
+    if (fd < 0) {
+        parcelFileDescriptor.callMethod<void>("close");
+        return -1;
+    }
+    return fd;
+}
+
 } // namespace
 
 int resolveContentUriToSharedReadFd(const QString& uriString) {
@@ -140,20 +162,8 @@ bool openContentUriAsQFile(const QString& contentUri, QFile* pFile) {
     // track through a dup()'d descriptor of the same fd). Each
     // QFile-based consumer therefore gets a fully independent
     // ContentResolver-issued descriptor instead.
-    QJniObject parcelFileDescriptor = openParcelFileDescriptor(contentUri);
-    if (!parcelFileDescriptor.isValid()) {
-        return false;
-    }
-
-    // detachFd() transfers ownership of the underlying fd out of the
-    // Java ParcelFileDescriptor (which would otherwise close it - via
-    // its CloseGuard finalizer - whenever it gets garbage collected,
-    // possibly while our QFile is still actively using the same fd
-    // number) to us; QFile(fd, AutoCloseHandle) then becomes the sole
-    // owner and closes it exactly once when done.
-    const jint fd = parcelFileDescriptor.callMethod<jint>("detachFd");
+    const int fd = detachIndependentFd(contentUri);
     if (fd < 0) {
-        parcelFileDescriptor.callMethod<void>("close");
         return false;
     }
 
@@ -162,6 +172,14 @@ bool openContentUriAsQFile(const QString& contentUri, QFile* pFile) {
         return false;
     }
     return true;
+}
+
+int openContentUriIndependentFd(const QString& contentUri) {
+    // Same independence requirement as openContentUriAsQFile() - see its
+    // comment above - applies equally to any other lseek()+read()-based
+    // reader, which is why this shares the same detachIndependentFd()
+    // helper rather than resolveContentUriToSharedReadFd()'s cache.
+    return detachIndependentFd(contentUri);
 }
 
 } // namespace android
