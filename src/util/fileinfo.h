@@ -99,11 +99,26 @@ class FileInfo final {
         return QUrl::fromLocalFile(location());
     }
 
+    /// Android content:// URIs (from the Storage Access Framework) are
+    /// opaque tokens, not filesystem paths - QFileInfo's isAbsolute(),
+    /// absoluteFilePath() and canonicalFilePath() all assume a real path
+    /// and would either reject or corrupt one (e.g. absoluteFilePath()
+    /// prepends the current working directory to anything that doesn't
+    /// start with '/'). The string itself is already the permanent,
+    /// canonical identifier for the resource, so every method below
+    /// short-circuits to it unchanged instead of asking QFileInfo.
+    static bool isAndroidContentUri(const QString& filePath) {
+        return filePath.startsWith(QStringLiteral("content://"));
+    }
+
     /// Check that the given QFileInfo is context-insensitive to avoid
     /// implicitly accessing any transient working directory when
     /// resolving relative paths. We need to exclude these unintended
     /// side-effects!
     static bool hasLocation(const QFileInfo& fileInfo) {
+        if (isAndroidContentUri(fileInfo.filePath())) {
+            return true;
+        }
         DEBUG_ASSERT(QFileInfo().isRelative()); // special case (should be excluded)
         return fileInfo.isAbsolute();
     }
@@ -113,6 +128,9 @@ class FileInfo final {
 
     /// Returns the permanent location of a file.
     static QString location(const QFileInfo& fileInfo) {
+        if (isAndroidContentUri(fileInfo.filePath())) {
+            return fileInfo.filePath();
+        }
         DEBUG_ASSERT(hasLocation(fileInfo));
         return fileInfo.absoluteFilePath();
     }
@@ -153,6 +171,9 @@ class FileInfo final {
     /// Does only access the file system if file metadata is not
     /// already cached, depending on the caching mode of QFileInfo.
     static QString canonicalLocation(const QFileInfo& fileInfo) {
+        if (isAndroidContentUri(fileInfo.filePath())) {
+            return fileInfo.filePath();
+        }
         DEBUG_ASSERT(hasLocation(fileInfo));
         return fileInfo.canonicalFilePath();
     }
@@ -166,6 +187,13 @@ class FileInfo final {
     /// Does only access the file system if file metadata is not
     /// already cached, depending on the caching mode of QFileInfo.
     static QString canonicalLocationPath(const QFileInfo& fileInfo) {
+        if (isAndroidContentUri(fileInfo.filePath())) {
+            // There's no meaningful directory-only part of an opaque
+            // content:// token; returning the full URI is safer than
+            // QFileInfo::canonicalPath(), which would silently return
+            // an empty/wrong result for a non-filesystem path.
+            return fileInfo.filePath();
+        }
         DEBUG_ASSERT(hasLocation(fileInfo));
         return fileInfo.canonicalPath();
     }
