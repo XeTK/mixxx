@@ -3,9 +3,22 @@
     <info>
         <name>Pioneer DDJ-FLX2</name>
         <author>Dan Giddins, Frank.Breitling at gmx.de (based on their DDJ-200 mapping)</author>
-        <description>2-deck USB MIDI controller with support for 4-deck mode. Mapping ported from the Pioneer DDJ-200 (same MIDI implementation).</description>
+        <description>2-deck USB MIDI controller with support for 4-deck mode. Mapping ported from the Pioneer DDJ-200 (same MIDI implementation). Accessibility (this fork): an optional setting turns the Hot Cue pads into spoken-feedback pads - see the mapping settings.</description>
         <manual>pioneer_ddj_flx2</manual>
     </info>
+    <settings>
+        <group label="Accessibility">
+            <option
+                variable="accessibilityPads"
+                type="boolean"
+                default="false"
+                label="Use the Hot Cue pads as accessibility pads">
+                <description>
+                    In Hot Cue pad mode, pads 1 to 6 speak deck information (status, time remaining, BPM, key, bar position, track name), pad 7 repeats the last announcement, and pad 8 toggles the beat click metronome. Shift plus pad 1 halves the deck's BPM grid and Shift plus pad 2 doubles it (for fixing a half-tempo analysis by ear); Shift plus pad 3 toggles keylock, Shift plus pad 4/5 nudge pitch down/up a semitone, and Shift plus pad 6 resets the key; Shift plus pad 7 toggles the per-deck split cue; Shift plus pad 8 toggles speech on or off. Hot cues cannot be set, triggered, or cleared from the pads while this is enabled. Verified against the DDJ-200 mapping this fork is based on; not yet confirmed on real DDJ-FLX2 hardware.
+                </description>
+            </option>
+        </group>
+    </settings>
     <controller id="DDJ-FLX2">
         <scriptfiles>
             <file functionprefix="DDJFLX2" filename="Pioneer-DDJ-FLX2-script.js"/>

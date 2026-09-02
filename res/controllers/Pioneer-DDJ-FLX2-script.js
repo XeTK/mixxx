@@ -308,10 +308,40 @@ DDJFLX2.cueGotoandstop = function(channel, control, value, status, group) {
     }
 };
 
+//
+// Accessibility pads (optional, off by default)
+//
+// When the "Use the Hot Cue pads as accessibility pads" mapping setting is
+// enabled, the Hot Cue pads speak through Mixxx's built-in text-to-speech
+// instead of triggering hotcues:
+//   Pads 1-6: deck status, time remaining, BPM, key, bar position, track name
+//   Pad 7:    repeat the last announcement
+//   Pad 8:    beat click metronome on/off
+//   Shift+1:  halve detected BPM (fix a fast-genre half-tempo misanalysis)
+//   Shift+2:  double detected BPM
+//   Shift+3:  keylock on/off
+//   Shift+4:  pitch down one semitone
+//   Shift+5:  pitch up one semitone
+//   Shift+6:  reset key to the track's original key
+//   Shift+7:  per-deck split cue on/off
+//   Shift+8:  speech on/off
+// Every action confirms itself out loud, so no LED feedback is needed.
+// Ported from the DDJ-400 mapping's accessibility layer, not yet verified
+// against real DDJ-FLX2 hardware.
+
+DDJFLX2.accessibilityPads = !!engine.getSetting("accessibilityPads");
+
+DDJFLX2.accessibilityPadKeys = [
+    "tts_status", "tts_time", "tts_bpm", "tts_key", "tts_bar", "tts_track",
+];
+
 DDJFLX2.hotcueNActivate = function(channel, control, value, status, group) {
-    if (value) { // only if button pressed, not releases, i.e. value === 0
-        var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
-        var vgroup = "[Channel" + vDeckNo + "]";
+    if (!value) { // only if button pressed, not releases, i.e. value === 0
+        return;
+    }
+    var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
+    var vgroup = "[Channel" + vDeckNo + "]";
+    if (!DDJFLX2.accessibilityPads) {
         var hotcue = "hotcue_" + (control + 1);
         engine.setValue(vgroup, hotcue + "_activate", true);
         midi.sendShortMsg(status, control,
@@ -319,15 +349,47 @@ DDJFLX2.hotcueNActivate = function(channel, control, value, status, group) {
         var deckNo = script.deckFromGroup(group);
         midi.sendShortMsg(0x90 + deckNo - 1, 0x0B, 0x7F *
             engine.getValue(vgroup, "play")); // set play LED
+        return;
+    }
+    switch (control) {
+    case 0x06:
+        engine.setValue("[Tts]", "repeat", 1);
+        break;
+    case 0x07:
+        script.toggleControl("[BeatClick]", "enabled");
+        break;
+    default:
+        engine.setValue(vgroup, DDJFLX2.accessibilityPadKeys[control], 1);
     }
 };
 
 DDJFLX2.hotcueNClear = function(channel, control, value, status, group) {
-    if (value) { // only if button pressed, not releases, i.e. value === 0
-        var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
-        var vgroup = "[Channel" + vDeckNo + "]";
+    if (!value) { // only if button pressed, not releases, i.e. value === 0
+        return;
+    }
+    var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
+    var vgroup = "[Channel" + vDeckNo + "]";
+    if (!DDJFLX2.accessibilityPads) {
         engine.setValue(vgroup, "hotcue_" + (control + 1) + "_clear", true);
         midi.sendShortMsg(status-1, control, 0x00);        // set hotcue LEDs
+        return;
+    }
+    if (control === 0x00) {
+        engine.setValue(vgroup, "beats_set_halve", 1);
+    } else if (control === 0x01) {
+        engine.setValue(vgroup, "beats_set_double", 1);
+    } else if (control === 0x02) {
+        script.toggleControl(vgroup, "keylock");
+    } else if (control === 0x03) {
+        engine.setValue(vgroup, "pitch_down", 1);
+    } else if (control === 0x04) {
+        engine.setValue(vgroup, "pitch_up", 1);
+    } else if (control === 0x05) {
+        engine.setValue(vgroup, "reset_key", 1);
+    } else if (control === 0x06) {
+        script.toggleControl("[Master]", "headSplitDecks");
+    } else if (control === 0x07) {
+        script.toggleControl("[Tts]", "enabled");
     }
 };
 
