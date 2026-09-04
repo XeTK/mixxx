@@ -11,6 +11,14 @@ var DDJFLX2 = {
 // wheel sensitivity, see the mapping settings.
 DDJFLX2.jogSensitivity = engine.getSetting("jogSensitivity") || 1.0;
 
+// Accessibility (this fork): jog handling tweaks, see the mapping settings.
+// Disabling jog scratch turns the platter top into a no-op so a stray touch
+// can't stop or scratch playback; rotation still nudges the pitch. Unlike
+// the DDJ-400 (a single jog control gated by engine.isScratching()), this
+// hardware sends a distinct "scratch" CC only while touching, so vinylMode
+// off redirects that CC to a plain pitch nudge instead of a scratch tick.
+DDJFLX2.vinylMode = !engine.getSetting("disableJogScratch");
+
 DDJFLX2.init = function() {
     for (var i = 1; i <= 4; i++) {
 
@@ -41,6 +49,22 @@ DDJFLX2.init = function() {
             var vDeckNo = script.deckFromGroup(vgroup);
             var d = (vDeckNo % 2) ? 0 : 1;
             DDJFLX2.switchSyncLED(d, ch);
+        });
+
+        // run switchCueLED after cue point changes to set LEDs accordingly
+        engine.makeConnection(vgroup, "cue_point", function(cuePoint, vgroup) {
+            var vDeckNo = script.deckFromGroup(vgroup);
+            var d = (vDeckNo % 2) ? 0 : 1;
+            DDJFLX2.switchCueLED(d, cuePoint);
+        });
+
+        // run switchPflLED after headphone cue toggle to set LEDs accordingly
+        engine.makeConnection(vgroup, "pfl", function(pflEnabled, vgroup) {
+            var vDeckNo = script.deckFromGroup(vgroup);
+            var d = (vDeckNo % 2) ? 0 : 1;
+            if (!DDJFLX2.fourDeckMode) {
+                DDJFLX2.switchPflLED(d, pflEnabled);
+            }
         });
 
         // listen to changes on hotcues
@@ -131,10 +155,12 @@ DDJFLX2.jog = function(channel, control, value, status, group) {
     // For a control that centers on 0x40 (64):
     // Convert value down to +1/-1
     // Register the movement
-    if (DDJFLX2.shiftPressed["left"]) {
+    var deckNo = script.deckFromGroup(group);
+    var shiftKey = (deckNo === 1) ? "left" : "right";
+    if (DDJFLX2.shiftPressed[shiftKey]) {
         DDJFLX2.browseTracks(value);
     } else {
-        var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
+        var vDeckNo = DDJFLX2.vDeckNo[deckNo];
         if (DDJFLX2.vDeck[vDeckNo]["jogEnabled"]) {
             var vgroup = "[Channel" + vDeckNo + "]";
             engine.setValue(vgroup, "jog", (value - 64) * DDJFLX2.jogSensitivity);
@@ -146,16 +172,23 @@ DDJFLX2.scratch = function(channel, control, value, status, group) {
     // For a control that centers on 0x40 (64):
     // Convert value down to +1/-1
     // Register the movement
-    engine.scratchTick(DDJFLX2.vDeckNo[script.deckFromGroup(group)],
-        (value - 64) * DDJFLX2.jogSensitivity);
+    var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
+    if (DDJFLX2.vinylMode) {
+        engine.scratchTick(vDeckNo, (value - 64) * DDJFLX2.jogSensitivity);
+    } else {
+        var vgroup = "[Channel" + vDeckNo + "]";
+        engine.setValue(vgroup, "jog", (value - 64) * DDJFLX2.jogSensitivity);
+    }
 };
 
 DDJFLX2.touch = function(channel, control, value, status, group) {
     var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
     if (value) {
         // enable scratch
-        var alpha = 1.0 / 8;
-        engine.scratchEnable(vDeckNo, 128, 33 + 1 / 3, alpha, alpha / 32);
+        if (DDJFLX2.vinylMode) {
+            var alpha = 1.0 / 8;
+            engine.scratchEnable(vDeckNo, 128, 33 + 1 / 3, alpha, alpha / 32);
+        }
         // disable jog not to prevent track alignment
         DDJFLX2.vDeck[vDeckNo].jogEnabled = false;
     } else {
@@ -164,7 +197,9 @@ DDJFLX2.touch = function(channel, control, value, status, group) {
             DDJFLX2.vDeck[vDeckNo].jogEnabled = true;
         }, true);
         // disable scratch
-        engine.scratchDisable(vDeckNo);
+        if (DDJFLX2.vinylMode) {
+            engine.scratchDisable(vDeckNo);
+        }
     }
 };
 
@@ -179,6 +214,35 @@ DDJFLX2.seek = function(channel, control, value, status, group) {
     var deckNo = script.deckFromGroup(group);
     var vgroup = "[Channel" + DDJFLX2.vDeckNo[deckNo] + "]";
     engine.setValue(vgroup, "playposition", newPos); // Strip search
+};
+
+// Accessibility (this fork): Smart Fader switches the focused library pane
+// (sidebar -> track list -> search bar -> back to sidebar), filling the
+// gap left by not having a browse-encoder push button like the DDJ-400's.
+DDJFLX2.smartFader = function(_channel, _control, value) {
+    if (!value) { // only if button pressed, not releases, i.e. value === 0
+        return;
+    }
+    engine.setValue("[Library]", "MoveFocusForward", 1);
+};
+
+// Accessibility (this fork): Shift+Smart Fader loads the selected library
+// track. Smart Fader lives on the Master section, not a deck, so there's no
+// "which deck pressed this" the way there is for the existing Shift+PFL
+// per-deck load shortcut - instead it loads into whichever deck isn't
+// playing, falling back to deck 1 if both are playing or both are stopped.
+DDJFLX2.smartFaderShift = function(_channel, _control, value) {
+    if (!value) { // only if button pressed, not releases, i.e. value === 0
+        return;
+    }
+    var vDeck1 = DDJFLX2.vDeckNo[1];
+    var vDeck2 = DDJFLX2.vDeckNo[2];
+    var targetVDeck = vDeck1;
+    if (engine.getValue("[Channel" + vDeck1 + "]", "play") &&
+            !engine.getValue("[Channel" + vDeck2 + "]", "play")) {
+        targetVDeck = vDeck2;
+    }
+    script.triggerControl("[Channel" + targetVDeck + "]", "LoadSelectedTrack", true);
 };
 
 DDJFLX2.headmix = function(channel, control, value) {
@@ -288,27 +352,20 @@ DDJFLX2.super1 = function(channel, control, value, status, group) {
 };
 
 DDJFLX2.cueDefault = function(channel, control, value, status, group) {
-    if (value) { // only if button pressed, not releases, i.e. value === 0
-        var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
-        var vgroup = "[Channel" + vDeckNo + "]";
-        if (!DDJFLX2.vDeck[vDeckNo]["jogEnabled"]) {  // if jog top is touched
-            engine.setValue(vgroup, "cue_set", true);
-        } else {
-            engine.setValue(vgroup, "cue_gotoandplay", true);
-        }
-        var cueSet = (engine.getValue(vgroup, "cue_point") !== -1);
-        midi.sendShortMsg(status, 0x0C, 0x7F * cueSet);      // set cue LED
-        midi.sendShortMsg(status, 0x0B, 0x7F *               // set play LED
-                          engine.getValue(vgroup, "play"));
-    }
+    // Forward press and release to the virtual deck's cue_default so the
+    // engine's own CDJ-style cue behavior applies (Set/Call Cue, Back Cue,
+    // hold-to-preview-then-release) - same behavior as the DDJ-400, which
+    // binds this control directly since it has no virtual-deck indirection.
+    var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
+    var vgroup = "[Channel" + vDeckNo + "]";
+    engine.setValue(vgroup, "cue_default", value);
 };
 
-DDJFLX2.cueGotoandstop = function(channel, control, value, status, group) {
+DDJFLX2.cueBackToStart = function(channel, control, value, status, group) {
     if (value) { // only if button pressed, not releases, i.e. value === 0
         var vDeckNo = DDJFLX2.vDeckNo[script.deckFromGroup(group)];
         var vgroup = "[Channel" + vDeckNo + "]";
-        engine.setValue(vgroup, "cue_gotoandstop", true);
-        //engine.setValue(vgroup, "start_stop", true); // go to start if preferred
+        engine.setValue(vgroup, "start_stop", true); // jump to track start, no auto-play
         midi.sendShortMsg(status, 0x0B, 0x7F * engine.getValue(vgroup, "play"));
     }
 };
@@ -403,11 +460,7 @@ DDJFLX2.pfl = function(channel, control, value, status, group) {
         var deckNo = script.deckFromGroup(group);
         var vDeckNo = DDJFLX2.vDeckNo[deckNo];
         var vgroup = "[Channel" + vDeckNo + "]";
-        var pfl = ! engine.getValue(vgroup, "pfl");
-        engine.setValue(vgroup, "pfl", pfl);
-        if (!DDJFLX2.fourDeckMode) {
-            midi.sendShortMsg(status, 0x54, 0x7F * pfl);  // switch pfl LED
-        }
+        engine.setValue(vgroup, "pfl", !engine.getValue(vgroup, "pfl"));
     }
 };
 
@@ -416,12 +469,10 @@ DDJFLX2.switchLEDs = function(vDeckNo) {
     var d = (vDeckNo % 2) ? 0 : 1;           // d = deckNo - 1
     var vgroup = "[Channel" + vDeckNo + "]";
     DDJFLX2.switchPlayLED(d, engine.getValue(vgroup, "play"));
-    midi.sendShortMsg(0x90 + d, 0x0C, 0x7F *
-                      (engine.getValue(vgroup, "cue_point") !== -1));
+    DDJFLX2.switchCueLED(d, engine.getValue(vgroup, "cue_point"));
     DDJFLX2.switchSyncLED(d, engine.getValue(vgroup, "sync_enabled"));
     if (!DDJFLX2.fourDeckMode) {
-        midi.sendShortMsg(0x90 + d, 0x54,
-            0x7F * engine.getValue(vgroup, "pfl"));
+        DDJFLX2.switchPflLED(d, engine.getValue(vgroup, "pfl"));
     }
 
     for (var i = 1; i <= 8; i++) {
@@ -436,6 +487,14 @@ DDJFLX2.switchPlayLED = function(deck, enabled) {
 
 DDJFLX2.switchSyncLED = function(deck, enabled) {
     midi.sendShortMsg(0x90 + deck, 0x58, 0x7F * enabled);
+};
+
+DDJFLX2.switchCueLED = function(deck, cuePoint) {
+    midi.sendShortMsg(0x90 + deck, 0x0C, 0x7F * (cuePoint !== -1));
+};
+
+DDJFLX2.switchPflLED = function(deck, enabled) {
+    midi.sendShortMsg(0x90 + deck, 0x54, 0x7F * enabled);
 };
 
 DDJFLX2.switchPadLED = function(deck, pad, enabled) {

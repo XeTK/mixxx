@@ -29,6 +29,15 @@
                     Scales how strongly the jog wheel nudges the pitch and how fast scratching responds while touching the jog wheel. 1.0 is the stock feel; lower is gentler, higher is more aggressive.
                 </description>
             </option>
+            <option
+                variable="disableJogScratch"
+                type="boolean"
+                default="false"
+                label="Disable jog wheel scratching">
+                <description>
+                    Touching the top of the jog wheel no longer grabs the track like vinyl, so a stray touch cannot stop or scratch playback. The outer edge and platter rotation still nudge the pitch for beat matching.
+                </description>
+            </option>
         </group>
     </settings>
     <controller id="DDJ-FLX2">
@@ -65,6 +74,26 @@
                 <description>Headphones master as headMix knob</description>
                 <status>0x96</status>
                 <midino>0x63</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Library]</group>
+                <key>DDJFLX2.smartFader</key>
+                <description>Smart Fader - Accessibility (this fork): switch focused library pane (sidebar/track list/search bar)</description>
+                <status>0x96</status>
+                <midino>0x01</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Master]</group>
+                <key>DDJFLX2.smartFaderShift</key>
+                <description>Smart Fader + shift - Accessibility (this fork): load selected library track into whichever deck isn't playing</description>
+                <status>0x96</status>
+                <midino>0x09</midino>
                 <options>
                     <script-binding/>
                 </options>
@@ -477,9 +506,8 @@
 
             <control>
                 <group>[Channel1]</group>
-                <!--key>cue_default</key-->
                 <key>DDJFLX2.cueDefault</key>
-                <description>Deck 1: Cue button</description>
+                <description>Deck 1: Cue button - press - Set/Call Cue, Back Cue</description>
                 <status>0x90</status>
                 <midino>0x0C</midino>
                 <options>
@@ -489,7 +517,7 @@
             <control>
                 <group>[Channel2]</group>
                 <key>DDJFLX2.cueDefault</key>
-                <description>Deck 2:  Cue button</description>
+                <description>Deck 2: Cue button - press - Set/Call Cue, Back Cue</description>
                 <status>0x91</status>
                 <midino>0x0C</midino>
                 <options>
@@ -498,8 +526,8 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>DDJFLX2.cueGotoandstop</key>
-                <description>Deck 1: Go to cue point and stop</description>
+                <key>DDJFLX2.cueBackToStart</key>
+                <description>Deck 1 +SHIFT (CUE) - press - Jump to track start (no auto-play)</description>
                 <status>0x90</status>
                 <midino>0x48</midino>
                 <options>
@@ -508,8 +536,8 @@
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>DDJFLX2.cueGotoandstop</key>
-                <description>Deck 2: Go to cue point and stop</description>
+                <key>DDJFLX2.cueBackToStart</key>
+                <description>Deck 2 +SHIFT (CUE) - press - Jump to track start (no auto-play)</description>
                 <status>0x91</status>
                 <midino>0x48</midino>
                 <options>
