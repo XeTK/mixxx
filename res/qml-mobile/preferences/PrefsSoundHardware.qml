@@ -16,6 +16,7 @@ Item {
     property var apiList: []
     property var sampleRateList: []
     property bool useInputDevice: false
+    property bool useHeadphoneDevice: false
     property string statusMessage: ""
     property color statusColor: Theme.deckTextColor
 
@@ -40,7 +41,14 @@ Item {
         root.apiList = Mixxx.SoundManager.getHostApiList();
         const current = Mixxx.SoundManager.getCurrentConfig();
 
-        const apiIndex = root.apiList.indexOf(current.api);
+        // "Android Oboe" is the API that can actually reach real hardware
+        // on this platform - default to it rather than whatever happens
+        // to be first alphabetically (e.g. "ALSA", which has no devices
+        // on Android at all) when nothing is configured yet.
+        let apiIndex = root.apiList.indexOf(current.api);
+        if (apiIndex < 0) {
+            apiIndex = root.apiList.indexOf("Android Oboe");
+        }
         apiCombo.currentIndex = apiIndex >= 0 ? apiIndex : 0;
         root.refreshForApi(apiCombo.currentText);
 
@@ -51,6 +59,12 @@ Item {
         if (root.useInputDevice) {
             const inputIndex = inputCombo.find(current.inputDeviceName);
             inputCombo.currentIndex = inputIndex >= 0 ? inputIndex : 0;
+        }
+
+        root.useHeadphoneDevice = current.headphoneDeviceName && current.headphoneDeviceName.length > 0;
+        if (root.useHeadphoneDevice) {
+            const headphoneIndex = headphoneCombo.find(current.headphoneDeviceName);
+            headphoneCombo.currentIndex = headphoneIndex >= 0 ? headphoneIndex : 0;
         }
 
         const rateIndex = root.sampleRateList.indexOf(current.sampleRate);
@@ -156,7 +170,76 @@ Item {
                     activeColor: Theme.blue
                     highlight: root.useInputDevice
                     text: root.useInputDevice ? "On" : "Off"
-                    onClicked: root.useInputDevice = !root.useInputDevice
+                    onClicked: {
+                        root.useInputDevice = !root.useInputDevice;
+                        // Same blank-display issue as the headphone combo.
+                        if (root.useInputDevice && inputCombo.currentIndex < 0) {
+                            inputCombo.currentIndex = 0;
+                        }
+                    }
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 48
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Use separate headphone/cue output"
+                    color: Theme.deckTextColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.textFontPixelSize
+                }
+
+                Skin.Button {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 64
+                    height: 40
+                    activeColor: Theme.blue
+                    highlight: root.useHeadphoneDevice
+                    text: root.useHeadphoneDevice ? "On" : "Off"
+                    onClicked: {
+                        root.useHeadphoneDevice = !root.useHeadphoneDevice;
+                        // currentIndex is -1 until something selects a row,
+                        // which leaves the combo displaying blank text.
+                        if (root.useHeadphoneDevice && headphoneCombo.currentIndex < 0) {
+                            headphoneCombo.currentIndex = 0;
+                        }
+                    }
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 48
+                visible: root.useHeadphoneDevice
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Headphone/cue device"
+                    color: Theme.deckTextColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.textFontPixelSize
+                }
+
+                Skin.ComboBox {
+                    id: headphoneCombo
+
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width * 0.55
+                    height: 40
+                    textRole: "display"
+                    // Same physical devices as the Main output - a
+                    // headphone/cue path just routes to a different
+                    // device (or a different pair of channels on the
+                    // same device, once the full per-channel matrix is
+                    // supported).
+                    model: Mixxx.SoundManager.outputDevices
                 }
             }
 
@@ -243,10 +326,11 @@ Item {
                 onClicked: {
                     const outputRow = outputCombo.currentIndex;
                     const inputRow = root.useInputDevice ? inputCombo.currentIndex : -1;
+                    const headphoneRow = root.useHeadphoneDevice ? headphoneCombo.currentIndex : -1;
                     const rate = root.sampleRateList[sampleRateCombo.currentIndex];
                     const bufferIndex = root.bufferSizeOptions[bufferSizeCombo.currentIndex].value;
                     const ok = Mixxx.SoundManager.applyConfig(
-                            apiCombo.currentText, outputRow, inputRow, rate, bufferIndex);
+                            apiCombo.currentText, outputRow, inputRow, headphoneRow, rate, bufferIndex);
                     if (ok) {
                         root.statusMessage = "Applied successfully.";
                         root.statusColor = Theme.green;

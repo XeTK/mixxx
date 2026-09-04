@@ -57,12 +57,21 @@ QVariantMap QmlSoundManagerProxy::getCurrentConfig() const {
         inputDeviceName = inputs.constBegin().key().name;
     }
 
+    QString headphoneDeviceName;
+    for (auto it = outputs.constBegin(); it != outputs.constEnd(); ++it) {
+        if (it.value().getType() == AudioPathType::Headphones) {
+            headphoneDeviceName = it.key().name;
+            break;
+        }
+    }
+
     QVariantMap result;
     result["api"] = config.getAPI();
     result["sampleRate"] = static_cast<int>(config.getSampleRate().value());
     result["bufferSizeIndex"] = static_cast<int>(config.getAudioBufferSizeIndex());
     result["outputDeviceName"] = outputDeviceName;
     result["inputDeviceName"] = inputDeviceName;
+    result["headphoneDeviceName"] = headphoneDeviceName;
     return result;
 }
 
@@ -70,6 +79,7 @@ bool QmlSoundManagerProxy::applyConfig(
         const QString& api,
         int outputDeviceRow,
         int inputDeviceRow,
+        int headphoneDeviceRow,
         int sampleRate,
         int bufferSizeIndex) {
     SoundManagerConfig config(m_pSoundManager.get());
@@ -85,6 +95,18 @@ bool QmlSoundManagerProxy::applyConfig(
                         0,
                         mixxx::audio::ChannelCount::stereo(),
                         0));
+    }
+
+    if (headphoneDeviceRow >= 0) {
+        const SoundDevicePointer pHeadphoneDevice =
+                m_pOutputDeviceModel->deviceAt(headphoneDeviceRow);
+        if (pHeadphoneDevice) {
+            config.addOutput(pHeadphoneDevice->getDeviceId(),
+                    AudioOutput(AudioPathType::Headphones,
+                            0,
+                            mixxx::audio::ChannelCount::stereo(),
+                            0));
+        }
     }
 
     if (inputDeviceRow >= 0) {

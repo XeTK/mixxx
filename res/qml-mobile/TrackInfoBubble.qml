@@ -7,24 +7,38 @@ import "Theme"
 // Floats over a deck's waveform instead of taking its own row (see
 // main.qml) - small rounded cover art + title/key/bpm chip, dark
 // translucent background so it stays legible over the waveform without
-// blocking much of it.
+// blocking much of it. Tapping the bubble toggles a minimized state
+// (just the cover art circle) for when even that little bit of waveform
+// coverage is unwanted.
 Item {
     id: root
 
     required property string group
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
+    property bool minimized: false
 
     // Nothing useful to show (and an empty pill just looks like a stray
     // dark blob on the waveform) until a track is actually loaded.
     visible: deckPlayer.isLoaded
 
-    implicitWidth: row.implicitWidth + 16
+    implicitWidth: root.minimized ? implicitHeight : row.implicitWidth + 16
     implicitHeight: 36
+
+    Behavior on implicitWidth {
+        NumberAnimation {
+            duration: 150
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: height / 2
         color: "#a0000000"
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: root.minimized = !root.minimized
     }
 
     Row {
@@ -64,6 +78,7 @@ Item {
         }
 
         Column {
+            visible: !root.minimized
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
 

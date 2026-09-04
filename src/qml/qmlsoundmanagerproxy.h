@@ -28,17 +28,21 @@ class QmlSoundManagerProxy : public QObject {
     // whenever QML's API dropdown selection changes.
     Q_INVOKABLE void refreshDevicesForApi(const QString& api);
     Q_INVOKABLE QVariantList getSampleRates(const QString& api) const;
-    // { api, sampleRate, bufferSizeIndex, outputDeviceName, inputDeviceName }
-    // for pre-selecting the QML page's controls on load.
+    // { api, sampleRate, bufferSizeIndex, outputDeviceName, inputDeviceName,
+    //   headphoneDeviceName } for pre-selecting the QML page's controls on
+    // load.
     Q_INVOKABLE QVariantMap getCurrentConfig() const;
-    // outputDeviceRow/inputDeviceRow index into whichever device list
-    // refreshDevicesForApi(api) last populated; pass inputDeviceRow < 0 for
-    // "no input device". Returns whether SoundManager::setConfig() actually
-    // succeeded - on failure, call getLastErrorMessage() for why.
+    // outputDeviceRow/inputDeviceRow/headphoneDeviceRow index into
+    // whichever device list refreshDevicesForApi(api) last populated
+    // (headphoneDeviceRow indexes the same outputDevices list as
+    // outputDeviceRow); pass -1 for "no input device" / "no separate
+    // headphone/cue output". Returns whether SoundManager::setConfig()
+    // actually succeeded - on failure, call getLastErrorMessage() for why.
     Q_INVOKABLE bool applyConfig(
             const QString& api,
             int outputDeviceRow,
             int inputDeviceRow,
+            int headphoneDeviceRow,
             int sampleRate,
             int bufferSizeIndex);
     Q_INVOKABLE QString getLastErrorMessage() const;
