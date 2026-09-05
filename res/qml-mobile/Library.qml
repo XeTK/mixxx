@@ -107,8 +107,10 @@ Item {
                 implicitHeight: 60
 
                 // Cover art thumbnail, like the desktop library's Cover Art
-                // column - a blank track-shaped placeholder when there's no
-                // embedded/found artwork rather than empty space.
+                // column - the same generic "no cover art" icon the desktop
+                // skins use (not just a flat color swatch) when there's no
+                // embedded/found artwork, so rows stay visually
+                // distinguishable while browsing a track list.
                 Rectangle {
                     id: coverArtFrame
 
@@ -118,6 +120,17 @@ Item {
                     height: 48
                     radius: 4
                     color: Theme.knobBackgroundColor
+                }
+
+                Image {
+                    id: coverArtPlaceholder
+
+                    anchors.fill: coverArtFrame
+                    anchors.margins: 6
+                    source: "qrc:/images/library/cover_default.svg"
+                    visible: itemDlgt.coverArtUrl.toString().length === 0
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectFit
                 }
 
                 Image {
