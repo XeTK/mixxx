@@ -1,4 +1,5 @@
 import "." as Skin
+import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "Theme"
@@ -179,6 +180,37 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    // Turning a controller's browse encoder (e.g. the DDJ-FLX2's Shift+Jog)
+    // moves the library selection even while it's off-screen behind the
+    // decks/effects/sampler view - LibraryControl.qml's own MoveUp/MoveDown/
+    // MoveVertical bindings still fire - but the DJ can't see what's being
+    // selected. Jump to the library screen as soon as that happens so the
+    // selection is actually visible to load from. All three controls are
+    // watched since different controller mappings use either MoveVertical
+    // (a signed delta) or the separate MoveUp/MoveDown pair.
+    function showLibraryOnBrowse(value) {
+        if (value != 0)
+            root.currentScreen = "library";
+    }
+
+    Mixxx.ControlProxy {
+        group: "[Library]"
+        key: "MoveVertical"
+        onValueChanged: (value) => root.showLibraryOnBrowse(value)
+    }
+
+    Mixxx.ControlProxy {
+        group: "[Library]"
+        key: "MoveUp"
+        onValueChanged: (value) => root.showLibraryOnBrowse(value)
+    }
+
+    Mixxx.ControlProxy {
+        group: "[Library]"
+        key: "MoveDown"
+        onValueChanged: (value) => root.showLibraryOnBrowse(value)
     }
 
     Item {
