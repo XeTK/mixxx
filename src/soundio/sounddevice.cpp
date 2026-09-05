@@ -45,11 +45,21 @@ SoundDeviceStatus SoundDevice::addOutput(const AudioOutputBuffer& out) {
     // Check if the output channels are already used
     foreach (AudioOutputBuffer myOut, m_audioOutputs) {
         if (out.channelsClash(myOut)) {
+            qWarning() << "SoundDevice::addOutput()" << getDisplayName()
+                       << "channel clash: requested base"
+                       << out.getChannelGroup().getChannelBase() << "count"
+                       << out.getChannelGroup().getChannelCount()
+                       << "clashes with an already-assigned output";
             return SoundDeviceStatus::ErrorDuplicateOutputChannel;
         }
     }
     if (out.getChannelGroup().getChannelBase()
             + out.getChannelGroup().getChannelCount() > getNumOutputChannels()) {
+        qWarning() << "SoundDevice::addOutput()" << getDisplayName()
+                   << "excessive channel: requested base"
+                   << out.getChannelGroup().getChannelBase() << "count"
+                   << out.getChannelGroup().getChannelCount() << "but device only has"
+                   << getNumOutputChannels() << "output channel(s)";
         return SoundDeviceStatus::ErrorExcessiveOutputChannel;
     }
     m_audioOutputs.append(out);
@@ -66,6 +76,11 @@ SoundDeviceStatus SoundDevice::addInput(const AudioInputBuffer& in) {
     // -- bkgood 20101108
     if (in.getChannelGroup().getChannelBase()
             + in.getChannelGroup().getChannelCount() > getNumInputChannels()) {
+        qWarning() << "SoundDevice::addInput()" << getDisplayName()
+                   << "excessive channel: requested base"
+                   << in.getChannelGroup().getChannelBase() << "count"
+                   << in.getChannelGroup().getChannelCount() << "but device only has"
+                   << getNumInputChannels() << "input channel(s)";
         return SoundDeviceStatus::ErrorExcessiveInputChannel;
     }
     m_audioInputs.append(in);

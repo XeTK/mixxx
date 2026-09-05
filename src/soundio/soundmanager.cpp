@@ -668,6 +668,9 @@ SoundDeviceStatus SoundManager::setupDevices() {
     return SoundDeviceStatus::ErrorDeviceCount;
 
 closeAndError:
+    qWarning() << "SoundManager::setupDevices() failed with status"
+               << static_cast<int>(status) << "on device"
+               << (m_pErrorDevice ? m_pErrorDevice->getDisplayName() : QString("(unknown)"));
     const bool sleepAfterClosing = false;
     closeDevices(sleepAfterClosing);
     return status;
@@ -718,6 +721,7 @@ void SoundManager::closeActiveConfig() {
 }
 
 SoundDeviceStatus SoundManager::setConfig(const SoundManagerConfig& config) {
+    const SoundManagerConfig previousConfig = m_config;
     SoundDeviceStatus status = SoundDeviceStatus::Ok;
     m_config = config;
     checkConfig();
@@ -727,6 +731,21 @@ SoundDeviceStatus SoundManager::setConfig(const SoundManagerConfig& config) {
     status = setupDevices();
     if (status == SoundDeviceStatus::Ok) {
         m_config.writeToDisk();
+    } else if (!previousConfig.getOutputs().isEmpty()) {
+        // closeActiveConfig() above already closed every device on the way
+        // in (see the big comment in setupDevices() about PortAudio/Oboe
+        // not being safe to reconfigure live), so a failure here - e.g. a
+        // channel-count mismatch on the newly selected device - would
+        // otherwise leave the user with silent audio and no way to recover
+        // short of restarting the whole app. Revert to whatever config was
+        // actually working before this call instead of leaving every
+        // device closed; the caller still sees `status` so it can report
+        // the failure.
+        qWarning() << "SoundManager::setConfig() failed to apply the new config (status"
+                   << static_cast<int>(status)
+                   << ") - reverting to the previous working configuration";
+        m_config = previousConfig;
+        setupDevices();
     }
     return status;
 }
