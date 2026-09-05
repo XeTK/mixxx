@@ -252,8 +252,19 @@ SoundDeviceStatus SoundDevicePortAudio::open(bool isClkRefDevice, int syncBuffer
         PaOboe_InitializeStreamInfo(&obeoStreamInfo);
         obeoStreamInfo.androidOutputUsage = PaOboe_Usage::Media,
         obeoStreamInfo.androidInputPreset = PaOboe_InputPreset::Generic,
-        obeoStreamInfo.performanceMode = PaOboe_PerformanceMode::LowLatency,
-        obeoStreamInfo.sharingMode = PaOboe_SharingMode::Exclusive,
+        // Exclusive+LowLatency requests an AAudio MMAP stream, which is
+        // only implemented by the HAL for the SoC's primary/internal
+        // output path. Requesting it together with setDeviceId() pointed
+        // at a USB Audio Class device (e.g. a DJ controller's built-in
+        // sound card) isn't reliably supported - some HALs silently keep
+        // routing to the internal speaker/earpiece instead of the
+        // requested USB device rather than failing outright, so USB
+        // output was completely silent. Shared+None uses AAudio's normal
+        // mixer path, which every device (including USB) actually
+        // supports, at the cost of the internal output's absolute lowest
+        // latency.
+        obeoStreamInfo.performanceMode = PaOboe_PerformanceMode::None,
+        obeoStreamInfo.sharingMode = PaOboe_SharingMode::Shared,
         obeoStreamInfo.contentType = PaOboe_ContentType::Music,
         obeoStreamInfo.packageName = ANDROID_PACKAGE_NAME;
 
