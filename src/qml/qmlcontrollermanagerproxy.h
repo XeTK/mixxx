@@ -40,6 +40,23 @@ class QmlControllerManagerProxy : public QObject {
     // invalid.
     Q_INVOKABLE bool applyMapping(int controllerRow, const QString& mappingPath, bool enabled);
 
+    // Settings (checkboxes/dropdowns) exposed by the controller's currently
+    // loaded mapping via a <settings> block (e.g. the DDJ-FLX2's "Use the
+    // Hot Cue pads as accessibility pads" toggle). Each entry is
+    // {variable, label, description, type, value}, plus an "options" list
+    // of {value, label} when type == "enum". type is one of "boolean",
+    // "enum", or "other" - integer/real/color/file settings report their
+    // current value as a string but aren't editable from this page yet.
+    Q_INVOKABLE QVariantList getMappingSettings(int controllerRow) const;
+    // Sets one setting by variable name - value should be a bool for
+    // "boolean" settings, or one of that setting's "options" values (a
+    // string) for "enum" settings - then persists it and re-applies the
+    // mapping so the running script's engine.getSetting() picks up the
+    // change immediately (settings are only snapshotted into the JS
+    // engine when a mapping is (re)opened). Returns false (with a
+    // qWarning()) if the controller row or setting variable isn't found.
+    Q_INVOKABLE bool setMappingSetting(int controllerRow, const QString& variable, const QVariant& value);
+
     // BLE MIDI connect flow (Android only - no-ops/empty elsewhere):
     // Bonded Bluetooth devices as {name, address} entries for the connect
     // UI. Empty if Bluetooth is off/unavailable; also empty when the

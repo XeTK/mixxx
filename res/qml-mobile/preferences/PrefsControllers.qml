@@ -243,9 +243,21 @@ Item {
             required property string display
             required property bool isOpen
             property var mappingOptions: []
+            // Settings (checkboxes/dropdowns) exposed by the currently
+            // loaded mapping's <settings> block, e.g. the DDJ-FLX2's
+            // accessibility-pads toggle - see
+            // QmlControllerManagerProxy::getMappingSettings().
+            property var settingsList: []
 
             implicitWidth: listView.width
-            implicitHeight: 96
+            // Base row (name/enable + mapping combo) plus one row per
+            // setting - computed from the data rather than the settings
+            // Column's own rendered height, since that Column is inside
+            // an anchors.fill:parent Column and so can't be read back
+            // without a binding loop.
+            implicitHeight: 96 + (itemDlgt.settingsList.length > 0
+                    ? 6 + itemDlgt.settingsList.length * 46
+                    : 0)
 
             function loadMappings() {
                 const mappings = Mixxx.ControllerManager.getMappingsForController(itemDlgt.index);
@@ -261,6 +273,11 @@ Item {
                     }
                 }
                 mappingCombo.currentIndex = selectedIndex;
+                itemDlgt.loadSettings();
+            }
+
+            function loadSettings() {
+                itemDlgt.settingsList = Mixxx.ControllerManager.getMappingSettings(itemDlgt.index);
             }
 
             Component.onCompleted: itemDlgt.loadMappings()
@@ -307,6 +324,7 @@ Item {
                                     : "";
                             Mixxx.ControllerManager.applyMapping(
                                     itemDlgt.index, path, !itemDlgt.isOpen);
+                            itemDlgt.loadSettings();
                         }
                     }
                 }
@@ -322,6 +340,98 @@ Item {
                         const path = itemDlgt.mappingOptions[index].path;
                         Mixxx.ControllerManager.applyMapping(
                                 itemDlgt.index, path, path.length > 0);
+                        itemDlgt.loadSettings();
+                    }
+                }
+
+                Column {
+                    id: settingsColumn
+
+                    width: parent.width
+                    spacing: 6
+                    visible: itemDlgt.settingsList.length > 0
+
+                    Repeater {
+                        model: itemDlgt.settingsList
+
+                        delegate: Item {
+                            id: settingDlgt
+
+                            required property var modelData
+
+                            width: settingsColumn.width
+                            height: 40
+
+                            Text {
+                                anchors.left: parent.left
+                                anchors.right: parent.horizontalCenter
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: Text.ElideRight
+                                text: settingDlgt.modelData.label
+                                color: Theme.deckTextColor
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.textFontPixelSize
+                            }
+
+                            Skin.Button {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 64
+                                height: 32
+                                visible: settingDlgt.modelData.type === "boolean"
+                                activeColor: Theme.blue
+                                highlight: settingDlgt.modelData.value === true
+                                text: settingDlgt.modelData.value ? "On" : "Off"
+                                onClicked: {
+                                    Mixxx.ControllerManager.setMappingSetting(
+                                            itemDlgt.index,
+                                            settingDlgt.modelData.variable,
+                                            !settingDlgt.modelData.value);
+                                    itemDlgt.loadSettings();
+                                }
+                            }
+
+                            Skin.ComboBox {
+                                id: enumSettingCombo
+
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width * 0.5
+                                height: 40
+                                visible: settingDlgt.modelData.type === "enum"
+                                textRole: "label"
+                                model: settingDlgt.modelData.type === "enum"
+                                        ? settingDlgt.modelData.options
+                                        : []
+                                Component.onCompleted: {
+                                    for (let i = 0; i < enumSettingCombo.model.length; i++) {
+                                        if (enumSettingCombo.model[i].value ===
+                                                settingDlgt.modelData.value) {
+                                            enumSettingCombo.currentIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                onActivated: (index) => {
+                                    Mixxx.ControllerManager.setMappingSetting(
+                                            itemDlgt.index,
+                                            settingDlgt.modelData.variable,
+                                            settingDlgt.modelData.options[index].value);
+                                    itemDlgt.loadSettings();
+                                }
+                            }
+
+                            Text {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: settingDlgt.modelData.type === "other"
+                                text: settingDlgt.modelData.value
+                                color: Theme.deckTextColor
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.textFontPixelSize
+                            }
+                        }
                     }
                 }
             }

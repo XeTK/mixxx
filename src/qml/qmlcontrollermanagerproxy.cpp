@@ -10,6 +10,7 @@
 #include "controllers/defs_controllers.h"
 #include "controllers/legacycontrollermapping.h"
 #include "controllers/legacycontrollermappingfilehandler.h"
+#include "controllers/legacycontrollersettings.h"
 #include "moc_qmlcontrollermanagerproxy.cpp"
 #include "util/assert.h"
 
@@ -151,6 +152,91 @@ bool QmlControllerManagerProxy::applyMapping(
     // ControllerManager::devicesChanged() only fires on hotplug/enumeration.
     m_pControllerListModel->slotUpdated();
     return true;
+}
+
+QVariantList QmlControllerManagerProxy::getMappingSettings(int controllerRow) const {
+    QVariantList result;
+    Controller* pController = m_pControllerListModel->controllerAt(controllerRow);
+    if (!pController) {
+        return result;
+    }
+    auto pMapping = pController->getMapping();
+    if (!pMapping) {
+        return result;
+    }
+
+    for (const auto& pSetting : pMapping->getSettings()) {
+        QVariantMap entry;
+        entry["variable"] = pSetting->variableName();
+        entry["label"] = pSetting->label();
+        entry["description"] = pSetting->description();
+
+        if (auto* pBooleanSetting =
+                        dynamic_cast<LegacyControllerBooleanSetting*>(pSetting.get())) {
+            entry["type"] = "boolean";
+            entry["value"] = pBooleanSetting->value().toBool();
+        } else if (auto* pEnumSetting =
+                           dynamic_cast<LegacyControllerEnumSetting*>(pSetting.get())) {
+            entry["type"] = "enum";
+            entry["value"] = pSetting->stringify();
+            QVariantList options;
+            for (const auto& item : pEnumSetting->options()) {
+                QVariantMap option;
+                option["value"] = item.value;
+                option["label"] = item.label;
+                options.append(option);
+            }
+            entry["options"] = options;
+        } else {
+            // Integer/real/color/file settings - reported read-only for
+            // now, no editor built for them on this page yet.
+            entry["type"] = "other";
+            entry["value"] = pSetting->stringify();
+        }
+        result.append(entry);
+    }
+    return result;
+}
+
+bool QmlControllerManagerProxy::setMappingSetting(
+        int controllerRow, const QString& variable, const QVariant& value) {
+    Controller* pController = m_pControllerListModel->controllerAt(controllerRow);
+    if (!pController) {
+        qWarning() << "QmlControllerManagerProxy: controller row" << controllerRow
+                   << "not found";
+        return false;
+    }
+    auto pMapping = pController->getMapping();
+    if (!pMapping) {
+        qWarning() << "QmlControllerManagerProxy: controller row" << controllerRow
+                   << "has no mapping loaded";
+        return false;
+    }
+
+    for (const auto& pSetting : pMapping->getSettings()) {
+        if (pSetting->variableName() != variable) {
+            continue;
+        }
+        const QString valueString = value.typeId() == QMetaType::Bool
+                ? (value.toBool() ? "true" : "false")
+                : value.toString();
+        bool ok = false;
+        pSetting->parse(valueString, &ok);
+        if (!ok) {
+            qWarning() << "QmlControllerManagerProxy: failed to parse value for setting"
+                       << variable;
+            return false;
+        }
+        pMapping->saveSettings(m_pConfig, pController->getName());
+        // Controller::applyMapping() only snapshots settings into the
+        // running script's JS engine when a mapping is (re)opened - redo
+        // that here so engine.getSetting() picks up the new value right
+        // away instead of only on the next manual re-enable.
+        emit requestApplyMapping(pController, pMapping, pController->isOpen());
+        return true;
+    }
+    qWarning() << "QmlControllerManagerProxy: setting" << variable << "not found";
+    return false;
 }
 
 QVariantList QmlControllerManagerProxy::getBluetoothMidiDevices() const {
