@@ -30,6 +30,12 @@ ApplicationWindow {
     color: Theme.backgroundColor
     visible: true
 
+    // Reconnect to whatever BLE MIDI controller was last used, if any,
+    // instead of making the DJ reopen Controllers prefs and hit Connect
+    // again every launch. No-ops quietly if there's nothing persisted yet
+    // or Bluetooth permission isn't already granted.
+    Component.onCompleted: Mixxx.ControllerManager.reconnectLastBluetoothMidiDevice()
+
     // A small persistent hamburger button replaces the old full-width
     // toolbar row - it doesn't eat a fixed strip of vertical space the way
     // a toolbar (even a collapsible one) does, and phones have plenty of

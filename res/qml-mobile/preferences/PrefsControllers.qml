@@ -26,11 +26,29 @@ Item {
         font.pixelSize: Theme.textFontPixelSize
     }
 
+    // Pre-select whichever device last connected successfully (persisted
+    // across restarts) instead of always defaulting to the first bonded
+    // device in the list.
+    function selectRememberedDevice() {
+        if (root.bleDevices.length === 0) {
+            return;
+        }
+        const lastAddress = Mixxx.ControllerManager.getLastBluetoothMidiAddress();
+        let selectedIndex = 0;
+        if (lastAddress.length > 0) {
+            for (let i = 0; i < root.bleDevices.length; i++) {
+                if (root.bleDevices[i].address === lastAddress) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        bleCombo.currentIndex = selectedIndex;
+    }
+
     function refreshBleDevices() {
         root.bleDevices = Mixxx.ControllerManager.getBluetoothMidiDevices();
-        if (root.bleDevices.length > 0 && bleCombo.currentIndex < 0) {
-            bleCombo.currentIndex = 0;
-        }
+        root.selectRememberedDevice();
     }
 
     function mergeBleDevices(devices) {
@@ -45,14 +63,14 @@ Item {
             }
         }
         root.bleDevices = merged;
-        if (root.bleDevices.length > 0 && bleCombo.currentIndex < 0) {
-            bleCombo.currentIndex = 0;
-        }
+        root.selectRememberedDevice();
     }
 
     Component.onCompleted: root.refreshBleDevices()
 
     Column {
+        id: bleColumn
+
         width: parent.width
         spacing: 10
 
@@ -203,8 +221,14 @@ Item {
     ListView {
         id: listView
 
-        anchors.top: parent.top
-        anchors.topMargin: 190
+        // Anchored to the BLE section's actual (variable-height) bottom
+        // rather than a fixed margin - that section's height changes
+        // depending on whether the permission-request row and/or status
+        // text are visible, and a fixed margin tuned for one state left a
+        // large dead gap (or, in principle, an overlap) in every other
+        // state.
+        anchors.top: bleColumn.bottom
+        anchors.topMargin: 10
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

@@ -13,6 +13,11 @@
 #include "moc_qmlcontrollermanagerproxy.cpp"
 #include "util/assert.h"
 
+namespace {
+const QString kBluetoothMidiConfigGroup = QLatin1String("[BluetoothMidi]");
+const QString kLastDeviceAddressConfigKey = QLatin1String("last_device_address");
+} // namespace
+
 namespace mixxx {
 namespace qml {
 
@@ -42,6 +47,10 @@ QmlControllerManagerProxy::QmlControllerManagerProxy(
             QMetaObject::invokeMethod(m_pControllerManager.get(),
                     &ControllerManager::updateControllerList,
                     Qt::QueuedConnection);
+            // Remember this address so reconnectLastBluetoothMidiDevice()
+            // can find it again on the next launch.
+            m_pConfig->set(ConfigKey(kBluetoothMidiConfigGroup, kLastDeviceAddressConfigKey),
+                    ConfigValue(m_lastRequestedBleAddress));
         }
         // Arrives on the Android main thread - hop to this object's thread
         // before emitting, so QML connections don't have to be direct.
@@ -167,6 +176,11 @@ QVariantList QmlControllerManagerProxy::getBluetoothMidiDevices() const {
     return result;
 }
 
+QString QmlControllerManagerProxy::getLastBluetoothMidiAddress() const {
+    return m_pConfig->getValueString(
+            ConfigKey(kBluetoothMidiConfigGroup, kLastDeviceAddressConfigKey));
+}
+
 void QmlControllerManagerProxy::requestBluetoothPermission() {
 #ifdef Q_OS_ANDROID
     QBluetoothPermission permission;
@@ -201,6 +215,7 @@ void QmlControllerManagerProxy::openBleMidiDeviceIfPermitted(const QString& addr
 }
 
 void QmlControllerManagerProxy::connectBluetoothMidiDevice(const QString& address) {
+    m_lastRequestedBleAddress = address;
 #ifdef Q_OS_ANDROID
     QBluetoothPermission permission;
     switch (qApp->checkPermission(permission)) {
@@ -244,6 +259,23 @@ void QmlControllerManagerProxy::startBluetoothMidiScan() {
     }
 #endif
     emit bluetoothScanFinished({});
+}
+
+void QmlControllerManagerProxy::reconnectLastBluetoothMidiDevice() {
+#ifdef Q_OS_ANDROID
+    const QString address = m_pConfig->getValueString(
+            ConfigKey(kBluetoothMidiConfigGroup, kLastDeviceAddressConfigKey));
+    if (address.isEmpty()) {
+        return;
+    }
+    // Only reconnect if permission was already granted in a past session -
+    // startup shouldn't surface an unsolicited system permission dialog
+    // before the user has even opened the Controllers preferences page.
+    QBluetoothPermission permission;
+    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
+        connectBluetoothMidiDevice(address);
+    }
+#endif
 }
 
 // static

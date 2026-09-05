@@ -46,6 +46,11 @@ class QmlControllerManagerProxy : public QObject {
     // BLUETOOTH_CONNECT runtime permission hasn't been granted yet (call
     // requestBluetoothPermission() first in that case).
     Q_INVOKABLE QVariantList getBluetoothMidiDevices() const;
+    // The address last passed to a successful connectBluetoothMidiDevice()
+    // call, persisted across restarts, so the QML page can pre-select it
+    // in the device list instead of always defaulting to the first bonded
+    // device. Empty if none has ever connected successfully.
+    Q_INVOKABLE QString getLastBluetoothMidiAddress() const;
     // Asks Android for BLUETOOTH_CONNECT (no-op if already granted);
     // emits bluetoothPermissionResult(granted) once resolved.
     Q_INVOKABLE void requestBluetoothPermission();
@@ -58,6 +63,15 @@ class QmlControllerManagerProxy : public QObject {
     // bonded yet - Android bonds transparently when we connect to them).
     // Emits bluetoothScanFinished(devices) with {name, address} entries.
     Q_INVOKABLE void startBluetoothMidiScan();
+    // Reconnects to whichever device the last successful
+    // connectBluetoothMidiDevice() call used, if any was persisted. Meant
+    // to be called once at startup (see main.qml) so a previously-used BLE
+    // MIDI controller doesn't need to be manually reconnected every
+    // launch. Silently does nothing if there's no persisted device or if
+    // Bluetooth permission hasn't already been granted in a past
+    // session - startup shouldn't surface an unsolicited system permission
+    // dialog before the user has even opened the Controllers page.
+    Q_INVOKABLE void reconnectLastBluetoothMidiDevice();
 
     static QmlControllerManagerProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static void registerControllerManager(
@@ -93,6 +107,10 @@ class QmlControllerManagerProxy : public QObject {
     const std::shared_ptr<ControllerManager> m_pControllerManager;
     const UserSettingsPointer m_pConfig;
     QmlControllerListModel* m_pControllerListModel;
+    // The address passed to the most recent connectBluetoothMidiDevice()
+    // call, persisted to m_pConfig once that connection succeeds so
+    // reconnectLastBluetoothMidiDevice() can find it again next launch.
+    QString m_lastRequestedBleAddress;
 };
 
 } // namespace qml
