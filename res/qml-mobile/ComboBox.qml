@@ -52,6 +52,10 @@ ComboBox {
         y: root.height
         width: root.width
         implicitHeight: contentItem.implicitHeight
+        // Cap the popup's actual height so a long list (e.g. BLE MIDI scan
+        // results) scrolls inside it instead of silently overflowing past
+        // the bottom of the screen with no way to reach the later entries.
+        height: Math.min(implicitHeight, 450)
 
         contentItem: ListView {
             clip: true
