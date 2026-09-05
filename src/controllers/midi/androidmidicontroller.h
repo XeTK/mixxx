@@ -42,6 +42,13 @@ class AndroidMidiController : public MidiController, public mixxx::android::Midi
     ~AndroidMidiController() override;
 
     PhysicalTransportProtocol getPhysicalTransportProtocol() const override {
+        // MidiDeviceInfo.getType(): 1 = USB, 2 = Bluetooth (BLE MIDI),
+        // 3 = virtual. Default to USB for anything unrecognized - that's
+        // what this backend was built for.
+        const int type = m_deviceInfo.callMethod<jint>("getType");
+        if (type == 2) {
+            return PhysicalTransportProtocol::BlueTooth;
+        }
         return PhysicalTransportProtocol::USB;
     }
     QString getVendorString() const override {

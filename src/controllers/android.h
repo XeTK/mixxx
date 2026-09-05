@@ -1,10 +1,13 @@
 #pragma once
 
 #include <QJniObject>
+#include <QString>
 #include <qtypes.h>
 
 #include <condition_variable>
+#include <functional>
 #include <mutex>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -51,6 +54,37 @@ class MidiDeviceCallback {
 /// lookup safely no-ops in that case instead of touching freed memory.
 qint64 registerMidiDeviceCallback(MidiDeviceCallback* pCallback);
 void unregisterMidiDeviceCallback(qint64 key);
+
+/// Receives org/mixxx/BleMidi's open results. Invoked on the Android main
+/// thread - implementations must only queue work (e.g. emit a Qt signal).
+using BleMidiResultReceiver = std::function<void(bool success, const QString& deviceName)>;
+
+/// Receives the finished BLE MIDI scan's "name|address" entries. Invoked on
+/// the Android main thread.
+using BleScanResultReceiver = std::function<void(const QStringList& devices)>;
+
+/// Sets (or, with an empty function, clears) the receiver for BLE MIDI
+/// open results. There is only ever one BLE connect flow at a time, so a
+/// single receiver is enough.
+void setBleMidiResultReceiver(BleMidiResultReceiver receiver);
+/// Same for BLE scan results.
+void setBleScanResultReceiver(BleScanResultReceiver receiver);
+
+/// "name|address" entries for every bonded Bluetooth device, for the
+/// QML BLE MIDI connect UI. Returns nullopt if the BLUETOOTH_CONNECT
+/// runtime permission is missing (the caller should request it), an
+/// empty list if Bluetooth is off/unavailable.
+std::optional<QStringList> listBondedBluetoothDevices();
+/// Initiates the BLE MIDI GATT connection to the bonded device with the
+/// given MAC address; the result arrives via the receiver set with
+/// setBleMidiResultReceiver(). Returns false if the request couldn't even
+/// be made (no callback will follow).
+bool openBluetoothMidiDevice(const QString& address);
+/// Scans for ~8s for advertising BLE MIDI devices (service UUID
+/// 03B80E5A-...); the results arrive via the receiver set with
+/// setBleScanResultReceiver(). Returns false if the scan couldn't be
+/// started (no callback will follow).
+bool startMidiBleScan();
 
 } // namespace android
 } // namespace mixxx

@@ -13,6 +13,8 @@
 #include <cstddef>
 #include <unordered_map>
 
+#include <QJniArray>
+
 namespace mixxx {
 namespace android {
 std::mutex s_androidLock = {};
@@ -25,21 +27,10 @@ namespace {
 std::mutex s_midiCallbacksLock;
 std::unordered_map<qint64, MidiDeviceCallback*> s_midiCallbacks;
 qint64 s_nextMidiCallbackKey = 1;
-} // namespace
 
-qint64 registerMidiDeviceCallback(MidiDeviceCallback* pCallback) {
-    std::unique_lock lock(s_midiCallbacksLock);
-    const qint64 key = s_nextMidiCallbackKey++;
-    s_midiCallbacks.emplace(key, pCallback);
-    return key;
-}
-
-void unregisterMidiDeviceCallback(qint64 key) {
-    std::unique_lock lock(s_midiCallbacksLock);
-    s_midiCallbacks.erase(key);
-}
-
-namespace {
+std::mutex s_bleMidiReceiverLock;
+BleMidiResultReceiver s_bleMidiReceiver;
+BleScanResultReceiver s_bleScanReceiver;
 
 void dispatchMidiDeviceOpened(qint64 key, bool success) {
     std::unique_lock lock(s_midiCallbacksLock);
@@ -57,7 +48,91 @@ void dispatchMidiDataReceived(qint64 key, const unsigned char* data, int length)
     }
 }
 
+void dispatchBleMidiOpenResult(bool success, const QString& deviceName) {
+    std::unique_lock lock(s_bleMidiReceiverLock);
+    if (s_bleMidiReceiver) {
+        s_bleMidiReceiver(success, deviceName);
+    }
+}
+
+void dispatchBleScanFinished(const QStringList& devices) {
+    std::unique_lock lock(s_bleMidiReceiverLock);
+    if (s_bleScanReceiver) {
+        s_bleScanReceiver(devices);
+    }
+}
+
 } // namespace
+
+qint64 registerMidiDeviceCallback(MidiDeviceCallback* pCallback) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    const qint64 key = s_nextMidiCallbackKey++;
+    s_midiCallbacks.emplace(key, pCallback);
+    return key;
+}
+
+void unregisterMidiDeviceCallback(qint64 key) {
+    std::unique_lock lock(s_midiCallbacksLock);
+    s_midiCallbacks.erase(key);
+}
+
+void setBleMidiResultReceiver(BleMidiResultReceiver receiver) {
+    std::unique_lock lock(s_bleMidiReceiverLock);
+    s_bleMidiReceiver = std::move(receiver);
+}
+
+void setBleScanResultReceiver(BleScanResultReceiver receiver) {
+    std::unique_lock lock(s_bleMidiReceiverLock);
+    s_bleScanReceiver = std::move(receiver);
+}
+
+std::optional<QStringList> listBondedBluetoothDevices() {
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) {
+        return QStringList();
+    }
+    QJniArray<QJniObject> entries = QJniObject::callStaticMethod<QJniArray<QJniObject>>(
+            "org/mixxx/BleMidi",
+            "listBondedBluetoothDevices",
+            "(Landroid/content/Context;)[Ljava/lang/String;",
+            context.object());
+    if (!entries.isValid()) {
+        // Java returns null only for a missing runtime permission.
+        return std::nullopt;
+    }
+    QStringList result;
+    for (const auto& entry : entries) {
+        if (entry->isValid()) {
+            result.append(entry->toString());
+        }
+    }
+    return result;
+}
+
+bool openBluetoothMidiDevice(const QString& address) {
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) {
+        return false;
+    }
+    return QJniObject::callStaticMethod<jboolean>(
+            "org/mixxx/BleMidi",
+            "openBluetoothMidiDevice",
+            "(Landroid/content/Context;Ljava/lang/String;)Z",
+            context.object(),
+            QJniObject::fromString(address).object());
+}
+
+bool startMidiBleScan() {
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) {
+        return false;
+    }
+    return QJniObject::callStaticMethod<jboolean>(
+            "org/mixxx/BleMidi",
+            "startMidiBleScan",
+            "(Landroid/content/Context;)Z",
+            context.object());
+}
 
 const QJniObject& getIntent() {
     __android_log_print(ANDROID_LOG_VERBOSE, "mixxx", "about to get intent");
@@ -165,6 +240,36 @@ void usbDeviceAccessResult(JNIEnv*, jobject, jobject device, jboolean granted) {
 Q_DECLARE_JNI_NATIVE_METHOD(usbDeviceAccessResult)
 
 Q_DECLARE_JNI_CLASS(MidiDeviceBridgeClass, "org/mixxx/MidiDeviceBridge")
+Q_DECLARE_JNI_CLASS(BleMidiClass, "org/mixxx/BleMidi")
+
+void onBleMidiOpenResult(JNIEnv* env, jobject, jboolean success, jstring deviceName) {
+    const char* utf = env->GetStringUTFChars(deviceName, nullptr);
+    QString name = utf ? QString::fromUtf8(utf) : QString();
+    if (utf) {
+        env->ReleaseStringUTFChars(deviceName, utf);
+    }
+    mixxx::android::dispatchBleMidiOpenResult(success, name);
+}
+Q_DECLARE_JNI_NATIVE_METHOD(onBleMidiOpenResult)
+
+void onBleScanFinished(JNIEnv* env, jobject, jobjectArray devices) {
+    QStringList result;
+    const jsize count = env->GetArrayLength(devices);
+    for (jsize i = 0; i < count; i++) {
+        jstring entry = static_cast<jstring>(env->GetObjectArrayElement(devices, i));
+        if (!entry) {
+            continue;
+        }
+        const char* utf = env->GetStringUTFChars(entry, nullptr);
+        if (utf) {
+            result.append(QString::fromUtf8(utf));
+            env->ReleaseStringUTFChars(entry, utf);
+        }
+        env->DeleteLocalRef(entry);
+    }
+    mixxx::android::dispatchBleScanFinished(result);
+}
+Q_DECLARE_JNI_NATIVE_METHOD(onBleScanFinished)
 
 void onDeviceOpened(JNIEnv*, jobject, jlong nativeKey, jboolean success) {
     mixxx::android::dispatchMidiDeviceOpened(nativeKey, success);
@@ -190,6 +295,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
     env.registerNativeMethods<QtJniTypes::MidiDeviceBridgeClass>({
             Q_JNI_NATIVE_METHOD(onDeviceOpened),
             Q_JNI_NATIVE_METHOD(onMidiDataReceived),
+    });
+    env.registerNativeMethods<QtJniTypes::BleMidiClass>({
+            Q_JNI_NATIVE_METHOD(onBleMidiOpenResult),
+            Q_JNI_NATIVE_METHOD(onBleScanFinished),
     });
     return JNI_VERSION_1_6;
 }

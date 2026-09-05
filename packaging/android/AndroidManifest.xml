@@ -10,6 +10,23 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"  />
     <uses-permission android:name="android.permission.RECORD_AUDIO"  />
     <uses-permission android:name="android.permission.USB_PERMISSION"/>
+    <!-- BLE MIDI: BLUETOOTH_CONNECT is a runtime permission on API 31+, requested
+         via Qt's QPermissions API (QBluetoothPermission) from the controllers
+         preferences page. The legacy BLUETOOTH/BLUETOOTH_ADMIN permissions cover
+         Android 11 and older, where they're install-time. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <!-- BLE MIDI device discovery; neverForLocation because we only match
+         the MIDI service UUID, not derive location. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+            android:usesPermissionFlags="neverForLocation"/>
+    <!-- Not used for advertising - declared anyway because Qt's
+         QBluetoothPermission checks for this alongside SCAN/CONNECT on
+         API 31+ and reports Denied outright (not Undetermined) for the
+         whole permission if it's undeclared, even when SCAN/CONNECT are
+         both actually granted. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"  />
 

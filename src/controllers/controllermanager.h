@@ -39,6 +39,11 @@ class ControllerManager : public QObject {
     }
     QString getConfiguredMappingFileForDevice(const QString& name);
 
+    /// Re-runs every enumerator's queryDevices() and emits devicesChanged()
+    /// if the list changed. Public so the QML proxy can re-enumerate after
+    /// establishing a BLE MIDI connection from the app.
+    void updateControllerList();
+
     /// Prevent other parts of Mixxx from having to manually connect to our slots
     void setUpDevices() { emit requestSetUpDevices(); };
 
@@ -69,7 +74,6 @@ class ControllerManager : public QObject {
     void slotPollDevices();
 
   private:
-    void updateControllerList();
     void startPolling();
     void stopPolling();
     void pollIfAnyControllersOpen();

@@ -11,20 +11,203 @@ import "../Theme"
 Item {
     id: root
 
+    // Bonded Bluetooth devices as {name, address}, from the BLE MIDI
+    // connect flow below.
+    property var bleDevices: []
+    property string bleStatus: ""
+    property color bleStatusColor: Theme.deckTextColor
+
     Text {
         anchors.centerIn: parent
-        visible: listView.count === 0
+        visible: listView.count === 0 && root.bleDevices.length === 0
         text: "No controllers detected"
         color: Theme.deckTextColor
         font.family: Theme.fontFamily
         font.pixelSize: Theme.textFontPixelSize
     }
 
+    function refreshBleDevices() {
+        root.bleDevices = Mixxx.ControllerManager.getBluetoothMidiDevices();
+        if (root.bleDevices.length > 0 && bleCombo.currentIndex < 0) {
+            bleCombo.currentIndex = 0;
+        }
+    }
+
+    function mergeBleDevices(devices) {
+        // Merge scanned devices into the bonded list, deduplicating by
+        // address (a device can be both bonded and advertising).
+        const merged = [];
+        const seen = new Set();
+        for (const device of root.bleDevices.concat(devices)) {
+            if (!seen.has(device.address)) {
+                seen.add(device.address);
+                merged.push(device);
+            }
+        }
+        root.bleDevices = merged;
+        if (root.bleDevices.length > 0 && bleCombo.currentIndex < 0) {
+            bleCombo.currentIndex = 0;
+        }
+    }
+
+    Component.onCompleted: root.refreshBleDevices()
+
+    Column {
+        width: parent.width
+        spacing: 10
+
+        // BLE MIDI devices only show up in the controller list once
+        // something establishes their GATT connection, which Android's
+        // Settings Bluetooth screen is unreliable at. This lets Mixxx
+        // open the connection itself (MidiManager.openBluetoothDevice)
+        // for any already-bonded device.
+        Skin.SectionText {
+            width: parent.width
+            text: "Bluetooth MIDI"
+        }
+
+        Item {
+            width: parent.width
+            height: 48
+
+            Skin.ComboBox {
+                id: bleCombo
+
+                anchors.left: parent.left
+                anchors.right: bleConnectButton.left
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                height: 40
+                model: root.bleDevices.map((device) => device.name)
+            }
+
+            Skin.Button {
+                id: bleConnectButton
+
+                anchors.right: bleScanButton.left
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                width: 110
+                height: 40
+                activeColor: Theme.blue
+                text: "Connect"
+                enabled: root.bleDevices.length > 0 && !root.bleConnecting
+                onClicked: {
+                    if (bleCombo.currentIndex < 0) {
+                        return;
+                    }
+                    const device = root.bleDevices[bleCombo.currentIndex];
+                    root.bleStatusColor = Theme.deckTextColor;
+                    root.bleStatus = "Connecting to " + device.name + " ...";
+                    Mixxx.ControllerManager.connectBluetoothMidiDevice(device.address);
+                }
+            }
+
+            Skin.Button {
+                id: bleScanButton
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 90
+                height: 40
+                activeColor: Theme.blue
+                text: root.bleScanning ? "..." : "Scan"
+                enabled: !root.bleScanning
+                onClicked: {
+                    root.bleScanning = true;
+                    root.bleStatusColor = Theme.deckTextColor;
+                    root.bleStatus = "Scanning for BLE MIDI devices ...";
+                    Mixxx.ControllerManager.startBluetoothMidiScan();
+                }
+            }
+        }
+
+        Item {
+            width: parent.width
+            height: 48
+            visible: root.bleDevices.length === 0
+
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.blePermissionRequested
+                        ? "No bonded Bluetooth devices found"
+                        : "Bonded Bluetooth devices need permission"
+                color: Theme.deckTextColor
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.textFontPixelSize
+            }
+
+            Skin.Button {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 110
+                height: 40
+                activeColor: Theme.blue
+                visible: !root.blePermissionRequested
+                text: "Allow"
+                onClicked: Mixxx.ControllerManager.requestBluetoothPermission()
+            }
+        }
+
+        Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            visible: root.bleStatus.length > 0
+            text: root.bleStatus
+            color: root.bleStatusColor
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.textFontPixelSize
+        }
+    }
+
+    property bool bleConnecting: false
+    property bool blePermissionRequested: false
+    property bool bleScanning: false
+
+    Connections {
+        target: Mixxx.ControllerManager
+
+        function onBluetoothMidiDeviceConnected(success, deviceName) {
+            root.bleConnecting = false;
+            if (success) {
+                root.bleStatusColor = Theme.green;
+                root.bleStatus = "Connected " + deviceName;
+            } else {
+                root.bleStatusColor = Theme.red;
+                root.bleStatus = "Bluetooth MIDI connection failed";
+            }
+        }
+
+        function onBluetoothScanFinished(devices) {
+            root.bleScanning = false;
+            if (devices.length === 0) {
+                root.bleStatusColor = Theme.red;
+                root.bleStatus = "No BLE MIDI devices found - is the controller in pairing mode?";
+            } else {
+                root.bleStatus = "";
+            }
+            root.mergeBleDevices(devices);
+        }
+
+        function onBluetoothPermissionResult(granted) {
+            root.blePermissionRequested = true;
+            if (!granted) {
+                root.bleStatusColor = Theme.red;
+                root.bleStatus = "Bluetooth permission denied";
+            }
+            root.refreshBleDevices();
+        }
+    }
+
     ListView {
         id: listView
 
-        anchors.fill: parent
-        anchors.margins: 10
+        anchors.top: parent.top
+        anchors.topMargin: 190
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
         clip: true
         spacing: 10
         model: Mixxx.ControllerManager.controllers
@@ -120,4 +303,7 @@ Item {
             }
         }
     }
+
+    // "No controllers" placeholder only counts the non-BLE list; with the
+    // BLE section above it, centering on the whole page would overlap it.
 }
