@@ -5235,7 +5235,21 @@ endif()
 find_package(LibUSB)
 
 # USB HID controller support
-option(HID "USB HID controller support" ON)
+# hidapi (and libusb, which it depends on for its default backend) is
+# excluded from the iOS vcpkg manifest entirely: iOS has no IOKit USB API,
+# confirmed by actually attempting the vcpkg build for arm64-ios-simulator,
+# not merely assumed. Without this guard, find_package(hidapi) below would
+# hit its FATAL_ERROR branch on every iOS configure since the package can
+# never be found there. PortMidi and PortAudio need no equivalent guard -
+# their overlay ports have real CoreMIDI/CoreAudio-based iOS support and
+# both built successfully for arm64-ios-simulator.
+cmake_dependent_option(
+  HID
+  "USB HID controller support"
+  ON
+  "NOT IOS"
+  OFF
+)
 if(HID)
   # hidapi 0.14.0 is the first release, that contains bus type information
   find_package(hidapi 0.14.0)
