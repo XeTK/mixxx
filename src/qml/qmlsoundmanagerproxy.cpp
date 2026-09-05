@@ -58,9 +58,11 @@ QVariantMap QmlSoundManagerProxy::getCurrentConfig() const {
     }
 
     QString headphoneDeviceName;
+    int headphoneChannelBase = 0;
     for (auto it = outputs.constBegin(); it != outputs.constEnd(); ++it) {
         if (it.value().getType() == AudioPathType::Headphones) {
             headphoneDeviceName = it.key().name;
+            headphoneChannelBase = it.value().getChannelGroup().getChannelBase();
             break;
         }
     }
@@ -72,6 +74,7 @@ QVariantMap QmlSoundManagerProxy::getCurrentConfig() const {
     result["outputDeviceName"] = outputDeviceName;
     result["inputDeviceName"] = inputDeviceName;
     result["headphoneDeviceName"] = headphoneDeviceName;
+    result["headphoneChannelBase"] = headphoneChannelBase;
     return result;
 }
 
@@ -80,6 +83,7 @@ bool QmlSoundManagerProxy::applyConfig(
         int outputDeviceRow,
         int inputDeviceRow,
         int headphoneDeviceRow,
+        int headphoneChannelBase,
         int sampleRate,
         int bufferSizeIndex) {
     SoundManagerConfig config(m_pSoundManager.get());
@@ -101,9 +105,15 @@ bool QmlSoundManagerProxy::applyConfig(
         const SoundDevicePointer pHeadphoneDevice =
                 m_pOutputDeviceModel->deviceAt(headphoneDeviceRow);
         if (pHeadphoneDevice) {
+            // channelBase lets the headphone/cue path land on a later
+            // channel pair (e.g. 3-4) of the same device used for Main,
+            // rather than requiring an actual second sound card - this is
+            // how most 4-channel DJ controller USB interfaces (including
+            // the ones this was built against) expose cue/headphone
+            // output.
             config.addOutput(pHeadphoneDevice->getDeviceId(),
                     AudioOutput(AudioPathType::Headphones,
-                            0,
+                            headphoneChannelBase,
                             mixxx::audio::ChannelCount::stereo(),
                             0));
         }

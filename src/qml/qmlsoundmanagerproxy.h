@@ -29,20 +29,26 @@ class QmlSoundManagerProxy : public QObject {
     Q_INVOKABLE void refreshDevicesForApi(const QString& api);
     Q_INVOKABLE QVariantList getSampleRates(const QString& api) const;
     // { api, sampleRate, bufferSizeIndex, outputDeviceName, inputDeviceName,
-    //   headphoneDeviceName } for pre-selecting the QML page's controls on
-    // load.
+    //   headphoneDeviceName, headphoneChannelBase } for pre-selecting the
+    // QML page's controls on load.
     Q_INVOKABLE QVariantMap getCurrentConfig() const;
     // outputDeviceRow/inputDeviceRow/headphoneDeviceRow index into
     // whichever device list refreshDevicesForApi(api) last populated
     // (headphoneDeviceRow indexes the same outputDevices list as
     // outputDeviceRow); pass -1 for "no input device" / "no separate
-    // headphone/cue output". Returns whether SoundManager::setConfig()
-    // actually succeeded - on failure, call getLastErrorMessage() for why.
+    // headphone/cue output". headphoneChannelBase is which pair of
+    // channels on the headphone device to use (0 for channels 1-2, 2 for
+    // channels 3-4, etc.) - most 4-channel DJ controller sound cards put
+    // cue/headphone output on the second stereo pair of the *same*
+    // device used for Main, rather than needing a genuinely separate
+    // device. Returns whether SoundManager::setConfig() actually
+    // succeeded - on failure, call getLastErrorMessage() for why.
     Q_INVOKABLE bool applyConfig(
             const QString& api,
             int outputDeviceRow,
             int inputDeviceRow,
             int headphoneDeviceRow,
+            int headphoneChannelBase,
             int sampleRate,
             int bufferSizeIndex);
     Q_INVOKABLE QString getLastErrorMessage() const;

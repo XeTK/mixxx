@@ -6,8 +6,10 @@ namespace mixxx {
 namespace qml {
 
 namespace {
+const int kChannelCountRole = Qt::UserRole;
 const QHash<int, QByteArray> kRoleNames = {
         {Qt::DisplayRole, "display"},
+        {kChannelCountRole, "channelCount"},
 };
 } // namespace
 
@@ -36,6 +38,8 @@ QVariant QmlSoundDeviceModel::data(const QModelIndex& index, int role) const {
     switch (role) {
     case Qt::DisplayRole:
         return m_devices.at(index.row())->getDisplayName();
+    case kChannelCountRole:
+        return static_cast<int>(m_devices.at(index.row())->getNumOutputChannels());
     default:
         return QVariant();
     }

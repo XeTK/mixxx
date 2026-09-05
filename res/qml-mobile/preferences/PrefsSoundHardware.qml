@@ -37,6 +37,27 @@ Item {
         root.sampleRateList = Mixxx.SoundManager.getSampleRates(api);
     }
 
+    // {text, value} entries for every stereo channel pair a device with
+    // channelCount output channels has - most 4-channel DJ controller
+    // sound cards put cue/headphone output on the second pair (3-4) of
+    // the same device used for Main, rather than a genuinely separate
+    // device.
+    function headphoneChannelOptions(channelCount) {
+        const options = [];
+        for (let base = 0; base + 2 <= channelCount; base += 2) {
+            options.push({ text: "Channels " + (base + 1) + "-" + (base + 2), value: base });
+        }
+        return options;
+    }
+
+    function currentHeadphoneDeviceChannelCount() {
+        if (headphoneCombo.currentIndex < 0) {
+            return 2;
+        }
+        const info = Mixxx.SoundManager.outputDevices.get(headphoneCombo.currentIndex);
+        return info.channelCount > 0 ? info.channelCount : 2;
+    }
+
     function loadCurrentConfig() {
         root.apiList = Mixxx.SoundManager.getHostApiList();
         const current = Mixxx.SoundManager.getCurrentConfig();
@@ -65,6 +86,17 @@ Item {
         if (root.useHeadphoneDevice) {
             const headphoneIndex = headphoneCombo.find(current.headphoneDeviceName);
             headphoneCombo.currentIndex = headphoneIndex >= 0 ? headphoneIndex : 0;
+
+            const channelOptions = root.headphoneChannelOptions(
+                    root.currentHeadphoneDeviceChannelCount());
+            let channelIndex = 0;
+            for (let i = 0; i < channelOptions.length; i++) {
+                if (channelOptions[i].value === current.headphoneChannelBase) {
+                    channelIndex = i;
+                    break;
+                }
+            }
+            headphoneChannelCombo.currentIndex = channelIndex;
         }
 
         const rateIndex = root.sampleRateList.indexOf(current.sampleRate);
@@ -235,11 +267,42 @@ Item {
                     height: 40
                     textRole: "display"
                     // Same physical devices as the Main output - a
-                    // headphone/cue path just routes to a different
-                    // device (or a different pair of channels on the
-                    // same device, once the full per-channel matrix is
-                    // supported).
+                    // headphone/cue path can route to a genuinely
+                    // different device, or (see the row below) a
+                    // different pair of channels on the same device.
                     model: Mixxx.SoundManager.outputDevices
+                    onActivated: headphoneChannelCombo.currentIndex = 0
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: 48
+                // Only meaningful once the headphone device has a second
+                // stereo pair to offer - a plain 2-channel device (e.g.
+                // the phone's own earpiece) has nowhere else to route to.
+                visible: root.useHeadphoneDevice &&
+                        root.currentHeadphoneDeviceChannelCount() >= 4
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Headphone/cue channels"
+                    color: Theme.deckTextColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.textFontPixelSize
+                }
+
+                Skin.ComboBox {
+                    id: headphoneChannelCombo
+
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width * 0.55
+                    height: 40
+                    textRole: "text"
+                    model: root.headphoneChannelOptions(
+                            root.currentHeadphoneDeviceChannelCount())
                 }
             }
 
@@ -327,10 +390,18 @@ Item {
                     const outputRow = outputCombo.currentIndex;
                     const inputRow = root.useInputDevice ? inputCombo.currentIndex : -1;
                     const headphoneRow = root.useHeadphoneDevice ? headphoneCombo.currentIndex : -1;
+                    const headphoneChannelOptions = root.headphoneChannelOptions(
+                            root.currentHeadphoneDeviceChannelCount());
+                    const headphoneChannelBase = (root.useHeadphoneDevice &&
+                            headphoneChannelCombo.currentIndex >= 0 &&
+                            headphoneChannelCombo.currentIndex < headphoneChannelOptions.length)
+                            ? headphoneChannelOptions[headphoneChannelCombo.currentIndex].value
+                            : 0;
                     const rate = root.sampleRateList[sampleRateCombo.currentIndex];
                     const bufferIndex = root.bufferSizeOptions[bufferSizeCombo.currentIndex].value;
                     const ok = Mixxx.SoundManager.applyConfig(
-                            apiCombo.currentText, outputRow, inputRow, headphoneRow, rate, bufferIndex);
+                            apiCombo.currentText, outputRow, inputRow, headphoneRow,
+                            headphoneChannelBase, rate, bufferIndex);
                     if (ok) {
                         root.statusMessage = "Applied successfully.";
                         root.statusColor = Theme.green;
