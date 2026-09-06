@@ -379,6 +379,17 @@ void EffectChain::slotControlLoadedChainPresetRequest(double value) {
     if (index < 0 || index >= numPresets()) {
         return;
     }
+    if (index == presetIndex()) {
+        // Already loaded -- mirrors slotControlChainPresetSelector()'s "don't
+        // reload on a delta of 0" guard just below. Without this, anything
+        // that re-confirms the currently selected index (e.g. a QML
+        // ComboBox's currentIndex binding re-resolving to the same value
+        // while its model repopulates, since this control's ignoreNops is
+        // off) reloads the chain preset, redundantly re-running every
+        // effect slot's meta-parameter update and re-emitting the chain's
+        // "preset changed" announcement for no actual change.
+        return;
+    }
     // loadChainPreset calls setAndConfirm
     loadChainPreset(presetAtIndex(index));
 }
