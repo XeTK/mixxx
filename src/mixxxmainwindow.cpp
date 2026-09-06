@@ -556,10 +556,19 @@ void MixxxMainWindow::initialize() {
         m_pMenuBar->setStyleSheet(m_pCentralWidget->styleSheet());
     }
 
-    // Check direct rendering and warn user if they don't have it
+    // Check direct rendering and warn user if they don't have it. Skipped
+    // entirely on iOS: this warning is about the classic desktop skin's
+    // legacy GL waveform displays specifically (see checkDirectRendering()),
+    // which don't exist as a concept there at all (no Qt6::OpenGL - see the
+    // QOPENGL definition in CMakeLists.txt) - unlike on desktop/Android,
+    // isOpenGlAvailable()/isOpenGlesAvailable() being false here doesn't
+    // mean anything is actually degraded, so warning about it on every
+    // first launch would just be misleading.
+#ifndef Q_OS_IOS
     if (!CmdlineArgs::Instance().getSafeMode()) {
         checkDirectRendering();
     }
+#endif
 
     // Sound hardware setup
     // Try to open configured devices. If that fails, display dialogs
