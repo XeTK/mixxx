@@ -26,12 +26,13 @@ Q_IMPORT_QML_PLUGIN(Mixxx_ControlsPlugin)
 
 namespace {
 // Both QML skin trees ship in every build; which one loads is decided at
-// runtime. Android defaults to the phone-optimized skin, everything else
-// to the desktop one, and the [QML],skin config key ("qml"/"qml-mobile")
-// overrides the default on any platform - so the mobile skin can be
-// previewed on a desktop without repackaging, and vice versa.
+// runtime. Android and iOS default to the phone-optimized skin, everything
+// else to the desktop one, and the [QML],skin config key
+// ("qml"/"qml-mobile") overrides the default on any platform - so the
+// mobile skin can be previewed on a desktop without repackaging, and vice
+// versa.
 QString resolveMainQmlFilePath(const UserSettingsPointer& pSettings) {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     const QString defaultSkin = QStringLiteral("qml-mobile");
 #else
     const QString defaultSkin = QStringLiteral("qml");

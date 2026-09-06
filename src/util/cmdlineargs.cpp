@@ -481,7 +481,23 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     m_controllerAbortOnWarning = parser.isSet(controllerAbortOnWarning);
     m_developer = parser.isSet(developer);
 #ifdef MIXXX_USE_QML
+#ifdef Q_OS_IOS
+    // Unlike Android (which gets this from a hardcoded --qml in
+    // QT_ANDROID_APPLICATION_ARGUMENTS in CMakeLists.txt - Qt's own
+    // mechanism for injecting launch args on that platform), a plain
+    // Home-Screen/simctl launch on iOS has no command-line arguments at
+    // all, so parser.isSet(qml) is always false there and the app would
+    // otherwise silently fall through to MixxxMainWindow's classic desktop
+    // skin - confirmed by actually booting in Simulator without this: the
+    // full desktop UI renders (unusably cramped) instead of the QML mobile
+    // skin. iOS has no classic-desktop-skin story any more than Android
+    // does (see e.g. the QOPENGL definition in CMakeLists.txt - there's no
+    // working GL rendering backend for it there at all), so this is
+    // unconditional rather than actually reading the flag.
+    m_qml = true;
+#else
     m_qml = parser.isSet(qml);
+#endif
 #endif
     m_safeMode = parser.isSet(safeMode) || parser.isSet(safeModeDeprecated);
     m_debugAssertBreak = parser.isSet(debugAssertBreak) || parser.isSet(debugAssertBreakDeprecated);
