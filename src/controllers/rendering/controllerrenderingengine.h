@@ -1,8 +1,32 @@
 #pragma once
 
 #include <QObject>
+#include <QtGlobal>
+#ifndef Q_OS_IOS
+// QOpenGLContext and QOpenGLFramebufferObject are both compiled out of this
+// Qt build entirely for iOS, not just unavailable in some separate module:
+// upstream vcpkg's qtbase port excludes the "opengl" feature outright for
+// "platform: !ios" (confirmed by actually attempting the build), which
+// leaves QT_NO_OPENGL defined in Qt's own qtgui-config.h - every declaration
+// in <QOpenGLContext> is itself wrapped in "#ifndef QT_NO_OPENGL", so the
+// header compiles to essentially nothing on iOS even though the *file*
+// exists. controllerrenderingenginenull.cpp provides an always-invalid
+// stand-in for iOS instead (there are no HID/USB controllers - and
+// therefore no controller screens to render into - on iOS at all; see the
+// HID option).
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
+#include <qopengl.h> // for the GLenum typedef
+using GLDataType = GLenum;
+#else
+// GLenum itself (a plain "unsigned int" per the OpenGL spec, on every
+// platform Mixxx supports) isn't available either: it's declared in the
+// same QT_NO_OPENGL-guarded qopengl.h. m_GLDataFormat/m_GLDataType are
+// never read on iOS (see controllerrenderingenginenull.cpp), so any
+// integer type merely needs to exist here for the member declarations
+// below to compile.
+using GLDataType = unsigned int;
+#endif
 #include <chrono>
 #include <gsl/pointers>
 
@@ -90,15 +114,19 @@ class ControllerRenderingEngine : public QObject {
 
     std::unique_ptr<QThread> m_pThread;
 
+#ifndef Q_OS_IOS
     std::unique_ptr<QOpenGLContext> m_context;
+#endif
     std::unique_ptr<QOffscreenSurface> m_offscreenSurface;
     std::unique_ptr<QQuickRenderControl> m_renderControl;
     std::unique_ptr<QQuickWindow> m_quickWindow;
 
+#ifndef Q_OS_IOS
     std::unique_ptr<QOpenGLFramebufferObject> m_fbo;
+#endif
 
-    GLenum m_GLDataFormat;
-    GLenum m_GLDataType;
+    GLDataType m_GLDataFormat;
+    GLDataType m_GLDataType;
 
     bool m_isValid;
     // Engine control is owned by ControllerScriptEngineBase. The assumption is
