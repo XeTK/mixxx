@@ -36,7 +36,9 @@
 #include "library/trackset/playlistfeature.h"
 #include "library/trackset/setlogfeature.h"
 #include "library/traktor/traktorfeature.h"
+#ifndef Q_OS_IOS
 #include "library/youtube/youtubefeature.h"
+#endif
 #include "mixer/playermanager.h"
 #include "moc_library.cpp"
 #include "util/assert.h"
@@ -266,10 +268,17 @@ Library::Library(
         addFeature(new SeratoFeature(this, m_pConfig));
     }
 
+#ifndef Q_OS_IOS
+    // The YouTube library feature shells out to yt-dlp via QProcess to
+    // search/download - iOS forbids spawning subprocesses at all (App Store
+    // sandbox), and Qt's own iOS build has QProcess compiled out entirely
+    // as a result (confirmed by actually attempting the build: QProcess's
+    // own members don't exist there, not just yt-dlp's absence).
     if (m_pConfig->getValue(
                 ConfigKey(kConfigGroup, "ShowYouTubeLibrary"), true)) {
         addFeature(new YouTubeFeature(this, m_pConfig));
     }
+#endif
 
     for (const auto& externalTrackCollection : m_pTrackCollectionManager->externalCollections()) {
         auto* feature = externalTrackCollection->newLibraryFeature(this, m_pConfig);
