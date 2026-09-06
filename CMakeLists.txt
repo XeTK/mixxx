@@ -2160,8 +2160,12 @@ if(APPLE)
   if(IOS)
     target_sources(
       mixxx-lib
-      PRIVATE src/soundio/soundmanagerios.mm src/util/screensaverios.mm
+      PRIVATE
+        src/soundio/soundmanagerios.mm
+        src/util/screensaverios.mm
+        src/util/ttsenginemac.mm
     )
+    target_link_libraries(mixxx-lib PRIVATE "-weak_framework AVFAudio")
 
     option(IOS_ITUNES_LIBRARY "Native iOS music library integration" ON)
     if(IOS_ITUNES_LIBRARY)

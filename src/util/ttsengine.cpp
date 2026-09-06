@@ -5,7 +5,7 @@
 #include "engine/enginetts.h"
 #include "util/ttslog.h"
 #include "util/types.h"
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_IOS)
 #include "util/ttsenginemac.h"
 #endif
 
@@ -425,11 +425,12 @@ static QList<T> enumerateTokens(IEnumSpObjectTokens* pEnum) {
     return result;
 }
 
-#elif defined(Q_OS_MACOS)
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
 
 // Native backend using AVSpeechSynthesizer lives in ttsenginemac.mm (needs
 // Objective-C++); this avoids depending on the Qt6 TextToSpeech module, which
-// Mixxx's macOS dependency bundle doesn't ship.
+// Mixxx's macOS/iOS dependency bundles don't ship. AVSpeechSynthesizer is the
+// same API on both platforms, so this file is shared as-is.
 
 #elif defined(MIXXX_USE_ESPEAK)
 
@@ -708,7 +709,7 @@ class NullTtsEngine final : public TtsEngine {
 std::unique_ptr<TtsEngine> TtsEngine::create() {
 #ifdef Q_OS_WIN
     return std::make_unique<SapiTtsEngine>();
-#elif defined(Q_OS_MACOS)
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
     return createMacTtsEngine();
 #elif defined(MIXXX_USE_ESPEAK)
     return std::make_unique<EspeakTtsEngine>();
@@ -718,7 +719,7 @@ std::unique_ptr<TtsEngine> TtsEngine::create() {
 }
 
 bool TtsEngine::isAvailable() {
-#if defined(Q_OS_WIN) || defined(Q_OS_MACOS) || defined(MIXXX_USE_ESPEAK)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS) || defined(Q_OS_IOS) || defined(MIXXX_USE_ESPEAK)
     return true;
 #else
     return false;
@@ -728,7 +729,7 @@ bool TtsEngine::isAvailable() {
 QList<TtsEngine::Voice> TtsEngine::enumerateVoices() {
 #ifdef Q_OS_WIN
     return enumerateTokens<Voice>(createVoiceEnumerator());
-#elif defined(Q_OS_MACOS)
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
     return enumerateMacTtsVoices();
 #elif defined(MIXXX_USE_ESPEAK)
     // espeak_ListVoices() requires espeak_Initialize() to have been called
