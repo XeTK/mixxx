@@ -3,7 +3,9 @@
 #include <QGuiApplication>
 #include <QPermissions>
 
+#ifdef Q_OS_ANDROID
 #include "controllers/android.h"
+#endif
 #include "controllers/controller.h"
 #include "controllers/controllermappinginfo.h"
 #include "controllers/controllermappinginfoenumerator.h"
