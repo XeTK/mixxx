@@ -899,8 +899,20 @@ void CoreServices::initializeQMLSingletons() {
 
     // Currently, it is required to enforce QQuickWindow RHI backend to use
     // OpenGL on all platforms to allow offscreen rendering to function as
-    // expected
+    // expected - specifically ControllerRenderingEngine's QQuickRenderControl-
+    // based offscreen rendering for controller screen previews. That feature
+    // doesn't exist on iOS at all (no Qt6::OpenGL, no HID/USB controllers to
+    // have a screen in the first place - see controllerrenderingenginenull.cpp),
+    // and forcing it anyway is actively fatal there: this build of Qt has no
+    // OpenGL RHI backend to select in the first place (confirmed by actually
+    // booting in Simulator: "OpenGL was requested for Qt Quick, but this
+    // build of Qt has no OpenGL support" immediately followed by a qFatal
+    // aborting the app). Leaving the graphics API unset on iOS lets Qt Quick
+    // auto-select its default, which is Metal on Apple platforms - the only
+    // backend this Qt build actually has.
+#ifndef Q_OS_IOS
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#endif
 #endif
 }
 
