@@ -631,8 +631,22 @@ void CoreServices::initialize(QApplication* pApp) {
     m_pVCManager->init();
 #endif
 
-#ifdef __MODPLUG__
+#if defined(__MODPLUG__) && !defined(Q_OS_IOS)
     // Restore the configuration for the modplug library before trying to load a module.
+    //
+    // Skipped on iOS: constructing this QWidget-based preferences page purely
+    // to call loadSettings()/applySettings() - never showing it - crashes
+    // reliably when it's destroyed at the end of this function. Confirmed by
+    // actually attaching lldb to a Simulator run: EXC_BAD_ACCESS inside Qt's
+    // own QIOSPlatformAccessibility::notifyAccessibilityUpdate, triggered by
+    // QWidget::~QWidget() -> QAccessibleCache::sendObjectDestroyedEvent()
+    // querying QAccessibleButton::role() on one of this dialog's QCheckBoxes
+    // whose QAbstractButton base has already been torn down. This looks like
+    // a Qt-for-iOS platform bug specific to widgets that are constructed and
+    // destroyed without ever being shown (and therefore never fully
+    // registered with the accessibility bridge), not something about
+    // modplug's settings themselves - modplug just uses its own defaults on
+    // iOS instead of the user's saved preferences.
     DlgPrefModplug modplugPrefs{nullptr, pConfig};
     modplugPrefs.loadSettings();
     modplugPrefs.applySettings();
