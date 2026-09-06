@@ -2869,7 +2869,19 @@ void AnnouncementManager::slotAnnouncePendingControl() {
                 continue;
             }
             const QString fullText = name + QStringLiteral(" ") + value;
-            speak(sameControl ? value : fullText);
+            // Value-only is a follow-up to a name this exact key's value has
+            // already been read out with -- not merely "this key was touched
+            // recently", which m_lastControlTouchMs alone can't distinguish.
+            // Several different controls that each get their one-time
+            // startup value applied within the same debounce window (e.g.
+            // half a dozen EQ knobs settling to their defaults) all count as
+            // "recently touched" by that clock, so without also requiring a
+            // prior flushed value here, this batch would speak their values
+            // back to back with no names at all (issue: repeated "center.
+            // center. center..." on startup with no indication which knobs
+            // it refers to).
+            const bool spokenValueOnly = sameControl && m_lastValueByKey.contains(key);
+            speak(spokenValueOnly ? value : fullText);
             fullTextsForRepeat << fullText;
             m_lastValueByKey.insert(key, value);
             m_lastControlTouchMs[key] = now;
