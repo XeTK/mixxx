@@ -35,7 +35,10 @@ enum class WaveformWidgetBackend {
     None = 0,
     GL,
     GLSL,
-#ifdef MIXXX_USE_QOPENGL
+    // Available whenever mixxx-lib has an allshader backend at all (GL where
+    // Qt6::OpenGL exists, SG on iOS - see the rendergraph section of the
+    // top-level CMakeLists.txt), which is unconditionally the case, not
+    // specifically tied to MIXXX_USE_QOPENGL (that only selects the
+    // *classic-desktop-widget* GL rendering path).
     AllShader,
-#endif
 };

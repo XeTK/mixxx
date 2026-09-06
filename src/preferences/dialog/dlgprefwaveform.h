@@ -6,9 +6,15 @@
 #include "preferences/dialog/ui_dlgprefwaveformdlg.h"
 #include "preferences/usersettings.h"
 #include "waveform/widgets/waveformwidgettype.h"
-#ifdef MIXXX_USE_QOPENGL
+// allshader::WaveformRendererSignalBase::Options is used unconditionally
+// below (updateWaveformTypeOptions()) regardless of which allshader backend
+// is active - mixxx-lib always has the `allshader` macro resolved to a real
+// namespace (allshader_gl where Qt6::OpenGL exists, allshader_sg on iOS -
+// see the rendergraph section of the top-level CMakeLists.txt), so this
+// doesn't need to be conditional on MIXXX_USE_QOPENGL specifically (that
+// was only ever a proxy for "is any allshader backend available", which is
+// no longer 1:1 now that iOS has one - allshader_sg - without the other).
 #include "waveform/renderers/allshader/waveformrenderersignalbase.h"
-#endif
 
 class ControlPushButton;
 class ControlObject;
@@ -34,7 +40,6 @@ class DlgPrefWaveform : public DlgPreferencePage, public Ui::DlgPrefWaveformDlg 
     void slotSetWaveformType(int index);
     void slotSetWaveformEnabled(bool checked);
     void slotSetWaveformAcceleration(bool checked);
-#ifdef MIXXX_USE_QOPENGL
     void slotSetWaveformOptions(allshader::WaveformRendererSignalBase::Option option, bool enabled);
     void slotSetWaveformOptionSplitStereoSignal(bool checked) {
         slotSetWaveformOptions(allshader::WaveformRendererSignalBase::Option::
@@ -44,7 +49,6 @@ class DlgPrefWaveform : public DlgPreferencePage, public Ui::DlgPrefWaveformDlg 
     void slotSetWaveformOptionHighDetail(bool checked) {
         slotSetWaveformOptions(allshader::WaveformRendererSignalBase::Option::HighDetail, checked);
     }
-#endif
     void slotSetDefaultZoom(int index);
     void slotSetZoomSynchronization(bool checked);
     void slotSetVisualGainAll(double gain);
