@@ -56,7 +56,20 @@ CmdlineArgs::CmdlineArgs()
           m_controllerNavigationWithoutFocus(false),
           m_developer(false),
 #ifdef MIXXX_USE_QML
+#ifdef Q_OS_IOS
+          // CmdlineArgs::parse(argc, argv) - where the Q_OS_IOS override
+          // below normally forces this true - returns early without
+          // touching m_qml at all when argc == 1 (see the "run with the
+          // binary name only, nothing to do" fast path), which is always
+          // the case for a Home Screen/simctl launch (no argv beyond the
+          // binary path). This constructor default is what actually takes
+          // effect for a real launch; confirmed by actually booting in
+          // Simulator - without this, only the parse()-time override
+          // existed and the classic desktop skin still rendered.
+          m_qml(true),
+#else
           m_qml(false),
+#endif
 #endif
           m_safeMode(false),
           m_useLegacyVuMeter(false),
