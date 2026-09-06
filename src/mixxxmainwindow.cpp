@@ -378,9 +378,14 @@ void MixxxMainWindow::initialize() {
                 }
             });
 
-#ifndef MIXXX_USE_QOPENGL
+#if !defined(MIXXX_USE_QOPENGL) && !defined(Q_OS_IOS)
     // Before creating the first skin we need to create a QGLWidget so that all
     // the QGLWidget's we create can use it as a shared QGLContext.
+    // (QGLWidget/QGLFormat were removed entirely in Qt6, so this is already
+    // dead code under Qt6 on every platform except would-be Qt5 builds;
+    // excluded outright on iOS, where MIXXX_USE_QOPENGL is undefined for a
+    // different reason - Qt6::OpenGL doesn't exist there at all - rather
+    // than left to fail to compile.)
     if (!CmdlineArgs::Instance().getSafeMode() && QGLFormat::hasOpenGL()) {
         QGLFormat glFormat;
         glFormat.setDirectRendering(true);

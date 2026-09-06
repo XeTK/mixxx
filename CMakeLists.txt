@@ -423,7 +423,24 @@ option(QT6 "Build with Qt6" ON)
 option(QML "Build with QML" OFF)
 
 if(QT6)
-  set(QOPENGL ON CACHE INTERNAL "Forced ON because QT6=ON")
+  if(VCPKG_TARGET_TRIPLET MATCHES "^[a-zA-Z0-9]+-ios")
+    # Qt6::OpenGL (and thus the QOpenGLWindow-based classic-skin GL widgets
+    # QOPENGL selects) does not exist at all for iOS: confirmed by actually
+    # attempting the build, not assumed - upstream vcpkg's own qtbase port
+    # excludes the "opengl" feature for "platform: !ios" under Qt Gui's
+    # dependencies, so Qt6OpenGLConfig.cmake is never produced for
+    # arm64-ios-simulator. iOS only ever runs the QML mobile skin
+    # (mixxx-qml-lib + rendergraph_sg), which renders through QtQuick's own
+    # QRhi scenegraph (Metal on Apple platforms) and has no Qt6::OpenGL
+    # dependency at all - see the matching NOT IOS/IOS guards on the
+    # classic-skin GL widget sources and rendergraph_gl further below. Using
+    # VCPKG_TARGET_TRIPLET here rather than IOS/CMAKE_SYSTEM_NAME because
+    # project() (which sets CMake's own IOS convenience variable) hasn't
+    # run yet at this point in the file.
+    set(QOPENGL OFF CACHE INTERNAL "No Qt6::OpenGL module on iOS")
+  else()
+    set(QOPENGL ON CACHE INTERNAL "Forced ON because QT6=ON")
+  endif()
 else()
   option(QOPENGL "Use QOpenGLWindow based widget instead of QGLWidget" ON)
 endif()
@@ -1446,11 +1463,6 @@ add_library(
   src/library/itunes/itunesplaylistmodel.cpp
   src/library/itunes/itunestrackmodel.cpp
   src/library/itunes/itunesxmlimporter.cpp
-  src/library/youtube/youtubedownloader.cpp
-  src/library/youtube/youtubefeature.cpp
-  src/library/youtube/youtubesearchmodel.cpp
-  src/library/youtube/youtubesearchtask.cpp
-  src/library/youtube/youtubetrackmodel.cpp
   src/library/library_prefs.cpp
   src/library/library.cpp
   src/library/librarycontrol.cpp
@@ -1846,6 +1858,22 @@ add_library(
   src/widget/wwidgetgroup.cpp
   src/widget/wwidgetstack.cpp
 )
+if(NOT IOS)
+  # The YouTube library feature shells out to yt-dlp via QProcess - iOS
+  # forbids spawning subprocesses at all (App Store sandbox), and Qt's own
+  # iOS build has QProcess compiled out entirely as a result (confirmed by
+  # actually attempting the build). See library.cpp's matching guard around
+  # actually registering the feature.
+  target_sources(
+    mixxx-lib
+    PRIVATE
+      src/library/youtube/youtubedownloader.cpp
+      src/library/youtube/youtubefeature.cpp
+      src/library/youtube/youtubesearchmodel.cpp
+      src/library/youtube/youtubesearchtask.cpp
+      src/library/youtube/youtubetrackmodel.cpp
+  )
+endif()
 set(MIXXX_COMMON_PRECOMPILED_HEADER src/util/assert.h)
 set(
   MIXXX_LIB_PRECOMPILED_HEADER
@@ -2019,10 +2047,22 @@ else()
     mixxx-lib
     PRIVATE
       # The following source depends of QML being available but aren't part of the new QML UI
-      src/controllers/rendering/controllerrenderingengine.cpp
       src/controllers/controllerenginethreadcontrol.cpp
       src/controllers/controllerscreenpreview.cpp
   )
+  if(IOS)
+    # See controllerrenderingenginenull.cpp: the real implementation needs
+    # Qt6::OpenGL's QOpenGLFramebufferObject, which doesn't exist for iOS.
+    target_sources(
+      mixxx-lib
+      PRIVATE src/controllers/rendering/controllerrenderingenginenull.cpp
+    )
+  else()
+    target_sources(
+      mixxx-lib
+      PRIVATE src/controllers/rendering/controllerrenderingengine.cpp
+    )
+  endif()
 endif()
 if(QOPENGL)
   target_sources(
@@ -2062,7 +2102,7 @@ if(QOPENGL)
       src/widget/wspinnyglsl.cpp
       src/widget/wvumeterglsl.cpp
   )
-else()
+elseif(NOT IOS)
   target_sources(
     mixxx-lib
     PRIVATE
@@ -2071,6 +2111,17 @@ else()
       src/waveform/renderers/qtwaveformrenderersimplesignal.cpp
       src/widget/wglwidgetqglwidget.cpp
   )
+else()
+  # iOS gets neither branch above: QOPENGL is forced OFF (Qt6::OpenGL
+  # doesn't exist for that Qt build - see the QOPENGL definition earlier in
+  # this file), and the QGLWidget fallback above is dead code under Qt6 on
+  # every platform (QGLWidget was removed entirely from Qt6). iOS only ever
+  # runs the QML mobile skin, which doesn't need either classic-skin GL
+  # rendering backend - but a handful of always-compiled classic-skin
+  # widget base classes (WVuMeterBase, WSpinnyBase, GLWaveformWidgetAbstract)
+  # still directly inherit from WGLWidget, so it needs a real (if inert)
+  # implementation for mixxx-lib to link at all. See wglwidgetnull.h.
+  target_sources(mixxx-lib PRIVATE src/widget/wglwidgetnull.cpp)
 endif()
 
 set_source_files_properties(
@@ -2901,7 +2952,14 @@ if(FFMPEG)
 endif()
 
 # STEM file support
-default_option(STEM "STEM file support" "FFMPEG_FOUND;FFMPEG")
+# waveformrendererstem.cpp (below) unconditionally uses QOpenGLTexture
+# regardless of which rendergraph backend (GL or scenegraph/RHI) is active -
+# a pre-existing upstream quirk, not specific to this iOS port - so STEM
+# can't be enabled anywhere Qt6::OpenGL doesn't exist. FFmpeg itself (STEM's
+# other dependency) is available on iOS; only this renderer's direct
+# QOpenGLTexture usage is the blocker. Revisit once that renderer is made to
+# go through the rendergraph texture abstraction instead.
+default_option(STEM "STEM file support" "FFMPEG_FOUND;FFMPEG;NOT IOS")
 if(STEM)
   if(NOT FFMPEG)
     message(FATAL_ERROR "STEM requires that also FFMPEG is enabled")
@@ -3872,7 +3930,6 @@ set(
   Core
   Gui
   Network
-  OpenGL
   PrintSupport
   Qml # for QJSEngine
   Sql
@@ -3881,6 +3938,12 @@ set(
   Widgets
   Xml
 )
+if(NOT IOS)
+  # Qt6::OpenGL isn't built for iOS at all (see the QOPENGL definition
+  # earlier in this file) - iOS only ever runs the QML mobile skin, which
+  # doesn't link it.
+  list(APPEND QT_COMPONENTS OpenGL)
+endif()
 set(QT_EXTRA_COMPONENTS "")
 if(QT6)
   find_package(QT 6.2 NAMES Qt6 COMPONENTS Core REQUIRED)
@@ -5347,15 +5410,38 @@ endif()
 
 # rendergraph
 add_subdirectory(src/rendergraph)
-target_compile_definitions(
-  rendergraph_gl
-  PUBLIC $<$<CONFIG:Debug>:MIXXX_DEBUG_ASSERTIONS_ENABLED>
-)
-target_link_libraries(mixxx-lib PUBLIC rendergraph_gl)
-target_compile_definitions(mixxx-lib PUBLIC rendergraph=rendergraph_gl)
-target_compile_definitions(mixxx-lib PRIVATE allshader=allshader_gl)
-if(BUILD_TESTING)
-  target_compile_definitions(mixxx-test PRIVATE allshader=allshader_gl)
+if(NOT IOS)
+  # rendergraph_gl (the classic desktop skin's OpenGL-backed rendering
+  # backend) doesn't exist as a target on iOS - see the "NOT IOS" guard on
+  # add_subdirectory(opengl) in src/rendergraph/CMakeLists.txt. iOS only
+  # ever runs the QML mobile skin (mixxx-qml-lib + rendergraph_sg, below),
+  # so mixxx-lib is left without a rendergraph backend at all there.
+  target_compile_definitions(
+    rendergraph_gl
+    PUBLIC $<$<CONFIG:Debug>:MIXXX_DEBUG_ASSERTIONS_ENABLED>
+  )
+  target_link_libraries(mixxx-lib PUBLIC rendergraph_gl)
+  target_compile_definitions(mixxx-lib PUBLIC rendergraph=rendergraph_gl)
+  target_compile_definitions(mixxx-lib PRIVATE allshader=allshader_gl)
+  if(BUILD_TESTING)
+    target_compile_definitions(mixxx-test PRIVATE allshader=allshader_gl)
+  endif()
+else()
+  # mixxx-lib never instantiates any allshader::* class on iOS (the classic
+  # desktop skin that would do so is entirely excluded - see the QOPENGL
+  # source-list guards above), but a few always-compiled files
+  # (dlgprefwaveform.h/.cpp) still reference allshader::WaveformRendererSignalBase's
+  # header-only Options/Option flags to build the acceleration-options UI
+  # regardless of platform. Defining the allshader/rendergraph macros (and
+  # linking rendergraph_sg purely for its headers and low-level primitives -
+  # NOT recompiling any allshader/*.cpp renderer file into mixxx-lib, which
+  # would duplicate-define the same allshader_sg symbols mixxx-qml-lib
+  # already compiles below, exactly the kind of collision
+  # https://github.com/mixxxdj/mixxx/issues/14766 warns about) resolves that
+  # without needing a real GL/SG rendering backend in mixxx-lib itself.
+  target_link_libraries(mixxx-lib PUBLIC rendergraph_sg)
+  target_compile_definitions(mixxx-lib PUBLIC rendergraph=rendergraph_sg)
+  target_compile_definitions(mixxx-lib PRIVATE allshader=allshader_sg)
 endif()
 if(QML)
   target_compile_definitions(

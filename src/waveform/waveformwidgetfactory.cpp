@@ -13,7 +13,12 @@
 #include <QGuiApplication>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLWindow>
-#else
+#elif !defined(Q_OS_IOS)
+// QGLFormat/QGLShaderProgram were removed entirely in Qt6 - this branch is
+// already dead code under Qt6 on every platform (MIXXX_USE_QOPENGL is
+// unconditionally forced ON for QT6 everywhere except iOS, where
+// Qt6::OpenGL doesn't exist at all instead). Excluded outright on iOS
+// rather than left to fail to compile.
 #include <QGLFormat>
 #include <QGLShaderProgram>
 #endif
@@ -231,7 +236,11 @@ WaveformWidgetFactory::WaveformWidgetFactory()
         widget->doneCurrent();
         widget->hide();
     }
-#else
+#elif !defined(Q_OS_IOS)
+    // QGLWidget/QGLFormat/QGLShaderProgram were removed entirely in Qt6 -
+    // this branch is already dead code under Qt6 on every platform (see the
+    // include-block comment above). Excluded outright on iOS rather than
+    // left to fail to compile.
     QGLWidget* pGlWidget = SharedGLContext::getWidget();
     if (pGlWidget && pGlWidget->isValid()) {
         // will be false if SafeMode is enabled
@@ -1113,6 +1122,13 @@ void WaveformWidgetFactory::evaluateWidgets() {
     }
 }
 
+#ifdef MIXXX_USE_QOPENGL
+// allshader::WaveformWidget (waveform/widgets/allshader/waveformwidget.h) is
+// a WGLWidget subclass with no scenegraph/RHI equivalent - it's only ever
+// compiled into mixxx-lib when QOPENGL is on (see the QOPENGL source-list
+// guards in the top-level CMakeLists.txt), so this whole method (whose
+// only callers are themselves already guarded the same way, above) needs
+// the same guard to stay compilable when it isn't.
 WaveformWidgetAbstract* WaveformWidgetFactory::createAllshaderWaveformWidget(
         WaveformWidgetType::Type type, WWaveformViewer* viewer) {
     allshader::WaveformRendererSignalBase::Options options =
@@ -1120,6 +1136,7 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createAllshaderWaveformWidget(
                     allshader::WaveformRendererSignalBase::Option::None);
     return new allshader::WaveformWidget(viewer, type, viewer->getGroup(), options);
 }
+#endif
 
 WaveformWidgetAbstract* WaveformWidgetFactory::createFilteredWaveformWidget(
         WWaveformViewer* viewer) {
@@ -1164,9 +1181,9 @@ WaveformWidgetAbstract* WaveformWidgetFactory::createRGBWaveformWidget(WWaveform
 
 WaveformWidgetAbstract* WaveformWidgetFactory::createStackedWaveformWidget(
         WWaveformViewer* viewer) {
-#ifdef MIXXX_USE_QOPENGL
     WaveformWidgetBackend backend = getBackendFromConfig();
     switch (backend) {
+#ifdef MIXXX_USE_QOPENGL
     case WaveformWidgetBackend::AllShader:
         return createAllshaderWaveformWidget(WaveformWidgetType::Type::Stacked, viewer);
 #endif

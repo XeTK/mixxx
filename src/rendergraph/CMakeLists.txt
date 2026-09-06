@@ -38,7 +38,12 @@ set(
   ../common/types.cpp
 )
 
-add_subdirectory(opengl)
+if(NOT IOS)
+  # rendergraph_gl links Qt6::OpenGL, which doesn't exist for iOS (see the
+  # QOPENGL definition in the top-level CMakeLists.txt). iOS only ever runs
+  # the QML mobile skin, which uses rendergraph_sg (below) instead.
+  add_subdirectory(opengl)
+endif()
 if(QML)
   add_subdirectory(scenegraph)
 endif()
