@@ -1,8 +1,12 @@
 #include "qml/qmllibraryproxy.h"
 
 #include <QAbstractItemModel>
+#include <QFileDialog>
+#include <QStandardPaths>
 
 #include "library/library.h"
+#include "library/trackcollection.h"
+#include "library/trackcollectionmanager.h"
 #include "moc_qmllibraryproxy.cpp"
 
 namespace mixxx {
@@ -27,6 +31,26 @@ QmlLibraryProxy* QmlLibraryProxy::create(QQmlEngine* pQmlEngine, QJSEngine* pJsE
         return nullptr;
     }
     return new QmlLibraryProxy(s_pLibrary, pQmlEngine);
+}
+
+QStringList QmlLibraryProxy::getDirs() const {
+    return m_pLibrary->trackCollectionManager()->internalCollection()->getRootDirStrings();
+}
+
+bool QmlLibraryProxy::addDir() {
+    const QString dir = QFileDialog::getExistingDirectory(nullptr,
+            tr("Choose a music directory"),
+            QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
+            QFileDialog::ShowDirsOnly);
+    if (dir.isEmpty()) {
+        // User cancelled the picker.
+        return false;
+    }
+    return m_pLibrary->requestAddDir(dir);
+}
+
+bool QmlLibraryProxy::removeDir(const QString& dir) {
+    return m_pLibrary->requestRemoveDir(dir, LibraryRemovalType::HideTracks);
 }
 
 } // namespace qml

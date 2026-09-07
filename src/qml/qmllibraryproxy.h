@@ -27,6 +27,28 @@ class QmlLibraryProxy : public QObject {
         s_pLibrary = std::move(pLibrary);
     }
 
+    /// Currently configured library (music) directories, for a mobile
+    /// preferences page to list - mirrors DlgPrefLibrary's directory list,
+    /// minus the desktop-only relocate flow.
+    Q_INVOKABLE QStringList getDirs() const;
+
+    /// Prompts for a new music directory via QFileDialog::getExistingDirectory()
+    /// and, if one was picked, adds it to the library. On iOS, Qt's platform
+    /// plugin bridges this call to the native UIDocumentPickerViewController
+    /// in directory-picking mode, so no separate Objective-C++ picker is
+    /// needed - see Sandbox::createSecurityToken(), which Library::requestAddDir()
+    /// already calls, for how access to the picked folder survives past this
+    /// run via a security-scoped bookmark.
+    /// Returns true if a directory was picked and successfully added.
+    Q_INVOKABLE bool addDir();
+
+    /// Stops watching `dir`, keeping already-imported tracks (and their
+    /// metadata/cues/etc) in the library - the same outcome as DlgPrefLibrary's
+    /// "Hide Tracks" removal choice, picked here as the single sane default
+    /// for a mobile UI with no room for a three-way confirmation dialog.
+    /// Returns true if the directory was removed.
+    Q_INVOKABLE bool removeDir(const QString& dir);
+
   private:
     static inline std::shared_ptr<Library> s_pLibrary;
 
