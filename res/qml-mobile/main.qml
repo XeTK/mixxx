@@ -18,15 +18,28 @@ ApplicationWindow {
     // than a duplicate set of on-screen controls.
     property alias compactControls: compactControlsButton.checked
 
-    // On Android the window must track the (rotating) screen; the fixed
-    // size is only a sane default for the desktop preview. Without this,
-    // an app launched from a portrait home screen keeps its portrait-sized
-    // GL window after the forced rotation to landscape (the manifest
-    // handles configChanges itself, so nothing recreates the activity and
-    // Qt misses the resize), leaving the UI squashed into the left third
-    // of the screen.
-    width: Qt.platform.os === "android" ? Screen.width : 1920
-    height: Qt.platform.os === "android" ? Screen.height : 1080
+    // On Android and iOS the window must track the (rotating) screen; the
+    // fixed size is only a sane default for the desktop preview. Without
+    // this, an app launched from a portrait home screen keeps its
+    // portrait-sized GL window after the forced rotation to landscape (the
+    // manifest/OS handles configChanges itself, so nothing recreates the
+    // activity and Qt misses the resize), leaving the UI squashed into the
+    // left third of the screen.
+    //
+    // On iOS specifically, leaving this on the 1920x1080 desktop-preview
+    // default (aspect ratio 16:9) while the real device viewport is a
+    // different aspect ratio (e.g. an iPad mini's ~1133x744 points, ~1.52:1)
+    // means the QML scene graph is laid out at a size that doesn't match
+    // the actual window content area. Visually the content still appears
+    // to fill the screen, but item geometry (including every MouseArea's
+    // hit-test bounds) is computed against the wrong 1920x1080 canvas, so
+    // taps land on the wrong logical coordinates - most visibly inside
+    // ListView delegates (Library track rows, Preferences category rows)
+    // where the accumulated vertical offset from the top of a tall list
+    // makes the drift large enough that clicks silently miss their target.
+    readonly property bool isMobilePlatform: Qt.platform.os === "android" || Qt.platform.os === "ios"
+    width: root.isMobilePlatform ? Screen.width : 1920
+    height: root.isMobilePlatform ? Screen.height : 1080
     color: Theme.backgroundColor
     visible: true
 
