@@ -185,10 +185,16 @@ Item {
     }
 
     MouseArea {
+        id: waveformMouseArea
+
         property int mouseStatus: WaveformDisplay.MouseStatus.Normal
         property point mouseAnchor: Qt.point(0, 0)
 
         anchors.fill: parent
+        // A two-finger pinch is handled separately by pinchHandler below. Disable
+        // single-finger scratch/bend handling for the duration of a pinch gesture
+        // so the two don't fight over the same touch points.
+        enabled: !pinchHandler.active
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onDoubleClicked: {
             if (mouse.button == Qt.RightButton) {
@@ -249,6 +255,53 @@ Item {
             } else if (wheel.angleDelta.y > 0 && zoomControl.value < 10.0) {
                 zoomControl.value += 1;
             }
+        }
+
+        onEnabledChanged: {
+            // If a pinch gesture started mid-drag, this MouseArea gets disabled
+            // (see the "enabled" binding above) without ever seeing a release
+            // event, which would otherwise leave scratching/bending stuck
+            // engaged. Cleanly unwind whatever was in progress.
+            if (!enabled && mouseStatus != WaveformDisplay.MouseStatus.Normal) {
+                if (mouseStatus == WaveformDisplay.MouseStatus.Scratching) {
+                    scratchPositionEnableControl.value = 0;
+                    scratchPositionControl.value = 0;
+                } else if (mouseStatus == WaveformDisplay.MouseStatus.Bending) {
+                    wheelControl.parameter = 0.5;
+                }
+                mouseStatus = WaveformDisplay.MouseStatus.Normal;
+            }
+        }
+    }
+
+    PinchHandler {
+        id: pinchHandler
+
+        // Don't let this handler drive any implicit target transform (it would
+        // otherwise default to scaling/rotating the parent Item itself); we only
+        // want the gesture's scale factor to drive zoomControl.
+        target: null
+
+        property real zoomAtGestureStart: zoomControl.value
+
+        onActiveChanged: {
+            if (active) {
+                zoomAtGestureStart = zoomControl.value;
+            }
+        }
+        onActiveScaleChanged: {
+            if (!active) {
+                return;
+            }
+            // Standard touchscreen convention: spreading two fingers apart
+            // (activeScale > 1) zooms in, pinching them together (activeScale < 1)
+            // zooms out. Note zoomControl.value's own sense is inverted relative to
+            // "zoomed in" (see WaveformRow.qml's effectiveZoomFactor), so a bigger
+            // pinch scale maps to a *smaller* zoomControl.value. Continuous, not
+            // stepped, for a natural feel; clamped to the control's true valid
+            // range [1, 10] (see WaveformWidgetRenderer::setZoom).
+            const newZoom = zoomAtGestureStart / activeScale;
+            zoomControl.value = Math.max(1.0, Math.min(10.0, newZoom));
         }
     }
 }
