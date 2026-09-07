@@ -5,6 +5,8 @@
 
 #ifdef Q_OS_ANDROID
 #include "controllers/android.h"
+#elif defined(Q_OS_IOS)
+#include "controllers/midi/blemidipairingios.h"
 #endif
 #include "controllers/controller.h"
 #include "controllers/controllermappinginfo.h"
@@ -81,6 +83,25 @@ QmlControllerManagerProxy::QmlControllerManagerProxy(
                 },
                 Qt::QueuedConnection);
     });
+#elif defined(Q_OS_IOS)
+    mixxx::ios::setBluetoothPairingDismissedReceiver([this]() {
+        // The paired device now registers with CoreMIDI - re-enumerate so
+        // it shows up in the controllers list, the same way the Android
+        // branch above does after opening its own BLE MIDI connection.
+        // ControllerManager runs on its own thread.
+        QMetaObject::invokeMethod(m_pControllerManager.get(),
+                &ControllerManager::updateControllerList,
+                Qt::QueuedConnection);
+        // CABTMIDICentralViewController has no per-device result to report
+        // (see blemidipairingios.h) - an empty scan-finished signals QML
+        // that the pairing flow ended, without claiming success or
+        // failure either way.
+        QMetaObject::invokeMethod(this,
+                [this]() {
+                    emit bluetoothScanFinished({});
+                },
+                Qt::QueuedConnection);
+    });
 #endif
 }
 
@@ -89,6 +110,8 @@ QmlControllerManagerProxy::~QmlControllerManagerProxy() {
     // The receivers capture this - don't leave them dangling.
     mixxx::android::setBleMidiResultReceiver({});
     mixxx::android::setBleScanResultReceiver({});
+#elif defined(Q_OS_IOS)
+    mixxx::ios::setBluetoothPairingDismissedReceiver({});
 #endif
 }
 
@@ -270,7 +293,11 @@ QString QmlControllerManagerProxy::getLastBluetoothMidiAddress() const {
 }
 
 void QmlControllerManagerProxy::requestBluetoothPermission() {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
+    // QBluetoothPermission is Qt's own cross-platform permissions API
+    // (QtCore, not QtBluetooth) - its iOS backend is a real CoreBluetooth-
+    // backed plugin (Qt6QDarwinBluetoothPermissionPlugin), so this check
+    // works identically on both platforms with no iOS-specific code here.
     QBluetoothPermission permission;
     switch (qApp->checkPermission(permission)) {
     case Qt::PermissionStatus::Undetermined:
@@ -298,13 +325,25 @@ void QmlControllerManagerProxy::openBleMidiDeviceIfPermitted(const QString& addr
         // Result arrives asynchronously via bluetoothMidiDeviceConnected().
         return;
     }
+#elif defined(Q_OS_IOS)
+    // There's no discrete per-device "address" to open on iOS - see
+    // getBluetoothMidiDevices() and startBluetoothMidiScan() below - so
+    // this is only reachable via a stale/unexpected QML call. Fall back to
+    // (re-)presenting the system pairing UI rather than silently failing.
+    Q_UNUSED(address);
+    if (mixxx::ios::presentBluetoothMidiPairingUI()) {
+        // Dismissal is reported via bluetoothScanFinished(), same as
+        // startBluetoothMidiScan() - there's no separate "connected"
+        // signal to raise here.
+        return;
+    }
 #endif
     emit bluetoothMidiDeviceConnected(false, QString());
 }
 
 void QmlControllerManagerProxy::connectBluetoothMidiDevice(const QString& address) {
     m_lastRequestedBleAddress = address;
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QBluetoothPermission permission;
     switch (qApp->checkPermission(permission)) {
     case Qt::PermissionStatus::Undetermined:
@@ -326,7 +365,7 @@ void QmlControllerManagerProxy::connectBluetoothMidiDevice(const QString& addres
 }
 
 void QmlControllerManagerProxy::startBluetoothMidiScan() {
-#ifdef Q_OS_ANDROID
+#if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     QBluetoothPermission permission;
     switch (qApp->checkPermission(permission)) {
     case Qt::PermissionStatus::Undetermined:
@@ -335,11 +374,21 @@ void QmlControllerManagerProxy::startBluetoothMidiScan() {
         });
         return;
     case Qt::PermissionStatus::Granted:
+#ifdef Q_OS_ANDROID
         if (mixxx::android::startMidiBleScan()) {
             // Results arrive via bluetoothScanFinished().
             return;
         }
         qWarning() << "QmlControllerManagerProxy: startMidiBleScan() failed to start";
+#elif defined(Q_OS_IOS)
+        if (mixxx::ios::presentBluetoothMidiPairingUI()) {
+            // Dismissal (and the resulting bluetoothScanFinished()) is
+            // reported via the receiver set in the constructor.
+            return;
+        }
+        qWarning() << "QmlControllerManagerProxy: no view controller to "
+                      "present the Bluetooth MIDI pairing UI over";
+#endif
         break;
     case Qt::PermissionStatus::Denied:
         qWarning() << "QmlControllerManagerProxy: Bluetooth permission denied, can't scan";
@@ -363,6 +412,15 @@ void QmlControllerManagerProxy::reconnectLastBluetoothMidiDevice() {
     if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
         connectBluetoothMidiDevice(address);
     }
+#elif defined(Q_OS_IOS)
+    // Unlike Android, iOS/CoreBluetooth reconnects a previously-paired BLE
+    // MIDI accessory automatically at the OS level whenever it's in range -
+    // no app action (or even a running app) is needed. The one thing worth
+    // doing here is re-enumerating once at startup, in case the accessory
+    // reconnected before Mixxx's controller list was first built.
+    QMetaObject::invokeMethod(m_pControllerManager.get(),
+            &ControllerManager::updateControllerList,
+            Qt::QueuedConnection);
 #endif
 }
 

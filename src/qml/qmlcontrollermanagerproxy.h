@@ -57,28 +57,39 @@ class QmlControllerManagerProxy : public QObject {
     // qWarning()) if the controller row or setting variable isn't found.
     Q_INVOKABLE bool setMappingSetting(int controllerRow, const QString& variable, const QVariant& value);
 
-    // BLE MIDI connect flow (Android only - no-ops/empty elsewhere):
+    // BLE MIDI connect flow (Android and iOS - no-ops/empty elsewhere):
     // Bonded Bluetooth devices as {name, address} entries for the connect
     // UI. Empty if Bluetooth is off/unavailable; also empty when the
     // BLUETOOTH_CONNECT runtime permission hasn't been granted yet (call
-    // requestBluetoothPermission() first in that case).
+    // requestBluetoothPermission() first in that case). Always empty on
+    // iOS: pairing there goes through Apple's own CABTMIDICentralViewController
+    // system UI (see startBluetoothMidiScan()), which has no discrete
+    // per-device list Mixxx can read out - the QML page hides this list
+    // and the "Connect" button on iOS accordingly.
     Q_INVOKABLE QVariantList getBluetoothMidiDevices() const;
     // The address last passed to a successful connectBluetoothMidiDevice()
     // call, persisted across restarts, so the QML page can pre-select it
     // in the device list instead of always defaulting to the first bonded
     // device. Empty if none has ever connected successfully.
     Q_INVOKABLE QString getLastBluetoothMidiAddress() const;
-    // Asks Android for BLUETOOTH_CONNECT (no-op if already granted);
-    // emits bluetoothPermissionResult(granted) once resolved.
+    // Asks Android/iOS for Bluetooth permission (QBluetoothPermission - a
+    // no-op if already granted); emits bluetoothPermissionResult(granted)
+    // once resolved.
     Q_INVOKABLE void requestBluetoothPermission();
     // Opens the BLE MIDI GATT connection to the bonded device with the
     // given address, requesting the permission first if needed. Emits
     // bluetoothMidiDeviceConnected(success, deviceName) when done; on
     // success the device shows up in the controllers list automatically.
+    // Android only - see getBluetoothMidiDevices() for why iOS has no
+    // per-device address to pass here.
     Q_INVOKABLE void connectBluetoothMidiDevice(const QString& address);
     // Scans for ~8s for advertising BLE MIDI devices (which may not be
     // bonded yet - Android bonds transparently when we connect to them).
     // Emits bluetoothScanFinished(devices) with {name, address} entries.
+    // On iOS this instead presents Apple's own CABTMIDICentralViewController
+    // pairing UI (which handles scan/pair/connect itself); the resulting
+    // bluetoothScanFinished({}) just marks that flow as finished, not that
+    // zero devices were found.
     Q_INVOKABLE void startBluetoothMidiScan();
     // Reconnects to whichever device the last successful
     // connectBluetoothMidiDevice() call used, if any was persisted. Meant
@@ -87,7 +98,11 @@ class QmlControllerManagerProxy : public QObject {
     // launch. Silently does nothing if there's no persisted device or if
     // Bluetooth permission hasn't already been granted in a past
     // session - startup shouldn't surface an unsolicited system permission
-    // dialog before the user has even opened the Controllers page.
+    // dialog before the user has even opened the Controllers page. On iOS,
+    // where CoreBluetooth reconnects a previously-paired accessory
+    // automatically at the OS level, this just re-enumerates controllers
+    // in case that already happened before Mixxx's controller list was
+    // first built.
     Q_INVOKABLE void reconnectLastBluetoothMidiDevice();
 
     static QmlControllerManagerProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);

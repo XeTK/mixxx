@@ -2161,11 +2161,18 @@ if(APPLE)
     target_sources(
       mixxx-lib
       PRIVATE
+        src/controllers/midi/blemidipairingios.mm
         src/soundio/soundmanagerios.mm
         src/util/screensaverios.mm
         src/util/ttsenginemac.mm
     )
-    target_link_libraries(mixxx-lib PRIVATE "-weak_framework AVFAudio")
+    target_link_libraries(
+      mixxx-lib
+      PRIVATE
+        "-weak_framework AVFAudio"
+        "-weak_framework CoreAudioKit"
+        "-weak_framework CoreBluetooth"
+    )
 
     option(IOS_ITUNES_LIBRARY "Native iOS music library integration" ON)
     if(IOS_ITUNES_LIBRARY)

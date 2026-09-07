@@ -16,6 +16,11 @@ Item {
     property var bleDevices: []
     property string bleStatus: ""
     property color bleStatusColor: Theme.deckTextColor
+    // iOS has no discrete "bonded devices" list to show or connect to -
+    // pairing goes entirely through Apple's own CABTMIDICentralViewController
+    // system UI (see QmlControllerManagerProxy::startBluetoothMidiScan()),
+    // so the device combo/Connect button below don't apply there.
+    readonly property bool isIos: Qt.platform.os === "ios"
 
     Text {
         anchors.centerIn: parent
@@ -87,6 +92,7 @@ Item {
         Item {
             width: parent.width
             height: 48
+            visible: !root.isIos
 
             Skin.ComboBox {
                 id: bleCombo
@@ -140,10 +146,30 @@ Item {
             }
         }
 
+        // iOS equivalent of the row above: a single button opens Apple's
+        // own Bluetooth MIDI pairing screen (scan, pair, and connect are
+        // all handled there - see QmlControllerManagerProxy::
+        // startBluetoothMidiScan()'s iOS branch), rather than a custom
+        // device list Mixxx has no way to populate on this platform.
+        Skin.Button {
+            width: parent.width
+            height: 40
+            visible: root.isIos
+            activeColor: Theme.blue
+            enabled: !root.bleScanning
+            text: root.bleScanning ? "..." : "Pair a Bluetooth MIDI Device..."
+            onClicked: {
+                root.bleScanning = true;
+                root.bleStatusColor = Theme.deckTextColor;
+                root.bleStatus = "";
+                Mixxx.ControllerManager.startBluetoothMidiScan();
+            }
+        }
+
         Item {
             width: parent.width
             height: 48
-            visible: root.bleDevices.length === 0
+            visible: !root.isIos && root.bleDevices.length === 0
 
             Text {
                 anchors.left: parent.left
@@ -199,6 +225,18 @@ Item {
 
         function onBluetoothScanFinished(devices) {
             root.bleScanning = false;
+            if (root.isIos) {
+                // iOS's pairing UI (Apple's own CABTMIDICentralViewController)
+                // always reports back as an empty list here regardless of
+                // whether a device was actually paired - see
+                // QmlControllerManagerProxy::startBluetoothMidiScan()'s iOS
+                // branch - so an empty list means "the pairing screen
+                // closed", not "nothing found". Any paired device already
+                // shows up in the controller list below by the time this
+                // fires.
+                root.bleStatus = "";
+                return;
+            }
             if (devices.length === 0) {
                 root.bleStatusColor = Theme.red;
                 root.bleStatus = "No BLE MIDI devices found - is the controller in pairing mode?";
