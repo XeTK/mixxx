@@ -43,6 +43,18 @@
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
 
+    <!-- Immersive fullscreen: hide the status bar app-wide. Setting
+         UIStatusBarHidden alone is not enough on iOS 7+ - by default the
+         system defers to the (Qt-managed) root view controller's
+         prefersStatusBarHidden, which defaults to false and ignores this
+         key entirely. UIViewControllerBasedStatusBarAppearance=false is
+         what makes the system honor this Info.plist key app-wide instead,
+         with no Qt-side view controller code needed. -->
+    <key>UIStatusBarHidden</key>
+    <true/>
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+
     <key>NSMicrophoneUsageDescription</key>
     <string>Mixxx requires microphone access for microphone and vinyl input.</string>
 
