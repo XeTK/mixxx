@@ -184,6 +184,38 @@ Item {
         key: "waveform_zoom"
     }
 
+    // Desktop keeps every deck's waveform zoomed to the same level via
+    // WaveformWidgetFactory manually pushing a new value to every other
+    // deck's widget/ControlObject whenever one changes (see
+    // WaveformWidgetFactory::setZoomSync()/isZoomSync() and the
+    // "[Waveform]"/"ZoomSynchronization" preference, which defaults to on).
+    // That's orchestration living entirely in the legacy desktop widget
+    // stack, which the QML mobile skin doesn't use, so there's no
+    // ControlObject-level mechanism to hook into for free here. Instead,
+    // pinchHandler below pushes the new zoom value to every other deck's
+    // waveform_zoom control directly, using "[App]"/num_decks rather than
+    // assuming exactly 2 decks, since that's the same pattern
+    // LibraryControl.qml already uses to handle a variable deck count.
+    Mixxx.ControlProxy {
+        id: numDecksControl
+
+        group: "[App]"
+        key: "num_decks"
+    }
+
+    Instantiator {
+        id: allDeckZoomControls
+
+        model: numDecksControl.value
+
+        delegate: Mixxx.ControlProxy {
+            required property int index
+
+            group: "[Channel" + (index + 1) + "]"
+            key: "waveform_zoom"
+        }
+    }
+
     MouseArea {
         id: waveformMouseArea
 
@@ -301,7 +333,20 @@ Item {
             // stepped, for a natural feel; clamped to the control's true valid
             // range [1, 10] (see WaveformWidgetRenderer::setZoom).
             const newZoom = zoomAtGestureStart / activeScale;
-            zoomControl.value = Math.max(1.0, Math.min(10.0, newZoom));
+            const clampedZoom = Math.max(1.0, Math.min(10.0, newZoom));
+            zoomControl.value = clampedZoom;
+
+            // Respect the same "Synchronize zoom level across all waveforms"
+            // preference desktop uses (defaults to on) so a user who's turned it
+            // off on desktop sees consistent behavior if they ever look at both.
+            if (Mixxx.Config.getValue("[Waveform]", "ZoomSynchronization", true)) {
+                for (let i = 0; i < allDeckZoomControls.count; i++) {
+                    const otherZoomControl = allDeckZoomControls.objectAt(i);
+                    if (otherZoomControl && otherZoomControl.group !== root.group) {
+                        otherZoomControl.value = clampedZoom;
+                    }
+                }
+            }
         }
     }
 }
