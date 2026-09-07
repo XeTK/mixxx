@@ -31,6 +31,11 @@ Item {
             source: "preferences/PrefsInterface.qml"
         },
         {
+            id: "library",
+            label: "Library",
+            source: "preferences/PrefsLibrary.qml"
+        },
+        {
             id: "soundhardware",
             label: "Sound Hardware",
             source: "preferences/PrefsSoundHardware.qml"
