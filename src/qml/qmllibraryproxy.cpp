@@ -16,6 +16,23 @@ QmlLibraryProxy::QmlLibraryProxy(std::shared_ptr<Library> pLibrary, QObject* par
         : QObject(parent),
           m_pLibrary(pLibrary),
           m_pModelProperty(new QmlLibraryTrackListModel(m_pLibrary->trackTableModel(), this)) {
+    TrackCollectionManager* pTrackCollectionManager = m_pLibrary->trackCollectionManager();
+    connect(pTrackCollectionManager,
+            &TrackCollectionManager::libraryScanStarted,
+            this,
+            &QmlLibraryProxy::scanStarted);
+    connect(pTrackCollectionManager,
+            &TrackCollectionManager::libraryScanFinished,
+            this,
+            &QmlLibraryProxy::scanFinished);
+    connect(pTrackCollectionManager,
+            &TrackCollectionManager::libraryScanSummary,
+            this,
+            [this](const LibraryScanResultSummary& result) {
+                emit scanSummaryReady(result.numNewTracks,
+                        result.numMissingTracks,
+                        result.tracksTotal);
+            });
 }
 
 // static
@@ -51,6 +68,10 @@ bool QmlLibraryProxy::addDir() {
 
 bool QmlLibraryProxy::removeDir(const QString& dir) {
     return m_pLibrary->requestRemoveDir(dir, LibraryRemovalType::HideTracks);
+}
+
+void QmlLibraryProxy::scanLibrary() {
+    m_pLibrary->trackCollectionManager()->startLibraryScan();
 }
 
 } // namespace qml

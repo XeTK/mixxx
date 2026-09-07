@@ -49,6 +49,28 @@ class QmlLibraryProxy : public QObject {
     /// Returns true if the directory was removed.
     Q_INVOKABLE bool removeDir(const QString& dir);
 
+    /// Triggers an on-demand scan of all library directories via
+    /// TrackCollectionManager::startLibraryScan(). addDir()/removeDir() only
+    /// register the directory change with the database - on desktop, the
+    /// actual scan happens either at the next startup (CoreServices::initialize()
+    /// gates its startLibraryAutoScan() call on, among other things, whether a
+    /// music dir was just added) or via a separate explicit "Scan library"
+    /// action. Mobile has no equivalent action anywhere else, so without this
+    /// a folder added through PrefsLibrary.qml would show empty until the app
+    /// was force-quit and relaunched. Progress/result surface via
+    /// scanStarted()/scanFinished()/scanSummaryReady().
+    Q_INVOKABLE void scanLibrary();
+
+  signals:
+    /// Forwarded from TrackCollectionManager::libraryScanStarted().
+    void scanStarted();
+    /// Forwarded from TrackCollectionManager::libraryScanFinished().
+    void scanFinished();
+    /// Forwarded from TrackCollectionManager::libraryScanSummary(), flattened
+    /// to plain ints for QML - see MixxxMainWindow::slotLibraryScanSummaryDlg()
+    /// for the fuller desktop popup this deliberately doesn't try to match.
+    void scanSummaryReady(int numNewTracks, int numMissingTracks, int tracksTotal);
+
   private:
     static inline std::shared_ptr<Library> s_pLibrary;
 

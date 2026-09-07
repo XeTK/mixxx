@@ -29,18 +29,54 @@ import "../Theme"
 // Sandbox::createSecurityTokenForDir(), which already has an iOS-specific
 // branch (see util/sandbox.cpp) that creates and reloads a security-scoped
 // NSURL bookmark - nothing new was needed there either.
+//
+// addDir()/removeDir() only register the directory change with the
+// database - they don't scan it. On desktop that's fine because
+// DlgPrefLibrary isn't the only way to trigger a scan (there's a separate
+// "Rescan library" action, plus CoreServices runs one at the next startup
+// regardless), but mobile has no equivalent, so a freshly-added folder
+// would show no tracks until the app was force-quit and relaunched. The
+// "Scan Now" button below calls Mixxx.Library.scanLibrary() to trigger one
+// on demand instead.
 Item {
     id: root
 
     property var dirs: []
     property string statusMessage: ""
     property color statusColor: Theme.deckTextColor
+    property bool scanning: false
 
     function refreshDirs() {
         root.dirs = Mixxx.Library.getDirs();
     }
 
     Component.onCompleted: root.refreshDirs()
+
+    Connections {
+        target: Mixxx.Library
+
+        function onScanStarted() {
+            root.scanning = true;
+            root.statusColor = Theme.deckTextColor;
+            root.statusMessage = "Scanning library...";
+        }
+
+        function onScanFinished() {
+            root.scanning = false;
+        }
+
+        function onScanSummaryReady(numNewTracks, numMissingTracks, tracksTotal) {
+            root.statusColor = Theme.deckTextColor;
+            if (numNewTracks === 0 && numMissingTracks === 0) {
+                root.statusMessage = "Scan finished - no changes, " +
+                        tracksTotal + " tracks total.";
+            } else {
+                root.statusMessage = "Scan finished: " + numNewTracks +
+                        " new, " + numMissingTracks + " missing, " +
+                        tracksTotal + " tracks total.";
+            }
+        }
+    }
 
     Column {
         id: headerColumn
@@ -57,6 +93,7 @@ Item {
             width: parent.width
             height: 40
             activeColor: Theme.blue
+            enabled: !root.scanning
             text: "Add Folder..."
             onClicked: {
                 root.statusMessage = "";
@@ -67,6 +104,18 @@ Item {
                     root.statusMessage = "Folder wasn't added - it may already " +
                             "be in your library, or the picker was cancelled.";
                 }
+            }
+        }
+
+        Skin.Button {
+            width: parent.width
+            height: 40
+            activeColor: Theme.blue
+            enabled: !root.scanning && root.dirs.length > 0
+            text: root.scanning ? "Scanning..." : "Scan Now"
+            onClicked: {
+                root.statusMessage = "";
+                Mixxx.Library.scanLibrary();
             }
         }
 
