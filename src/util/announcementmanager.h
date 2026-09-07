@@ -383,6 +383,18 @@ class AnnouncementManager : public QObject {
     // and no-change guard. A control whose readout hasn't changed makes no
     // announcement at all — neither name nor value.
     QHash<QString, QString> m_lastValueByKey;
+    // The key whose name-on-touch speak() call (see announceControlDebounced())
+    // was the most recently dispatched utterance of any kind, cleared by
+    // dispatchSpeech() at the start of every dispatch (including its own) --
+    // so by the time a later speak() call checks it, it is only still set if
+    // nothing else has barged in since. slotAnnouncePendingControl() uses
+    // this to tell "this key's name was just announced and is still
+    // audible" apart from "this key was merely touched recently"
+    // (m_lastControlTouchMs alone can't distinguish those - see issue #48
+    // follow-on where several controls' first-ever flush in the same batch
+    // window each independently satisfy the touch-recency check even though
+    // only the last one's name survived uninterrupted).
+    QString m_lastImmediateNameKey;
     // Result count of the pending library search (-1 = unknown).
     int m_pendingSearchCount{-1};
     // Last immediate utterance in announce-while-moving mode (ms since epoch).

@@ -1108,6 +1108,14 @@ void AnnouncementManager::speak(const QString& text) {
 }
 
 void AnnouncementManager::dispatchSpeech(const QString& text, quint64 ttsLogUtteranceId) {
+    // Any real dispatch barges over whatever the TTS engine is currently
+    // rendering (see MacTtsEngine::say()'s generation bump and equivalents
+    // on other backends), so it invalidates any earlier name-on-touch
+    // utterance's claim to still be audible. A caller that just dispatched
+    // its own name-on-touch utterance re-establishes this right after this
+    // call returns (see announceControlDebounced()).
+    m_lastImmediateNameKey.clear();
+
     const QString voiceId = m_settings.getTtsVoice();
     if (voiceId != m_currentTtsVoiceId) {
         m_pTts->setVoice(voiceId);
@@ -2789,6 +2797,11 @@ void AnnouncementManager::announceControlDebounced(
         // speak() would otherwise clear every key's context; this key's own
         // touch just set it, so restore only this one.
         m_lastControlTouchMs[key] = now;
+        // Claim "most recently dispatched" for this key now that speak()
+        // above has actually dispatched it (dispatchSpeech() just cleared
+        // this same field at the start of that call) - see
+        // slotAnnouncePendingControl()'s use of m_lastImmediateNameKey.
+        m_lastImmediateNameKey = key;
     }
     startControlDebounce();
 }
@@ -2869,18 +2882,40 @@ void AnnouncementManager::slotAnnouncePendingControl() {
                 continue;
             }
             const QString fullText = name + QStringLiteral(" ") + value;
-            // Value-only is a follow-up to a name this exact key's value has
-            // already been read out with -- not merely "this key was touched
-            // recently", which m_lastControlTouchMs alone can't distinguish.
-            // Several different controls that each get their one-time
-            // startup value applied within the same debounce window (e.g.
-            // half a dozen EQ knobs settling to their defaults) all count as
-            // "recently touched" by that clock, so without also requiring a
-            // prior flushed value here, this batch would speak their values
-            // back to back with no names at all (issue: repeated "center.
-            // center. center..." on startup with no indication which knobs
-            // it refers to).
-            const bool spokenValueOnly = sameControl && m_lastValueByKey.contains(key);
+            // Value-only is safe when either:
+            //  - this key has already had a value flushed once before
+            //    (m_lastValueByKey.contains(key)): a genuine continuation of
+            //    an already-announced control, or
+            //  - this key's own name-on-touch speak() (in
+            //    announceControlDebounced()) was the most recently
+            //    dispatched utterance of any kind, i.e. it is still
+            //    actually audible/uninterrupted right now
+            //    (m_lastImmediateNameKey).
+            // Neither check alone is enough. m_lastControlTouchMs
+            // ("recently touched") can't tell "this is the same control
+            // continuing" apart from "this is a different control's
+            // first-ever reading that just happens to land in the same
+            // flush" - several unrelated controls (e.g. half a dozen EQ
+            // knobs settling to their startup defaults) can each get
+            // touched within the same debounce window, and only the last
+            // one's name-on-touch utterance actually survives to be heard;
+            // the others get barged over practically instantly by the next
+            // knob's own name-touch. m_lastValueByKey alone fixes that
+            // startup case (issue: repeated "center. center. center..."
+            // with no indication which knob each belongs to) but then also
+            // forces every control's very first live touch to repeat its
+            // name a second time, right as that name-on-touch utterance is
+            // usually still playing uninterrupted - self-barge-in that cuts
+            // the name off mid-word and leaves only the trailing value
+            // audible (e.g. "Deck, B-" cut into "up 2 percent"). Checking
+            // m_lastImmediateNameKey covers exactly the single-control case
+            // m_lastValueByKey.contains(key) cannot (nothing flushed for
+            // this key yet), while still falling back to fullText whenever
+            // some other dispatch - another control's touch, or an
+            // unrelated announcement - has barged over this key's name
+            // since it was spoken.
+            const bool spokenValueOnly = sameControl &&
+                    (m_lastValueByKey.contains(key) || m_lastImmediateNameKey == key);
             speak(spokenValueOnly ? value : fullText);
             fullTextsForRepeat << fullText;
             m_lastValueByKey.insert(key, value);
