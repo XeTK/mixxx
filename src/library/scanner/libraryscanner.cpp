@@ -271,14 +271,25 @@ void LibraryScanner::slotStartScan() {
 
     for (const mixxx::FileInfo& rootDir : std::as_const(m_libraryRootDirs)) {
         // Acquire a security bookmark for this directory if we are in a
-        // sandbox. For speed we avoid opening security bookmarks when recursive
-        // scanning so that relies on having an open bookmark for the containing
-        // directory.
-        if (!rootDir.exists() || !rootDir.isDir()) {
+        // sandbox *before* checking whether it exists - exists()/isDir()
+        // are plain stat() calls, which on a fully sandboxed platform (e.g.
+        // iOS - see Sandbox::checkSandboxed()) fail for any path outside the
+        // app's own container until CFURLStartAccessingSecurityScopedResource()
+        // has been called for it. mixxx::FileAccess's constructor is what
+        // resolves the bookmark and starts that access (see
+        // Sandbox::openSecurityToken() via util/fileaccess.cpp), so it must
+        // run first: checking exists()/isDir() on the un-accessed rootDir
+        // here always failed for any directory added from outside the
+        // sandbox, silently skipping the whole directory with just a
+        // qWarning() - which looked like "0 tracks found" with no visible
+        // error. For speed we avoid opening security bookmarks when
+        // recursively scanning subdirectories, since access to a bookmarked
+        // directory extends to its whole subtree.
+        auto dirAccess = mixxx::FileAccess(rootDir);
+        if (!dirAccess.info().exists() || !dirAccess.info().isDir()) {
             qWarning() << "Skipping to scan" << rootDir;
             continue;
         }
-        auto dirAccess = mixxx::FileAccess(rootDir);
         if (!m_scannerGlobal->testAndMarkDirectoryScanned(rootDir.toQDir())) {
             queueTask(new RecursiveScanDirectoryTask(
                     this, m_scannerGlobal, std::move(dirAccess), false));
