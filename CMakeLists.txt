@@ -1395,11 +1395,11 @@ add_library(
   src/library/itunes/itunesplaylistmodel.cpp
   src/library/itunes/itunestrackmodel.cpp
   src/library/itunes/itunesxmlimporter.cpp
-  src/library/youtube/dlgyoutube.cpp
-  src/library/youtube/youtubedownloader.cpp
-  src/library/youtube/youtubefeature.cpp
-  src/library/youtube/youtubesearchtask.cpp
-  src/library/youtube/youtubetrackmodel.cpp
+  src/library/youtube/dlgyoutubecc.cpp
+  src/library/youtube/youtubeccdownloader.cpp
+  src/library/youtube/youtubeccfeature.cpp
+  src/library/youtube/youtubeccsearchtask.cpp
+  src/library/youtube/youtubecctrackmodel.cpp
   src/library/library_prefs.cpp
   src/library/library.cpp
   src/library/librarycontrol.cpp

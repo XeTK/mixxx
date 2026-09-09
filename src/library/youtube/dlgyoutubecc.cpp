@@ -1,4 +1,4 @@
-#include "library/youtube/dlgyoutube.h"
+#include "library/youtube/dlgyoutubecc.h"
 
 #include <QAbstractItemView>
 #include <QHBoxLayout>
@@ -16,16 +16,16 @@
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
-#include "library/youtube/youtubedownloader.h"
-#include "library/youtube/youtubesearchtask.h"
-#include "moc_dlgyoutube.cpp"
+#include "library/youtube/youtubeccdownloader.h"
+#include "library/youtube/youtubeccsearchtask.h"
+#include "moc_dlgyoutubecc.cpp"
 #include "track/track.h"
 #include "track/trackid.h"
 #include "widget/wlibrary.h"
 
 namespace {
 
-const ConfigKey kYtDlpPathConfigKey = ConfigKey("[youtube]", "ytdlp_path");
+const ConfigKey kYtDlpPathConfigKey = ConfigKey("[youtube_cc]", "ytdlp_path");
 
 QString formatDuration(int secs) {
     if (secs <= 0) {
@@ -44,41 +44,41 @@ QTableWidgetItem* makeReadOnlyItem(const QString& text) {
 
 } // anonymous namespace
 
-DlgYouTube::DlgYouTube(WLibrary* parent, UserSettingsPointer pConfig, Library* pLibrary)
+DlgYouTubeCc::DlgYouTubeCc(WLibrary* parent, UserSettingsPointer pConfig, Library* pLibrary)
         : QWidget(parent),
           m_pConfig(pConfig),
           m_pLibrary(pLibrary),
-          m_pSearchTask(new YouTubeSearchTask(this)),
-          m_pDownloader(new YouTubeDownloader(this)) {
+          m_pSearchTask(new YouTubeCcSearchTask(this)),
+          m_pDownloader(new YouTubeCcDownloader(this)) {
     setupUi();
 
     connect(m_pSearchTask,
-            &YouTubeSearchTask::succeeded,
+            &YouTubeCcSearchTask::succeeded,
             this,
-            &DlgYouTube::slotSearchSucceeded);
+            &DlgYouTubeCc::slotSearchSucceeded);
     connect(m_pSearchTask,
-            &YouTubeSearchTask::failed,
+            &YouTubeCcSearchTask::failed,
             this,
-            &DlgYouTube::slotSearchFailed);
+            &DlgYouTubeCc::slotSearchFailed);
     connect(m_pDownloader,
-            &YouTubeDownloader::progress,
+            &YouTubeCcDownloader::progress,
             this,
-            &DlgYouTube::slotDownloadProgress);
+            &DlgYouTubeCc::slotDownloadProgress);
     connect(m_pDownloader,
-            &YouTubeDownloader::succeeded,
+            &YouTubeCcDownloader::succeeded,
             this,
-            &DlgYouTube::slotDownloadSucceeded);
+            &DlgYouTubeCc::slotDownloadSucceeded);
     connect(m_pDownloader,
-            &YouTubeDownloader::failed,
+            &YouTubeCcDownloader::failed,
             this,
-            &DlgYouTube::slotDownloadFailed);
+            &DlgYouTubeCc::slotDownloadFailed);
 
     setupLoadShortcuts();
 }
 
-DlgYouTube::~DlgYouTube() = default;
+DlgYouTubeCc::~DlgYouTubeCc() = default;
 
-void DlgYouTube::setupLoadShortcuts() {
+void DlgYouTubeCc::setupLoadShortcuts() {
     // Observe the same controls the library load shortcuts drive, so e.g.
     // Shift+Left / Shift+Right load the selected result to a deck. LibraryControl
     // also observes these but no-ops for a non-track-table view, so there is no
@@ -106,7 +106,7 @@ void DlgYouTube::setupLoadShortcuts() {
     }
 }
 
-void DlgYouTube::loadSelectedToGroup(const QString& group, bool play) {
+void DlgYouTubeCc::loadSelectedToGroup(const QString& group, bool play) {
     // Only respond when this search view is the active library view.
     if (!isVisible()) {
         return;
@@ -114,7 +114,7 @@ void DlgYouTube::loadSelectedToGroup(const QString& group, bool play) {
     startDownload(m_pResults->currentRow(), group, play);
 }
 
-void DlgYouTube::setupUi() {
+void DlgYouTubeCc::setupUi() {
     auto* pMainLayout = new QVBoxLayout(this);
 
     m_pResults = new QTableWidget(this);
@@ -175,33 +175,33 @@ void DlgYouTube::setupUi() {
     setStatus(tr("Type in the search box above to find Creative Commons music "
                  "on YouTube."));
 
-    connect(m_pResults, &QTableWidget::cellActivated, this, &DlgYouTube::slotResultActivated);
+    connect(m_pResults, &QTableWidget::cellActivated, this, &DlgYouTubeCc::slotResultActivated);
     connect(m_pResults,
             &QTableWidget::itemSelectionChanged,
             this,
-            &DlgYouTube::slotSelectionChanged);
-    connect(m_pLoadButton, &QPushButton::clicked, this, &DlgYouTube::slotLoadSelected);
+            &DlgYouTubeCc::slotSelectionChanged);
+    connect(m_pLoadButton, &QPushButton::clicked, this, &DlgYouTubeCc::slotLoadSelected);
 }
 
-void DlgYouTube::onShow() {
+void DlgYouTubeCc::onShow() {
     m_pResults->setFocus();
 }
 
-bool DlgYouTube::hasFocus() const {
+bool DlgYouTubeCc::hasFocus() const {
     return m_pResults->hasFocus() || m_pLoadButton->hasFocus();
 }
 
-void DlgYouTube::setFocus() {
+void DlgYouTubeCc::setFocus() {
     m_pResults->setFocus();
 }
 
-void DlgYouTube::installKeyboardFilter(KeyboardEventFilter* pKeyboard) {
+void DlgYouTubeCc::installKeyboardFilter(KeyboardEventFilter* pKeyboard) {
     // The filter must sit on the table itself so it sees the key before the
     // table's own selection handling (which would otherwise eat Shift+Left/Right).
     m_pResults->installEventFilter(pKeyboard);
 }
 
-void DlgYouTube::onSearch(const QString& text) {
+void DlgYouTubeCc::onSearch(const QString& text) {
     const QString query = text.trimmed();
     if (query.isEmpty()) {
         m_pSearchTask->abort();
@@ -221,22 +221,22 @@ void DlgYouTube::onSearch(const QString& text) {
     m_pSearchTask->search(query);
 }
 
-QString DlgYouTube::ytDlpPath() const {
+QString DlgYouTubeCc::ytDlpPath() const {
     const QString path = m_pConfig->getValueString(kYtDlpPathConfigKey);
     return path.isEmpty() ? QStringLiteral("yt-dlp") : path;
 }
 
-QString DlgYouTube::cacheDir() const {
-    return m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cache");
+QString DlgYouTubeCc::cacheDir() const {
+    return m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cc_cache");
 }
 
-void DlgYouTube::slotSearchSucceeded(const QList<YouTubeTrack>& results) {
+void DlgYouTubeCc::slotSearchSucceeded(const QList<YouTubeCcTrack>& results) {
     m_pProgress->setVisible(false);
     m_currentResults = results;
     m_pResults->clearContents();
     m_pResults->setRowCount(results.size());
     for (int row = 0; row < results.size(); ++row) {
-        const YouTubeTrack& track = results.at(row);
+        const YouTubeCcTrack& track = results.at(row);
         m_pResults->setItem(row, 0, makeReadOnlyItem(track.title));
         m_pResults->setItem(row, 1, makeReadOnlyItem(track.channelTitle));
         m_pResults->setItem(row, 2, makeReadOnlyItem(formatDuration(track.durationSecs)));
@@ -251,25 +251,25 @@ void DlgYouTube::slotSearchSucceeded(const QList<YouTubeTrack>& results) {
     }
 }
 
-void DlgYouTube::slotSearchFailed(const QString& message) {
+void DlgYouTubeCc::slotSearchFailed(const QString& message) {
     m_pProgress->setVisible(false);
     setStatus(tr("Search failed: %1").arg(message));
 }
 
-void DlgYouTube::slotResultActivated(int row, int column) {
+void DlgYouTubeCc::slotResultActivated(int row, int column) {
     Q_UNUSED(column);
     startDownload(row);
 }
 
-void DlgYouTube::slotLoadSelected() {
+void DlgYouTubeCc::slotLoadSelected() {
     startDownload(m_pResults->currentRow());
 }
 
-void DlgYouTube::slotSelectionChanged() {
+void DlgYouTubeCc::slotSelectionChanged() {
     m_pLoadButton->setEnabled(m_pResults->currentRow() >= 0);
 }
 
-void DlgYouTube::startDownload(int row, const QString& group, bool play) {
+void DlgYouTubeCc::startDownload(int row, const QString& group, bool play) {
     if (row < 0 || row >= m_currentResults.size()) {
         return;
     }
@@ -277,7 +277,7 @@ void DlgYouTube::startDownload(int row, const QString& group, bool play) {
         setStatus(tr("A download is already in progress."));
         return;
     }
-    const YouTubeTrack& track = m_currentResults.at(row);
+    const YouTubeCcTrack& track = m_currentResults.at(row);
     m_pendingLoadGroup = group;
     m_pendingLoadPlay = play;
     m_pDownloader->setYtDlpPath(ytDlpPath());
@@ -291,12 +291,12 @@ void DlgYouTube::startDownload(int row, const QString& group, bool play) {
     m_pDownloader->download(track);
 }
 
-void DlgYouTube::slotDownloadProgress(const QString& videoId, int percent) {
+void DlgYouTubeCc::slotDownloadProgress(const QString& videoId, int percent) {
     Q_UNUSED(videoId);
     m_pProgress->setValue(percent);
 }
 
-void DlgYouTube::slotDownloadSucceeded(const YouTubeTrack& track, const QString& localPath) {
+void DlgYouTubeCc::slotDownloadSucceeded(const YouTubeCcTrack& track, const QString& localPath) {
     m_pProgress->setVisible(false);
     m_pLoadButton->setEnabled(m_pResults->currentRow() >= 0);
 
@@ -335,13 +335,13 @@ void DlgYouTube::slotDownloadSucceeded(const YouTubeTrack& track, const QString&
     m_pendingLoadPlay = false;
 }
 
-void DlgYouTube::slotDownloadFailed(const QString& videoId, const QString& message) {
+void DlgYouTubeCc::slotDownloadFailed(const QString& videoId, const QString& message) {
     Q_UNUSED(videoId);
     m_pProgress->setVisible(false);
     m_pLoadButton->setEnabled(m_pResults->currentRow() >= 0);
     setStatus(tr("Download failed: %1").arg(message));
 }
 
-void DlgYouTube::setStatus(const QString& message) {
+void DlgYouTubeCc::setStatus(const QString& message) {
     m_pStatus->setText(message);
 }

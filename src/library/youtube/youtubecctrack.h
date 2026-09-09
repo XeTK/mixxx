@@ -5,8 +5,8 @@
 
 /// A single Creative Commons search result from YouTube.
 /// This is metadata only; the audio is not downloaded until the user
-/// explicitly fetches the track (see YouTubeDownloader).
-struct YouTubeTrack {
+/// explicitly fetches the track (see YouTubeCcDownloader).
+struct YouTubeCcTrack {
     QString videoId;
     QString title;
     QString channelTitle;

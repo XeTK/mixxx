@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QString>
 
-#include "library/youtube/youtubetrack.h"
+#include "library/youtube/youtubecctrack.h"
 
 class QProcess;
 
@@ -19,11 +19,11 @@ class QProcess;
 /// still hard-gates on the license via a full extraction.)
 ///
 /// A single instance may be reused; a new search cancels any in-flight one.
-class YouTubeSearchTask : public QObject {
+class YouTubeCcSearchTask : public QObject {
     Q_OBJECT
   public:
-    explicit YouTubeSearchTask(QObject* parent = nullptr);
-    ~YouTubeSearchTask() override;
+    explicit YouTubeCcSearchTask(QObject* parent = nullptr);
+    ~YouTubeCcSearchTask() override;
 
     /// Path to the yt-dlp executable (looked up on PATH if just "yt-dlp").
     void setYtDlpPath(const QString& path) {
@@ -37,7 +37,7 @@ class YouTubeSearchTask : public QObject {
     void abort();
 
   signals:
-    void succeeded(const QList<YouTubeTrack>& results);
+    void succeeded(const QList<YouTubeCcTrack>& results);
     void failed(const QString& message);
 
   private slots:

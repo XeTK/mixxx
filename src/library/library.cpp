@@ -27,7 +27,7 @@
 #include "library/rekordbox/rekordboxfeature.h"
 #include "library/rhythmbox/rhythmboxfeature.h"
 #include "library/serato/seratofeature.h"
-#include "library/youtube/youtubefeature.h"
+#include "library/youtube/youtubeccfeature.h"
 #include "library/sidebarmodel.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
@@ -267,8 +267,8 @@ Library::Library(
     }
 
     if (m_pConfig->getValue(
-                ConfigKey(kConfigGroup, "ShowYouTubeLibrary"), true)) {
-        addFeature(new YouTubeFeature(this, m_pConfig));
+                ConfigKey(kConfigGroup, "ShowYouTubeCcLibrary"), true)) {
+        addFeature(new YouTubeCcFeature(this, m_pConfig));
     }
 
     for (const auto& externalTrackCollection : m_pTrackCollectionManager->externalCollections()) {

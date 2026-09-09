@@ -1,12 +1,12 @@
-#include "library/youtube/youtubefeature.h"
+#include "library/youtube/youtubeccfeature.h"
 
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
-#include "library/youtube/dlgyoutube.h"
-#include "library/youtube/youtubetrackmodel.h"
-#include "moc_youtubefeature.cpp"
+#include "library/youtube/dlgyoutubecc.h"
+#include "library/youtube/youtubecctrackmodel.h"
+#include "moc_youtubeccfeature.cpp"
 #include "widget/wlibrary.h"
 
 namespace {
@@ -14,7 +14,7 @@ const QString kSearchViewName = QStringLiteral("YouTubeCCSearch");
 const QString kDownloadedNodeData = QStringLiteral("downloaded");
 } // anonymous namespace
 
-YouTubeFeature::YouTubeFeature(Library* pLibrary, UserSettingsPointer pConfig)
+YouTubeCcFeature::YouTubeCcFeature(Library* pLibrary, UserSettingsPointer pConfig)
         : LibraryFeature(pLibrary, pConfig, QStringLiteral("computer")),
           m_pSidebarModel(make_parented<TreeItemModel>(this)),
           m_pSearchView(nullptr),
@@ -27,29 +27,29 @@ YouTubeFeature::YouTubeFeature(Library* pLibrary, UserSettingsPointer pConfig)
 
     // Native track table of downloaded tracks (files in the cache directory).
     const QString cacheDir =
-            m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cache");
-    m_pDownloadedModel = new YouTubeTrackModel(this,
+            m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cc_cache");
+    m_pDownloadedModel = new YouTubeCcTrackModel(this,
             m_pLibrary->trackCollectionManager(),
             cacheDir);
 }
 
-QVariant YouTubeFeature::title() {
+QVariant YouTubeCcFeature::title() {
     return m_title;
 }
 
-TreeItemModel* YouTubeFeature::sidebarModel() const {
+TreeItemModel* YouTubeCcFeature::sidebarModel() const {
     return m_pSidebarModel;
 }
 
-void YouTubeFeature::bindLibraryWidget(WLibrary* libraryWidget,
+void YouTubeCcFeature::bindLibraryWidget(WLibrary* libraryWidget,
         KeyboardEventFilter* keyboard) {
-    m_pSearchView = new DlgYouTube(libraryWidget, m_pConfig, m_pLibrary);
+    m_pSearchView = new DlgYouTubeCc(libraryWidget, m_pConfig, m_pLibrary);
     connect(m_pSearchView,
-            &DlgYouTube::loadTrack,
+            &DlgYouTubeCc::loadTrack,
             this,
-            &YouTubeFeature::loadTrack);
+            &YouTubeCcFeature::loadTrack);
     connect(m_pSearchView,
-            &DlgYouTube::loadTrackToPlayer,
+            &DlgYouTubeCc::loadTrackToPlayer,
             this,
             [this](TrackPointer pTrack, const QString& group, bool play) {
                 emit loadTrackToPlayer(pTrack,
@@ -60,26 +60,26 @@ void YouTubeFeature::bindLibraryWidget(WLibrary* libraryWidget,
                         play);
             });
     connect(m_pSearchView,
-            &DlgYouTube::trackSelected,
+            &DlgYouTubeCc::trackSelected,
             this,
-            &YouTubeFeature::trackSelected);
+            &YouTubeCcFeature::trackSelected);
     connect(m_pSearchView,
-            &DlgYouTube::downloaded,
+            &DlgYouTubeCc::downloaded,
             this,
-            &YouTubeFeature::slotDownloaded);
+            &YouTubeCcFeature::slotDownloaded);
     m_pSearchView->installEventFilter(keyboard);
     m_pSearchView->installKeyboardFilter(keyboard);
     libraryWidget->registerView(kSearchViewName, m_pSearchView);
 }
 
-void YouTubeFeature::activate() {
+void YouTubeCcFeature::activate() {
     // Root node: show the search view, driven by the main search bar.
     emit switchToView(kSearchViewName);
     emit restoreSearch(QString());
     emit enableCoverArtDisplay(false);
 }
 
-void YouTubeFeature::activateChild(const QModelIndex& index) {
+void YouTubeCcFeature::activateChild(const QModelIndex& index) {
     TreeItem* pItem = static_cast<TreeItem*>(index.internalPointer());
     if (!pItem) {
         return;
@@ -93,6 +93,6 @@ void YouTubeFeature::activateChild(const QModelIndex& index) {
     }
 }
 
-void YouTubeFeature::slotDownloaded() {
+void YouTubeCcFeature::slotDownloaded() {
     m_pDownloadedModel->select();
 }

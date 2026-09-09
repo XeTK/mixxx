@@ -1,4 +1,4 @@
-#include "library/youtube/youtubedownloader.h"
+#include "library/youtube/youtubeccdownloader.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -7,14 +7,14 @@
 #include <QStringList>
 #include <QtDebug>
 
-#include "moc_youtubedownloader.cpp"
+#include "moc_youtubeccdownloader.cpp"
 
 namespace {
 
 // yt-dlp arguments: audio-only, no playlist expansion, no re-encode (so no
 // ffmpeg dependency), Windows-safe filenames, newline-separated progress.
 // The output template embeds "[<id>]" so downloads can be found by videoId.
-QStringList buildArgs(const QString& cacheDir, const YouTubeTrack& track) {
+QStringList buildArgs(const QString& cacheDir, const YouTubeCcTrack& track) {
     return QStringList{
             QStringLiteral("--no-playlist"),
             QStringLiteral("--newline"),
@@ -33,20 +33,20 @@ QStringList buildArgs(const QString& cacheDir, const YouTubeTrack& track) {
 
 } // anonymous namespace
 
-YouTubeDownloader::YouTubeDownloader(QObject* parent)
+YouTubeCcDownloader::YouTubeCcDownloader(QObject* parent)
         : QObject(parent),
           m_ytDlpPath(QStringLiteral("yt-dlp")) {
 }
 
-YouTubeDownloader::~YouTubeDownloader() {
+YouTubeCcDownloader::~YouTubeCcDownloader() {
     cancel();
 }
 
-bool YouTubeDownloader::isBusy() const {
+bool YouTubeCcDownloader::isBusy() const {
     return m_pProcess != nullptr;
 }
 
-QString YouTubeDownloader::cachedPath(const QString& videoId) const {
+QString YouTubeCcDownloader::cachedPath(const QString& videoId) const {
     if (m_cacheDir.isEmpty() || videoId.isEmpty()) {
         return QString();
     }
@@ -63,7 +63,7 @@ QString YouTubeDownloader::cachedPath(const QString& videoId) const {
     return QString();
 }
 
-void YouTubeDownloader::download(const YouTubeTrack& track) {
+void YouTubeCcDownloader::download(const YouTubeCcTrack& track) {
     if (!track.isValid()) {
         emit failed(track.videoId, tr("Invalid track."));
         return;
@@ -95,7 +95,7 @@ void YouTubeDownloader::download(const YouTubeTrack& track) {
     connect(m_pProcess,
             &QProcess::readyReadStandardOutput,
             this,
-            &YouTubeDownloader::onReadyReadStandardOutput);
+            &YouTubeCcDownloader::onReadyReadStandardOutput);
     connect(m_pProcess,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this,
@@ -103,13 +103,13 @@ void YouTubeDownloader::download(const YouTubeTrack& track) {
     connect(m_pProcess,
             &QProcess::errorOccurred,
             this,
-            &YouTubeDownloader::onProcessErrorOccurred);
+            &YouTubeCcDownloader::onProcessErrorOccurred);
 
     emit progress(track.videoId, 0);
     m_pProcess->start(m_ytDlpPath, buildArgs(m_cacheDir, track));
 }
 
-void YouTubeDownloader::cancel() {
+void YouTubeCcDownloader::cancel() {
     if (m_pProcess) {
         m_pProcess->disconnect(this);
         m_pProcess->kill();
@@ -118,7 +118,7 @@ void YouTubeDownloader::cancel() {
     }
 }
 
-void YouTubeDownloader::onReadyReadStandardOutput() {
+void YouTubeCcDownloader::onReadyReadStandardOutput() {
     if (!m_pProcess) {
         return;
     }
@@ -140,14 +140,14 @@ void YouTubeDownloader::onReadyReadStandardOutput() {
     }
 }
 
-void YouTubeDownloader::onProcessFinished(int exitCode) {
+void YouTubeCcDownloader::onProcessFinished(int exitCode) {
     if (!m_pProcess) {
         return;
     }
     m_pProcess->deleteLater();
     m_pProcess = nullptr;
 
-    const YouTubeTrack track = m_currentTrack;
+    const YouTubeCcTrack track = m_currentTrack;
     // if (m_wasFilteredOut) {
     //     emit failed(track.videoId,
     //             tr("This video is not licensed under Creative Commons and "
@@ -170,7 +170,7 @@ void YouTubeDownloader::onProcessFinished(int exitCode) {
     emit succeeded(track, path);
 }
 
-void YouTubeDownloader::onProcessErrorOccurred() {
+void YouTubeCcDownloader::onProcessErrorOccurred() {
     if (!m_pProcess) {
         return;
     }
