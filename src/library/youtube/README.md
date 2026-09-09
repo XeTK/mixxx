@@ -27,22 +27,11 @@ dependency is `yt-dlp`.
    any local file) and loaded. Attribution (source URL, uploader, CC BY) is
    written into the track comment.
 
-## UI structure
-
-The feature follows the standard Mixxx layout instead of a bespoke panel:
-
-- The **main library search bar** drives search — there is no search box inside
-  the view. Typing while the "YouTube (CC)" root is selected runs a CC search
-  (`DlgYouTubeCc::onSearch`).
-- The sidebar has a **"Downloaded" child node**. It shows a native track table
-  (`YouTubeCcTrackModel`, a `BaseSqlTableModel` filtered to the cache directory)
-  — sortable columns, right-click actions, drag-to-deck, and the main search bar
-  filters it, exactly like the main **Tracks** view. Downloaded tracks are also
-  in your main library, so they appear under **Tracks** too.
-
-Search results themselves stay a lightweight custom list, because they are
-remote videos with no local file / analysis until downloaded, so they can't be
-a native track table.
+The view has two tabs: **Search results** and **Downloaded**. The Downloaded
+tab lists everything already in the cache directory (parsed from the
+`<title> [<videoId>].<ext>` filenames) so previously fetched tracks can be
+reloaded instantly, without searching or re-downloading. Downloaded tracks are
+also added to your main Mixxx library, so they show up under **Tracks** too.
 
 ## One-time setup
 
