@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QList>
-#include <QStringList>
 #include <QWidget>
 
 #include "library/libraryview.h"
@@ -16,7 +15,6 @@ class YouTubeCcDownloader;
 class QLineEdit;
 class QPushButton;
 class QTableWidget;
-class QTabWidget;
 class QLabel;
 class QProgressBar;
 
@@ -44,7 +42,6 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     void slotSearchSucceeded(const QList<YouTubeCcTrack>& results);
     void slotSearchFailed(const QString& message);
     void slotResultActivated(int row, int column);
-    void slotDownloadedActivated(int row, int column);
     void slotLoadSelected();
     void slotDownloadProgress(const QString& videoId, int percent);
     void slotDownloadSucceeded(const YouTubeCcTrack& track, const QString& localPath);
@@ -55,12 +52,6 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     QString ytDlpPath() const;
     QString cacheDir() const;
     void startDownload(int row);
-    /// Update the shared Load button's label/enabled state for the active tab.
-    void updateLoadButtonState();
-    /// Rescan the cache directory and repopulate the Downloaded tab.
-    void refreshDownloaded();
-    /// Add an already-downloaded cache file to the library and load it.
-    void loadCachedPath(const QString& path);
     void setStatus(const QString& message);
 
     UserSettingsPointer m_pConfig;
@@ -68,9 +59,7 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
 
     QLineEdit* m_pSearchEdit;
     QPushButton* m_pSearchButton;
-    QTabWidget* m_pTabs;
     QTableWidget* m_pResults;
-    QTableWidget* m_pDownloaded;
     QPushButton* m_pLoadButton;
     QLabel* m_pStatus;
     QProgressBar* m_pProgress;
@@ -78,6 +67,4 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     YouTubeCcSearchTask* m_pSearchTask;
     YouTubeCcDownloader* m_pDownloader;
     QList<YouTubeCcTrack> m_currentResults;
-    // Absolute paths of the files shown in the Downloaded tab, by row.
-    QStringList m_downloadedPaths;
 };
