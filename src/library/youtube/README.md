@@ -29,41 +29,23 @@ dependency is `yt-dlp`.
 
 ## UI structure
 
-The feature follows the standard Mixxx layout, with both nodes rendered by the
-shared `WTrackTableView` (`showTrackModel()`) rather than a bespoke panel:
+The feature follows the standard Mixxx layout instead of a bespoke panel:
 
-- The **main library search bar** drives search — there is no search box
-  inside the view. Typing while the "YouTube" root is selected runs
-  `YouTubeSearchModel::search()`, a Creative Commons search.
-- Search results are a `YouTubeSearchModel` (`QStandardItemModel` +
-  `TrackModel`, following the `BrowseTableModel` pattern for rows that are not
-  library entries), so they get the standard track table: sortable columns,
-  the normal context menu, and keyboard shortcuts. A result has no local file
-  until fetched, so `getTrack()` returns nothing for it; `TrackModel`'s
-  `requestDeferredLoad()` hook lets the model take over the load, and
-  `rowAccessibleText()` supplies the spoken description a screen reader would
-  otherwise get from a `Track` it doesn't have.
+- The **main library search bar** drives search — there is no search box inside
+  the view. Typing while the "YouTube" root is selected runs a Creative Commons search
+  (`DlgYouTube::onSearch`).
 - The sidebar has a **"Downloaded" child node**. It shows a native track table
   (`YouTubeTrackModel`, a `BaseSqlTableModel` filtered to the cache directory)
-  — sortable columns, right-click actions, drag-to-deck, and the main search
-  bar filters it, exactly like the main **Tracks** view. Downloaded tracks are
-  also in your main library, so they appear under **Tracks** too.
+  — sortable columns, right-click actions, drag-to-deck, and the main search bar
+  filters it, exactly like the main **Tracks** view. Downloaded tracks are also
+  in your main library, so they appear under **Tracks** too.
 
-The standard **load-to-deck shortcuts work on search results** too (e.g.
-Shift+Left / Shift+Right): `YouTubeFeature` observes the
-`[ChannelN],LoadSelectedTrack(AndPlay)` controls and, when the search results
-view is active, downloads the selected result and loads it to that deck via
-`requestDeferredLoad()`.
-
-## Accessibility
-
-- Entering the view, the search status ("Searching YouTube for ...", then the
-  result count), each result ("Title, by Channel, 3 minutes 42 seconds",
-  "downloaded" appended when cached), the start of a download, download
-  progress at 25% steps, and download failures are all spoken.
-- Fetch progress is also shown on the target deck's waveform overview (a
-  `[ChannelN],download_progress` control, 0.0-1.0), so a sighted user sees it
-  arriving where the track will play.
+Search results themselves stay a lightweight custom list, because they are
+remote videos with no local file / analysis until downloaded, so they can't be
+a native track table. The standard **load-to-deck shortcuts still work on
+them** (e.g. Shift+Left / Shift+Right): `DlgYouTube` observes the
+`[ChannelN],LoadSelectedTrack(AndPlay)` controls and, when its view is active,
+downloads the selected result and loads it to that deck.
 
 ## One-time setup
 
