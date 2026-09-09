@@ -20,8 +20,7 @@ const QString kPrintTemplate =
 // videos server-side, so a fast flat extraction is enough. We do NOT use a
 // yt-dlp --match-filter on the license here, because the per-video `license`
 // field is not populated during a search (it comes back "NA"); the download
-// step still hard-gates on the license via a full extraction. This filter also
-// makes the results page return videos only (not playlists/channels).
+// step still hard-gates on the license via a full extraction.
 const QString kCreativeCommonsSpFilter = QStringLiteral("EgIwAQ%3D%3D");
 
 QStringList buildArgs(const QString& query, int maxResults) {
@@ -104,9 +103,7 @@ void YouTubeCcSearchTask::onProcessFinished(int exitCode) {
             continue;
         }
         const QStringList fields = line.split(QChar('\t'));
-        // A YouTube video id is exactly 11 characters. Skip anything else
-        // (playlist/channel entries), which cannot be downloaded as a video.
-        if (fields.size() < 2 || fields.at(0).length() != 11) {
+        if (fields.size() < 2 || fields.at(0).isEmpty()) {
             continue;
         }
         YouTubeCcTrack track;
