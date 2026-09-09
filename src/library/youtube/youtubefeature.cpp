@@ -4,64 +4,33 @@
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
-#include "library/youtube/youtubedownloader.h"
-#include "library/youtube/youtubesearchmodel.h"
+#include "library/youtube/dlgyoutube.h"
 #include "library/youtube/youtubetrackmodel.h"
 #include "moc_youtubefeature.cpp"
 #include "widget/wlibrary.h"
 
 namespace {
-const ConfigKey kYtDlpPathConfigKey = ConfigKey("[youtube]", "ytdlp_path");
+const QString kSearchViewName = QStringLiteral("YouTubeCCSearch");
 const QString kDownloadedNodeData = QStringLiteral("downloaded");
-
-QString ytDlpPath(const UserSettingsPointer& pConfig) {
-    const QString path = pConfig->getValueString(kYtDlpPathConfigKey);
-    return path.isEmpty() ? QStringLiteral("yt-dlp") : path;
-}
 } // anonymous namespace
 
 YouTubeFeature::YouTubeFeature(Library* pLibrary, UserSettingsPointer pConfig)
         : LibraryFeature(pLibrary, pConfig, QStringLiteral("computer")),
           m_pSidebarModel(make_parented<TreeItemModel>(this)),
-          m_pSearchModel(nullptr),
+          m_pSearchView(nullptr),
           m_pDownloadedModel(nullptr),
-          m_pDownloader(new YouTubeDownloader(this)),
-          m_title(tr("YouTube")) {
-    // Sidebar: root ("YouTube") with a single "Downloaded" child.
+          m_title(tr("YouTube (CC)")) {
+    // Sidebar: root ("YouTube (CC)") with a single "Downloaded" child.
     auto pRootItem = TreeItem::newRoot(this);
     pRootItem->appendChild(tr("Downloaded"), kDownloadedNodeData);
     m_pSidebarModel->setRootItem(std::move(pRootItem));
 
-    // Search results: a native track table fed by the main search bar.
-    m_pSearchModel = new YouTubeSearchModel(this,
-            m_pLibrary->trackCollectionManager(),
-            m_pConfig);
-    connect(m_pSearchModel,
-            &YouTubeSearchModel::deferredLoadRequested,
-            this,
-            &YouTubeFeature::slotDeferredLoadRequested);
-
     // Native track table of downloaded tracks (files in the cache directory).
+    const QString cacheDir =
+            m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cache");
     m_pDownloadedModel = new YouTubeTrackModel(this,
             m_pLibrary->trackCollectionManager(),
-            cacheDir());
-
-    connect(m_pDownloader,
-            &YouTubeDownloader::progress,
-            this,
-            &YouTubeFeature::slotDownloadProgress);
-    connect(m_pDownloader,
-            &YouTubeDownloader::succeeded,
-            this,
-            &YouTubeFeature::slotDownloadSucceeded);
-    connect(m_pDownloader,
-            &YouTubeDownloader::failed,
-            this,
-            &YouTubeFeature::slotDownloadFailed);
-}
-
-QString YouTubeFeature::cacheDir() const {
-    return m_pConfig->getSettingsPath() + QStringLiteral("/youtube_cache");
+            cacheDir);
 }
 
 QVariant YouTubeFeature::title() {
@@ -74,15 +43,39 @@ TreeItemModel* YouTubeFeature::sidebarModel() const {
 
 void YouTubeFeature::bindLibraryWidget(WLibrary* libraryWidget,
         KeyboardEventFilter* keyboard) {
-    // Both nodes use the shared track table, so there is no view of our own to
-    // register or to install a keyboard filter on.
-    Q_UNUSED(libraryWidget);
-    Q_UNUSED(keyboard);
+    m_pSearchView = new DlgYouTube(libraryWidget, m_pConfig, m_pLibrary);
+    connect(m_pSearchView,
+            &DlgYouTube::loadTrack,
+            this,
+            &YouTubeFeature::loadTrack);
+    connect(m_pSearchView,
+            &DlgYouTube::loadTrackToPlayer,
+            this,
+            [this](TrackPointer pTrack, const QString& group, bool play) {
+                emit loadTrackToPlayer(pTrack,
+                        group,
+#ifdef __STEM__
+                        mixxx::StemChannelSelection(),
+#endif
+                        play);
+            });
+    connect(m_pSearchView,
+            &DlgYouTube::trackSelected,
+            this,
+            &YouTubeFeature::trackSelected);
+    connect(m_pSearchView,
+            &DlgYouTube::downloaded,
+            this,
+            &YouTubeFeature::slotDownloaded);
+    m_pSearchView->installEventFilter(keyboard);
+    m_pSearchView->installKeyboardFilter(keyboard);
+    libraryWidget->registerView(kSearchViewName, m_pSearchView);
 }
 
 void YouTubeFeature::activate() {
-    // Root node: search results, driven by the main search bar.
-    emit showTrackModel(m_pSearchModel);
+    // Root node: show the search view, driven by the main search bar.
+    emit switchToView(kSearchViewName);
+    emit restoreSearch(QString());
     emit enableCoverArtDisplay(false);
 }
 
@@ -100,70 +93,6 @@ void YouTubeFeature::activateChild(const QModelIndex& index) {
     }
 }
 
-void YouTubeFeature::slotDeferredLoadRequested(const YouTubeTrack& track,
-        const QString& group,
-        bool play) {
-    if (m_pDownloader->isBusy()) {
-        return;
-    }
-    m_pendingLoadGroup = group;
-    m_pendingLoadPlay = play;
-    m_pDownloader->setYtDlpPath(ytDlpPath(m_pConfig));
-    m_pDownloader->setCacheDir(cacheDir());
-    m_pDownloader->download(track);
-}
-
-void YouTubeFeature::slotDownloadProgress(const QString& videoId, int percent) {
-    Q_UNUSED(videoId);
-    Q_UNUSED(percent);
-}
-
-void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
-        const QString& localPath) {
-    TrackCollectionManager* pTcm = m_pLibrary->trackCollectionManager();
-    const QList<TrackId> ids = pTcm->resolveTrackIdsFromLocations({localPath});
-    if (ids.isEmpty()) {
-        m_pendingLoadGroup.clear();
-        return;
-    }
-    TrackPointer pTrack = pTcm->getTrackById(ids.first());
-    if (!pTrack) {
-        m_pendingLoadGroup.clear();
-        return;
-    }
-
-    // Fill in metadata from the YouTube result if the file itself carried none,
-    // and always record attribution (Creative Commons requires it).
-    if (pTrack->getArtist().trimmed().isEmpty()) {
-        pTrack->setArtist(track.channelTitle);
-    }
-    if (pTrack->getTitle().trimmed().isEmpty()) {
-        pTrack->setTitle(track.title);
-    }
-    pTrack->setComment(
-            tr("Source: %1 | Uploader: %2 | License: Creative Commons (CC BY)")
-                    .arg(track.watchUrl().toString(), track.channelTitle));
-
-    // The Downloaded node gains a row.
+void YouTubeFeature::slotDownloaded() {
     m_pDownloadedModel->select();
-
-    if (m_pendingLoadGroup.isEmpty()) {
-        emit loadTrack(pTrack);
-    } else {
-        emit loadTrackToPlayer(pTrack,
-                m_pendingLoadGroup,
-#ifdef __STEM__
-                mixxx::StemChannelSelection(),
-#endif
-                m_pendingLoadPlay);
-    }
-    m_pendingLoadGroup.clear();
-    m_pendingLoadPlay = false;
-}
-
-void YouTubeFeature::slotDownloadFailed(const QString& videoId, const QString& message) {
-    Q_UNUSED(videoId);
-    Q_UNUSED(message);
-    m_pendingLoadGroup.clear();
-    m_pendingLoadPlay = false;
 }
