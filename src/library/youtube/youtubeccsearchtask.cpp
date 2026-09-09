@@ -22,14 +22,14 @@ const QString kPrintTemplate =
 // field is not populated during a search (it comes back "NA"); the download
 // step still hard-gates on the license via a full extraction. This filter also
 // makes the results page return videos only (not playlists/channels).
-// const QString kCreativeCommonsSpFilter = QStringLiteral("EgIwAQ%3D%3D");
+const QString kCreativeCommonsSpFilter = QStringLiteral("EgIwAQ%3D%3D");
 
 QStringList buildArgs(const QString& query, int maxResults) {
     const QString encodedQuery = QString::fromUtf8(QUrl::toPercentEncoding(query));
     const QString url =
             QStringLiteral("https://www.youtube.com/results?search_query=") +
-            encodedQuery; //+
-            //QStringLiteral("&sp=") + kCreativeCommonsSpFilter;
+            encodedQuery +
+            QStringLiteral("&sp=") + kCreativeCommonsSpFilter;
     return QStringList{
             url,
             // Flat: list the results page without extracting each video.
@@ -38,8 +38,8 @@ QStringList buildArgs(const QString& query, int maxResults) {
             QStringLiteral("1:%1").arg(maxResults),
             QStringLiteral("--print"),
             kPrintTemplate,
-            //QStringLiteral("--ignore-errors"),
-            //QStringLiteral("--no-warnings"),
+            QStringLiteral("--ignore-errors"),
+            QStringLiteral("--no-warnings"),
     };
 }
 
