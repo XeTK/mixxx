@@ -24,8 +24,6 @@
 namespace {
 
 constexpr double kNoTrackColor = -1;
-// [ChannelN],download_progress when no remote fetch is in flight.
-constexpr double kNoDownloadProgress = -1;
 constexpr double kShiftCuesOffsetMillis = 10;
 constexpr double kShiftCuesOffsetSmallMillis = 1;
 const QString kEffectGroupFormat = QStringLiteral("[EqualizerRack1_%1_Effect1]");
@@ -100,15 +98,6 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
     // Duration of the current song, we create this one because nothing else does.
     m_pDuration = std::make_unique<ControlObject>(
         ConfigKey(getGroup(), "duration"));
-
-    // Progress of a track being fetched from a remote source (e.g. a YouTube
-    // search result) before it can be loaded here: 0.0 to 1.0 while the
-    // download runs, negative when nothing is being fetched. The waveform
-    // overview shows this in place of the analysis progress, so the deck the
-    // track is destined for is where you see it arriving.
-    m_pDownloadProgress = std::make_unique<ControlObject>(
-            ConfigKey(getGroup(), "download_progress"));
-    m_pDownloadProgress->set(kNoDownloadProgress);
 
     // Track color of the current track
     m_pTrackColor = std::make_unique<ControlObject>(

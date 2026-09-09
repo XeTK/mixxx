@@ -185,7 +185,6 @@ class BaseTrackPlayerImpl : public BaseTrackPlayer {
 
     // Track color control
     std::unique_ptr<ControlObject> m_pTrackColor;
-    std::unique_ptr<ControlObject> m_pDownloadProgress;
     std::unique_ptr<ControlPushButton> m_pTrackColorPrev;
     std::unique_ptr<ControlPushButton> m_pTrackColorNext;
     std::unique_ptr<ControlEncoder> m_pTrackColorSelect;

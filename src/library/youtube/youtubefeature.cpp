@@ -1,6 +1,5 @@
 #include "library/youtube/youtubefeature.h"
 
-#include "control/controlobject.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
@@ -14,8 +13,6 @@
 namespace {
 const ConfigKey kYtDlpPathConfigKey = ConfigKey("[youtube]", "ytdlp_path");
 const QString kDownloadedNodeData = QStringLiteral("downloaded");
-// Matches BaseTrackPlayerImpl: negative means nothing is being fetched.
-constexpr double kNoDownloadProgress = -1;
 
 QString ytDlpPath(const UserSettingsPointer& pConfig) {
     const QString path = pConfig->getValueString(kYtDlpPathConfigKey);
@@ -111,33 +108,14 @@ void YouTubeFeature::slotDeferredLoadRequested(const YouTubeTrack& track,
     }
     m_pendingLoadGroup = group;
     m_pendingLoadPlay = play;
-    // Show the fetch on the deck it is destined for, from 0 so the indicator
-    // appears immediately rather than at the first progress line from yt-dlp.
-    setDownloadProgress(0.0);
     m_pDownloader->setYtDlpPath(ytDlpPath(m_pConfig));
     m_pDownloader->setCacheDir(cacheDir());
     m_pDownloader->download(track);
 }
 
-void YouTubeFeature::setDownloadProgress(double progress) {
-    if (m_pendingLoadGroup.isEmpty()) {
-        return;
-    }
-    ControlObject::set(
-            ConfigKey(m_pendingLoadGroup, QStringLiteral("download_progress")),
-            progress);
-}
-
-void YouTubeFeature::clearPendingLoad() {
-    // Take the indicator off the deck before forgetting which deck it was on.
-    setDownloadProgress(kNoDownloadProgress);
-    m_pendingLoadGroup.clear();
-    m_pendingLoadPlay = false;
-}
-
 void YouTubeFeature::slotDownloadProgress(const QString& videoId, int percent) {
     Q_UNUSED(videoId);
-    setDownloadProgress(percent / 100.0);
+    Q_UNUSED(percent);
 }
 
 void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
@@ -145,12 +123,12 @@ void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
     TrackCollectionManager* pTcm = m_pLibrary->trackCollectionManager();
     const QList<TrackId> ids = pTcm->resolveTrackIdsFromLocations({localPath});
     if (ids.isEmpty()) {
-        clearPendingLoad();
+        m_pendingLoadGroup.clear();
         return;
     }
     TrackPointer pTrack = pTcm->getTrackById(ids.first());
     if (!pTrack) {
-        clearPendingLoad();
+        m_pendingLoadGroup.clear();
         return;
     }
 
@@ -179,11 +157,13 @@ void YouTubeFeature::slotDownloadSucceeded(const YouTubeTrack& track,
 #endif
                 m_pendingLoadPlay);
     }
-    clearPendingLoad();
+    m_pendingLoadGroup.clear();
+    m_pendingLoadPlay = false;
 }
 
 void YouTubeFeature::slotDownloadFailed(const QString& videoId, const QString& message) {
     Q_UNUSED(videoId);
     Q_UNUSED(message);
-    clearPendingLoad();
+    m_pendingLoadGroup.clear();
+    m_pendingLoadPlay = false;
 }
