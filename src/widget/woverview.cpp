@@ -938,16 +938,16 @@ bool WOverview::drawDownloadProgress(QPainter* pPainter) {
     const double progress = math_clamp(m_downloadProgress, 0.0, 1.0);
 
     PainterScope painterScope(pPainter);
-    pPainter->setPen(QPen(m_playPosColor, 3 * m_scaleFactor));
+    const double penWidth = 3 * m_scaleFactor;
+    pPainter->setPen(QPen(m_playPosColor, penWidth));
 
     // Fill from the left as the file arrives, the opposite direction to the
-    // analysis indicator, which drains as the waveform is filled in. Drawn
-    // down the middle, matching drawAnalyzerProgress().
+    // analysis indicator, which drains as the waveform is filled in.
     if (m_orientation == Qt::Horizontal) {
-        const double y = height() / 2;
+        const double y = m_stereo ? height() / 2 : height() - penWidth / 2;
         pPainter->drawLine(QLineF(0, y, width() * progress, y));
     } else {
-        const double x = width() / 2;
+        const double x = m_stereo ? width() / 2 : width() - penWidth / 2;
         pPainter->drawLine(QLineF(x, 0, x, height() * progress));
     }
 

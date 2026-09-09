@@ -9,7 +9,6 @@
 #include "library/youtube/youtubesearchmodel.h"
 #include "library/youtube/youtubetrackmodel.h"
 #include "moc_youtubefeature.cpp"
-#include "track/track.h"
 #include "widget/wlibrary.h"
 
 namespace {
