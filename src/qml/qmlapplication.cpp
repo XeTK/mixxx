@@ -10,6 +10,7 @@
 #include "qml/asyncimageprovider.h"
 #include "qml/qmldlgpreferencesproxy.h"
 #include "soundio/soundmanager.h"
+#include "util/cmdlineargs.h"
 #include "waveform/visualsmanager.h"
 #include "waveform/waveformwidgetfactory.h"
 
@@ -35,7 +36,16 @@ QString resolveMainQmlFilePath(const UserSettingsPointer& pSettings) {
 #if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
     const QString defaultSkin = QStringLiteral("qml-mobile");
 #else
-    const QString defaultSkin = QStringLiteral("qml");
+    // --mobile-preview (desktop-only dev flag, see cmdlineargs.cpp) previews
+    // the Android/iOS mobile skin's *files* here too, not just its layout -
+    // without this, a desktop --qml launch always resolves to res/qml/ (the
+    // separate desktop skin) regardless of any [QML],skin config override
+    // a user might expect from the flag alone, since this defaultSkin is
+    // also literally the same value getValue() falls back to below when no
+    // config key is set yet (e.g. every settingsPath-less test launch).
+    const QString defaultSkin = CmdlineArgs::Instance().isMobilePreview()
+            ? QStringLiteral("qml-mobile")
+            : QStringLiteral("qml");
 #endif
     const QString skin = pSettings->getValue(
             ConfigKey(QStringLiteral("[QML]"), QStringLiteral("skin")),

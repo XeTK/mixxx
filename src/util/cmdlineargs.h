@@ -56,6 +56,13 @@ class CmdlineArgs final {
     bool isQml() const {
         return m_qml;
     }
+    // Forces the QML mobile skin's window-sizing/layout logic to treat this
+    // as a mobile platform (fixed device-sized window, compact nav) even on
+    // desktop, so the Android/iOS layout can be previewed and tested locally
+    // without a device or simulator.
+    bool isMobilePreview() const {
+        return m_mobilePreview;
+    }
 #endif
     bool getSafeMode() const { return m_safeMode; }
     bool useColors() const {
@@ -122,6 +129,7 @@ class CmdlineArgs final {
     bool m_developer; // Developer Mode
 #ifdef MIXXX_USE_QML
     bool m_qml;
+    bool m_mobilePreview;
 #endif
     bool m_safeMode;
     bool m_useLegacyVuMeter;

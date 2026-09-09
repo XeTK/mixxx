@@ -37,9 +37,25 @@ ApplicationWindow {
     // ListView delegates (Library track rows, Preferences category rows)
     // where the accumulated vertical offset from the top of a tall list
     // makes the drift large enough that clicks silently miss their target.
-    readonly property bool isMobilePlatform: Qt.platform.os === "android" || Qt.platform.os === "ios"
-    width: root.isMobilePlatform ? Screen.width : 1920
-    height: root.isMobilePlatform ? Screen.height : 1080
+    // --mobile-preview (desktop-only dev flag, see cmdlineargs.cpp) forces
+    // this layout logic on for local testing of the Android/iOS mobile skin
+    // without a device or simulator. Read directly from the process
+    // arguments rather than through a dedicated C++/QML bridge - CmdlineArgs
+    // already validates/registers the flag (so it won't be rejected as
+    // unknown or missing from --help), and Qt.application.arguments reflects
+    // the real argv independently of that, so no extra plumbing is needed
+    // for what's just a one-off boolean.
+    readonly property bool mobilePreview: Qt.application.arguments.indexOf("--mobile-preview") !== -1
+    readonly property bool realMobilePlatform: Qt.platform.os === "android" || Qt.platform.os === "ios"
+    readonly property bool isMobilePlatform: root.realMobilePlatform || root.mobilePreview
+    // On a real device/simulator, size to the actual screen. When previewing
+    // on desktop, there is no meaningful "screen" to match - Screen.width/
+    // height would just be this monitor's full resolution, not anything
+    // mobile-shaped - so start at a fixed, representative device size
+    // (matches the iPad mini used for real device testing) instead; the
+    // window is freely resizable afterward to try other aspect ratios.
+    width: root.realMobilePlatform ? Screen.width : (root.mobilePreview ? 1133 : 1920)
+    height: root.realMobilePlatform ? Screen.height : (root.mobilePreview ? 744 : 1080)
     color: Theme.backgroundColor
     visible: true
 

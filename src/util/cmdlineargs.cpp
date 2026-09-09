@@ -70,6 +70,7 @@ CmdlineArgs::CmdlineArgs()
 #else
           m_qml(false),
 #endif
+          m_mobilePreview(false),
 #endif
           m_safeMode(false),
           m_useLegacyVuMeter(false),
@@ -299,6 +300,14 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
                                       "Loads experimental QML GUI instead of legacy QWidget skin")
                             : QString());
     parser.addOption(qml);
+    const QCommandLineOption mobilePreview(QStringLiteral("mobile-preview"),
+            forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
+                                      "With --qml, previews the Android/iOS mobile skin's "
+                                      "layout at a device-sized window instead of the desktop "
+                                      "landscape default, for local testing without a device "
+                                      "or simulator")
+                            : QString());
+    parser.addOption(mobilePreview);
 #endif
     const QCommandLineOption safeMode(QStringLiteral("safe-mode"),
             forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
@@ -511,6 +520,7 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
 #else
     m_qml = parser.isSet(qml);
 #endif
+    m_mobilePreview = parser.isSet(mobilePreview);
 #endif
     m_safeMode = parser.isSet(safeMode) || parser.isSet(safeModeDeprecated);
     m_debugAssertBreak = parser.isSet(debugAssertBreak) || parser.isSet(debugAssertBreakDeprecated);
