@@ -11,13 +11,11 @@ dependency is `yt-dlp`.
 
 ## How the flow works
 
-1. **Search** — `YouTubeCcSearchTask` runs `yt-dlp` against YouTube's own
-   Creative Commons results filter
-   (`https://www.youtube.com/results?search_query=<q>&sp=EgIwAQ%3D%3D`) with
-   `--flat-playlist --print ...` and parses one tab-separated line per video.
-   The `sp=` code is YouTube's server-side CC filter, so results are CC without
-   needing to extract each video (yt-dlp does not populate the per-video
-   `license` field during a search). Metadata only, and fast.
+1. **Search** — `YouTubeCcSearchTask` runs
+   `yt-dlp "ytsearchN:<query>" --match-filter "license=Creative Commons
+   Attribution license (reuse allowed)" --print ...` and parses one
+   tab-separated line per matching video. Metadata only. (Because each result is
+   extracted to check its license, a search takes a few seconds.)
 2. **Download** — on double-click, `YouTubeCcDownloader` runs `yt-dlp` (with the
    same CC match-filter as a hard gate) to fetch the audio-only stream — no
    re-encode, so no ffmpeg needed — into a per-user cache directory, keyed by
@@ -53,7 +51,5 @@ hidden via `[library] ShowYouTubeCcLibrary = 0`.
   audio; see the project discussion for why that path is a non-starter.
 - Attribution is recorded in the comment; CC BY also requires attribution in any
   public performance/redistribution — that remains the user's responsibility.
-- Search relies on YouTube's `sp=` Creative Commons filter for the result list;
-  the download step independently hard-gates on the license (a full extraction,
-  where yt-dlp's `license` field is populated), so a non-CC video can never be
-  fetched even if the filter code were to change.
+- Search does a full extraction per result to read the license, so it is slower
+  than a metadata-only API call (a few seconds for ~15 results).
