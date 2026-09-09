@@ -65,9 +65,5 @@ class YouTubeFeature : public LibraryFeature {
     // progress can be shown there and the track loaded when it arrives.
     QString m_pendingLoadGroup;
     bool m_pendingLoadPlay = false;
-    // Highest 25%-progress milestone already spoken for the in-flight
-    // download (0 = none yet), so slotDownloadProgress announces "25%",
-    // "50%", "75%" once each instead of on every yt-dlp progress line.
-    int m_lastAnnouncedDownloadMilestone = 0;
     const QString m_title;
 };
