@@ -86,38 +86,11 @@ void DlgYouTubeCc::setupUi() {
     m_pResults->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_pResults->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_pResults->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    m_pResults->setAlternatingRowColors(true);
-    // The Mixxx skins style their own widget classes (WTrackTableView, ...), not
-    // a plain QTableWidget, so it would otherwise render with the default light
-    // palette. Match the dark library look here.
-    m_pResults->setStyleSheet(QStringLiteral(
-            "QTableWidget {"
-            "  background-color: #141414;"
-            "  alternate-background-color: #1b1b1b;"
-            "  color: #d0d0d0;"
-            "  gridline-color: #2a2a2a;"
-            "  border: 1px solid #2a2a2a;"
-            "  selection-background-color: #2f5f8f;"
-            "  selection-color: #ffffff;"
-            "}"
-            "QHeaderView::section {"
-            "  background-color: #232323;"
-            "  color: #d0d0d0;"
-            "  padding: 3px;"
-            "  border: 0px;"
-            "  border-right: 1px solid #2a2a2a;"
-            "  border-bottom: 1px solid #2a2a2a;"
-            "}"
-            "QTableCornerButton::section {"
-            "  background-color: #232323;"
-            "  border: 0px;"
-            "}"));
     pMainLayout->addWidget(m_pResults);
 
     auto* pBottomRow = new QHBoxLayout();
     m_pStatus = new QLabel(this);
     m_pStatus->setWordWrap(true);
-    m_pStatus->setStyleSheet(QStringLiteral("color: #b0b0b0;"));
     m_pProgress = new QProgressBar(this);
     m_pProgress->setRange(0, 100);
     m_pProgress->setVisible(false);
