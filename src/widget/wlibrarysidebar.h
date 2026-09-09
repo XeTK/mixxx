@@ -31,15 +31,17 @@ class WLibrarySidebar : public QTreeView, public WBaseWidget {
     bool isFeatureRootIndexSelected(LibraryFeature* pFeature);
 
   public slots:
-    void selectIndex(const QModelIndex&);
+    void selectIndex(const QModelIndex& index, bool scrollToIndex = true);
     void selectChildIndex(const QModelIndex&, bool selectItem = true);
     void slotSetFont(const QFont& font);
+    void slotSetExpandOnHoverDelay(int delay);
 
   signals:
     void rightClicked(const QPoint&, const QModelIndex&);
     void renameItem(const QModelIndex&);
     void deleteItem(const QModelIndex&);
-    FocusWidget setLibraryFocus(FocusWidget newFocus);
+    FocusWidget setLibraryFocus(FocusWidget newFocus,
+            Qt::FocusReason focusReason = Qt::OtherFocusReason);
     void currentIndexChanged(const QModelIndex& current);
 
   protected:
@@ -54,6 +56,7 @@ class WLibrarySidebar : public QTreeView, public WBaseWidget {
     void resetHoverIndexAndDragMoveResult();
 
     QBasicTimer m_expandTimer;
+    int m_hoverExpandDelay;
     QModelIndex m_hoverIndex;
     bool m_lastDragMoveAccepted;
 };

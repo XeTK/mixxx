@@ -141,6 +141,7 @@ case "$1" in
             qt6-qpa-plugins \
             qt6-speech-dev \
             qt6-speech-flite-plugin \
+            qt6-multimedia-dev \
             qml6-module-qt5compat-graphicaleffects \
             qml6-module-qtqml-workerscript \
             qml6-module-qtquick-controls \
@@ -149,6 +150,9 @@ case "$1" in
             qml6-module-qtquick-templates \
             qml6-module-qtquick-window \
             qml6-module-qt-labs-qmlmodels \
+            qml6-module-qtquick-dialogs \
+            qml6-module-qt-labs-folderlistmodel \
+            qml6-module-qtmultimedia \
             "${PACKAGES_EXTRA[@]}"
         ;;
     *)

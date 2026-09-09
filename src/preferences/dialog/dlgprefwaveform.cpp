@@ -1,5 +1,6 @@
 #include "preferences/dialog/dlgprefwaveform.h"
 
+#include <QLocale>
 #include <QMetaEnum>
 
 #include "control/controlpushbutton.h"
@@ -79,6 +80,11 @@ DlgPrefWaveform::DlgPrefWaveform(
             i++) {
         defaultZoomComboBox->addItem(QString::number(100 / static_cast<double>(i), 'f', 1) + " %");
     }
+
+    m_pOverviewStereoControl = std::make_unique<ControlObject>(
+            ConfigKey(kWaveformGroup,
+                    QStringLiteral("overview_stereo_mode")));
+    m_pOverviewStereoControl->setReadOnly();
 
     m_pOverviewMinuteMarkersControl = std::make_unique<ControlObject>(
             ConfigKey(kWaveformGroup, QStringLiteral("draw_overview_minute_markers")));
@@ -196,6 +202,10 @@ DlgPrefWaveform::DlgPrefWaveform(
             &QCheckBox::toggled,
             this,
             &DlgPrefWaveform::slotSetOverviewMinuteMarkers);
+    connect(overviewStereoCheckBox,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefWaveform::slotSetOverviewStereoMode);
 
     connect(factory,
             &WaveformWidgetFactory::waveformMeasured,
@@ -257,10 +267,10 @@ DlgPrefWaveform::~DlgPrefWaveform() {
 }
 
 void DlgPrefWaveform::slotSetWaveformOptions(
-        allshader::WaveformRendererSignalBase::Option option, bool enabled) {
+        WaveformRendererSignalBase::Option option, bool enabled) {
     auto type = static_cast<WaveformWidgetType::Type>(waveformTypeComboBox->currentData().toInt());
-    allshader::WaveformRendererSignalBase::Options supportedOptions =
-            allshader::WaveformRendererSignalBase::Option::None;
+    WaveformRendererSignalBase::Options supportedOptions =
+            WaveformRendererSignalBase::Option::None;
 
 #ifdef MIXXX_USE_QOPENGL
     auto* pFactory = WaveformWidgetFactory::instance();
@@ -271,9 +281,9 @@ void DlgPrefWaveform::slotSetWaveformOptions(
     }
 #endif
 
-    allshader::WaveformRendererSignalBase::Options currentOption = m_pConfig->getValue(
+    WaveformRendererSignalBase::Options currentOption = m_pConfig->getValue(
             kWaveformOptionsKey,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
     currentOption.setFlag(option, enabled);
     // clear unsupported options
     currentOption &= supportedOptions;
@@ -311,9 +321,9 @@ void DlgPrefWaveform::slotUpdate() {
     bool useWaveform = factory->getType() != WaveformWidgetType::Empty;
     useWaveformCheckBox->setChecked(useWaveform);
 
-    allshader::WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
+    WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
             kWaveformOptionsKey,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
     WaveformWidgetBackend backend = m_pConfig->getValue(
             kHardwareAccelerationKey,
             factory->preferredBackend());
@@ -369,6 +379,11 @@ void DlgPrefWaveform::slotUpdate() {
         overview_scale_allReplayGain->setChecked(true);
     }
 
+    bool overviewStereo = m_pConfig->getValue(
+            ConfigKey(kWaveformGroup, QStringLiteral("overview_stereo_mode")), true);
+    overviewStereoCheckBox->setChecked(overviewStereo);
+    m_pOverviewStereoControl->forceSet(overviewStereo);
+
     bool drawOverviewMinuteMarkers = m_pConfig->getValue(
             ConfigKey(kWaveformGroup, QStringLiteral("draw_overview_minute_markers")), true);
     overviewMinuteMarkersCheckBox->setChecked(drawOverviewMinuteMarkers);
@@ -403,11 +418,11 @@ void DlgPrefWaveform::slotResetToDefaults() {
     updateWaveformAcceleration(WaveformWidgetFactory::defaultType(), defaultBackend);
     updateWaveformTypeOptions(true,
             defaultBackend,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
 
     // Restore waveform backend and option setting instantly
     m_pConfig->setValue(kWaveformOptionsKey,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
     m_pConfig->setValue(kHardwareAccelerationKey, defaultBackend);
     factory->setWidgetTypeFromHandle(
             factory->findHandleIndexFromType(
@@ -427,6 +442,9 @@ void DlgPrefWaveform::slotResetToDefaults() {
     // RGB overview.
     waveformOverviewComboBox->setCurrentIndex(
             waveformOverviewComboBox->findData(QVariant::fromValue(OverviewType::RGB)));
+
+    // Default to overview stereo mode
+    overviewStereoCheckBox->setChecked(true);
 
     // Show minute markers.
     overviewMinuteMarkersCheckBox->setChecked(true);
@@ -493,9 +511,9 @@ void DlgPrefWaveform::slotSetWaveformType(int index) {
     // Now set the new type
     factory->setWidgetTypeFromHandle(factory->findHandleIndexFromType(type));
 
-    allshader::WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
+    WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
             kWaveformOptionsKey,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
     updateWaveformTypeOptions(true, backend, currentOptions);
     updateEnableUntilMark();
     updateStemOptionsEnabled();
@@ -530,9 +548,9 @@ void DlgPrefWaveform::slotSetWaveformAcceleration(bool checked) {
     auto type = static_cast<WaveformWidgetType::Type>(waveformTypeComboBox->currentData().toInt());
     auto* factory = WaveformWidgetFactory::instance();
     factory->setWidgetTypeFromHandle(factory->findHandleIndexFromType(type), true);
-    allshader::WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
+    WaveformRendererSignalBase::Options currentOptions = m_pConfig->getValue(
             kWaveformOptionsKey,
-            allshader::WaveformRendererSignalBase::Option::None);
+            WaveformRendererSignalBase::Option::None);
     updateWaveformTypeOptions(true, backend, currentOptions);
     updateEnableUntilMark();
     updateStemOptionsEnabled();
@@ -568,14 +586,14 @@ void DlgPrefWaveform::updateWaveformAcceleration(
 
 void DlgPrefWaveform::updateWaveformTypeOptions(bool useWaveform,
         WaveformWidgetBackend backend,
-        allshader::WaveformRendererSignalBase::Options currentOptions) {
+        WaveformRendererSignalBase::Options currentOptions) {
     splitLeftRightCheckBox->blockSignals(true);
     highDetailCheckBox->blockSignals(true);
 
 #ifdef MIXXX_USE_QOPENGL
     WaveformWidgetFactory* factory = WaveformWidgetFactory::instance();
-    allshader::WaveformRendererSignalBase::Options supportedOptions =
-            allshader::WaveformRendererSignalBase::Option::None;
+    WaveformRendererSignalBase::Options supportedOptions =
+            WaveformRendererSignalBase::Option::None;
 
     auto type = static_cast<WaveformWidgetType::Type>(waveformTypeComboBox->currentData().toInt());
     int handleIdx = factory->findHandleIndexFromType(type);
@@ -718,6 +736,11 @@ void DlgPrefWaveform::slotSetOverviewMinuteMarkers(bool draw) {
     m_pOverviewMinuteMarkersControl->forceSet(draw);
 }
 
+void DlgPrefWaveform::slotSetOverviewStereoMode(bool stereo) {
+    m_pConfig->setValue(ConfigKey(kWaveformGroup, QStringLiteral("overview_stereo_mode")), stereo);
+    m_pOverviewStereoControl->forceSet(stereo);
+}
+
 void DlgPrefWaveform::slotWaveformMeasured(float frameRate, int droppedFrames) {
     frameRateAverage->setText(
             QString::number((double)frameRate, 'f', 2) + " : " +
@@ -791,10 +814,7 @@ void DlgPrefWaveform::calculateCachedWaveformDiskUsage() {
     size_t numBytes = analysisDao.getDiskUsageInBytes(dbConnection, AnalysisDao::TYPE_WAVEFORM) +
             analysisDao.getDiskUsageInBytes(dbConnection, AnalysisDao::TYPE_WAVESUMMARY);
 
-    // Display total cached waveform size in mebibytes with 2 decimals.
-    QString sizeMebibytes = QString::number(
-            numBytes / (1024.0 * 1024.0), 'f', 2);
-
+    QString sizeText = QLocale().formattedDataSize(numBytes, 1, QLocale::DataSizeSIFormat);
     waveformDiskUsage->setText(
-            tr("Cached waveforms occupy %1 MiB on disk.").arg(sizeMebibytes));
+            tr("Cached waveforms occupy %1 on disk.").arg(sizeText));
 }
