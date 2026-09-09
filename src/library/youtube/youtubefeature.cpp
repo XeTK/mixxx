@@ -98,7 +98,8 @@ void YouTubeFeature::activate() {
     emit showTrackModel(m_pSearchModel);
     emit enableCoverArtDisplay(false);
     m_pLibrary->announceText(
-            tr("YouTube search. Type in the search box to find tracks."));
+            tr("YouTube search. Type in the search box to find Creative "
+               "Commons tracks."));
 }
 
 void YouTubeFeature::activateChild(const QModelIndex& index) {
