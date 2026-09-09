@@ -156,7 +156,6 @@ void DlgYouTubeCc::onSearch(const QString& text) {
     const QString query = text.trimmed();
     if (query.isEmpty()) {
         m_pSearchTask->abort();
-        m_pProgress->setVisible(false);
         m_currentResults.clear();
         m_pResults->clearContents();
         m_pResults->setRowCount(0);
@@ -165,9 +164,6 @@ void DlgYouTubeCc::onSearch(const QString& text) {
         return;
     }
     setStatus(tr("Searching…"));
-    // Range 0,0 makes the progress bar an indeterminate "busy" spinner.
-    m_pProgress->setRange(0, 0);
-    m_pProgress->setVisible(true);
     m_pSearchTask->setYtDlpPath(ytDlpPath());
     m_pSearchTask->search(query);
 }
@@ -182,7 +178,6 @@ QString DlgYouTubeCc::cacheDir() const {
 }
 
 void DlgYouTubeCc::slotSearchSucceeded(const QList<YouTubeCcTrack>& results) {
-    m_pProgress->setVisible(false);
     m_currentResults = results;
     m_pResults->clearContents();
     m_pResults->setRowCount(results.size());
@@ -203,7 +198,6 @@ void DlgYouTubeCc::slotSearchSucceeded(const QList<YouTubeCcTrack>& results) {
 }
 
 void DlgYouTubeCc::slotSearchFailed(const QString& message) {
-    m_pProgress->setVisible(false);
     setStatus(tr("Search failed: %1").arg(message));
 }
 
@@ -231,8 +225,6 @@ void DlgYouTubeCc::startDownload(int row) {
     const YouTubeCcTrack& track = m_currentResults.at(row);
     m_pDownloader->setYtDlpPath(ytDlpPath());
     m_pDownloader->setCacheDir(cacheDir());
-    // Determinate progress for downloads (search uses indeterminate mode).
-    m_pProgress->setRange(0, 100);
     m_pProgress->setValue(0);
     m_pProgress->setVisible(true);
     m_pLoadButton->setEnabled(false);
