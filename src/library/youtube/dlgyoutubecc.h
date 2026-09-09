@@ -1,10 +1,7 @@
 #pragma once
 
 #include <QList>
-#include <QString>
 #include <QWidget>
-#include <memory>
-#include <vector>
 
 #include "library/libraryview.h"
 #include "library/youtube/youtubecctrack.h"
@@ -13,10 +10,8 @@
 
 class Library;
 class WLibrary;
-class KeyboardEventFilter;
 class YouTubeCcSearchTask;
 class YouTubeCcDownloader;
-class ControlProxy;
 class QTableWidget;
 class QPushButton;
 class QLabel;
@@ -32,7 +27,7 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     Q_OBJECT
   public:
     DlgYouTubeCc(WLibrary* parent, UserSettingsPointer pConfig, Library* pLibrary);
-    ~DlgYouTubeCc() override;
+    ~DlgYouTubeCc() override = default;
 
     // LibraryView
     void onShow() override;
@@ -40,13 +35,8 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     void setFocus() override;
     void onSearch(const QString& text) override;
 
-    /// Install Mixxx's keyboard event filter on the results table so library
-    /// keyboard shortcuts (e.g. Shift+Left/Right to load to a deck) work here.
-    void installKeyboardFilter(KeyboardEventFilter* pKeyboard);
-
   signals:
     void loadTrack(TrackPointer pTrack);
-    void loadTrackToPlayer(TrackPointer pTrack, const QString& group, bool play);
     void trackSelected(TrackPointer pTrack);
     /// Emitted after a track has been downloaded and added to the library.
     void downloaded();
@@ -63,17 +53,9 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
 
   private:
     void setupUi();
-    /// Observe the [ChannelN],LoadSelectedTrack(AndPlay) controls so the deck
-    /// load shortcuts (Shift+Left/Right by default) work on search results.
-    void setupLoadShortcuts();
-    /// Download the selected result and load it to the given deck group. Called
-    /// from the deck-load shortcuts; ignored unless this view is active.
-    void loadSelectedToGroup(const QString& group, bool play);
     QString ytDlpPath() const;
     QString cacheDir() const;
-    /// Download row and, on success, load it. An empty group loads via the
-    /// generic loadTrack() path; a non-empty group loads to that deck.
-    void startDownload(int row, const QString& group = QString(), bool play = false);
+    void startDownload(int row);
     void setStatus(const QString& message);
 
     UserSettingsPointer m_pConfig;
@@ -87,8 +69,4 @@ class DlgYouTubeCc : public QWidget, public virtual LibraryView {
     YouTubeCcSearchTask* m_pSearchTask;
     YouTubeCcDownloader* m_pDownloader;
     QList<YouTubeCcTrack> m_currentResults;
-    std::vector<std::unique_ptr<ControlProxy>> m_loadControls;
-    // Deck to load the current download into (empty = generic preview load).
-    QString m_pendingLoadGroup;
-    bool m_pendingLoadPlay = false;
 };

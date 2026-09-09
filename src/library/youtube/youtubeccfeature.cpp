@@ -49,17 +49,6 @@ void YouTubeCcFeature::bindLibraryWidget(WLibrary* libraryWidget,
             this,
             &YouTubeCcFeature::loadTrack);
     connect(m_pSearchView,
-            &DlgYouTubeCc::loadTrackToPlayer,
-            this,
-            [this](TrackPointer pTrack, const QString& group, bool play) {
-                emit loadTrackToPlayer(pTrack,
-                        group,
-#ifdef __STEM__
-                        mixxx::StemChannelSelection(),
-#endif
-                        play);
-            });
-    connect(m_pSearchView,
             &DlgYouTubeCc::trackSelected,
             this,
             &YouTubeCcFeature::trackSelected);
@@ -68,7 +57,6 @@ void YouTubeCcFeature::bindLibraryWidget(WLibrary* libraryWidget,
             this,
             &YouTubeCcFeature::slotDownloaded);
     m_pSearchView->installEventFilter(keyboard);
-    m_pSearchView->installKeyboardFilter(keyboard);
     libraryWidget->registerView(kSearchViewName, m_pSearchView);
 }
 

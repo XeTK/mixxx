@@ -42,10 +42,7 @@ The feature follows the standard Mixxx layout instead of a bespoke panel:
 
 Search results themselves stay a lightweight custom list, because they are
 remote videos with no local file / analysis until downloaded, so they can't be
-a native track table. The standard **load-to-deck shortcuts still work on
-them** (e.g. Shift+Left / Shift+Right): `DlgYouTubeCc` observes the
-`[ChannelN],LoadSelectedTrack(AndPlay)` controls and, when its view is active,
-downloads the selected result and loads it to that deck.
+a native track table.
 
 ## One-time setup
 
