@@ -149,6 +149,13 @@ class ControllerScriptEngineLegacyTest : public ControllerScriptEngineLegacy,
         CoverArtCache::destroy();
         ControllerScriptEngineBase::registerPlayerManager(nullptr);
         ControllerScriptEngineBase::registerTrackCollectionManager(nullptr);
+        // KeyUtils::setNotation() mutates process-global static state
+        // (KeyUtils::s_notation). Some tests in this fixture call it to
+        // exercise KeyNotation::Custom; reset it back to the pristine
+        // default (empty map) here so that state doesn't leak into
+        // unrelated tests running later in the same test binary, which
+        // would otherwise see stale/unexpected Custom notation strings.
+        KeyUtils::setNotation({});
     }
 
     ~ControllerScriptEngineLegacyTest() {
@@ -253,8 +260,10 @@ TEST_F(ControllerScriptEngineLegacyTest, ddj400BrowseRotateDecodesTwosComplement
             QStringLiteral("/controllers/Pioneer-DDJ-400-script.js"));
     ASSERT_TRUE(evaluateScriptFile(ddj400Script));
 
-    auto pMoveVertical =
-            std::make_unique<ControlObject>(ConfigKey("[Library]", "MoveVertical"));
+    // LibraryControl (owned by the fixture's m_pLibrary) already creates a
+    // real ControlEncoder at [Library],MoveVertical, so use a ControlProxy
+    // to read it instead of constructing a second, colliding ControlObject.
+    ControlProxy pMoveVertical(ConfigKey("[Library]", "MoveVertical"));
     auto pAccessMenuActive =
             std::make_unique<ControlObject>(ConfigKey("[AccessMenu]", "active"));
     auto pAccessMenuNavigate =
@@ -264,13 +273,13 @@ TEST_F(ControllerScriptEngineLegacyTest, ddj400BrowseRotateDecodesTwosComplement
     // exactly +/-1, never the raw MIDI byte.
     pAccessMenuActive->set(0.0);
 
-    pMoveVertical->set(0.0);
+    pMoveVertical.set(0.0);
     EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x01);"));
-    EXPECT_DOUBLE_EQ(1.0, pMoveVertical->get());
+    EXPECT_DOUBLE_EQ(1.0, pMoveVertical.get());
 
-    pMoveVertical->set(0.0);
+    pMoveVertical.set(0.0);
     EXPECT_TRUE(evaluateAndAssert("PioneerDDJ400.browseRotate(6, 0x40, 0x7F);"));
-    EXPECT_DOUBLE_EQ(-1.0, pMoveVertical->get());
+    EXPECT_DOUBLE_EQ(-1.0, pMoveVertical.get());
 
     // Menu open: browseRotate() should drive [AccessMenu],navigate with
     // exactly +/-1 instead.
