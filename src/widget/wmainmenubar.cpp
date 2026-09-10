@@ -549,11 +549,10 @@ void WMainMenuBar::initialize() {
     // press before KeyboardEventFilter sees it, so this doesn't double-toggle
     // with the kbd.cfg binding — and the toggle keeps working even when
     // Mixxx keyboard shortcuts are disabled, which matters for a blind user.
-    pOptionsTts->setShortcut(
-            safeKeySequence(m_pKbdConfig->getValue(
-                    ConfigKey("[Tts]", "enabled"),
-                    QStringLiteral("Alt+Shift+A"))));
-    pOptionsTts->setShortcutContext(Qt::ApplicationShortcut);
+    m_pKeyboard->registerMenuBarActionSetShortcut(
+            pOptionsTts,
+            ConfigKey("[Tts]", "enabled"),
+            QStringLiteral("Alt+Shift+A"));
     pOptionsTts->setCheckable(true);
     pOptionsTts->setStatusTip(ttsText);
     pOptionsTts->setWhatsThis(buildWhatsThis(ttsTitle, ttsText));

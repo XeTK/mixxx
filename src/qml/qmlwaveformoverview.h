@@ -62,6 +62,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     void rendererChanged(Renderer renderer);
 #else
     void rendererChanged(mixxx::qml::QmlWaveformOverview::Renderer renderer);
+#endif
     void colorHighChanged(const QColor& color);
     void colorMidChanged(const QColor& color);
     void colorLowChanged(const QColor& color);
